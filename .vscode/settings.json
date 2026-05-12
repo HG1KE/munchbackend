@@ -1,0 +1,4 @@
+{
+    "zencoder.enableRepoIndexing": true,
+    "bitoAI.codeCompletion.enableAutoCompletion": false
+}

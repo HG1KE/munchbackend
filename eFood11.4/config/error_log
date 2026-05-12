@@ -1,0 +1,16 @@
+[06-May-2026 05:30:54 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/munchco1/app.munch.co.ke/config/database.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/munchco1/app.munch.co.ke/config/database.php on line 18
+[06-May-2026 05:30:55 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/munchco1/app.munch.co.ke/config/mail.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/munchco1/app.munch.co.ke/config/mail.php on line 16
+[06-May-2026 05:30:55 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/munchco1/app.munch.co.ke/config/app.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/munchco1/app.munch.co.ke/config/app.php on line 16
+[06-May-2026 05:30:55 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/munchco1/app.munch.co.ke/config/services.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/munchco1/app.munch.co.ke/config/services.php on line 18
