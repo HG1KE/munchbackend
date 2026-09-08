@@ -39,6 +39,7 @@ run_as_app git checkout "${REPO_BRANCH}"
 run_as_app git pull --ff-only origin "${REPO_BRANCH}"
 
 install_public_front_controller "${SCRIPT_DIR}"
+install_nginx_site "${SCRIPT_DIR}"
 laravel_build
 
 CURRENT="$(run_as_app git rev-parse HEAD)"

@@ -1890,12 +1890,12 @@
             "version": "v6.10.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/firebase/php-jwt.git",
+                "url": "https://github.com/googleapis/php-jwt.git",
                 "reference": "500501c2ce893c824c801da135d02661199f60c5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/firebase/php-jwt/zipball/500501c2ce893c824c801da135d02661199f60c5",
+                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/500501c2ce893c824c801da135d02661199f60c5",
                 "reference": "500501c2ce893c824c801da135d02661199f60c5",
                 "shasum": ""
             },
@@ -3236,12 +3236,12 @@
             "version": "7.10.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/kreait/firebase-php.git",
+                "url": "https://github.com/beste/firebase-php.git",
                 "reference": "a0e50e4db4f14aa070b45dfda6bb2678b1e24d66"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kreait/firebase-php/zipball/a0e50e4db4f14aa070b45dfda6bb2678b1e24d66",
+                "url": "https://api.github.com/repos/beste/firebase-php/zipball/a0e50e4db4f14aa070b45dfda6bb2678b1e24d66",
                 "reference": "a0e50e4db4f14aa070b45dfda6bb2678b1e24d66",
                 "shasum": ""
             },
@@ -3334,12 +3334,12 @@
             "version": "4.3.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/kreait/firebase-tokens-php.git",
+                "url": "https://github.com/beste/firebase-tokens-php.git",
                 "reference": "e5a4f09d6fd5b976263e1f3418a4c19bce254ffa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kreait/firebase-tokens-php/zipball/e5a4f09d6fd5b976263e1f3418a4c19bce254ffa",
+                "url": "https://api.github.com/repos/beste/firebase-tokens-php/zipball/e5a4f09d6fd5b976263e1f3418a4c19bce254ffa",
                 "reference": "e5a4f09d6fd5b976263e1f3418a4c19bce254ffa",
                 "shasum": ""
             },
@@ -5120,12 +5120,12 @@
             "version": "2.72.5",
             "source": {
                 "type": "git",
-                "url": "https://github.com/briannesbitt/Carbon.git",
+                "url": "https://github.com/CarbonPHP/carbon.git",
                 "reference": "afd46589c216118ecd48ff2b95d77596af1e57ed"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/briannesbitt/Carbon/zipball/afd46589c216118ecd48ff2b95d77596af1e57ed",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/afd46589c216118ecd48ff2b95d77596af1e57ed",
                 "reference": "afd46589c216118ecd48ff2b95d77596af1e57ed",
                 "shasum": ""
             },
@@ -10136,12 +10136,12 @@
             "version": "v3.13.5",
             "source": {
                 "type": "git",
-                "url": "https://github.com/barryvdh/laravel-debugbar.git",
+                "url": "https://github.com/fruitcake/laravel-debugbar.git",
                 "reference": "92d86be45ee54edff735e46856f64f14b6a8bb07"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/barryvdh/laravel-debugbar/zipball/92d86be45ee54edff735e46856f64f14b6a8bb07",
+                "url": "https://api.github.com/repos/fruitcake/laravel-debugbar/zipball/92d86be45ee54edff735e46856f64f14b6a8bb07",
                 "reference": "92d86be45ee54edff735e46856f64f14b6a8bb07",
                 "shasum": ""
             },

@@ -65,7 +65,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
     });
 
     Route::group(['middleware' => ['admin']], function () {
-        Route::get('/fcm/{id}', [DashboardController::class, 'fcm'])->name('dashboard');     //test route
+        Route::get('/fcm/{id}', [DashboardController::class, 'fcm'])->name('fcm-test');
         Route::get('/', [DashboardController::class, 'dashboard'])->name('dashboard');
         Route::post('order-stats', [DashboardController::class, 'orderStats'])->name('order-stats');
         Route::get('dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live-stats');

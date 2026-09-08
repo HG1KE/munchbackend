@@ -53,3 +53,12 @@ reload_web() {
   nginx -t
   systemctl reload nginx
 }
+
+install_nginx_site() {
+  local script_dir="$1"
+  install -m 0644 "${script_dir}/nginx/portal.munch.co.ke.conf" \
+    /etc/nginx/sites-available/portal.munch.co.ke.conf
+  ln -sfn /etc/nginx/sites-available/portal.munch.co.ke.conf \
+    /etc/nginx/sites-enabled/portal.munch.co.ke.conf
+  rm -f /etc/nginx/sites-enabled/portal.munch.co.ke
+}
