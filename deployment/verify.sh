@@ -61,8 +61,9 @@ for d in storage storage/logs storage/framework/cache bootstrap/cache; do
   fi
 done
 
+# extension_loaded() — do not pipe php -m to grep -q under pipefail (SIGPIPE false negatives).
 for ext in curl openssl mbstring xml gd zip bcmath intl redis pdo_mysql exif tokenizer fileinfo; do
-  if php -m 2>/dev/null | grep -qi "^${ext}$"; then
+  if php -r "exit(extension_loaded('${ext}') ? 0 : 1);" 2>/dev/null; then
     ok "php ext ${ext}"
   else
     bad "php ext ${ext}"
@@ -136,9 +137,9 @@ else
 fi
 
 if [[ -f bootstrap/cache/config.php ]]; then
-  ok "config cached"
+  warn "config cached — unsafe until config/constant.php no longer defines PHP constants"
 else
-  warn "config not cached (php artisan config:cache)"
+  ok "config not cached (expected: config/constant.php is not cache-safe)"
 fi
 
 if [[ -f bootstrap/cache/routes-v7.php || -f bootstrap/cache/routes.php ]]; then
