@@ -17,7 +17,7 @@ class PaymobController extends Controller
 {
     use Processor;
 
-    private mixed $config_values;
+    private mixed $config_values = [];
 
     private PaymentRequest $payment;
     private User $user;
@@ -42,7 +42,7 @@ class PaymobController extends Controller
         }
         $this->payment = $payment;
         $this->user = $user;
-        $country = $this->config_values['supported_country'];
+        $country = is_array($this->config_values) ? ($this->config_values['supported_country'] ?? '') : '';
         if (array_key_exists($country, $this->supportedCountries)) {
             $this->base_url = $this->supportedCountries[$country];
         } else {
