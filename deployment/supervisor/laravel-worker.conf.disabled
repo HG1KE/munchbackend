@@ -1,0 +1,18 @@
+; Enable later: copy this file to laravel-worker.conf (suffix must be .conf)
+; then: supervisorctl reread && supervisorctl update
+; Leave QUEUE_CONNECTION=sync until then. Ubuntu includes only conf.d/*.conf
+; so this .disabled file is never loaded.
+
+[program:portal-munch-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/bin/php8.3 /var/www/portal.munch.co.ke/artisan queue:work --queue=sms-recovery,default --sleep=1 --tries=3 --max-time=3600
+autostart=false
+autorestart=true
+startsecs=1
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/www/portal.munch.co.ke/storage/logs/worker.log
+stopwaitsecs=3600

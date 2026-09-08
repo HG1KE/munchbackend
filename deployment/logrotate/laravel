@@ -1,0 +1,9 @@
+/var/www/portal.munch.co.ke/storage/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    copytruncate
+}

@@ -17,3 +17,4 @@ yarn-error.log
 /storage/logs
 /bootstrap/cache/*.php
 *.zip
+deployment/env/.env.production

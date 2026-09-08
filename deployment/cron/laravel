@@ -1,0 +1,8 @@
+# Laravel scheduler — portal.munch.co.ke
+# Installed by server-setup.sh to /etc/cron.d/portal-munch-laravel
+# cron.d requires 0644 root:root and a username field. Do not make this file executable.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+* * * * * deploy cd /var/www/portal.munch.co.ke && /usr/bin/php8.3 artisan schedule:run >> /dev/null 2>&1

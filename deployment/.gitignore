@@ -1,0 +1,8 @@
+# Filled production env copied from the template — never commit
+env/.env.production
+.env
+*.key
+*.pem
+*.crt
+*.p12
+*.json
