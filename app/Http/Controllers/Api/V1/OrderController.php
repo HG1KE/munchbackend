@@ -264,7 +264,7 @@ class OrderController extends Controller
             }
         }
 
-        if (filter_var((string) env('TAKEAWAY_CONTACT_DEBUG', ''), FILTER_VALIDATE_BOOLEAN)) {
+        if (config('app.takeaway_contact_debug')) {
             Log::debug('place_order_takeaway_contact', [
                 'order_type' => $request['order_type'],
                 'resolved_delivery_address' => $resolvedDeliveryAddressForOrder !== null,

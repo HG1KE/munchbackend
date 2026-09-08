@@ -68,6 +68,25 @@ class SMS_module
         return 'not_found';
     }
 
+    /**
+     * OTP send used by auth controllers. Prefers the CodeCanyon Gateways
+     * module when it is published and present; otherwise uses this class.
+     */
+    public static function send_otp($receiver, $otp)
+    {
+        $publishedStatus = 0;
+        $paymentPublishedStatus = config('get_payment_publish_status');
+        if (isset($paymentPublishedStatus[0]['is_published'])) {
+            $publishedStatus = (int) $paymentPublishedStatus[0]['is_published'];
+        }
+
+        if ($publishedStatus === 1 && class_exists(\Modules\Gateways\Traits\SmsGateway::class)) {
+            return \Modules\Gateways\Traits\SmsGateway::send($receiver, $otp);
+        }
+
+        return self::send($receiver, $otp);
+    }
+
     public static function twilio($receiver, $otp)
     {
         $config = self::get_settings('twilio');

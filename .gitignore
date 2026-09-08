@@ -12,6 +12,7 @@ npm-debug.log
 yarn-error.log
 .DS_Store
 /Modules/Gateways
+/public/firebase-messaging-sw.js
 /storage/install.zip
 /storage/update.zip
 /storage/logs

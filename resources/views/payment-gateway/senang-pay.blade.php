@@ -22,7 +22,7 @@
                     @php($data->hashed_string = md5($secretkey . urldecode($data->amount) ))
 
                     <form id="form" method="post"
-                          action="https://{{env('APP_MODE')=='live'?'app.senangpay.my':'sandbox.senangpay.my'}}/payment/{{$config->merchant_id}}">
+                          action="https://{{config('app.mode')=='live'?'app.senangpay.my':'sandbox.senangpay.my'}}/payment/{{$config->merchant_id}}">
                         <input type="hidden" name="amount" value="{{$data->amount}}">
                         <input type="hidden" name="name" value="{{$data->name}}">
                         <input type="hidden" name="email" value="{{$data->email}}">

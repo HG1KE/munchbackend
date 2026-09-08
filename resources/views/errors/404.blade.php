@@ -46,7 +46,7 @@
 <div class="footer text-center">
     <ul class="list-inline list-separator">
         <li class="list-inline-item">
-            <a class="list-separator-link" target="_blank" href="{{env('APP_MODE')=='demo'?'https://6amtech.com/':''}}">{{ \App\CentralLogics\Helpers::get_business_settings('restaurant_name') }} {{ translate('Support') }}</a>
+            <a class="list-separator-link" target="_blank" href="{{config('app.mode')=='demo'?'https://6amtech.com/':''}}">{{ \App\CentralLogics\Helpers::get_business_settings('restaurant_name') }} {{ translate('Support') }}</a>
         </li>
     </ul>
 </div>

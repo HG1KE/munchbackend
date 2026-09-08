@@ -68,7 +68,7 @@
                             </div>
                             <div class="btn--container justify-content-end">
                                 <button type="reset" class="btn btn-secondary mb-2">{{translate('Reset')}}</button>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary mb-2 call-demo">{{translate('save')}}</button>
                             </div>
                         </div>

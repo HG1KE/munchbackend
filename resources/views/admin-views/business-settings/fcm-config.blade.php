@@ -42,7 +42,7 @@
             </div>
             <div class="card-body">
                 <div class="card-body">
-                    <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.third-party.update-fcm'):'javascript:'}}" method="post"
+                    <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.third-party.update-fcm'):'javascript:'}}" method="post"
                           enctype="multipart/form-data">
                         @csrf
 
@@ -54,7 +54,7 @@
                                 </i>
                             </label>
                             <textarea name="push_notification_service_file_content" class="form-control" rows="15"
-                                      required>{{env('APP_MODE')!='demo'?json_encode($serviceFileContent):''}}</textarea>
+                                      required>{{config('app.mode')!='demo'?json_encode($serviceFileContent):''}}</textarea>
                         </div>
 
                         <div class="form-group">
@@ -122,7 +122,7 @@
                         </div>
 
                         <div class="d-flex justify-content-end">
-                            <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                            <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                     class="btn btn-primary call-demo">{{translate('submit')}}</button>
                         </div>
                     </form>

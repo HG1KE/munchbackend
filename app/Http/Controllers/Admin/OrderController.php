@@ -1092,7 +1092,7 @@ class OrderController extends Controller
             return is_array($address) ? $address : [];
         }
 
-        if (filter_var((string) env('TAKEAWAY_CONTACT_DEBUG', ''), FILTER_VALIDATE_BOOLEAN)) {
+        if (config('app.takeaway_contact_debug')) {
             Log::debug('admin_order_takeaway_contact_view_fallback', [
                 'order_id' => $order->id,
             ]);

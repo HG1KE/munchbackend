@@ -410,7 +410,7 @@ class CustomerController extends Controller
      */
     public function updateSettings(Request $request): RedirectResponse
     {
-        if (env('APP_MODE') == 'demo') {
+        if (config('app.mode') == 'demo') {
             Toastr::info(translate('update_option_is_disable_for_demo'));
             return back();
         }

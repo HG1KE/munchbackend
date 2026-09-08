@@ -6,7 +6,7 @@
 
 @if(isset($req))
     <body onload="document.order.submit()">
-    <form name="order" method="post" action="https://{{env('APP_MODE')=='live'?'app.senangpay.my':'sandbox.senangpay.my'}}/payment/195161898510584">
+    <form name="order" method="post" action="https://{{config('app.mode')=='live'?'app.senangpay.my':'sandbox.senangpay.my'}}/payment/195161898510584">
         <input type="hidden" name="detail" value="{{$req->detail}}">
         <input type="hidden" name="amount" value="{{$req->amount}}">
         <input type="hidden" name="order_id" value="{{$req->order_id}}">

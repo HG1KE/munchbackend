@@ -24,7 +24,6 @@ use Illuminate\Http\JsonResponse;
 use GuzzleHttp\Client;
 use Illuminate\Support\Carbon;
 use Carbon\CarbonInterval;
-use Modules\Gateways\Traits\SmsGateway;
 
 class CustomerAuthController extends Controller
 {
@@ -190,7 +189,7 @@ class CustomerAuthController extends Controller
                 ], 403);
             }
 
-            $token = (env('APP_MODE') == 'live') ? rand(100000, 999999) : 123456;
+            $token = (config('app.mode') == 'live') ? rand(100000, 999999) : 123456;
 
             DB::table('phone_verifications')->updateOrInsert(['phone' => $request['phone']], [
                 'phone' => $request['phone'],
@@ -199,16 +198,7 @@ class CustomerAuthController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $publishedStatus = 0;
-            $paymentPublishedStatus = config('get_payment_publish_status');
-            if (isset($paymentPublishedStatus[0]['is_published'])) {
-                $publishedStatus = $paymentPublishedStatus[0]['is_published'];
-            }
-            if($publishedStatus == 1){
-                $response = SmsGateway::send($request['phone'], $token);
-            }else{
-                $response = SMS_module::send($request['phone'], $token);
-            }
+            $response = SMS_module::send_otp($request['phone'], $token);
 
             return response()->json([
                 'message' => $response,
@@ -257,7 +247,7 @@ class CustomerAuthController extends Controller
                 ], 403);
             }
 
-            $token = (env('APP_MODE') == 'live') ? rand(100000, 999999) : 123456;
+            $token = (config('app.mode') == 'live') ? rand(100000, 999999) : 123456;
 
             DB::table('email_verifications')->updateOrInsert(['email' => $request['email']], [
                 'email' => $request['email'],

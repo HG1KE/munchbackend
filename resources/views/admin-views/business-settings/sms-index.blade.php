@@ -72,7 +72,7 @@
                                                     <input type="text" class="form-control mb-3"
                                                            name="{{$key}}"
                                                            placeholder="{{translate($key)}} *"
-                                                           value="{{env('APP_MODE')=='demo'?'':$value}}">
+                                                           value="{{config('app.mode')=='demo'?'':$value}}">
                                                 </div>
                                             @endif
                                         @endforeach

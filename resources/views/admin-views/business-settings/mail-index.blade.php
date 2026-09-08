@@ -55,7 +55,7 @@
 
             @php($data= \App\CentralLogics\Helpers::get_business_settings('mail_config'))
             <div class="col-12">
-                <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.mail-config'):'javascript:'}}" method="post"
+                <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.mail-config'):'javascript:'}}" method="post"
                       enctype="multipart/form-data">
                     @csrf
                     @if(isset($data))
@@ -72,43 +72,43 @@
                                     <div class="col-sm-6">
                                         <label>{{translate('mailer_name')}}</label>
                                         <input type="text" placeholder="{{translate('ex : Alex')}}" class="form-control" name="name"
-                                            value="{{env('APP_MODE')!='demo'?$data['name']:''}}" required>
+                                            value="{{config('app.mode')!='demo'?$data['name']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('host')}}</label>
-                                        <input type="text" class="form-control" name="host" value="{{env('APP_MODE')!='demo'?$data['host']:''}}" required>
+                                        <input type="text" class="form-control" name="host" value="{{config('app.mode')!='demo'?$data['host']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('driver')}}</label>
-                                        <input type="text" class="form-control" name="driver" value="{{env('APP_MODE')!='demo'?$data['driver']:''}}" required>
+                                        <input type="text" class="form-control" name="driver" value="{{config('app.mode')!='demo'?$data['driver']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('port')}}</label>
-                                        <input type="text" class="form-control" name="port" value="{{env('APP_MODE')!='demo'?$data['port']:''}}" required>
+                                        <input type="text" class="form-control" name="port" value="{{config('app.mode')!='demo'?$data['port']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('username')}}</label>
                                         <input type="text" placeholder="{{translate('ex : ex@yahoo.com')}}" class="form-control" name="username"
-                                            value="{{env('APP_MODE')!='demo'?$data['username']:''}}" required>
+                                            value="{{config('app.mode')!='demo'?$data['username']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('email')}} {{translate('id')}}</label>
                                         <input type="text" placeholder="{{translate('ex : ex@yahoo.com')}}" class="form-control" name="email"
-                                            value="{{env('APP_MODE')!='demo'?$data['email_id']:''}}" required>
+                                            value="{{config('app.mode')!='demo'?$data['email_id']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('encryption')}}</label>
                                         <input type="text" placeholder="{{translate('ex : tls')}}" class="form-control" name="encryption"
-                                            value="{{env('APP_MODE')!='demo'?$data['encryption']:''}}" required>
+                                            value="{{config('app.mode')!='demo'?$data['encryption']:''}}" required>
                                     </div>
                                     <div class="col-sm-6">
                                         <label>{{translate('password')}}</label>
-                                        <input type="text" class="form-control" name="password" value="{{env('APP_MODE')!='demo'?$data['password']:''}}" required>
+                                        <input type="text" class="form-control" name="password" value="{{config('app.mode')!='demo'?$data['password']:''}}" required>
                                     </div>
                                 </div>
                                 <div class="btn--container mt-3">
                                     <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                                    <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                    <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                             class="btn btn-primary call-demo">{{translate('save')}}</button>
                                 </div>
                             @else

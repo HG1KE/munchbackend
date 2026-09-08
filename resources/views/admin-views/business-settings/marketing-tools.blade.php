@@ -26,7 +26,7 @@
                 <div class="card">
                     @php($meta = \App\CentralLogics\Helpers::get_business_settings('meta_pixel'))
                     <div class="card-body">
-                        <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.third-party.update-marketing-tools', ['meta']):'javascript:'}}" method="post">
+                        <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.third-party.update-marketing-tools', ['meta']):'javascript:'}}" method="post">
                             @csrf
                             <div class="d-flex justify-content-between gap-2 mb-5">
                                 <h4 class="mb-0 d-flex gap-1 text-title fz-16">
@@ -48,7 +48,7 @@
                                     <i class="tio-help-outlined"></i>
                                     {{ translate('How_It_Work') }}
                                 </a>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary px-4 call-demo">{{translate('submit')}}
                                 </button>
                             </div>
@@ -202,7 +202,7 @@
             <div class="col-lg-6">
                 <div class="card">
                     <div class="card-body">
-                        <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.third-party.update-marketing-tools', ['google']):'javascript:'}}" method="post">
+                        <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.third-party.update-marketing-tools', ['google']):'javascript:'}}" method="post">
                             @csrf
                             <div class="d-flex justify-content-between gap-2 mb-5">
                                 <h4 class="mb-0 d-flex gap-1 text-title fz-16">
@@ -227,7 +227,7 @@
                                     <i class="tio-help-outlined"></i>
                                     {{ translate('How_It_Work') }}
                                 </a>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary px-4 call-demo">{{translate('submit')}}
                                 </button>
                             </div>

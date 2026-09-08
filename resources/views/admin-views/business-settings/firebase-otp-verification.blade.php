@@ -54,13 +54,13 @@
                                 <div class="col-md-6 col-sm-6">
                                     <div class="form-group mb-0">
                                         <label class="input-label text-capitalize">{{translate('web_api_key')}}</label>
-                                        <input type="text" value="{{$firebaseOTP && env('APP_MODE')!='demo' ? $firebaseOTP['web_api_key'] : ''}}" name="web_api_key" class="form-control" placeholder="">
+                                        <input type="text" value="{{$firebaseOTP && config('app.mode')!='demo' ? $firebaseOTP['web_api_key'] : ''}}" name="web_api_key" class="form-control" placeholder="">
                                     </div>
                                 </div>
                             </div>
                             <div class="btn--container justify-content-end">
                                 <button type="reset" class="btn btn-secondary">{{translate('clear')}}</button>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary call-demo">{{translate('submit')}}</button>
                             </div>
                         </form>

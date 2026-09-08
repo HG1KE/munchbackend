@@ -26,12 +26,12 @@
         "laravel/passport": "^11.0",
         "laravel/tinker": "^2.0",
         "laravel/ui": "^4.0",
+        "lcobucci/clock": "^3.2",
         "lcobucci/jwt": "^4.1",
         "madnest/madzipper": "^1.1",
         "mercadopago/dx-php": "2.4.2",
         "nwidart/laravel-modules": "^9.0",
         "paypal/rest-api-sdk-php": "^1.6",
-        "phonepe/phonepe-pg-php-sdk": "^1.0",
         "rap2hpoutre/fast-excel": "^5.3",
         "razorpay/razorpay": "^2.5",
         "simplesoftwareio/simple-qrcode": "~4",
@@ -63,6 +63,7 @@
     },
     "autoload": {
         "files": [
+            "app/Support/legacy_constants.php",
             "app/CentralLogics/banner.php",
             "app/CentralLogics/category.php",
             "app/CentralLogics/product.php",
@@ -102,24 +103,5 @@
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
         ]
-    },
-    "repositories": [
-        {
-            "type": "package",
-            "package": [
-                {
-                    "dist": {
-                        "type": "zip",
-                        "url": "https://phonepe.mycloudrepo.io/public/repositories/phonepe-pg-php-sdk/phonepe-pg-php-sdk.zip"
-                    },
-                    "name": "phonepe/phonepe-pg-php-sdk",
-                    "version": "1.0.0",
-                    "autoload": {
-                        "classmap": ["/"]
-                    }
-                }
-            ]
-        }
-    ]
-
+    }
 }

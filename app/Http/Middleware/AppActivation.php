@@ -20,7 +20,7 @@ class AppActivation
      */
     public function handle(Request $request, Closure $next, $app_id)
     {
-        if (env('APP_MODE') != 'live') {
+        if (config('app.mode') != 'live') {
             return $next($request);
         }
 

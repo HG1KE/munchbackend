@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SslCommerzPaymentController;
 use App\Http\Controllers\StripePaymentController;
@@ -14,32 +12,17 @@ use App\Http\Controllers\FlutterwaveController;
 use App\Http\Controllers\BkashPaymentController;
 use App\Http\Controllers\MercadoPagoController;
 use App\Http\Controllers\FirebaseController;
-use Illuminate\Support\Facades\Http;
 
 /* PESPAL */
 use App\Http\Controllers\PesapalController;
+use App\Http\Controllers\LegacyWebController;
 
 /**
  * Admin login
  */
-Route::get('/', function () {
-    return redirect(\route('admin.dashboard'));
-});
+Route::get('/', [LegacyWebController::class, 'home']);
 
-Route::get('/image-proxy', function () {
-    $url = request('url');
-    if (!$url) {
-        abort(400, 'Missing url parameter');
-    }
-
-    $response = Http::withHeaders([
-        'User-Agent' => 'Laravel-Image-Proxy'
-    ])->get($url);
-
-    return response($response->body(), $response->status())
-        ->header('Content-Type', $response->header('Content-Type'))
-        ->header('Access-Control-Allow-Origin', '*');
-});
+Route::get('/image-proxy', [LegacyWebController::class, 'imageProxy']);
 
 Route::post('/subscribeToTopic', [FirebaseController::class, 'subscribeToTopic']);
 
@@ -53,13 +36,7 @@ Route::get('privacy-policy', 'HomeController@privacy_policy')->name('privacy-pol
 /**
  * Auth
  */
-Route::get('authentication-failed', function () {
-    $errors = [];
-    array_push($errors, ['code' => 'auth-001', 'message' => 'Unauthenticated.']);
-    return response()->json([
-        'errors' => $errors,
-    ], 401);
-})->name('authentication-failed');
+Route::get('authentication-failed', [LegacyWebController::class, 'authenticationFailed'])->name('authentication-failed');
 
 /**
  * Payment
@@ -171,22 +148,6 @@ if (!$is_published) {
 /**
  * Currency
  */
-Route::get('add-currency', function () {
-    $currencies = file_get_contents("installation/currency.json");
-    $decoded = json_decode($currencies, true);
-    $keep = [];
-    foreach ($decoded as $item) {
-        $keep[] = [
-            'country' => $item['name'],
-            'currency_code' => $item['code'],
-            'currency_symbol' => $item['symbol_native'],
-            'exchange_rate' => 1,
-        ];
-    }
-    DB::table('currencies')->insert($keep);
-    return response()->json(['ok']);
-});
+Route::get('add-currency', [LegacyWebController::class, 'addCurrency']);
 
-Route::get('test', function () {
-    //
-});
+Route::get('test', [LegacyWebController::class, 'test']);

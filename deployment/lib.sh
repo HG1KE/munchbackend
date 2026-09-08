@@ -37,7 +37,7 @@ install_public_front_controller() {
   fi
 }
 
-# routes/web.php (and others) use Closures — route:cache and `artisan optimize` fail.
+# routes/web.php closures were extracted so config/route/view cache is safe.
 laravel_build() {
   run_as_app composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
   run_as_app php artisan optimize:clear
@@ -45,8 +45,7 @@ laravel_build() {
     rm -f "${APP_ROOT}/public/storage"
     run_as_app php artisan storage:link
   fi
-  run_as_app php artisan config:cache
-  run_as_app php artisan view:cache
+  run_as_app php artisan optimize
 }
 
 reload_web() {

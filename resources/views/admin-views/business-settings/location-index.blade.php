@@ -16,7 +16,7 @@
 
         <div class="row g-2">
             <div class="col-12">
-                <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.restaurant.update-location'):'javascript:'}}" method="post"
+                <form action="{{config('app.mode')!='demo'?route('admin.business-settings.restaurant.update-location'):'javascript:'}}" method="post"
                       enctype="multipart/form-data">
                     @csrf
                     <div class="card">
@@ -64,7 +64,7 @@
                             </div>
                             <div class="d-flex justify-content-end gap-3">
                                 <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary call-demo">{{translate('update')}}</button>
                             </div>
                         </div>

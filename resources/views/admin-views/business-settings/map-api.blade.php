@@ -19,24 +19,24 @@
             <div class="col-sm-12 col-lg-12 mb-3 mb-lg-2">
                 <div class="card">
                     <div class="card-body">
-                        <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.third-party.map_api_settings'):'javascript:'}}" method="post"
+                        <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.third-party.map_api_settings'):'javascript:'}}" method="post"
                               enctype="multipart/form-data">
                             @csrf
                             <div class="row">
                                 @php($serverKey=\App\Model\BusinessSetting::where('key','map_api_server_key')->first()?->value )
                                 <div class="form-group col-md-6">
                                     <label class="form-label">{{translate('map_api_server')}} {{translate('key')}}</label>
-                                    <textarea name="map_api_server_key" class="form-control">{{env('APP_MODE')!='demo'?$serverKey:''}}</textarea>
+                                    <textarea name="map_api_server_key" class="form-control">{{config('app.mode')!='demo'?$serverKey:''}}</textarea>
                                 </div>
                                 @php($clientKey=\App\Model\BusinessSetting::where('key','map_api_client_key')->first()?->value)
                                 <div class="form-group col-md-6">
                                     <label class="form-label">{{translate('map_api_client')}} {{translate('key')}}</label>
-                                    <textarea name="map_api_client_key" class="form-control">{{env('APP_MODE')!='demo'?$clientKey:''}}</textarea>
+                                    <textarea name="map_api_client_key" class="form-control">{{config('app.mode')!='demo'?$clientKey:''}}</textarea>
                                 </div>
                             </div>
                             <div class="btn--container mt-3">
                                 <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary call-demo">{{translate('submit')}}</button>
                             </div>
                         </form>

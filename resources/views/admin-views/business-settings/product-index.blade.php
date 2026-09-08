@@ -36,7 +36,7 @@
                         </div>
                         <div class="btn--container">
                             <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                            <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                            <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                     class="btn btn-primary call-demo">{{translate('submit')}}</button>
                         </div>
                     </div>

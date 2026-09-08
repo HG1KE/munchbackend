@@ -37,7 +37,7 @@
                                         <textarea name="text" class="form-control" rows="6" placeholder="{{ translate('Cookies text') }}" required>{{$cookies['text']}}</textarea>
                                     </div>
                                     <div class="btn--container justify-content-end">
-                                        <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                        <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                                 class="btn btn-primary call-demo">{{translate('save')}}</button>
                                     </div>
 

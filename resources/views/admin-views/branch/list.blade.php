@@ -149,7 +149,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    @if(env('APP_MODE')!='demo' || $branch['id']!=1)
+                                    @if(config('app.mode')!='demo' || $branch['id']!=1)
                                         <div class="d-flex justify-content-center gap-3">
                                             <a class="btn btn-outline-secondary btn-sm square-btn"
                                                href="{{ route('admin.business-settings.restaurant.delivery-fee-setup') }}">

@@ -29,6 +29,16 @@ return [
     'env' => env('APP_ENV', 'production'),
 
     /*
+    | eFood APP_MODE (live|demo|dev). Must live in config so config:cache
+    | does not make env('APP_MODE') return null and pin OTPs to 123456.
+    */
+    'mode' => env('APP_MODE', 'live'),
+
+    'memory_limit' => env('APP_MEMORY_LIMIT', '512M'),
+
+    'takeaway_contact_debug' => filter_var((string) env('TAKEAWAY_CONTACT_DEBUG', ''), FILTER_VALIDATE_BOOLEAN),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------

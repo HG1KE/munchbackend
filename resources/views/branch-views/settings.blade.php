@@ -187,7 +187,7 @@
         'use strict';
 
         $('#saveChangesButton').click(function() {
-            if ('{{ env('APP_MODE') }}' === 'demo') {
+            if ('{{ config('app.mode') }}' === 'demo') {
                 call_demo();
             } else {
                 form_alert('branch-settings-form', '{{ translate("Want to update the information ?") }}');
@@ -195,7 +195,7 @@
         });
 
         $('#savePasswordButton').click(function() {
-            if ('{{ env('APP_MODE') }}' === 'demo') {
+            if ('{{ config('app.mode') }}' === 'demo') {
                 call_demo();
             } else {
                 form_alert('changePasswordForm', '{{ translate("Want to update the password ?") }}');

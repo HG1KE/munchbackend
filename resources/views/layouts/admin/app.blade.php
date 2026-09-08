@@ -406,7 +406,7 @@
     }
 
     $('.call-demo').click(function() {
-        if ('{{ env('APP_MODE') }}' === 'demo') {
+        if ('{{ config('app.mode') }}' === 'demo') {
             call_demo();
         }
     });
@@ -414,7 +414,7 @@
 
 {{-- Internet Status Check --}}
 <script>
-    @if(env('APP_MODE')=='live')
+    @if(config('app.mode')=='live')
     //Internet Status Check
     window.addEventListener('online', function() {
         toastr.success('{{translate('Became online')}}');

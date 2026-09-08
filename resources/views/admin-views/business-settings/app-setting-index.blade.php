@@ -24,7 +24,7 @@
                     <div class="card-body">
                         @php($config=\App\CentralLogics\Helpers::get_business_settings('play_store_config'))
                         <form
-                            action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.system-setup.app_setting',['platform' => 'android']):'javascript:'}}"
+                            action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.system-setup.app_setting',['platform' => 'android']):'javascript:'}}"
                             method="post">
                             @csrf
                             <div class="form-group">
@@ -57,8 +57,8 @@
 
                             <div class="btn--container">
                                 <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
-                                        onclick="{{env('APP_MODE')!='demo'?'':'call_demo()'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
+                                        onclick="{{config('app.mode')!='demo'?'':'call_demo()'}}"
                                         class="btn btn-primary">{{translate('save')}}</button>
                             </div>
                         </form>
@@ -72,7 +72,7 @@
                     </div>
                     <div class="card-body">
                         @php($config=\App\CentralLogics\Helpers::get_business_settings('app_store_config'))
-                        <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.system-setup.app_setting',['platform' => 'ios']):'javascript:'}}"
+                        <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.system-setup.app_setting',['platform' => 'ios']):'javascript:'}}"
                             method="post">
                             @csrf
                             <div class="form-group">
@@ -104,7 +104,7 @@
 
                             <div class="btn--container">
                                 <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                         class="btn btn-primary call-demo">{{translate('save')}}</button>
                             </div>
                         </form>

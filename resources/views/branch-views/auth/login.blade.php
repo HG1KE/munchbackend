@@ -145,7 +145,7 @@
                     </div>
                 </form>
 
-                @if(env('APP_MODE')=='demo')
+                @if(config('app.mode')=='demo')
                     <div class="border-top mt-4 pt-4" style="border-color:#e2e8f0 !important;">
                         <div class="row align-items-center">
                             <div class="col-10 text-left">
@@ -275,7 +275,7 @@
     }
 </script>
 
-@if(env('APP_MODE')=='demo')
+@if(config('app.mode')=='demo')
     <script>
         "use strict";
 

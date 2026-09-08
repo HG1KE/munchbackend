@@ -93,7 +93,7 @@
                 @foreach($data_values as $payment)
                     <div class="col-md-6 mb-5">
                         <div class="card">
-                            <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.payment-config-update'):'javascript:'}}" method="POST"
+                            <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.payment-config-update'):'javascript:'}}" method="POST"
                                   id="{{$payment->key_name}}-form" enctype="multipart/form-data">
                                 @csrf
                                 <div class="card-header d-flex flex-wrap align-content-around">
@@ -160,7 +160,7 @@
                                                 <input type="text" class="form-control"
                                                        name="{{$key}}"
                                                        placeholder="{{ucwords(str_replace('_',' ',$key))}} *"
-                                                       value="{{env('APP_MODE')=='demo'?'':$value}}">
+                                                       value="{{config('app.mode')=='demo'?'':$value}}">
                                             </div>
                                         @endif
                                     @endforeach
@@ -181,7 +181,7 @@
                                     </div>
 
                                     <div class="text-right mt-4">
-                                        <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                        <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                                 class="btn btn-primary px-5 call-demo">{{translate('save')}}</button>
                                     </div>
                                 </div>

@@ -56,7 +56,7 @@
             </div>
 
             <div class="col-lg-9">
-                <form action="{{env('APP_MODE')!='demo'?route('admin.settings'):'javascript:'}}" method="post" enctype="multipart/form-data" id="admin-settings-form">
+                <form action="{{config('app.mode')!='demo'?route('admin.settings'):'javascript:'}}" method="post" enctype="multipart/form-data" id="admin-settings-form">
                 @csrf
                     <div class="card mb-3 mb-lg-5" id="generalDiv">
                         <div class="profile-cover">
@@ -199,7 +199,7 @@
     <script src="{{ asset('public/assets/admin/js/settings.js') }}"></script>
     <script>
         $('#saveChangesButton').click(function() {
-            if ('{{ env('APP_MODE') }}' === 'demo') {
+            if ('{{ config('app.mode') }}' === 'demo') {
                 call_demo();
             } else {
                 form_alert('admin-settings-form', '{{ translate("Want to update the information ?") }}');
@@ -207,7 +207,7 @@
         });
 
         $('#savePasswordButton').click(function() {
-            if ('{{ env('APP_MODE') }}' === 'demo') {
+            if ('{{ config('app.mode') }}' === 'demo') {
                 call_demo();
             } else {
                 form_alert('changePasswordForm', '{{ translate("Want to update the password ?") }}');

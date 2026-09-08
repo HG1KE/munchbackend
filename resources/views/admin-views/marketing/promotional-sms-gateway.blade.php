@@ -35,15 +35,15 @@
 
                     <div class="form-group mb-3">
                         <label class="form-label">{{ translate('api_key') }}</label>
-                        <input type="text" class="form-control" name="api_key" value="{{ env('APP_MODE')=='demo' ? '' : ($values['api_key'] ?? '') }}">
+                        <input type="text" class="form-control" name="api_key" value="{{ config('app.mode')=='demo' ? '' : ($values['api_key'] ?? '') }}">
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label">{{ translate('partner_id') }}</label>
-                        <input type="text" class="form-control" name="partner_id" value="{{ env('APP_MODE')=='demo' ? '' : ($values['partner_id'] ?? '') }}">
+                        <input type="text" class="form-control" name="partner_id" value="{{ config('app.mode')=='demo' ? '' : ($values['partner_id'] ?? '') }}">
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label">{{ translate('sender_id') }}</label>
-                        <input type="text" class="form-control" name="sender_id" value="{{ env('APP_MODE')=='demo' ? '' : ($values['sender_id'] ?? '') }}">
+                        <input type="text" class="form-control" name="sender_id" value="{{ config('app.mode')=='demo' ? '' : ($values['sender_id'] ?? '') }}">
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label">{{ translate('http_timeout_seconds') }}</label>

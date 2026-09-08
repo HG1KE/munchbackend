@@ -300,7 +300,7 @@
         "use strict";
 
         $('#upload_theme').on('click', function() {
-            if ("{{env('APP_MODE')}}" != 'demo') {
+            if ("{{config('app.mode')}}" != 'demo') {
                 zip_upload();
             } else {
                 call_demo();

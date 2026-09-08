@@ -212,7 +212,7 @@
     }
 
     $('.call-demo').click(function() {
-        if ('{{ env('APP_MODE') }}' === 'demo') {
+        if ('{{ config('app.mode') }}' === 'demo') {
             call_demo();
         }
     });

@@ -233,7 +233,7 @@
                                     @php($data->hashed_string = md5($secretkey . urldecode($data->detail) . urldecode($data->amount) . urldecode($data->order_id)))
 
                                     <form name="order" method="post"
-                                          action="https://{{env('APP_MODE')=='live'?'app.senangpay.my':'sandbox.senangpay.my'}}/payment/{{$config['merchant_id']}}">
+                                          action="https://{{config('app.mode')=='live'?'app.senangpay.my':'sandbox.senangpay.my'}}/payment/{{$config['merchant_id']}}">
                                         <input type="hidden" name="detail" value="{{$data->detail}}">
                                         <input type="hidden" name="amount" value="{{$data->amount}}">
                                         <input type="hidden" name="order_id" value="{{$data->order_id}}">
@@ -466,7 +466,7 @@
 {{--@php($config=\App\CentralLogics\Helpers::get_business_settings('bkash'))
 @if(isset($config) && $config['status'])
     --}}{{-- BKash Starts --}}{{--
-    @if(env('APP_MODE')=='live')
+    @if(config('app.mode')=='live')
         <script id="myScript"
                 src="https://scripts.pay.bka.sh/versions/1.2.0-beta/checkout/bKash-checkout.js"></script>
     @else

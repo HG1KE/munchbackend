@@ -43,7 +43,7 @@ class EmailTemplateController extends Controller
      */
     public function updateEmailIndex(Request $request, $type, $tab): RedirectResponse
     {
-        if (env('APP_MODE') == 'demo') {
+        if (config('app.mode') == 'demo') {
             Toastr::info(translate('messages.update_option_is_disable_for_demo'));
             return back();
         }
@@ -248,7 +248,7 @@ class EmailTemplateController extends Controller
      */
     public function updateEmailStatus(Request $request, $type, $tab, $status): RedirectResponse
     {
-        if (env('APP_MODE') == 'demo') {
+        if (config('app.mode') == 'demo') {
             Toastr::info(translate('update_option_is_disable_for_demo'));
             return back();
         }

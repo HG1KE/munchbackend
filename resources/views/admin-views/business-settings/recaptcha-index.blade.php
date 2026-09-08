@@ -33,7 +33,7 @@
                 <div class="mt-4">
                     @php($config=\App\CentralLogics\Helpers::get_business_settings('recaptcha'))
                     <form
-                        action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.third-party.recaptcha_update',['recaptcha']):'javascript:'}}"
+                        action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.third-party.recaptcha_update',['recaptcha']):'javascript:'}}"
                         method="post">
                         @csrf
                         <label class="form-label text-capitalize mb-2">{{translate('status')}}</label>
@@ -51,19 +51,19 @@
                             <div class="col-sm-6">
                                 <div class="form-group">
                                     <label class="text-capitalize">{{translate('Site Key')}}</label><br>
-                                    <input type="text" class="form-control" name="site_key" value="{{env('APP_MODE')!='demo'?$config['site_key']??"":''}}">
+                                    <input type="text" class="form-control" name="site_key" value="{{config('app.mode')!='demo'?$config['site_key']??"":''}}">
                                 </div>
                             </div>
                             <div class="col-lg-6">
                                 <div class="form-group">
                                     <label class="text-capitalize">{{translate('Secret Key')}}</label><br>
-                                    <input type="text" class="form-control" name="secret_key" value="{{env('APP_MODE')!='demo'?$config['secret_key']??"":''}}">
+                                    <input type="text" class="form-control" name="secret_key" value="{{config('app.mode')!='demo'?$config['secret_key']??"":''}}">
                                 </div>
                             </div>
                         </div>
 
                         <div class="btn--container">
-                            <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                            <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                     class="btn btn-primary call-demo">{{translate('save')}}</button>
                         </div>
                     </form>

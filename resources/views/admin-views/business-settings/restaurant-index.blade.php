@@ -928,7 +928,7 @@
             </div>
             <div class="btn--container mt-4">
                 <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                         class="btn btn-primary call-demo">{{translate('submit')}}</button>
             </div>
         </form>
@@ -1138,7 +1138,7 @@
                     <div class="modal-footer">
                         <div class="btn--container justify-content-end">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal" id="cancelButton">{{ translate('Cancel') }}</button>
-                            <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}" class="btn btn-primary call-demo">{{ translate('Save') }}</button>
+                            <button type="{{config('app.mode')!='demo'?'submit':'button'}}" class="btn btn-primary call-demo">{{ translate('Save') }}</button>
                         </div>
                     </div>
                 </form>
@@ -1301,7 +1301,7 @@
     </script>
 
     <script>
-        @if(env('APP_MODE')=='demo')
+        @if(config('app.mode')=='demo')
         function maintenance_mode() {
             toastr.info('{{translate('Disabled for demo version!')}}')
         }

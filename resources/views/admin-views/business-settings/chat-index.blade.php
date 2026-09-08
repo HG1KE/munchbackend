@@ -20,7 +20,7 @@
                 <div class="card">
                     @php($config=\App\CentralLogics\Helpers::get_business_settings('whatsapp'))
                     @if($config)
-                        <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.third-party.chat-update',['whatsapp']):'javascript:'}}"
+                        <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.third-party.chat-update',['whatsapp']):'javascript:'}}"
                             method="post">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
@@ -39,7 +39,7 @@
                                            value="{{$config['number'] ?? ''}}" placeholder="{{ translate('WhatsApp Number') }}">
                                 </div>
                                 <div class="btn--container">
-                                    <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                    <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                             class="btn btn-primary mb-2 call-demo">{{translate('save')}}
                                     </button>
                                 </div>

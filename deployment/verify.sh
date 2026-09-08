@@ -70,6 +70,15 @@ for ext in curl openssl mbstring xml gd zip bcmath intl redis pdo_mysql exif tok
   fi
 done
 
+if command -v composer >/dev/null 2>&1 && [[ -f composer.lock ]]; then
+  if composer check-platform-reqs --no-dev >/dev/null 2>&1; then
+    ok "composer platform requirements (no-dev)"
+  else
+    bad "composer check-platform-reqs --no-dev failed"
+    composer check-platform-reqs --no-dev || true
+  fi
+fi
+
 if command -v redis-cli >/dev/null 2>&1 && redis-cli -h 127.0.0.1 ping 2>/dev/null | grep -q PONG; then
   ok "Redis ping 127.0.0.1"
 else
@@ -137,13 +146,15 @@ else
 fi
 
 if [[ -f bootstrap/cache/config.php ]]; then
-  warn "config cached — unsafe until config/constant.php no longer defines PHP constants"
+  ok "config cached"
 else
-  ok "config not cached (expected: config/constant.php is not cache-safe)"
+  warn "config not cached — deploy.sh runs artisan optimize"
 fi
 
 if [[ -f bootstrap/cache/routes-v7.php || -f bootstrap/cache/routes.php ]]; then
-  warn "route cache present — this app has Closures and should not use route:cache"
+  ok "route cache present"
+else
+  warn "route cache missing — deploy.sh runs artisan optimize"
 fi
 
 exit "${FAIL}"

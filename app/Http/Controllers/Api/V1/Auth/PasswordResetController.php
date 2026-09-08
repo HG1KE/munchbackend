@@ -16,7 +16,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use Modules\Gateways\Traits\SmsGateway;
 
 class PasswordResetController extends Controller
 {
@@ -66,7 +65,7 @@ class PasswordResetController extends Controller
             ], 403);
         }
 
-        $token = (env('APP_MODE') == 'live') ? rand(100000, 999999) : 123456;
+        $token = (config('app.mode') == 'live') ? rand(100000, 999999) : 123456;
 
         DB::table('password_resets')->updateOrInsert(['email_or_phone' => $request['email_or_phone']], [
             'token' => $token,
@@ -80,16 +79,7 @@ class PasswordResetController extends Controller
                 return response()->json(['errors' => [['code' => 'otp', 'message' => translate('Unable to send OTP')]]], 404);
             }
 
-            $publishedStatus = 0;
-            $paymentPublishedStatus = config('get_payment_publish_status');
-            if (isset($paymentPublishedStatus[0]['is_published'])) {
-                $publishedStatus = $paymentPublishedStatus[0]['is_published'];
-            }
-            if($publishedStatus == 1){
-                $response = SmsGateway::send($customer['phone'], $token);
-            }else{
-                $response = SMS_module::send($customer['phone'], $token);
-            }
+            $response = SMS_module::send_otp($customer['phone'], $token);
             return response()->json(['message' => $response], 200);
         } else{
             try {

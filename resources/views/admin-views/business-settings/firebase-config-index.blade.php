@@ -18,7 +18,7 @@
         <div class="row gx-2 gx-lg-3">
             @php($data=\App\CentralLogics\Helpers::get_business_settings('firebase_message_config'))
             <div class="col-sm-12 col-lg-12 mb-3 mb-lg-2">
-                <form action="{{env('APP_MODE')!='demo'?route('admin.business-settings.web-app.system-setup.firebase_message_config'):'javascript:'}}" method="post"
+                <form action="{{config('app.mode')!='demo'?route('admin.business-settings.web-app.system-setup.firebase_message_config'):'javascript:'}}" method="post"
                       enctype="multipart/form-data">
                     @csrf
                     <div class="card">
@@ -27,37 +27,37 @@
                                 <div class="form-group">
                                     <label>{{translate('API Key')}}</label>
                                     <input type="text" placeholder="" class="form-control" name="apiKey"
-                                        value="{{env('APP_MODE')!='demo'?$data['apiKey']:''}}" required autocomplete="off">
+                                        value="{{config('app.mode')!='demo'?$data['apiKey']:''}}" required autocomplete="off">
                                 </div>
 
                                 <div class="form-group">
                                     <label>{{translate('Auth Domain')}}</label>
-                                    <input type="text" class="form-control" name="authDomain" value="{{env('APP_MODE')!='demo'?$data['authDomain']:''}}" required autocomplete="off">
+                                    <input type="text" class="form-control" name="authDomain" value="{{config('app.mode')!='demo'?$data['authDomain']:''}}" required autocomplete="off">
                                 </div>
                                 <div class="form-group">
                                     <label>{{translate('Project ID')}}</label>
-                                    <input type="text" class="form-control" name="projectId" value="{{env('APP_MODE')!='demo'?$data['projectId']:''}}" required autocomplete="off">
+                                    <input type="text" class="form-control" name="projectId" value="{{config('app.mode')!='demo'?$data['projectId']:''}}" required autocomplete="off">
                                 </div>
                                 <div class="form-group">
                                     <label>{{translate('Storage Bucket')}}</label>
-                                    <input type="text" class="form-control" name="storageBucket" value="{{env('APP_MODE')!='demo'?$data['storageBucket']:''}}" required autocomplete="off">
+                                    <input type="text" class="form-control" name="storageBucket" value="{{config('app.mode')!='demo'?$data['storageBucket']:''}}" required autocomplete="off">
                                 </div>
 
                                 <div class="form-group">
                                     <label>{{translate('Messaging Sender ID')}}</label>
                                     <input type="text" placeholder="" class="form-control" name="messagingSenderId"
-                                        value="{{env('APP_MODE')!='demo'?$data['messagingSenderId']:''}}" required autocomplete="off">
+                                        value="{{config('app.mode')!='demo'?$data['messagingSenderId']:''}}" required autocomplete="off">
                                 </div>
 
                                 <div class="form-group">
                                     <label>{{translate('App ID')}}</label>
                                     <input type="text" placeholder="" class="form-control" name="appId"
-                                        value="{{env('APP_MODE')!='demo'?$data['appId']:''}}" required autocomplete="off">
+                                        value="{{config('app.mode')!='demo'?$data['appId']:''}}" required autocomplete="off">
                                 </div>
 
                                 <div class="btn--container">
                                     <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>
-                                    <button type="{{env('APP_MODE')!='demo'?'submit':'button'}}"
+                                    <button type="{{config('app.mode')!='demo'?'submit':'button'}}"
                                             class="btn btn-primary call-demo">{{translate('save')}}</button>
                                 </div>
                             @else

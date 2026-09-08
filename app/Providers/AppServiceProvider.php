@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $memoryLimit = (string) env('APP_MEMORY_LIMIT', '512M');
+        $memoryLimit = (string) config('app.memory_limit', '512M');
         if ($memoryLimit !== '' && $memoryLimit !== '-1') {
             @ini_set('memory_limit', $memoryLimit);
         }

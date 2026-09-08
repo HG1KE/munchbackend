@@ -26,19 +26,17 @@ They are **not** executed from this phase. Do not run them against HostAfrica or
 
 Run `bootstrap.sh`, `server-setup.sh`, `deploy.sh`, and `rollback.sh` as **root**. Git, Composer, and Artisan run as `deploy`.
 
-Do **not** run `php artisan route:cache` or `php artisan optimize` on this app — `routes/web.php` uses Closures.
+`deploy.sh` runs `php artisan optimize` (config, events, routes, views). Closures were removed from `routes/web.php`.
 
 ## Phase A vs Phase B
 
 - **Phase A:** empty MySQL, generated `APP_KEY`, prove the app boots. No HostAfrica data.
 - **Phase B:** import DB dump, copy `storage/app/public`, copy `oauth-*.key`, reuse live `APP_KEY`. **No DNS cutover.**
 
-## Deploy-time files (not all in Git `public/` today)
+## Public front controller
 
-`deploy.sh` creates:
+`public/index.php` and `public/.htaccess` are tracked. `deploy.sh` still overlays them from `templates/` so a bad cPanel-era copy cannot survive a release.
 
-- `public/index.php` from `templates/public-index.php` (paths use `../`)
-- `public/.htaccess` from `templates/public.htaccess`
 - copies `firebase-messaging-sw.js` into `public/` if missing
 - `php artisan storage:link` if the symlink is absent
 
