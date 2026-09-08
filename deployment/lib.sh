@@ -46,6 +46,7 @@ laravel_build() {
     run_as_app php artisan storage:link
   fi
   run_as_app php artisan optimize
+  run_as_app php artisan view:cache
 }
 
 reload_web() {
