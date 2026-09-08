@@ -5,7 +5,6 @@ namespace App\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Storage;
 use App\Models\DeliveryChargeSetup;
 use App\Models\DeliveryChargeByArea;
 
@@ -41,23 +40,23 @@ class Branch extends Authenticatable
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/160x160/img2.jpg');
 
-        if (!is_null($image) && Storage::disk('public')->exists('branch/' . $image)) {
-            $path = asset('storage/app/public/branch/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/branch/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/160x160/img2.jpg');
     }
 
     public function getCoverImageFullPathAttribute(): string
     {
         $image = $this->cover_image ?? null;
-        $path = asset('public/assets/admin/img/160x160/img2.jpg');
 
-        if (!is_null($image) && Storage::disk('public')->exists('branch/' . $image)) {
-            $path = asset('storage/app/public/branch/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/branch/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/160x160/img2.jpg');
     }
 
     public function delivery_charge_setup()

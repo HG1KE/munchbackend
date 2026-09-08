@@ -13,6 +13,21 @@ class SMS_module
     /** Official JSON POST endpoint for standard SMS (branch alerts, customer templates). Not the OTP endpoint. */
     private const TEXTSMS_KE_SENDSMS_URL = 'https://sms.textsms.co.ke/api/services/sendsms/';
 
+    /** Global marketing / promotional TextSMS credentials (shared by abandoned checkout and future campaigns). */
+    public const PROMOTIONAL_SMS_GATEWAY_KEY = 'textsms_ke_promotional';
+
+    /** Abandoned-checkout campaign settings only (template, delays, etc.). */
+    public const ABANDONED_CHECKOUT_CAMPAIGN_KEY = 'textsms_ke_abandoned_cart';
+
+    /** Reorder-reminder campaign settings (repeat customers). */
+    public const REORDER_REMINDER_CAMPAIGN_KEY = 'textsms_ke_reorder_reminder';
+
+    /** Loyalty points credited on delivered order (template + toggle; sends via transactional gateway). */
+    public const LOYALTY_DELIVERY_CAMPAIGN_KEY = 'textsms_ke_loyalty_delivery';
+
+    /** Transactional TextSMS for customer order status / loyalty delivery (not promotional). */
+    public const TRANSACTIONAL_CUSTOMER_CONFIRM_KEY = 'textsms_ke_customer_confirm';
+
     public static function send($receiver, $otp)
     {
         $config = self::get_settings('twilio');
@@ -394,9 +409,16 @@ class SMS_module
 
         $receiver = self::textsms_ke_format_receiver($receiver);
 
-        $api_key = $config['api_key'];
-        $partner_id = $config['partner_id'];
-        $shortcode = $config['sender_id'];
+        $api_key = $config['api_key'] ?? '';
+        $partner_id = $config['partner_id'] ?? '';
+        $shortcode = $config['sender_id'] ?? '';
+        if ($api_key === '' || $partner_id === '' || $shortcode === '') {
+            if ($logLabel !== null) {
+                Log::warning('textsms.general.missing_credentials', ['gateway' => $logLabel]);
+            }
+
+            return 'error';
+        }
 
         $postData = [
             'apikey' => $api_key,
@@ -422,14 +444,17 @@ class SMS_module
         }
 
         try {
+            $curlTimeout = max(5, (int) ($config['http_timeout_seconds'] ?? 30));
+            $curlConnect = min(30, max(3, (int) round($curlTimeout / 2)));
+
             $curl = curl_init();
             curl_setopt_array($curl, [
                 CURLOPT_URL => $requestUrl,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_ENCODING => '',
                 CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => $curlTimeout,
+                CURLOPT_CONNECTTIMEOUT => $curlConnect,
                 CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
                 CURLOPT_CUSTOMREQUEST => 'POST',
                 CURLOPT_POSTFIELDS => $payloadJson,
@@ -538,6 +563,16 @@ class SMS_module
     }
 
     /**
+     * Public helper for admin / previews — same placeholder rules as TextSMS notification templates.
+     *
+     * @param  array<string, string|int|float>  $vars
+     */
+    public static function renderMarketingNotificationTemplate(string $template, array $vars): string
+    {
+        return self::textsms_ke_replace_notification_placeholders($template, array_map('strval', $vars));
+    }
+
+    /**
      * Apply placeholders for TextSMS notification templates (#HASH# and {brace} styles).
      *
      * @param array<string,string> $vars
@@ -618,6 +653,311 @@ class SMS_module
             : '';
 
         return self::textsms_ke_send_general_message($config, $receiver, $message, 'textsms_ke_customer_confirm');
+    }
+
+
+    /**
+     * Abandoned-checkout campaign settings merged with global promotional SMS credentials.
+     * Backward compatible when credentials still exist on the campaign row (pre-split).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function getAbandonedCartRuntimeConfig(): ?array
+    {
+        $campaign = self::get_settings(self::ABANDONED_CHECKOUT_CAMPAIGN_KEY);
+        if (! is_array($campaign)) {
+            return null;
+        }
+
+        $promo = self::get_settings(self::PROMOTIONAL_SMS_GATEWAY_KEY);
+
+        $merged = $campaign;
+        if (is_array($promo)) {
+            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+                if (isset($promo[$k]) && (string) $promo[$k] !== '') {
+                    $merged[$k] = $promo[$k];
+                }
+            }
+            if (isset($promo['http_timeout_seconds']) && (string) $promo['http_timeout_seconds'] !== '') {
+                $merged['http_timeout_seconds'] = $promo['http_timeout_seconds'];
+            }
+        }
+
+        $campaignOn = (int) ($campaign['status'] ?? 0) === 1;
+        $promoOn = is_array($promo) && (int) ($promo['status'] ?? 0) === 1;
+        $credFromPromo = is_array($promo) && self::hasCompleteTextSmsCredentials($promo);
+        $credFromCampaign = self::hasCompleteTextSmsCredentials($campaign);
+
+        if ($credFromPromo) {
+            $merged['status'] = ($campaignOn && $promoOn) ? 1 : 0;
+        } else {
+            $merged['status'] = ($campaignOn && $credFromCampaign) ? 1 : 0;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param  array<string,mixed>|null  $cfg
+     */
+    private static function hasCompleteTextSmsCredentials(?array $cfg): bool
+    {
+        if (! is_array($cfg)) {
+            return false;
+        }
+        foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+            if (! isset($cfg[$k]) || (string) $cfg[$k] === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Abandoned-checkout recovery SMS via TextSMS promotional sender ID.
+     * Uses merged campaign + {@see self::PROMOTIONAL_SMS_GATEWAY_KEY} credentials.
+     *
+     * @param  array<string,string|int>  $vars  customer_name, branch_name, item_count, order_amount, currency, recovery_url
+     */
+    public static function textsms_ke_abandoned_cart(string $receiver, array $vars): string
+    {
+        $merged = self::getAbandonedCartRuntimeConfig();
+
+        $template = '';
+        if (is_array($merged) && isset($merged['message_template']) && $merged['message_template'] !== '') {
+            $template = (string) $merged['message_template'];
+        }
+
+        $message = $template !== ''
+            ? self::renderMarketingNotificationTemplate($template, $vars)
+            : '';
+
+        return self::textsms_ke_send_general_message($merged, $receiver, $message, 'textsms_ke_abandoned_cart');
+    }
+
+    /**
+     * Reorder-reminder campaign settings merged with global promotional SMS credentials.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function getReorderReminderRuntimeConfig(): ?array
+    {
+        $campaign = self::get_settings(self::REORDER_REMINDER_CAMPAIGN_KEY);
+        if (! is_array($campaign)) {
+            return null;
+        }
+
+        $promo = self::get_settings(self::PROMOTIONAL_SMS_GATEWAY_KEY);
+
+        $merged = $campaign;
+        if (is_array($promo)) {
+            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+                if (isset($promo[$k]) && (string) $promo[$k] !== '') {
+                    $merged[$k] = $promo[$k];
+                }
+            }
+            if (isset($promo['http_timeout_seconds']) && (string) $promo['http_timeout_seconds'] !== '') {
+                $merged['http_timeout_seconds'] = $promo['http_timeout_seconds'];
+            }
+        }
+
+        $campaignOn = (int) ($campaign['status'] ?? 0) === 1;
+        $promoOn = is_array($promo) && (int) ($promo['status'] ?? 0) === 1;
+        $credFromPromo = is_array($promo) && self::hasCompleteTextSmsCredentials($promo);
+        $credFromCampaign = self::hasCompleteTextSmsCredentials($campaign);
+
+        if ($credFromPromo) {
+            $merged['status'] = ($campaignOn && $promoOn) ? 1 : 0;
+        } else {
+            $merged['status'] = ($campaignOn && $credFromCampaign) ? 1 : 0;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Reorder reminder SMS via TextSMS promotional sender ID.
+     *
+     * @param  array<string,string>  $vars
+     */
+    public static function textsms_ke_reorder_reminder(string $receiver, array $vars): string
+    {
+        $merged = self::getReorderReminderRuntimeConfig();
+
+        $template = '';
+        if (is_array($merged) && isset($merged['message_template']) && $merged['message_template'] !== '') {
+            $template = (string) $merged['message_template'];
+        }
+
+        $message = $template !== ''
+            ? self::renderMarketingNotificationTemplate($template, $vars)
+            : '';
+
+        return self::textsms_ke_send_general_message($merged, $receiver, $message, 'textsms_ke_reorder_reminder');
+    }
+
+    /**
+     * Runtime config for admin test sends: campaign template + promotional credentials.
+     * Enables transport when promotional credentials are complete (campaign may stay inactive).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function getReorderReminderTestRuntimeConfig(): ?array
+    {
+        $campaign = self::get_settings(self::REORDER_REMINDER_CAMPAIGN_KEY);
+        $promo = self::get_settings(self::PROMOTIONAL_SMS_GATEWAY_KEY);
+
+        if (! is_array($campaign) && ! is_array($promo)) {
+            return null;
+        }
+
+        $merged = is_array($campaign) ? $campaign : [];
+        if (is_array($promo)) {
+            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+                if (isset($promo[$k]) && (string) $promo[$k] !== '') {
+                    $merged[$k] = $promo[$k];
+                }
+            }
+            if (isset($promo['http_timeout_seconds']) && (string) $promo['http_timeout_seconds'] !== '') {
+                $merged['http_timeout_seconds'] = $promo['http_timeout_seconds'];
+            }
+        }
+
+        $merged['status'] = self::hasCompleteTextSmsCredentials($merged) ? 1 : 0;
+
+        return $merged;
+    }
+
+    /**
+     * Send a pre-rendered reorder reminder test message (admin test button).
+     */
+    public static function textsms_ke_send_reorder_reminder_test(string $receiver, string $message): string
+    {
+        $config = self::getReorderReminderTestRuntimeConfig();
+
+        return self::textsms_ke_send_general_message($config, $receiver, $message, 'textsms_ke_reorder_reminder_test');
+    }
+
+    /**
+     * Loyalty delivery: campaign template/toggle + transactional {@see self::TRANSACTIONAL_CUSTOMER_CONFIRM_KEY} credentials.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function getLoyaltyDeliveryRuntimeConfig(): ?array
+    {
+        return self::mergeLoyaltyDeliveryWithTransactionalGateway(requireTransactionalActive: true);
+    }
+
+    /**
+     * @param  array<string,string>  $vars
+     */
+    public static function textsms_ke_loyalty_delivery(string $receiver, array $vars): string
+    {
+        $merged = self::getLoyaltyDeliveryRuntimeConfig();
+        $message = self::renderLoyaltyDeliveryMessage($merged, $vars);
+
+        return self::textsms_ke_send_general_message($merged, $receiver, $message, 'textsms_ke_loyalty_delivery');
+    }
+
+    /**
+     * @param  array<string,mixed>|null  $config
+     * @param  array<string,string>  $vars
+     */
+    public static function renderLoyaltyDeliveryMessage(?array $config, array $vars): string
+    {
+        $template = is_array($config) ? trim((string) ($config['message_template'] ?? '')) : '';
+        if ($template === '') {
+            return '';
+        }
+
+        return self::textsms_ke_replace_notification_placeholders($template, array_map('strval', $vars));
+    }
+
+    /**
+     * Test sends: loyalty template + transactional credentials (campaign may be inactive).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function getLoyaltyDeliveryTestRuntimeConfig(): ?array
+    {
+        return self::mergeLoyaltyDeliveryWithTransactionalGateway(requireTransactionalActive: false);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private static function mergeLoyaltyDeliveryWithTransactionalGateway(bool $requireTransactionalActive): ?array
+    {
+        $campaign = self::get_settings(self::LOYALTY_DELIVERY_CAMPAIGN_KEY);
+        if (! is_array($campaign)) {
+            return null;
+        }
+
+        $transactional = self::get_settings(self::TRANSACTIONAL_CUSTOMER_CONFIRM_KEY);
+
+        $merged = $campaign;
+        if (is_array($transactional)) {
+            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+                if (isset($transactional[$k]) && (string) $transactional[$k] !== '') {
+                    $merged[$k] = $transactional[$k];
+                }
+            }
+            if (isset($transactional['http_timeout_seconds']) && (string) $transactional['http_timeout_seconds'] !== '') {
+                $merged['http_timeout_seconds'] = $transactional['http_timeout_seconds'];
+            }
+        }
+
+        if ($requireTransactionalActive) {
+            $campaignOn = (int) ($campaign['status'] ?? 0) === 1;
+            $transactionalOn = is_array($transactional) && (int) ($transactional['status'] ?? 0) === 1;
+            $credOk = is_array($transactional) && self::hasCompleteTextSmsCredentials($transactional);
+            $merged['status'] = ($campaignOn && $transactionalOn && $credOk) ? 1 : 0;
+        } else {
+            $merged['status'] = self::hasCompleteTextSmsCredentials($merged) ? 1 : 0;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Diagnostic snapshot for loyalty delivery SMS (why production sends may be blocked).
+     *
+     * @return array<string,mixed>
+     */
+    public static function describeLoyaltyDeliveryRuntimeConfig(): array
+    {
+        $campaign = self::get_settings(self::LOYALTY_DELIVERY_CAMPAIGN_KEY);
+        $transactional = self::get_settings(self::TRANSACTIONAL_CUSTOMER_CONFIRM_KEY);
+        $runtime = self::getLoyaltyDeliveryRuntimeConfig();
+
+        $campaignOn = is_array($campaign) && (int) ($campaign['status'] ?? 0) === 1;
+        $transactionalOn = is_array($transactional) && (int) ($transactional['status'] ?? 0) === 1;
+        $credOk = is_array($transactional) && self::hasCompleteTextSmsCredentials($transactional);
+
+        $inactiveReason = 'ok';
+        if (! $campaignOn) {
+            $inactiveReason = 'loyalty_campaign_inactive';
+        } elseif (! $transactionalOn) {
+            $inactiveReason = 'transactional_gateway_inactive';
+        } elseif (! $credOk) {
+            $inactiveReason = 'transactional_credentials_incomplete';
+        }
+
+        return [
+            'loyalty_campaign_active' => $campaignOn,
+            'transactional_gateway_active' => $transactionalOn,
+            'transactional_credentials_ok' => $credOk,
+            'runtime_send_enabled' => is_array($runtime) && (int) ($runtime['status'] ?? 0) === 1,
+            'inactive_reason' => $inactiveReason,
+        ];
+    }
+
+    public static function textsms_ke_send_loyalty_delivery_test(string $receiver, string $message): string
+    {
+        $config = self::getLoyaltyDeliveryTestRuntimeConfig();
+
+        return self::textsms_ke_send_general_message($config, $receiver, $message, 'textsms_ke_loyalty_delivery_test');
     }
 
 

@@ -6,6 +6,7 @@ use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\Product;
+use App\Support\StorefrontVisibilitySchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -47,7 +48,7 @@ class BranchController extends Controller
         $offset = is_null($request['offset']) ? 1 : $request['offset'];
 
         $key = explode(' ', $name);
-        $paginator = Product::active()
+        $paginator = Product::active()->storefrontScheduleVisible()
             ->with(['b_product', 'rating'])
             ->whereHas('b_product', function ($query) use($branchId){
                 $query->where(['branch_id' => $branchId, 'is_available' => 1]);
@@ -76,6 +77,8 @@ class BranchController extends Controller
             })
             ->latest()
             ->paginate($limit, ['*'], 'page', $offset);
+
+        StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
 
         $products = [
             'total_size' => $paginator->total(),

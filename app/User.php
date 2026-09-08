@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Passport\HasApiTokens;
 
 class User extends Authenticatable
@@ -97,17 +96,17 @@ class User extends Authenticatable
     public function getImageFullPathAttribute($type = null): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/160x160/img1.jpg');
 
-        if (!is_null($image) && Storage::disk('public')->exists('profile/' . $image)) {
-            $path = asset('storage/app/public/profile/' . $image);
-        }
-        if ($this->user_type == 'kitchen'){
-            if (!is_null($image) && Storage::disk('public')->exists('kitchen/' . $image)) {
-                $path = asset('storage/app/public/kitchen/' . $image);
+        if (!empty($image)) {
+
+            if ($this->user_type == 'kitchen') {
+                return asset('storage/app/public/kitchen/' . $image);
             }
+
+            return asset('storage/app/public/profile/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/160x160/img1.jpg');
     }
 
 }

@@ -2,7 +2,6 @@
 
 namespace App\CentralLogics;
 
-use App\Model\BusinessSetting;
 use App\Model\PointTransitions;
 use App\Model\WalletBonus;
 use App\User;
@@ -68,12 +67,14 @@ class CustomerLogic{
         return false;
     }
 
+    /**
+     * @return int|false Points credited on success; 0 when loyalty disabled or zero credit; false on failure.
+     */
     public static function create_loyalty_point_transaction($user_id, $referance, $amount, $transaction_type)
     {
-        $settings = array_column(BusinessSetting::whereIn('key',['loyalty_point_status','loyalty_point_exchange_rate','loyalty_point_item_purchase_point'])->get()->toArray(), 'value','key');
-        if($settings['loyalty_point_status'] != 1)
-        {
-            return true;
+        $loyaltyEnabled = (int) (Helpers::get_business_settings('loyalty_point_status') ?? 0) === 1;
+        if (! $loyaltyEnabled) {
+            return 0;
         }
 
         $credit = 0;
@@ -84,6 +85,20 @@ class CustomerLogic{
             return false;
         }
 
+        if ($transaction_type === 'order_place') {
+            $existing = PointTransitions::query()
+                ->where('user_id', $user_id)
+                ->where('reference', (string) $referance)
+                ->where('type', 'order_place')
+                ->where('credit', '>', 0)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($existing) {
+                return (int) $existing->credit;
+            }
+        }
+
         $loyalty_point_transaction = new PointTransitions();
         $loyalty_point_transaction->user_id = $user->id;
         $loyalty_point_transaction->transaction_id = Str::random('30');
@@ -92,7 +107,11 @@ class CustomerLogic{
 
         if($transaction_type=='order_place')
         {
-            $credit = (int)($amount * $settings['loyalty_point_item_purchase_point']/100);
+            $purchasePoint = (float) (Helpers::get_business_settings('loyalty_point_item_purchase_point') ?? 0);
+            $credit = (int) ($amount * $purchasePoint / 100);
+            if ($credit <= 0) {
+                return 0;
+            }
         }
         else if($transaction_type=='point_to_wallet')
         {
@@ -112,7 +131,8 @@ class CustomerLogic{
             $user->save();
             $loyalty_point_transaction->save();
             DB::commit();
-            return true;
+
+            return $credit;
         }catch(\Exception $ex)
         {
             info($ex);
@@ -120,7 +140,6 @@ class CustomerLogic{
 
             return false;
         }
-        return false;
     }
 
 

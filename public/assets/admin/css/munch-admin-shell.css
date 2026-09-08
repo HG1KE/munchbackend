@@ -1,0 +1,584 @@
+/**
+ * Munch admin shell refresh (Phase 1)
+ * Scoped to body.munch-admin-shell — admin layout only; branch panel unchanged.
+ * Loaded after style.css; does not replace Bootstrap or theme JS.
+ */
+
+body.munch-admin-shell {
+    --munch-shell-bg: #f4f6f9;
+    --munch-shell-surface: #ffffff;
+    --munch-shell-border: #e2e8f0;
+    --munch-shell-border-soft: #eef2f6;
+    --munch-shell-text: #0f172a;
+    --munch-shell-text-muted: #64748b;
+    --munch-shell-sidebar: #111827;
+    --munch-shell-sidebar-hover: rgba(255, 255, 255, 0.06);
+    --munch-shell-sidebar-active: rgba(255, 255, 255, 0.1);
+    --munch-shell-radius: 12px;
+    --munch-shell-radius-sm: 10px;
+    --munch-shell-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
+    --munch-shell-shadow-hover: 0 4px 20px rgba(15, 23, 42, 0.08);
+    font-feature-settings: "kern" 1, "liga" 1;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main content area                                                          */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .main {
+    background-color: var(--munch-shell-bg);
+}
+
+body.munch-admin-shell .content.container-fluid {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+@media (min-width: 1200px) {
+    body.munch-admin-shell .content.container-fluid {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+}
+
+body.munch-admin-shell .page-header {
+    margin-bottom: 1.25rem;
+}
+
+body.munch-admin-shell .page-header-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    letter-spacing: -0.02em;
+}
+
+body.munch-admin-shell .page-header-icon img {
+    max-height: 28px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                    */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .navbar-vertical-aside.navbar-bordered {
+    background-color: var(--munch-shell-sidebar) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-brand-wrapper {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-brand-logo,
+body.munch-admin-shell .navbar-vertical-aside .navbar-brand-logo-mini {
+    max-height: 40px;
+}
+
+body.munch-admin-shell .navbar-vertical-content {
+    padding-top: 0.25rem;
+    padding-bottom: 1rem;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    border-radius: 8px;
+    margin: 1px 0.5rem;
+    padding: 0.5rem 0.75rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link .nav-icon {
+    font-size: 1.125rem;
+    width: 1.35rem;
+    margin-right: 0.65rem;
+    opacity: 0.9;
+    vertical-align: -0.1em;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link:hover {
+    color: #fff;
+    background-color: var(--munch-shell-sidebar-hover);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .active > .nav-link,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link.active {
+    color: #fff !important;
+    background-color: var(--munch-shell-sidebar-active);
+    font-weight: 600;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-subtitle {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.38);
+    padding: 1rem 1rem 0.35rem;
+    margin-top: 0.25rem;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link {
+    font-size: 0.8125rem;
+    padding-left: 2.35rem;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link.active {
+    color: #fff;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-indicator-icon {
+    opacity: 0.5;
+}
+
+body.munch-admin-shell .sidebar--search-form {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+
+body.munch-admin-shell .sidebar--search-form .search--form-group {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+body.munch-admin-shell .sidebar--search-form .form--control,
+body.munch-admin-shell .sidebar--search-form .js-form-search {
+    background: transparent;
+    color: #fff;
+    font-size: 0.8125rem;
+}
+
+body.munch-admin-shell .sidebar--search-form .form--control::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+body.munch-admin-shell .sidebar--search-form .btn {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-aside-has-menu.show > .nav-link {
+    color: #fff;
+    background-color: var(--munch-shell-sidebar-hover);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .badge {
+    font-weight: 600;
+    font-size: 0.6875rem;
+}
+
+/* Sidebar scrollbar (WebKit + thin) */
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Top header                                                                 */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell #header.navbar {
+    background: var(--munch-shell-surface) !important;
+    border-bottom: 1px solid var(--munch-shell-border) !important;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+    min-height: 3.5rem;
+}
+
+body.munch-admin-shell #header .navbar-nav-wrap {
+    min-height: 3.5rem;
+}
+
+body.munch-admin-shell #header .navbar-brand-logo,
+body.munch-admin-shell #header .navbar-brand-logo-mini {
+    max-height: 36px;
+}
+
+body.munch-admin-shell #header .btn-icon.btn-ghost-secondary {
+    width: 2.375rem;
+    height: 2.375rem;
+    border: 1px solid var(--munch-shell-border-soft);
+    background: #fff;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+body.munch-admin-shell #header .btn-icon.btn-ghost-secondary:hover {
+    border-color: var(--munch-shell-border);
+    background: var(--munch-shell-bg);
+}
+
+body.munch-admin-shell #header .topbar-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell #header .bg-white.p-1.rounded {
+    border: 1px solid var(--munch-shell-border-soft);
+    border-radius: var(--munch-shell-radius-sm) !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+body.munch-admin-shell #header .dropdown-menu {
+    border: 1px solid var(--munch-shell-border);
+    border-radius: var(--munch-shell-radius-sm);
+    box-shadow: var(--munch-shell-shadow-hover);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cards & dashboard KPIs                                                     */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .card {
+    border: 1px solid var(--munch-shell-border);
+    border-radius: var(--munch-shell-radius);
+    box-shadow: var(--munch-shell-shadow);
+    background: var(--munch-shell-surface);
+}
+
+body.munch-admin-shell .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--munch-shell-border-soft);
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell .card-body {
+    padding: 1.25rem;
+}
+
+body.munch-admin-shell .dashboard--card {
+    border-radius: var(--munch-shell-radius);
+    border: 1px solid var(--munch-shell-border);
+    box-shadow: var(--munch-shell-shadow);
+    padding: 1.25rem 1.25rem 1rem;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+body.munch-admin-shell .dashboard--card:hover {
+    box-shadow: var(--munch-shell-shadow-hover);
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+body.munch-admin-shell .dashboard--card__subtitle {
+    font-size: 0.8125rem;
+    color: var(--munch-shell-text-muted);
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+body.munch-admin-shell .dashboard--card__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    letter-spacing: -0.02em;
+}
+
+body.munch-admin-shell .dashboard--card__img {
+    inset-block-start: 1rem;
+    inset-inline-end: 1rem;
+    opacity: 0.95;
+}
+
+body.munch-admin-shell .order-stats {
+    border-radius: var(--munch-shell-radius);
+    border: 1px solid var(--munch-shell-border-soft);
+    background: var(--munch-shell-surface);
+    box-shadow: var(--munch-shell-shadow);
+    padding: 1rem 1.15rem;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+body.munch-admin-shell .order-stats:hover {
+    box-shadow: var(--munch-shell-shadow-hover);
+    border-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell .order-stats__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+
+body.munch-admin-shell .order-stats__subtitle {
+    font-size: 0.8125rem;
+    color: var(--munch-shell-text-muted);
+}
+
+body.munch-admin-shell .resturant-card {
+    border-radius: var(--munch-shell-radius);
+    border: 1px solid var(--munch-shell-border);
+    box-shadow: var(--munch-shell-shadow);
+}
+
+/* Chart containers inside cards */
+body.munch-admin-shell .card .chartjs-custom,
+body.munch-admin-shell .card #updatingData,
+body.munch-admin-shell .card .apexcharts-canvas {
+    max-width: 100%;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tables                                                                     */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .card .table-responsive {
+    border-radius: 0 0 var(--munch-shell-radius) var(--munch-shell-radius);
+    -webkit-overflow-scrolling: touch;
+}
+
+body.munch-admin-shell .table {
+    margin-bottom: 0;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell .table thead th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--munch-shell-text-muted);
+    border-bottom: 1px solid var(--munch-shell-border);
+    background: #f8fafc;
+    white-space: nowrap;
+}
+
+body.munch-admin-shell .card > .table-responsive > .table thead th,
+body.munch-admin-shell .card .table-responsive thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc;
+}
+
+body.munch-admin-shell .table tbody td {
+    font-size: 0.875rem;
+    vertical-align: middle;
+    border-color: var(--munch-shell-border-soft);
+}
+
+body.munch-admin-shell .table-hover tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+body.munch-admin-shell .table .btn--container .action-btn,
+body.munch-admin-shell .table .btn.action-btn {
+    border-radius: 8px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forms, buttons, inputs                                                       */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .form-control,
+body.munch-admin-shell .custom-select,
+body.munch-admin-shell .form--control {
+    border-radius: var(--munch-shell-radius-sm);
+    border-color: #cbd5e1;
+    font-size: 0.875rem;
+    min-height: 2.5rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.munch-admin-shell .form-control:focus,
+body.munch-admin-shell .custom-select:focus,
+body.munch-admin-shell .form--control:focus {
+    border-color: var(--c1, #ff6767);
+    box-shadow: 0 0 0 3px rgba(var(--c1-rgb, 255, 103, 103), 0.12);
+}
+
+body.munch-admin-shell .input-label,
+body.munch-admin-shell label.input-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+}
+
+body.munch-admin-shell .btn {
+    border-radius: var(--munch-shell-radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+body.munch-admin-shell .btn--primary,
+body.munch-admin-shell .btn-primary {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+body.munch-admin-shell .btn--secondary,
+body.munch-admin-shell .btn-secondary {
+    border-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell .custom-file-label,
+body.munch-admin-shell .select2-container--default .select2-selection--single {
+    border-radius: var(--munch-shell-radius-sm) !important;
+    border-color: #cbd5e1 !important;
+    min-height: 2.5rem;
+}
+
+body.munch-admin-shell .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 2.35rem;
+    font-size: 0.875rem;
+}
+
+/* Filter bars / search panels */
+body.munch-admin-shell .card .search--button-area,
+body.munch-admin-shell .card .filter--card-body {
+    border-radius: var(--munch-shell-radius-sm);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modals & dropdowns (visual only)                                           */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .modal-content {
+    border: 1px solid var(--munch-shell-border);
+    border-radius: var(--munch-shell-radius);
+    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+}
+
+body.munch-admin-shell .modal-header {
+    border-bottom-color: var(--munch-shell-border-soft);
+    padding: 1rem 1.25rem;
+}
+
+body.munch-admin-shell .dropdown-menu {
+    border-radius: var(--munch-shell-radius-sm);
+    border-color: var(--munch-shell-border);
+    box-shadow: var(--munch-shell-shadow-hover);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Badges & misc                                                              */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .badge-soft-info,
+body.munch-admin-shell .badge-soft-success,
+body.munch-admin-shell .badge-soft-warning,
+body.munch-admin-shell .badge-soft-danger {
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mobile / tablet — preserve collapse mechanics                              */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 1199.98px) {
+    body.munch-admin-shell .content.container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    body.munch-admin-shell .card-body {
+        padding: 1rem;
+    }
+
+    body.munch-admin-shell .dashboard--card {
+        padding: 1rem;
+    }
+
+    body.munch-admin-shell .dashboard--card__title {
+        font-size: 1.25rem;
+    }
+
+    body.munch-admin-shell #header .navbar-nav-wrap-content-right .navbar-nav {
+        gap: 0.25rem;
+    }
+
+    /* Avoid sticky header fighting small scroll areas on mobile */
+    body.munch-admin-shell .card > .table-responsive > .table thead th,
+    body.munch-admin-shell .card .table-responsive thead th {
+        position: static;
+    }
+}
+
+@media (max-width: 575.98px) {
+    body.munch-admin-shell .page-header-title {
+        font-size: 1.125rem;
+    }
+
+    body.munch-admin-shell .order-stats {
+        padding: 0.85rem;
+    }
+
+    body.munch-admin-shell .order-stats__title {
+        font-size: 1rem;
+    }
+}
+
+/* Mini sidebar mode — do not break HS aside */
+body.munch-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .nav-link .nav-icon,
+body.munch-admin-shell .navbar-vertical-aside-mini-mode .navbar-vertical-aside .nav-link .nav-icon {
+    margin-right: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Live operational stats (dashboard partial)                                   */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell .munch-live-stats__pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+    animation: munch-live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes munch-live-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+}
+
+body.munch-admin-shell .munch-live-stats__card {
+    background: #f8fafc;
+    border: 1px solid var(--munch-shell-border-soft);
+    border-radius: var(--munch-shell-radius-sm);
+    padding: 1rem 1.1rem;
+    height: 100%;
+}
+
+body.munch-admin-shell .munch-live-stats__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--munch-shell-text-muted);
+    margin-bottom: 0.35rem;
+}
+
+body.munch-admin-shell .munch-live-stats__value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+@media (max-width: 575.98px) {
+    body.munch-admin-shell .munch-live-stats__value {
+        font-size: 1.5rem;
+    }
+}

@@ -12,125 +12,150 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/vendor.min.css">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/vendor/icon-set/style.css">
-
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/theme.minc619.css?v=1.0">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/style.css">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/toastr.css">
+
+    @include('admin-views.auth.partials._munch-login-styles')
 </head>
 
-<body>
+<body class="munch-auth-login">
 <main id="content" role="main" class="main">
-    <div class="auth-wrapper">
-        <div class="auth-wrapper-left">
-            <div class="auth-left-cont">
-                <img width="310" src="{{ $logo }}" alt="{{ translate('logo') }}">
-                <h2 class="title">{{translate('your')}} <span class="c1 d-block text-capitalize">{{translate('Kitchen')}}</span> <strong class="text--039D55 c1 text-capitalize">{{translate('your_food')}}....</strong></h2>
+    <div class="auth-wrapper" style="display:flex;flex-wrap:wrap;width:100%;">
+        {{-- Legacy class hooks hidden; brand panel replaces left hero --}}
+        <div class="auth-wrapper-left" aria-hidden="true" style="display:none !important;"></div>
+
+        <aside class="munch-auth-brand" aria-label="{{ translate('Admin') }}">
+            <div class="munch-auth-brand__inner">
+                <img class="munch-auth-brand__logo" src="{{ $logo }}" alt="{{ translate('logo') }}">
+                <h1 class="munch-auth-brand__title">{{ translate('Manage Munch Operations') }}</h1>
+                <p class="munch-auth-brand__text">{{ translate('Orders, branches, marketing and analytics in one dashboard.') }}</p>
             </div>
-        </div>
+        </aside>
 
         <div class="auth-wrapper-right">
             <div class="auth-wrapper-form">
-                    <form class="" id="form-id" action="{{route('admin.auth.login')}}" method="post">
-                        @csrf
-                        <div class="auth-header">
-                            <div class="mb-5">
-                                <h2 class="title">{{translate('sign_in')}}</h2>
-                                <div class="text-capitalize">{{translate('welcome_back')}}</div>
-                                <p class="mb-0 text-capitalize">{{translate('want_to_login_your_branches')}}?
-                                    <a href="{{route('branch.auth.login')}}">{{translate('branch_login')}}</a>
-                                </p>
-                                <span class="badge mt-2">( {{translate('admin_or_employee_sign_in')}} )</span>
+                <div class="munch-auth-mobile-logo">
+                    <img src="{{ $logo }}" alt="{{ translate('logo') }}">
+                </div>
+
+                <form class="" id="form-id" action="{{route('admin.auth.login')}}" method="post" novalidate>
+                    @csrf
+
+                    <div class="auth-header">
+                        <div class="mb-0">
+                            <h2 class="title">{{translate('sign_in')}}</h2>
+                            <div class="text-capitalize">{{translate('welcome_back')}}</div>
+                            <span class="badge d-inline-block">{{translate('admin_or_employee_sign_in')}}</span>
+                        </div>
+                    </div>
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger munch-auth-errors" role="alert">
+                            <ul class="mb-0 pl-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <div class="js-form-message form-group">
+                        <label class="input-label text-capitalize" for="signinSrEmail">{{translate('your')}} {{translate('email')}}</label>
+                        <input type="email" class="form-control form-control-lg" name="email" id="signinSrEmail"
+                            tabindex="1" placeholder="{{translate('email@address.com')}}" aria-label="email@address.com"
+                            value="{{ old('email') }}"
+                            required data-msg="{{ translate('Please enter a valid email address') }}">
+                    </div>
+
+                    <div class="js-form-message form-group">
+                        <label class="input-label" for="signupSrPassword">
+                            {{translate('password')}}
+                        </label>
+                        <div class="input-group input-group-merge">
+                            <input type="password" class="js-toggle-password form-control form-control-lg"
+                                name="password" id="signupSrPassword" placeholder="{{translate('8+ characters required')}}"
+                                aria-label="8+ characters required" required
+                                data-msg="{{ translate('Your password is invalid. Please try again.') }}"
+                                data-hs-toggle-password-options='{
+                                    "target": "#changePassTarget",
+                                    "defaultClass": "tio-hidden-outlined",
+                                    "showClass": "tio-visible-outlined",
+                                    "classChangeTarget": "#changePassIcon"
+                                }'>
+                            <div id="changePassTarget" class="input-group-append">
+                                <a class="input-group-text" href="javascript:" role="button" aria-label="{{ translate('Toggle password visibility') }}">
+                                    <i id="changePassIcon" class="tio-visible-outlined" aria-hidden="true"></i>
+                                </a>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="js-form-message form-group">
-                            <label class="input-label text-capitalize" for="signinSrEmail">{{translate('your')}} {{translate('email')}}</label>
-
-                            <input type="email" class="form-control form-control-lg" name="email" id="signinSrEmail"
-                                tabindex="1" placeholder="{{translate('email@address.com')}}" aria-label="email@address.com"
-                                required data-msg="{{ translate('Please enter a valid email address') }}">
-                        </div>
-
-                        <div class="js-form-message form-group">
-                            <label class="input-label" for="signupSrPassword" tabindex="0">
-                                <span class="d-flex justify-content-between align-items-center">
-                                {{translate('password')}}
-                                </span>
+                    <div class="form-group mb-3">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="termsCheckbox"
+                                name="remember" {{ old('remember') ? 'checked' : '' }}>
+                            <label class="custom-control-label" for="termsCheckbox">
+                                {{translate('remember_me')}}
                             </label>
+                        </div>
+                    </div>
 
-                            <div class="input-group input-group-merge">
-                                <input type="password" class="js-toggle-password form-control form-control-lg"
-                                    name="password" id="signupSrPassword" placeholder="{{translate('8+ characters required')}}"
-                                    aria-label="8+ characters required" required
-                                    data-msg="{{ translate('Your password is invalid. Please try again.') }}"
-                                    data-hs-toggle-password-options='{
-                                        "target": "#changePassTarget",
-                                        "defaultClass": "tio-hidden-outlined",
-                                        "showClass": "tio-visible-outlined",
-                                        "classChangeTarget": "#changePassIcon"
-                                        }'>
-                                <div id="changePassTarget" class="input-group-append">
-                                    <a class="input-group-text" href="javascript:">
-                                        <i id="changePassIcon" class="tio-visible-outlined"></i>
-                                    </a>
-                                </div>
+                    @php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
+                    @if(isset($recaptcha) && $recaptcha['status'] == 1)
+                        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+                        <input type="hidden" name="set_default_captcha" id="set_default_captcha_value" value="0">
+
+                        <div class="row p-2 d-none" id="reload-captcha">
+                            <div class="col-5 pr-0">
+                                <input type="text" class="form-control form-control-lg default-captcha-value" name="default_captcha_value" value=""
+                                       placeholder="{{translate('Enter captcha value')}}" autocomplete="off">
+                            </div>
+                            <div class="col-7 input-icons bg-white rounded">
+                                <a class="re-captcha" href="javascript:">
+                                    <img src="{{ URL('/admin/auth/code/captcha/1') }}" class="input-field default-recaptcha" id="default_recaptcha_id" alt="">
+                                    <i class="tio-refresh icon" aria-hidden="true"></i>
+                                </a>
                             </div>
                         </div>
-
-                        <div class="form-group">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" id="termsCheckbox"
-                                    name="remember">
-                                <label class="custom-control-label text-muted" for="termsCheckbox">
-                                    {{translate('remember_me')}}
-                                </label>
+                    @else
+                        <div class="row p-2 mb-2">
+                            <div class="col-5 pr-0">
+                                <input type="text" class="form-control form-control-lg default-captcha-value" name="default_captcha_value" value=""
+                                    placeholder="{{translate('Enter captcha value')}}" autocomplete="off">
+                            </div>
+                            <div class="col-7 input-icons bg-white rounded">
+                                <a class="re-captcha" href="javascript:">
+                                    <img src="{{ URL('/admin/auth/code/captcha/1') }}" class="input-field default-recaptcha" id="default_recaptcha_id" alt="">
+                                    <i class="tio-refresh icon" aria-hidden="true"></i>
+                                </a>
                             </div>
                         </div>
+                    @endif
 
-                        @php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
-                        @if(isset($recaptcha) && $recaptcha['status'] == 1)
-                            <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+                    <button type="submit" class="btn btn-lg btn-block btn-primary" id="signInBtn">
+                        <span class="munch-auth-spinner" aria-hidden="true"></span>
+                        <span class="munch-auth-btn-label">{{translate('sign_in')}}</span>
+                    </button>
 
-                            <input type="hidden" name="set_default_captcha" id="set_default_captcha_value" value="0" >
-
-                            <div class="row p-2 d-none" id="reload-captcha">
-                                <div class="col-5 pr-0">
-                                    <input type="text" class="form-control form-control-lg default-captcha-value" name="default_captcha_value" value=""
-                                           placeholder="{{translate('Enter captcha value')}}" autocomplete="off">
-                                </div>
-                                <div class="col-7 input-icons bg-white rounded">
-                                    <a class="re-captcha">
-                                        <img src="{{ URL('/admin/auth/code/captcha/1') }}" class="input-field default-recaptcha" id="default_recaptcha_id">
-                                        <i class="tio-refresh icon"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        @else
-                            <div class="row p-2">
-                                <div class="col-5 pr-0">
-                                    <input type="text" class="form-control form-control-lg default-captcha-value" name="default_captcha_value" value=""
-                                        placeholder="{{translate('Enter captcha value')}}" autocomplete="off">
-                                </div>
-                                <div class="col-7 input-icons bg-white rounded">
-                                    <a class="re-captcha">
-                                        <img src="{{ URL('/admin/auth/code/captcha/1') }}" class="input-field default-recaptcha" id="default_recaptcha_id">
-                                        <i class="tio-refresh icon"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        @endif
-                        <button type="submit" class="btn btn-lg btn-block btn-primary" id="signInBtn">{{translate('sign_in')}}</button>
-                    </form>
+                    <div class="munch-auth-alt-login">
+                        <p class="munch-auth-alt-login__label mb-2">{{ translate('want_to_login_your_branches') }}?</p>
+                        <a href="{{ route('branch.auth.login') }}" class="munch-auth-alt-login__btn">
+                            {{ translate('Login as Branch / Employee') }}
+                        </a>
+                    </div>
+                </form>
 
                 @if(env('APP_MODE')=='demo')
-                    <div class="border-top border-primary pt-5 mt-10">
-                        <div class="row">
-                            <div class="col-10">
-                                <span>{{translate('Email : admin@admin.com')}}</span><br>
-                                <span>{{translate('Password : 12345678')}}</span>
+                    <div class="border-top mt-4 pt-4" style="border-color:#e2e8f0 !important;">
+                        <div class="row align-items-center">
+                            <div class="col-10 text-left">
+                                <span class="d-block small text-muted">{{translate('Email : admin@admin.com')}}</span>
+                                <span class="d-block small text-muted">{{translate('Password : 12345678')}}</span>
                             </div>
-                            <div class="col-2">
-                                <button class="btn btn-primary px-3 copy-cred"><i class="tio-copy"></i>
+                            <div class="col-2 text-right">
+                                <button type="button" class="btn btn-primary btn-sm copy-cred px-2" aria-label="{{ translate('Copy') }}">
+                                    <i class="tio-copy" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -142,7 +167,6 @@
 </main>
 
 <script src="{{asset('public/assets/admin')}}/js/vendor.min.js"></script>
-
 <script src="{{asset('public/assets/admin')}}/js/theme.min.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/toastr.js"></script>
 {!! Toastr::message() !!}
@@ -150,7 +174,6 @@
 @if ($errors->any())
     <script>
         "use strict";
-
         @foreach($errors->all() as $error)
         toastr.error('{{$error}}', Error, {
             CloseButton: true,
@@ -165,7 +188,7 @@
 
     $(document).on('ready', function () {
         $('.js-toggle-password').each(function () {
-            new HSTogglePassword(this).init()
+            new HSTogglePassword(this).init();
         });
 
         $('.js-validate').each(function () {
@@ -179,67 +202,79 @@
         $(".copy-cred").click(function() {
             copy_cred();
         });
+
+        var $form = $('#form-id');
+        var $btn = $('#signInBtn');
+
+        $form.on('submit', function () {
+            if ($btn.hasClass('is-loading')) {
+                return;
+            }
+            $btn.addClass('is-loading');
+            $btn.prop('disabled', true);
+        });
     });
 </script>
 
 @if(isset($recaptcha) && $recaptcha['status'] == 1)
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-        <script src="https://www.google.com/recaptcha/api.js?render={{$recaptcha['site_key']}}"></script>
-        <script>
-            "use strict";
-            $('#signInBtn').click(function (e) {
-
-                if( $('#set_default_captcha_value').val() == 1){
-                    $('#form-id').submit();
-                    return true;
-                }
-
-                e.preventDefault();
-
-                if (typeof grecaptcha === 'undefined') {
-                    toastr.error('Invalid recaptcha key provided. Please check the recaptcha configuration.');
-
-                    $('#reload-captcha').removeClass('d-none');
-                    $('#set_default_captcha_value').val('1');
-
-                    return;
-                }
-
-                grecaptcha.ready(function () {
-                    grecaptcha.execute('{{$recaptcha['site_key']}}', {action: 'submit'}).then(function (token) {
-                        document.getElementById('g-recaptcha-response').value = token;
-                        document.querySelector('form').submit();
-                    });
-                });
-
-                window.onerror = function(message) {
-                    var errorMessage = 'An unexpected error occurred. Please check the recaptcha configuration';
-                    if (message.includes('Invalid site key')) {
-                        errorMessage = 'Invalid site key provided. Please check the recaptcha configuration.';
-                    } else if (message.includes('not loaded in api.js')) {
-                        errorMessage = 'reCAPTCHA API could not be loaded. Please check the recaptcha API configuration.';
-                    }
-
-                    $('#reload-captcha').removeClass('d-none');
-                    $('#set_default_captcha_value').val('1');
-
-                    toastr.error(errorMessage)
-                    return true;
-                };
-            });
-        </script>
-@endif
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render={{$recaptcha['site_key']}}"></script>
     <script>
         "use strict";
+        $('#signInBtn').click(function (e) {
 
-        function re_captcha() {
-            let $url = "{{ URL('/admin/auth/code/captcha') }}";
-            $url = $url + "/" + Math.random();
-            document.getElementById('default_recaptcha_id').src = $url;
-            console.log('url: '+ $url);
-        }
+            if( $('#set_default_captcha_value').val() == 1){
+                $('#form-id').submit();
+                return true;
+            }
+
+            e.preventDefault();
+
+            if (typeof grecaptcha === 'undefined') {
+                toastr.error('Invalid recaptcha key provided. Please check the recaptcha configuration.');
+
+                $('#reload-captcha').removeClass('d-none');
+                $('#set_default_captcha_value').val('1');
+
+                $('#signInBtn').removeClass('is-loading').prop('disabled', false);
+                return;
+            }
+
+            grecaptcha.ready(function () {
+                grecaptcha.execute('{{$recaptcha['site_key']}}', {action: 'submit'}).then(function (token) {
+                    document.getElementById('g-recaptcha-response').value = token;
+                    document.querySelector('form').submit();
+                });
+            });
+
+            window.onerror = function(message) {
+                var errorMessage = 'An unexpected error occurred. Please check the recaptcha configuration';
+                if (message.includes('Invalid site key')) {
+                    errorMessage = 'Invalid site key provided. Please check the recaptcha configuration.';
+                } else if (message.includes('not loaded in api.js')) {
+                    errorMessage = 'reCAPTCHA API could not be loaded. Please check the recaptcha API configuration.';
+                }
+
+                $('#reload-captcha').removeClass('d-none');
+                $('#set_default_captcha_value').val('1');
+
+                $('#signInBtn').removeClass('is-loading').prop('disabled', false);
+                toastr.error(errorMessage);
+                return true;
+            };
+        });
     </script>
+@endif
 
+<script>
+    "use strict";
+
+    function re_captcha() {
+        let $url = "{{ URL('/admin/auth/code/captcha') }}";
+        $url = $url + "/" + Math.random();
+        document.getElementById('default_recaptcha_id').src = $url;
+    }
+</script>
 
 @if(env('APP_MODE')=='demo')
     <script>

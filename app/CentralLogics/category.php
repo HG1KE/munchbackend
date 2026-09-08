@@ -4,6 +4,7 @@ namespace App\CentralLogics;
 
 use App\Model\Category;
 use App\Model\Product;
+use App\Support\StorefrontVisibilitySchedule;
 
 class CategoryLogic
 {
@@ -24,7 +25,7 @@ class CategoryLogic
         $key = explode(' ', $name);
         $productType = ($type == 'veg') ? 'veg' : ($type == 'non_veg' ? 'non_veg' : 'all');
 
-        $productsQuery = Product::active()
+        $productsQuery = Product::active()->storefrontScheduleVisible()
             ->with(['branch_product', 'rating'])
             ->whereHas('branch_product.branch', function ($query) {
                 $query->where('status', 1);
@@ -53,11 +54,12 @@ class CategoryLogic
 
         if (is_null($limit)) {
             // Fetch all products if limit is null
-            $categoryProducts = $productsQuery->get();
+            $categoryProducts = StorefrontVisibilitySchedule::filterProducts($productsQuery->get());
             $totalSize = $categoryProducts->count();
         } else {
             // Apply pagination if limit is set
             $categoryProducts = $productsQuery->paginate($limit, ['*'], 'page', $offset);
+            StorefrontVisibilitySchedule::filterPaginatorProducts($categoryProducts);
             $totalSize = $categoryProducts->total();
         }
 
@@ -80,7 +82,9 @@ class CategoryLogic
             }
         }
 
-        $products = Product::active()->branchProductAvailability()->get();
+        $products = StorefrontVisibilitySchedule::filterProducts(
+            Product::active()->storefrontScheduleVisible()->branchProductAvailability()->get()
+        );
         $productIds = [];
         foreach ($products as $product) {
             foreach (json_decode($product['category_ids'], true) as $category) {
@@ -90,6 +94,8 @@ class CategoryLogic
             }
         }
 
-        return Product::with(['rating','branch_product'])->whereIn('id', $productIds)->get();
+        $listed = Product::active()->storefrontScheduleVisible()->with(['rating', 'branch_product'])->whereIn('id', $productIds)->get();
+
+        return StorefrontVisibilitySchedule::filterProducts($listed);
     }
 }

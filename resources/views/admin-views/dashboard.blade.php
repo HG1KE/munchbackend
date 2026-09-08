@@ -41,12 +41,12 @@
                         </select>
                     </div>
                 </div>
-                <div class="row g-2" id="order_stats">
-                    @include('admin-views.partials._dashboard-order-stats',['data'=>$data])
-                </div>
-            </div>
+<div class="row g-2" id="order_stats">
+    @include('admin-views.partials._dashboard-order-stats',['data'=>$data])
+</div>
+</div>
 
-            <div class="grid-chart mb-3">
+<div class="grid-chart mb-3">
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between flex-wrap gap-2 align-items-center">

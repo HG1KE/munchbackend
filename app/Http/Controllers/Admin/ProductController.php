@@ -11,6 +11,7 @@ use App\Model\Review;
 use App\Model\Tag;
 use App\Model\Translation;
 use App\Models\Cuisine;
+use App\Support\StorefrontVisibilitySchedule;
 use Box\Spout\Common\Exception\InvalidArgumentException;
 use Box\Spout\Common\Exception\IOException;
 use Box\Spout\Common\Exception\UnsupportedTypeException;
@@ -205,6 +206,9 @@ class ProductController extends Controller
             $validator->getMessageBag()->add('unit_price', translate('Discount can not be more or equal to the price!'));
         }
 
+        $this->validateStorefrontVisibilitySchedule($request, $validator);
+        $this->validateRecurringVisibilityRules($request, $validator);
+
         if ($request['price'] <= $discount || (in_array(request('stock_type'), ['daily', 'fixed']) && $request->product_stock < 1) || $validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)]);
         }
@@ -305,6 +309,9 @@ class ProductController extends Controller
         $product->image = Helpers::upload('product/', 'png', $request->file('image'));
         $product->available_time_starts = $request->available_time_starts;
         $product->available_time_ends = $request->available_time_ends;
+
+        $this->applyStorefrontVisibilityToProduct($request, $product);
+        $this->applyRecurringVisibilityToProduct($request, $product);
 
         $product->tax = $request->tax_type == 'amount' ? $request->tax : $request->tax;
         $product->tax_type = $request->tax_type;
@@ -447,6 +454,9 @@ class ProductController extends Controller
             $validator->getMessageBag()->add('unit_price', translate('Discount can not be more or equal to the price!'));
         }
 
+        $this->validateStorefrontVisibilitySchedule($request, $validator);
+        $this->validateRecurringVisibilityRules($request, $validator);
+
         if ($request['price'] <= $discount || (in_array(request('stock_type'), ['daily', 'fixed']) && $request->product_stock < 1) || $validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)]);
         }
@@ -578,6 +588,9 @@ class ProductController extends Controller
         $product->image = $request->has('image') ? Helpers::update('product/', $product->image, 'png', $request->file('image')) : $product->image;
         $product->available_time_starts = $request->available_time_starts;
         $product->available_time_ends = $request->available_time_ends;
+
+        $this->applyStorefrontVisibilityToProduct($request, $product);
+        $this->applyRecurringVisibilityToProduct($request, $product);
 
         $product->tax = $request->tax_type == 'amount' ? $request->tax : $request->tax;
         $product->tax_type = $request->tax_type;
@@ -959,5 +972,177 @@ class ProductController extends Controller
 
         Toastr::success(translate('updated successfully!'));
         return back();
+    }
+
+    private function validateStorefrontVisibilitySchedule(Request $request, \Illuminate\Validation\Validator $validator): void
+    {
+        if (!$request->hasAny(['visible_from', 'visible_until', 'clear_storefront_visibility_schedule'])) {
+            return;
+        }
+
+        if ($request->boolean('clear_storefront_visibility_schedule')) {
+            return;
+        }
+
+        $from = $request->input('visible_from');
+        $until = $request->input('visible_until');
+        if (($from === null || $from === '') && ($until === null || $until === '')) {
+            return;
+        }
+
+        try {
+            $fromAt = ($from === null || $from === '') ? null : Carbon::parse($from);
+            $untilAt = ($until === null || $until === '') ? null : Carbon::parse($until);
+        } catch (\Throwable) {
+            $validator->getMessageBag()->add('visible_from', translate('Invalid visibility schedule datetime.'));
+
+            return;
+        }
+
+        if ($fromAt && $untilAt && $fromAt->greaterThanOrEqualTo($untilAt)) {
+            $validator->getMessageBag()->add('visible_until', translate('visible_until must be after visible_from'));
+        }
+    }
+
+    private function applyStorefrontVisibilityToProduct(Request $request, Product $product): void
+    {
+        if (!$request->hasAny(['visible_from', 'visible_until', 'clear_storefront_visibility_schedule'])) {
+            return;
+        }
+
+        if ($request->boolean('clear_storefront_visibility_schedule')) {
+            $product->visible_from = null;
+            $product->visible_until = null;
+
+            return;
+        }
+
+        $from = $request->input('visible_from');
+        $until = $request->input('visible_until');
+        $product->visible_from = ($from === null || $from === '') ? null : Carbon::parse($from);
+        $product->visible_until = ($until === null || $until === '') ? null : Carbon::parse($until);
+    }
+
+    private function validateRecurringVisibilityRules(Request $request, \Illuminate\Validation\Validator $validator): void
+    {
+        if (! $request->hasAny(['recurring_rules', 'clear_recurring_visibility_rules'])) {
+            return;
+        }
+
+        if ($request->boolean('clear_recurring_visibility_rules')) {
+            return;
+        }
+
+        if (! $request->has('recurring_rules')) {
+            return;
+        }
+
+        $rows = $request->input('recurring_rules', []);
+        if (! is_array($rows)) {
+            $validator->getMessageBag()->add('recurring_rules', translate('Invalid recurring rules.'));
+
+            return;
+        }
+
+        foreach ($rows as $i => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $day = isset($row['day']) ? strtolower(trim((string) $row['day'])) : '';
+            $start = isset($row['start']) ? trim((string) $row['start']) : '';
+            $end = isset($row['end']) ? trim((string) $row['end']) : '';
+
+            if ($day === '' && $start === '' && $end === '') {
+                continue;
+            }
+
+            if ($start === '' || $end === '') {
+                $validator->getMessageBag()->add('recurring_rules.'.$i.'.start', translate('Start and end time are required for each recurring rule.'));
+
+                continue;
+            }
+
+            if (! in_array($day, StorefrontVisibilitySchedule::WEEKDAYS, true)) {
+                $validator->getMessageBag()->add('recurring_rules.'.$i.'.day', translate('Select a valid weekday.'));
+
+                continue;
+            }
+
+            try {
+                $st = Carbon::parse('2000-01-01 '.$start);
+                $en = Carbon::parse('2000-01-01 '.$end);
+            } catch (\Throwable) {
+                $validator->getMessageBag()->add('recurring_rules.'.$i.'.start', translate('Use HH:MM times for recurring visibility.'));
+
+                continue;
+            }
+
+            $stSec = $st->hour * 3600 + $st->minute * 60 + $st->second;
+            $enSec = $en->hour * 3600 + $en->minute * 60 + $en->second;
+            if (preg_match('/^\d{1,2}:\d{2}$/', $end)) {
+                $enSec += 59;
+            }
+
+            if ($stSec > $enSec) {
+                $validator->getMessageBag()->add('recurring_rules.'.$i.'.end', translate('End time must be after start time (same day).'));
+            }
+        }
+    }
+
+    private function applyRecurringVisibilityToProduct(Request $request, Product $product): void
+    {
+        if (! $request->hasAny(['recurring_rules', 'clear_recurring_visibility_rules'])) {
+            return;
+        }
+
+        if ($request->boolean('clear_recurring_visibility_rules')) {
+            $product->recurring_visibility_rules = null;
+
+            return;
+        }
+
+        $product->recurring_visibility_rules = $this->normalizeRecurringRulesFromRequest($request);
+    }
+
+    /**
+     * @return array<int, array{day: string, start: string, end: string}>|null
+     */
+    private function normalizeRecurringRulesFromRequest(Request $request): ?array
+    {
+        $rows = $request->input('recurring_rules', []);
+        if (! is_array($rows)) {
+            return null;
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $day = isset($row['day']) ? strtolower(trim((string) $row['day'])) : '';
+            $start = isset($row['start']) ? trim((string) $row['start']) : '';
+            $end = isset($row['end']) ? trim((string) $row['end']) : '';
+
+            if ($day === '' || $start === '' || $end === '') {
+                continue;
+            }
+
+            if (! in_array($day, StorefrontVisibilitySchedule::WEEKDAYS, true)) {
+                continue;
+            }
+
+            try {
+                $start = Carbon::parse('2000-01-01 '.$start)->format('H:i');
+                $end = Carbon::parse('2000-01-01 '.$end)->format('H:i');
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $out[] = ['day' => $day, 'start' => $start, 'end' => $end];
+        }
+
+        return count($out) ? $out : null;
     }
 }

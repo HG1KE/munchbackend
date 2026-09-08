@@ -292,6 +292,7 @@
                         </div>
                         <div class="col-lg-6">
                             <div class="row g-2">
+                                @include('admin-views.product.partials._storefront-visibility-schedule')
                                 <div class="col-12">
                                     <div class="card">
                                         <div class="card-body">

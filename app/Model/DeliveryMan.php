@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-
 class DeliveryMan extends Authenticatable
 {
     use Notifiable;
@@ -32,12 +30,12 @@ class DeliveryMan extends Authenticatable
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/160x160/img1.jpg');
 
-        if (!is_null($image) && Storage::disk('public')->exists('delivery-man/' . $image)) {
-            $path = asset('storage/app/public/delivery-man/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/delivery-man/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/160x160/img1.jpg');
     }
 
     public function getIdentityImageFullPathAttribute()
@@ -46,8 +44,8 @@ class DeliveryMan extends Authenticatable
         $imageUrlArray = is_array($value) ? $value : json_decode($value, true);
         if (is_array($imageUrlArray)) {
             foreach ($imageUrlArray as $key => $item) {
-                if (Storage::disk('public')->exists('delivery-man/' . $item)) {
-                    $imageUrlArray[$key] = asset('storage/app/public/delivery-man/'. $item) ;
+                if (! empty($item)) {
+                    $imageUrlArray[$key] = asset('storage/app/public/delivery-man/' . $item);
                 } else {
                     $imageUrlArray[$key] = asset('public/assets/admin/img/160x160/img1.jpg');
                 }

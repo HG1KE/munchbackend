@@ -6,6 +6,7 @@ use App\Model\CustomerAddress;
 use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
+use App\Support\StorefrontVisibilitySchedule;
 use App\Model\OrderTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -24,7 +25,7 @@ class OrderLogic
 
         $orderDetails = OrderDetail::where('order_id', $order->id)->first();
         $productId = $orderDetails?->product_id;
-        $order['is_product_available'] = $productId ? Product::find($productId) ? 1 : 0 : 0;
+        $order['is_product_available'] = $productId ? (count(StorefrontVisibilitySchedule::filterProductIds([(int) $productId])) > 0 ? 1 : 0) : 0;
 
         $order->offline_payment_information = $order->offline_payment ? json_decode($order->offline_payment->payment_info, true): null;
         $order->delivery_address = $order->delivery_address ?? CustomerAddress::find($order->delivery_address_id);

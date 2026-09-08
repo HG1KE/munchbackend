@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Facades\Storage;
-
 
 class Cuisine extends Model
 {
@@ -33,12 +31,12 @@ class Cuisine extends Model
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/160x160/img2.jpg');
 
-        if (!is_null($image) && Storage::disk('public')->exists('cuisine/' . $image)) {
-            $path = asset('storage/app/public/cuisine/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/cuisine/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/160x160/img2.jpg');
     }
 
     public function translations(): MorphMany

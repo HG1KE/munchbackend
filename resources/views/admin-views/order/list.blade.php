@@ -237,7 +237,7 @@
                             <tr class="status-{{$order['order_status']}} class-all">
                                 <td>{{$orders->firstitem()+$key}}</td>
                                 <td>
-                                    <a class="text-dark" href="{{route('admin.orders.details',['id'=>$order['id']])}}">{{$order['id']}}</a>
+                                    <a class="text-dark" href="{{route('admin.orders.details',['id'=>$order['id']])}}">{{ \App\CentralLogics\Helpers::order_display_id($order) }}</a>
                                 </td>
                                 <td>
                                     <div>{{date('d M Y',strtotime($order['delivery_date']))}}</div>
@@ -316,6 +316,13 @@
                     {!!$orders->links()!!}
                 </div>
             </div>
+
+            @if(count($orders) == 0)
+                <div class="text-center p-4">
+                    <img class="w-120px mb-3" src="{{asset('/public/assets/admin/svg/illustrations/sorry.svg')}}" alt="Image Description">
+                    <p class="mb-0">{{translate('No_data_to_show')}}</p>
+                </div>
+            @endif
         </div>
     </div>
 @endsection

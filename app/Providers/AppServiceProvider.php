@@ -5,16 +5,16 @@ namespace App\Providers;
 use App\CentralLogics\Helpers;
 use App\Model\BusinessSetting;
 use App\Model\Category;
+use App\Model\Order;
 use App\Models\LoginSetup;
 use App\Observers\BusinessSettingObserver;
 use App\Observers\CategoryObserver;
 use App\Observers\LoginSetupObserver;
+use App\Observers\OrderObserver;
 use App\Traits\SystemAddonTrait;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
-
-ini_set('memory_limit', '-1');
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,21 +37,28 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $memoryLimit = (string) env('APP_MEMORY_LIMIT', '512M');
+        if ($memoryLimit !== '' && $memoryLimit !== '-1') {
+            @ini_set('memory_limit', $memoryLimit);
+        }
+
         BusinessSetting::observe(BusinessSettingObserver::class);
         LoginSetup::observe(LoginSetupObserver::class);
         Category::observe(CategoryObserver::class);
+        Order::observe(OrderObserver::class);
 
         //for system addon
         Config::set('addon_admin_routes',$this->get_addon_admin_routes());
         Config::set('get_payment_publish_status',$this->get_payment_publish_status());
 
         try {
-            $timezone = BusinessSetting::where(['key' => 'time_zone'])->first();
-            if (isset($timezone)) {
-                config(['app.timezone' => $timezone->value]);
-                date_default_timezone_set($timezone->value);
+            $timezone = Helpers::get_business_settings('time_zone');
+            if (is_string($timezone) && $timezone !== '') {
+                config(['app.timezone' => $timezone]);
+                date_default_timezone_set($timezone);
             }
-        }catch(\Exception $exception){}
+        } catch (\Exception $exception) {
+        }
 
         Paginator::useBootstrap();
     }

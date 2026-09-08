@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\CentralLogics\Helpers;
+use App\CentralLogics\LivePresenceService;
 use App\Http\Controllers\Controller;
 use App\Model\Admin;
 use App\Model\Branch;
@@ -165,6 +166,14 @@ class DashboardController extends Controller
         return response()->json([
             'view' => view('admin-views.partials._dashboard-order-stats', compact('data'))->render()
         ], 200);
+    }
+
+    /**
+     * Lightweight live operational metrics for dashboard polling.
+     */
+    public function liveStats(): JsonResponse
+    {
+        return response()->json(LivePresenceService::adminStats(), 200);
     }
 
     /**

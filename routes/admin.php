@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\LoyaltyPointController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OfflinePaymentMethodController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OrderAutomationController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\QRCodeController;
@@ -33,6 +34,13 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewsController;
 use App\Http\Controllers\Admin\SMSModuleController;
 use App\Http\Controllers\Admin\SystemController;
+use App\Http\Controllers\Admin\MarketingPromotionalSmsController;
+use App\Http\Controllers\Admin\MarketingAbandonedCheckoutController;
+use App\Http\Controllers\Admin\MarketingSmsQueueController;
+use App\Http\Controllers\Admin\MarketingReorderReminderController;
+use App\Http\Controllers\Admin\MarketingLoyaltyDeliverySmsController;
+use App\Http\Controllers\Admin\MarketingLoyaltyDeliverySmsActivityController;
+use App\Http\Controllers\Admin\MarketingReorderSmsQueueController;
 use App\Http\Controllers\Admin\TableController;
 use App\Http\Controllers\Admin\TableOrderController;
 use App\Http\Controllers\Admin\TimeScheduleController;
@@ -60,6 +68,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::get('/fcm/{id}', [DashboardController::class, 'fcm'])->name('dashboard');     //test route
         Route::get('/', [DashboardController::class, 'dashboard'])->name('dashboard');
         Route::post('order-stats', [DashboardController::class, 'orderStats'])->name('order-stats');
+        Route::get('dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live-stats');
         Route::get('settings', [SystemController::class, 'settings'])->name('settings');
         Route::post('settings', [SystemController::class, 'settingsUpdate']);
         Route::post('settings-password', [SystemController::class, 'settingsPasswordUpdate'])->name('settings-password');
@@ -233,6 +242,13 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('update-order-delivery-area/{order_id}', [OrderController::class, 'updateOrderDeliveryArea'])->name('update-order-delivery-area');
         });
 
+        Route::group(['prefix' => 'order-automation', 'as' => 'order-automation.', 'middleware' => ['module:order_management']], function () {
+            Route::get('/', [OrderAutomationController::class, 'index'])->name('index');
+            Route::post('settings', [OrderAutomationController::class, 'updateSettings'])->name('update');
+            Route::get('preview', [OrderAutomationController::class, 'preview'])->name('preview');
+            Route::post('run-manual', [OrderAutomationController::class, 'runManual'])->name('run-manual');
+        });
+
         Route::group(['prefix' => 'category', 'as' => 'category.', 'middleware' => ['module:product_management']], function () {
             Route::get('add', [CategoryController::class, 'index'])->name('add');
             Route::get('add-sub-category', [CategoryController::class, 'subIndex'])->name('add-sub-category');
@@ -279,6 +295,22 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::delete('delete/{id}', [CouponController::class, 'delete'])->name('delete');
             Route::get('generate-coupon-code', [CouponController::class, 'generateCouponCode'])->name('generate-coupon-code');
             Route::get('coupon-details', [CouponController::class, 'couponDetails'])->name('coupon-details');
+        });
+
+        Route::group(['prefix' => 'marketing', 'as' => 'marketing.', 'middleware' => ['module:system_management']], function () {
+            Route::get('promotional-sms-gateway', [MarketingPromotionalSmsController::class, 'index'])->name('promotional-sms-gateway.index');
+            Route::post('promotional-sms-gateway', [MarketingPromotionalSmsController::class, 'update'])->name('promotional-sms-gateway.update');
+            Route::get('abandoned-checkout', [MarketingAbandonedCheckoutController::class, 'index'])->name('abandoned-checkout.index');
+            Route::post('abandoned-checkout', [MarketingAbandonedCheckoutController::class, 'update'])->name('abandoned-checkout.update');
+            Route::get('reorder-reminders', [MarketingReorderReminderController::class, 'index'])->name('reorder-reminders.index');
+            Route::post('reorder-reminders/send-test', [MarketingReorderReminderController::class, 'sendTest'])->name('reorder-reminders.send-test');
+            Route::post('reorder-reminders', [MarketingReorderReminderController::class, 'update'])->name('reorder-reminders.update');
+            Route::get('sms-queue-activity', [MarketingSmsQueueController::class, 'index'])->name('sms-queue-activity.index');
+            Route::get('reorder-sms-queue-activity', [MarketingReorderSmsQueueController::class, 'index'])->name('reorder-sms-queue-activity.index');
+            Route::get('loyalty-delivery-sms', [MarketingLoyaltyDeliverySmsController::class, 'index'])->name('loyalty-delivery-sms.index');
+            Route::post('loyalty-delivery-sms/send-test', [MarketingLoyaltyDeliverySmsController::class, 'sendTest'])->name('loyalty-delivery-sms.send-test');
+            Route::post('loyalty-delivery-sms', [MarketingLoyaltyDeliverySmsController::class, 'update'])->name('loyalty-delivery-sms.update');
+            Route::get('loyalty-delivery-sms-activity', [MarketingLoyaltyDeliverySmsActivityController::class, 'index'])->name('loyalty-delivery-sms-activity.index');
         });
 
         Route::group(['prefix' => 'business-settings', 'as' => 'business-settings.', 'middleware' => ['module:system_management']], function () {

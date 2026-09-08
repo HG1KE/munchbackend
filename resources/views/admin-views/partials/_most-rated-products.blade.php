@@ -11,7 +11,7 @@
                 <a class="grid-item text-dark" href='{{route('admin.product.view',[$item['product_id']])}}'>
                     <div class="d-flex align-items-center gap-2">
                         <img class="rounded avatar"
-                                src="{{ $item->product->imageFullPath }}"
+                                src="{{ asset('public/assets/admin/img/160x160/img2.jpg') }}"
                                 alt="{{$product->name}}-image">
                         <span class=" font-weight-semibold text-capitalize media-body">
                             {{isset($product)?substr($product->name,0,18) . (strlen($product->name)>18?'...':''):'not exists'}}

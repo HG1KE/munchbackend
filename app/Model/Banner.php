@@ -3,8 +3,6 @@
 namespace App\Model;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
-
 class Banner extends Model
 {
     protected $casts = [
@@ -27,11 +25,11 @@ class Banner extends Model
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/icons/upload_img2.png');
 
-        if (!is_null($image) && Storage::disk('public')->exists('banner/' . $image)) {
-            $path = asset('storage/app/public/banner/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/banner/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/icons/upload_img2.png');
     }
 }

@@ -14,6 +14,7 @@ use App\Model\Review;
 use App\Model\Tag;
 use App\Model\Translation;
 use App\Models\Cuisine;
+use App\Support\StorefrontVisibilitySchedule;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -103,8 +104,8 @@ class ProductController extends Controller
                 ->toArray();
 
             $ratingProductIds = [];
-            if (isset($rating)){
-                $ratingProductIds = Product::active()->with('reviews')
+            if (isset($request['rating'])){
+                $ratingProductIds = Product::active()->storefrontScheduleVisible()->with('reviews')
                     ->whereHas('reviews', function ($q) use ($request) {
                         $q->select('product_id')
                             ->groupBy('product_id')
@@ -112,22 +113,24 @@ class ProductController extends Controller
                         })
                     ->pluck('id')
                     ->toArray();
+                $ratingProductIds = StorefrontVisibilitySchedule::filterProductIds($ratingProductIds);
             }
 
             $productIdsForCategory = [];
             if (isset($request['category_id'])){
                 foreach (gettype($request['category_id']) != 'array' ? json_decode($request['category_id']) : $request['category_id'] as $categoryId) {
-                    $productIds = Product::active()
+                    $productIds = Product::active()->storefrontScheduleVisible()
                         ->where(function ($query) use ($categoryId) {
                             $query->whereJsonContains('category_ids', ['id' => (string)$categoryId]);
                         })
                         ->pluck('id')
                         ->toArray();
+                    $productIds = StorefrontVisibilitySchedule::filterProductIds($productIds);
                     $productIdsForCategory = array_unique(array_merge($productIdsForCategory, $productIds));
                 }
             }
 
-            $paginator = $this->product->active()
+            $paginator = $this->product->active()->storefrontScheduleVisible()
                 ->withCount('reviews')
                 ->with(['rating', 'cuisines', 'branch_product', 'reviews'])
                 ->whereIn('id', $ids)
@@ -192,11 +195,11 @@ class ProductController extends Controller
                 ->latest()
                 ->paginate($request['limit'], ['*'], 'page', $request['offset']);
 
-            $productMaxPrice = Product::active()->max('price') ?? 0;
+            StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
 
             $products = [
                 'total_size' => $paginator->total(),
-                'product_max_price' => $productMaxPrice,
+                'product_max_price' => ProductLogic::cachedVisibleProductMaxPrice(),
                 'limit' => $request['limit'],
                 'offset' => $request['offset'],
                 'products' => $paginator->items()
@@ -215,6 +218,11 @@ class ProductController extends Controller
     {
         try {
             $product = ProductLogic::get_product($id);
+            if (!$product) {
+                return response()->json([
+                    'errors' => ['code' => 'product-001', 'message' => translate('no_data_found')]
+                ], 404);
+            }
             $product = Helpers::product_data_formatting($product, false);
 
             return response()->json($product, 200);
@@ -232,7 +240,8 @@ class ProductController extends Controller
      */
     public function relatedProducts($id): JsonResponse
     {
-        if ($this->product->find($id)) {
+        $p = $this->product->active()->storefrontScheduleVisible()->where('id', $id)->first();
+        if ($p && StorefrontVisibilitySchedule::productPasses($p, now())) {
             $products = ProductLogic::get_related_products($id);
             $products = Helpers::product_data_formatting($products, true);
 
@@ -251,7 +260,7 @@ class ProductController extends Controller
      */
     public function setMenus(Request $request): JsonResponse
     {
-        $setMenuProducts = $this->product->active()
+        $setMenuProducts = $this->product->active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['rating', 'branch_product'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -263,6 +272,8 @@ class ProductController extends Controller
             ->where(['set_menu' => 1])
             ->latest()
             ->paginate($request['limit'], ['*'], 'page', $request['offset']);
+
+        StorefrontVisibilitySchedule::filterPaginatorProducts($setMenuProducts);
 
         $products = [
             'total_size' => $setMenuProducts->total(),
@@ -282,6 +293,12 @@ class ProductController extends Controller
      */
     public function productReviews(Request $request,$id): JsonResponse
     {
+        if (!ProductLogic::get_product($id)) {
+            return response()->json([
+                'errors' => ['code' => 'product-001', 'message' => translate('no_data_found')]
+            ], 404);
+        }
+
         $reviews = $this->review
             ->with(['customer'])
             ->where(['product_id' => $id])
@@ -333,7 +350,10 @@ class ProductController extends Controller
     public function productRating($id): JsonResponse
     {
         try {
-            $product = $this->product->find($id);
+            $product = ProductLogic::get_product($id);
+            if (!$product) {
+                return response()->json(['errors' => ['code' => 'product-001', 'message' => translate('no_data_found')]], 404);
+            }
             $overallRating = ProductLogic::get_overall_rating($product->reviews);
             return response()->json(floatval($overallRating[0]), 200);
 
@@ -355,7 +375,7 @@ class ProductController extends Controller
             'rating' => 'required|numeric|max:5',
         ]);
 
-        $product = $this->product->find($request->product_id);
+        $product = ProductLogic::get_product($request->product_id);
         if (isset($product) == false) {
             $validator->errors()->add('product_id', translate('no_data_found'));
         }
@@ -430,7 +450,7 @@ class ProductController extends Controller
         }
 
         $searchWords = explode(' ', $name);
-        $products = Product::active()
+        $products = Product::active()->storefrontScheduleVisible()
             ->with(['branch_product'])
             ->whereHas('branch_product.branch', function ($query) {
                 $query->where('status', 1);
@@ -467,12 +487,14 @@ class ProductController extends Controller
             });
         });
 
-        $productResult = $searchQuery->pluck('name');
+        $productResult = StorefrontVisibilitySchedule::filterProducts(
+            (clone $searchQuery)->get(['id', 'name', 'visible_from', 'visible_until', 'recurring_visibility_rules'])
+        )->pluck('name');
 
         $categoryIds = Category::where('name', 'LIKE', "%$name%")->pluck('id');
 
         if ($categoryIds->isNotEmpty()) {
-            $categoryProducts = Product::active()
+            $categoryQuery = Product::active()->storefrontScheduleVisible()
                 ->with(['branch_product'])
                 ->whereHas('branch_product.branch', function ($query) {
                     $query->where('status', 1);
@@ -482,22 +504,26 @@ class ProductController extends Controller
                     foreach ($categoryIds as $id) {
                         $query->whereJsonContains('category_ids', ['id' => (string) $id]);
                     }
-                })
-                ->pluck('name');
+                });
+            $categoryProducts = StorefrontVisibilitySchedule::filterProducts(
+                $categoryQuery->get(['id', 'name', 'visible_from', 'visible_until', 'recurring_visibility_rules'])
+            )->pluck('name');
         } else {
             // If no category IDs, return an empty collection
             $categoryProducts = collect();
         }
 
-        $cuisineProducts = $this->product->with(['branch_product'])
+        $cuisineQuery = $this->product->active()->storefrontScheduleVisible()
             ->whereHas('branch_product.branch', function ($query) {
                 $query->where('status', 1);
             })
             ->branchProductAvailability()
             ->whereHas('cuisines', function ($query) use ($name) {
                 $query->where('name', 'LIKE', "%$name%");
-            })
-            ->pluck('name');
+            });
+        $cuisineProducts = StorefrontVisibilitySchedule::filterProducts(
+            $cuisineQuery->get(['id', 'name', 'visible_from', 'visible_until', 'recurring_visibility_rules'])
+        )->pluck('name');
 
         $results = $productResult
             ->merge($categoryProducts)
@@ -526,7 +552,7 @@ class ProductController extends Controller
         $fromBranchProducts = $request['products'];
         $productIds = $request['product_ids'];
 
-        $newProducts = $this->product->active()
+        $newProducts = $this->product->active()->storefrontScheduleVisible()
             ->with(['rating', 'b_product' => function ($query) use ($toBranchId, $productIds) {
                 $query->where('branch_id', $toBranchId)
                     ->whereIn('product_id', $productIds);
@@ -536,6 +562,8 @@ class ProductController extends Controller
                     ->whereIn('product_id', $productIds);
             })
             ->get();
+
+        $newProducts = StorefrontVisibilitySchedule::filterProducts($newProducts);
 
 
         $formattedProducts = [];
@@ -627,7 +655,7 @@ class ProductController extends Controller
 
         $productIds = $order->details->pluck('product_id')->toArray();
 
-        $currentProducts = Product::active()
+        $currentProducts = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['branch_product', 'rating'])
             ->whereIn('id', $productIds)
@@ -636,6 +664,8 @@ class ProductController extends Controller
             })
             ->branchProductAvailability()
             ->get();
+
+        $currentProducts = StorefrontVisibilitySchedule::filterProducts($currentProducts);
 
         foreach ($order->details as $detail) {
             $productDetails = gettype($detail['product_details']) != 'array' ? (array) json_decode($detail['product_details'], true) : (array) $detail['product_details'];
@@ -719,10 +749,12 @@ class ProductController extends Controller
             ->pluck('product_id')
             ->unique();
 
-        $products = Product::with('cuisines')
-            ->whereIn('id', $orderDetailsProductIds)
-            ->orderBy('popularity_count', 'DESC')
-            ->get();
+        $products = StorefrontVisibilitySchedule::filterProducts(
+            Product::active()->storefrontScheduleVisible()->with('cuisines')
+                ->whereIn('id', $orderDetailsProductIds)
+                ->orderBy('popularity_count', 'DESC')
+                ->get()
+        );
 
         // Extract category IDs where position is 1(main category)
         $categoryIds = $products->flatMap(function ($product) {

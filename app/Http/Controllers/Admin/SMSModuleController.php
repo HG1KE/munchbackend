@@ -40,7 +40,10 @@ class SMSModuleController extends Controller
                 }
             }
         }
-        $dataValues= Setting::where('settings_type','sms_config')->whereIn('key_name', ['twilio','nexmo','2factor','msg91', 'signal_wire', 'alphanet_sms', 'textsms_ke', 'textsms_ke_not', 'textsms_ke_customer_confirm'])->get() ?? [];
+        $dataValues = Setting::where('settings_type', 'sms_config')->whereIn('key_name', [
+            'twilio', 'nexmo', '2factor', 'msg91', 'signal_wire', 'alphanet_sms',
+            'textsms_ke', 'textsms_ke_not', 'textsms_ke_customer_confirm',
+        ])->get() ?? collect();
 
         return view('admin-views.business-settings.sms-index',  compact('publishedStatus', 'paymentUrl', 'dataValues'));
     }
@@ -57,7 +60,7 @@ class SMSModuleController extends Controller
         }
 
         $validation = [
-            'gateway' => 'required|in:twilio,nexmo,2factor,msg91,signal_wire,alphanet_sms,textsms_ke,textsms_ke_not,textsms_ke_customer_confirm',
+            'gateway' => 'required|in:twilio,nexmo,2factor,msg91,signal_wire,alphanet_sms,textsms_ke,textsms_ke_not,textsms_ke_customer_confirm,textsms_ke_abandoned_cart,textsms_ke_reorder_reminder,textsms_ke_loyalty_delivery,textsms_ke_promotional',
         ];
 
         $validationData = [];
@@ -130,6 +133,29 @@ class SMSModuleController extends Controller
                 'sender_id' => 'required_if:status,1',
                 'order_placed_template' => 'required_if:status,1',
                 'processing_template' => 'required_if:status,1',
+            ];
+        } elseif ($module == 'textsms_ke_promotional') {
+            $validationData = [
+                'status' => 'required|in:1,0',
+                'api_key' => 'required_if:status,1',
+                'partner_id' => 'required_if:status,1',
+                'sender_id' => 'required_if:status,1',
+                'http_timeout_seconds' => 'nullable|integer|min:5|max:120',
+            ];
+        } elseif ($module == 'textsms_ke_abandoned_cart') {
+            $validationData = [
+                'status' => 'required|in:1,0',
+                'message_template' => 'required_if:status,1',
+            ];
+        } elseif ($module == 'textsms_ke_reorder_reminder') {
+            $validationData = [
+                'status' => 'required|in:1,0',
+                'message_template' => 'required_if:status,1',
+            ];
+        } elseif ($module == 'textsms_ke_loyalty_delivery') {
+            $validationData = [
+                'status' => 'required|in:1,0',
+                'message_template' => 'required_if:status,1',
             ];
         }
 
@@ -215,6 +241,49 @@ class SMSModuleController extends Controller
                 'processing_template' => $request['processing_template'],
                 'is_otp_gateway' => 0,
             ];
+        } elseif ($module == 'textsms_ke_promotional') {
+            $additionalData = [
+                'status' => $request['status'],
+                'api_key' => $request['api_key'],
+                'partner_id' => $request['partner_id'],
+                'sender_id' => $request['sender_id'],
+                'http_timeout_seconds' => (string) $request->input('http_timeout_seconds', '30'),
+                'is_otp_gateway' => 0,
+            ];
+        } elseif ($module == 'textsms_ke_abandoned_cart') {
+            $additionalData = [
+                'status' => $request['status'],
+                'message_template' => $request['message_template'],
+                'delay_minutes' => $request->input('delay_minutes', '30'),
+                'max_attempts' => $request->input('max_attempts', '1'),
+                'cooldown_hours' => $request->input('cooldown_hours', '24'),
+                'quiet_hours_start' => $request->input('quiet_hours_start', '21:00'),
+                'quiet_hours_end' => $request->input('quiet_hours_end', '08:00'),
+                'recovery_url' => $request->input('recovery_url', ''),
+                'is_otp_gateway' => 0,
+            ];
+        } elseif ($module == 'textsms_ke_reorder_reminder') {
+            $additionalData = [
+                'status' => $request['status'],
+                'message_template' => $request->message_template,
+                'delay_days' => $request->input('delay_days', '14'),
+                'minimum_completed_orders' => $request->input('minimum_completed_orders', '2'),
+                'max_attempts' => $request->input('max_attempts', '1'),
+                'cooldown_days' => $request->input('cooldown_days', '30'),
+                'quiet_hours_start' => $request->input('quiet_hours_start', '21:00'),
+                'quiet_hours_end' => $request->input('quiet_hours_end', '08:00'),
+                'recovery_url' => $request->input('recovery_url', ''),
+                'branch_ids' => $request->input('branch_ids', ''),
+                'test_phone' => $request->input('test_phone', ''),
+                'is_otp_gateway' => 0,
+            ];
+        } elseif ($module == 'textsms_ke_loyalty_delivery') {
+            $additionalData = [
+                'status' => $request['status'],
+                'message_template' => $request->message_template,
+                'test_phone' => $request->input('test_phone', ''),
+                'is_otp_gateway' => 0,
+            ];
         }
 
         $data= [
@@ -242,7 +311,7 @@ class SMSModuleController extends Controller
 
         if ($request['status'] == 1) {
             // Only disable other gateways if this is an OTP gateway
-            if ($module != 'textsms_ke_not' && $module != 'textsms_ke_customer_confirm') {
+            if ($module != 'textsms_ke_not' && $module != 'textsms_ke_customer_confirm' && $module != 'textsms_ke_abandoned_cart' && $module != 'textsms_ke_reorder_reminder' && $module != 'textsms_ke_loyalty_delivery' && $module != 'textsms_ke_promotional') {
                 foreach ($SMSGatewayArray as $gateway) {
                     if ($module != $gateway) {
                         $keep = Setting::where(['key_name' => $gateway, 'settings_type' => 'sms_config'])->first();

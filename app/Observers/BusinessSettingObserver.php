@@ -2,8 +2,9 @@
 
 namespace App\Observers;
 
+use App\CentralLogics\Helpers;
+use App\CentralLogics\StorefrontConfigService;
 use App\Model\BusinessSetting;
-use Illuminate\Support\Facades\Cache;
 
 
 class BusinessSettingObserver
@@ -48,8 +49,10 @@ class BusinessSettingObserver
         $this->refreshBusinessSettingsCache();
     }
 
-    private function refreshBusinessSettingsCache()
+    private function refreshBusinessSettingsCache(): void
     {
-        Cache::forget(CACHE_BUSINESS_SETTINGS_TABLE);
+        Helpers::forgetBusinessSettingsRuntimeCache();
+        Helpers::forgetRestaurantSchedulesRuntimeCache();
+        StorefrontConfigService::forgetCachedConfiguration();
     }
 }

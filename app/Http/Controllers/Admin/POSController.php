@@ -784,7 +784,8 @@ class POSController extends Controller
      */
     public function order_details($id): Renderable|RedirectResponse
     {
-        $order = $this->order->with('details')->where(['id' => $id])->first();
+        $order = $this->order->with(['details.product', 'customer', 'branch', 'delivery_man', 'order_partial_payments'])
+            ->where(['id' => $id])->first();
         if (!isset($order)) {
             Toastr::info(translate('No more orders!'));
             return back();

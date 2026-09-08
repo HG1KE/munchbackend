@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\CentralLogics\AbandonedCheckoutService;
 use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\CustomerOrderStatusSms;
 use App\CentralLogics\Helpers;
@@ -17,6 +18,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
 use App\Model\ProductByBranch;
+use App\Support\StorefrontVisibilitySchedule;
 use App\Model\TimeSchedule;
 use App\Models\GuestUser;
 use App\Models\OfflinePayment;
@@ -272,7 +274,7 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            $order_id = 100000 + $this->order->all()->count() + 1;
+            $order_id = 100000 + (int) $this->order->max('id') + 1;
             $or = [
                 'id' => $order_id,
                 'user_id' => $userId,
@@ -306,7 +308,10 @@ class OrderController extends Controller
             $totalAddonPrice = 0;
 
             foreach ($request['cart'] as $c) {
-                $product = $this->product->find($c['product_id']);
+                $product = $this->product->active()->storefrontScheduleVisible()->where('id', $c['product_id'])->first();
+                if (! $product || ! StorefrontVisibilitySchedule::productPasses($product, now())) {
+                    return response()->json(['errors' => [['code' => 'product', 'message' => translate('no_data_found')]]], 403);
+                }
 
                 $branch_product = $this->product_by_branch->where(['product_id' => $c['product_id'], 'branch_id' => $request['branch_id']])->first();
 
@@ -623,6 +628,7 @@ class OrderController extends Controller
                 $persisted = Order::with(['customer', 'branch'])->find($order_id);
                 if ($persisted) {
                     CustomerOrderStatusSms::dispatchPlacement($persisted);
+                    AbandonedCheckoutService::linkOrderConversion($persisted);
                 }
             }
 
@@ -714,7 +720,7 @@ class OrderController extends Controller
             $order_details = $this->order_detail->where('order_id', $order_id)->first();
             $product_id = $order_details?->product_id;
 
-            $data['is_product_available'] = $product_id ? $this->product->find($product_id) ? 1 : 0 : 0;
+            $data['is_product_available'] = $product_id ? (count(StorefrontVisibilitySchedule::filterProductIds([(int) $product_id])) > 0 ? 1 : 0) : 0;
             $data['details_count'] = (int)$data->details_count;
 
             $productImages = $this->order_detail->where('order_id', $order_id)->pluck('product_id')

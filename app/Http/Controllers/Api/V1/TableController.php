@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\CentralLogics\CustomerOrderStatusSms;
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\AddOn;
@@ -10,6 +11,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
 use App\Model\ProductByBranch;
+use App\Support\StorefrontVisibilitySchedule;
 use App\Model\Table;
 use App\Model\TableOrder;
 use Brian2694\Toastr\Facades\Toastr;
@@ -121,7 +123,10 @@ class TableController extends Controller
             $totalAddonTax = 0;
 
             foreach ($request['cart'] as $c) {
-                $product = $this->product->find($c['product_id']);
+                $product = $this->product->active()->storefrontScheduleVisible()->where('id', $c['product_id'])->first();
+                if (! $product || ! StorefrontVisibilitySchedule::productPasses($product, now())) {
+                    return response()->json(['errors' => [['code' => 'product', 'message' => translate('no_data_found')]]], 403);
+                }
 
                 //new variation price calculation
                 $branch_product = $this->productByBranch->where(['product_id' => $c['product_id'], 'branch_id' => $request['branch_id']])->first();
@@ -301,6 +306,8 @@ class TableController extends Controller
                     // Log error but don't interrupt the order process
                     \Illuminate\Support\Facades\Log::error('SMS Notification Error: ' . $e->getMessage());
                 }
+
+                CustomerOrderStatusSms::dispatchPlacement($order->fresh(['customer', 'branch']));
 
                 Toastr::success(translate('Notification sent successfully!'));
             } catch (\Exception $e) {

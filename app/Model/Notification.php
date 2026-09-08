@@ -3,8 +3,6 @@
 namespace App\Model;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
-
 class Notification extends Model
 {
     protected $casts = [
@@ -21,11 +19,11 @@ class Notification extends Model
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/icons/upload_img2.png');
 
-        if (!is_null($image) && Storage::disk('public')->exists('notification/' . $image)) {
-            $path = asset('storage/app/public/notification/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/notification/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/icons/upload_img2.png');
     }
 }

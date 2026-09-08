@@ -112,6 +112,11 @@ class DigitalPaymentController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
+
+        if (! auth('api')->user() && ! (int) (Helpers::get_business_settings('guest_checkout') ?? 0)) {
+            return response()->json(['errors' => [['code' => 'guest_checkout_disabled', 'message' => 'Login is required to place an order.']]], 403);
+        }
+
         $customer_id = auth('api')->user()->id ?? $request->guest_id;
         $is_guest = auth('api')->user() ? 0: 1;
 

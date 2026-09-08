@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\CustomerOrderStatusSms;
+use App\CentralLogics\LoyaltyDeliverySmsService;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
 use App\Http\Controllers\Controller;
@@ -302,8 +303,11 @@ class DeliverymanController extends Controller
             $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
 
         } elseif ($request['status'] == 'delivered') {
+            $loyaltyResult = null;
             if ($order->is_guest == 0){
-                if ($order->user_id) CustomerLogic::create_loyalty_point_transaction($order->user_id, $order->id, $order->order_amount, 'order_place');
+                if ($order->user_id) {
+                    $loyaltyResult = CustomerLogic::create_loyalty_point_transaction($order->user_id, $order->id, $order->order_amount, 'order_place');
+                }
 
                 if ($order->transaction == null) {
                     $ol = OrderLogic::create_transaction($order, 'admin');
@@ -337,6 +341,12 @@ class DeliverymanController extends Controller
                     $partial->save();
                 }
             }
+
+            LoyaltyDeliverySmsService::attemptAfterDeliveredTransition(
+                $order->fresh(['customer', 'branch']),
+                $loyaltyResult,
+                'api.deliveryman.update_order_status'
+            );
 
             $message = Helpers::order_status_update_message('delivery_boy_delivered');
             if ($local != 'en'){

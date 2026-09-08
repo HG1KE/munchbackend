@@ -21,7 +21,10 @@ class BannerController extends Controller
     public function getBanners(): JsonResponse
     {
         $banners = $this->banner->with(['product.rating','product.branch_product'])->active()->get();
-        foreach($banners as $banner){
+        foreach ($banners as $banner) {
+            if ($banner['product'] && ! $banner['product']->passesStorefrontScheduleVisibility()) {
+                $banner['product'] = null;
+            }
             $banner['product'] = isset($banner['product']) ? Helpers::product_data_formatting($banner['product']) : null;
         }
 

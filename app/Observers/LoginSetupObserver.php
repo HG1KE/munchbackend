@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\CentralLogics\StorefrontConfigService;
 use App\Models\LoginSetup;
 use Illuminate\Support\Facades\Cache;
 
@@ -50,5 +51,6 @@ class LoginSetupObserver
     private function refreshLoginSetupCache()
     {
         Cache::forget(CACHE_LOGIN_SETUP_TABLE);
+        StorefrontConfigService::forgetCachedConfiguration();
     }
 }

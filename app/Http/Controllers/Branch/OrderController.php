@@ -6,6 +6,7 @@ use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
 use App\CentralLogics\CustomerOrderStatusSms;
+use App\CentralLogics\LoyaltyDeliverySmsService;
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\BusinessSetting;
@@ -26,6 +27,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Contracts\Support\Renderable;
@@ -175,7 +177,7 @@ class OrderController extends Controller
     public function details($id): Renderable|RedirectResponse
     {
         $order = $this->order
-            ->with(['details','order_partial_payments'])
+            ->with(['details', 'order_partial_payments', 'customer'])
             ->where(['id' => $id, 'branch_id' => auth('branch')->id()])
             ->first();
 
@@ -184,8 +186,7 @@ class OrderController extends Controller
             return back();
         }
 
-        $address = $order->delivery_address ?? CustomerAddress::find($order->delivery_address_id);
-        $order->address = $address;
+        $order->address = $this->resolveBranchOrderContactAddress($order);
 
         //remaining delivery time
         $deliveryDateTime = $order['delivery_date'] . ' ' . $order['delivery_time'];
@@ -226,9 +227,12 @@ class OrderController extends Controller
             return back();
         }
 
+        $loyaltyResult = null;
         if ($request->order_status == 'delivered') {
             if ($order->is_guest == 0){
-                if ($order->user_id) CustomerLogic::create_loyalty_point_transaction($order->user_id, $order->id, $order->order_amount, 'order_place');
+                if ($order->user_id) {
+                    $loyaltyResult = CustomerLogic::create_loyalty_point_transaction($order->user_id, $order->id, $order->order_amount, 'order_place');
+                }
 
                 if ($order->transaction == null) {
                     $ol = OrderLogic::create_transaction($order, 'admin');
@@ -271,7 +275,12 @@ class OrderController extends Controller
         }
         $order->save();
 
-        CustomerOrderStatusSms::dispatchProcessing($order->fresh(['customer', 'branch']), $previousOrderStatus);
+        $orderFresh = $order->fresh(['customer', 'branch']);
+        CustomerOrderStatusSms::dispatchProcessing($orderFresh, $previousOrderStatus);
+
+        if ($request->order_status == 'delivered' && $orderFresh) {
+            LoyaltyDeliverySmsService::attemptAfterDeliveredTransition($orderFresh, $loyaltyResult, 'branch.order.status');
+        }
 
         if ($request->order_status == 'out_for_delivery' && $order->delivery_man_id != null) {
             DeliveryHistory::updateOrInsert(
@@ -815,5 +824,53 @@ class OrderController extends Controller
 
         Toastr::success(translate('Order delivery area updated successfully.'));
         return back();
+    }
+
+    private function resolveBranchOrderContactAddress(Order $order): mixed
+    {
+        $address = $order->delivery_address ?? CustomerAddress::find($order->delivery_address_id);
+
+        $phone = null;
+        if (is_array($address)) {
+            $phone = trim((string) ($address['contact_person_number'] ?? ''));
+        } elseif (is_object($address) && isset($address->contact_person_number)) {
+            $phone = trim((string) $address->contact_person_number);
+        }
+
+        if ($phone !== '') {
+            return $address;
+        }
+
+        if (($order->order_type ?? '') !== 'take_away' || (int) ($order->is_guest ?? 1) !== 0) {
+            return $address;
+        }
+
+        $order->loadMissing('customer');
+        $c = $order->customer;
+        if (! $c) {
+            return $address;
+        }
+
+        $name = trim((string) ($c->f_name ?? '').' '.(string) ($c->l_name ?? ''));
+        $fallbackPhone = trim((string) ($c->phone ?? ''));
+        if ($fallbackPhone === '') {
+            return $address;
+        }
+
+        if (filter_var((string) env('TAKEAWAY_CONTACT_DEBUG', ''), FILTER_VALIDATE_BOOLEAN)) {
+            Log::debug('branch_order_takeaway_contact_view_fallback', [
+                'order_id' => $order->id,
+            ]);
+        }
+
+        return [
+            'contact_person_name' => $name !== '' ? $name : translate('Customer'),
+            'contact_person_number' => $fallbackPhone,
+            'address' => translate('take_away'),
+            'address_type' => 'take_away',
+            'road' => '',
+            'house' => '',
+            'floor' => '',
+        ];
     }
 }

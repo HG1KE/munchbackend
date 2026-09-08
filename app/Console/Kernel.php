@@ -24,7 +24,38 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $abandonedSchedule = config('abandoned_checkout.schedule_every_minute', true)
+            ? $schedule->command('sms:dispatch-abandoned-checkouts')->everyMinute()
+            : $schedule->command('sms:dispatch-abandoned-checkouts')->everyFiveMinutes();
+
+        $abandonedSchedule->withoutOverlapping(4);
+
+        if (config('abandoned_checkout.schedule_on_one_server', false)) {
+            $abandonedSchedule->onOneServer();
+        }
+
+        $schedule->command('sms:dispatch-reorder-reminders')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(5)
+            ->onOneServer();
+
+        $schedule->command('live-presence:prune')
+            ->daily()
+            ->withoutOverlapping(10)
+            ->onOneServer();
+
+        $schedule->call(function () {
+            \App\CentralLogics\Helpers::update_daily_product_stock();
+        })->dailyAt('00:05')->name('daily-product-stock-reset')->withoutOverlapping(30);
+
+        $orderAutomationMinutes = max(1, (int) config('order_automation.schedule_every_minutes', 5));
+        $orderAutomationSchedule = $orderAutomationMinutes === 1
+            ? $schedule->command('orders:auto-complete-eligible')->everyMinute()
+            : $schedule->command('orders:auto-complete-eligible')->everyFiveMinutes();
+
+        $orderAutomationSchedule
+            ->withoutOverlapping(10)
+            ->name('orders-auto-complete-eligible');
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\CentralLogics\Helpers;
+use App\CentralLogics\StorefrontConfigService;
 use App\Http\Controllers\Controller;
 use App\Model\TimeSchedule;
 use Illuminate\Http\Request;
@@ -62,6 +63,8 @@ class TimeScheduleController extends Controller
 
         $timeSchedule = $this->timeSchedule->insert(['day' => $request->day, 'opening_time' => $request->start_time, 'closing_time' => $request->end_time]);
 
+        StorefrontConfigService::invalidateAfterScheduleChange();
+
         $schedules = $this->timeSchedule->get();
         return response()->json(['view' => view('admin-views.business-settings.partials._schedule', compact('schedules'))->render()]);
     }
@@ -78,6 +81,8 @@ class TimeScheduleController extends Controller
         }
         $restaurant = $schedule->restaurant;
         $schedule->delete();
+
+        StorefrontConfigService::invalidateAfterScheduleChange();
 
         $schedules = $this->timeSchedule->get();
         return response()->json([

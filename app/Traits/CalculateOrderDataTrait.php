@@ -8,6 +8,7 @@ use App\Model\Coupon;
 use App\Model\Order;
 use App\Model\Product;
 use App\Model\ProductByBranch;
+use App\Support\StorefrontVisibilitySchedule;
 use App\Model\WalletTransaction;
 use App\Models\OrderPartialPayment;
 use App\User;
@@ -45,7 +46,15 @@ trait CalculateOrderDataTrait
         $appliedCouponCode = null;
 
         foreach ($cart as $cartItem) {
-            $product = Product::find($cartItem['product_id']);
+            $product = Product::active()->storefrontScheduleVisible()->where('id', $cartItem['product_id'])->first();
+            if (! $product || ! StorefrontVisibilitySchedule::productPasses($product, now())) {
+                return response()->json([
+                    'errors' => [[
+                        'code' => 'product',
+                        'message' => translate('no_data_found')
+                    ]]
+                ], 403);
+            }
             $branchProduct = ProductByBranch::
                 where([
                     'product_id' => $cartItem['product_id'],
@@ -235,7 +244,15 @@ trait CalculateOrderDataTrait
         $appliedCouponCode = null;
 
         foreach ($cart as $cartItem) {
-            $product = Product::find($cartItem['id']);
+            $product = Product::active()->storefrontScheduleVisible()->where('id', $cartItem['id'])->first();
+            if (! $product || ! StorefrontVisibilitySchedule::productPasses($product, now())) {
+                return response()->json([
+                    'errors' => [[
+                        'code' => 'product',
+                        'message' => translate('no_data_found')
+                    ]]
+                ], 403);
+            }
             $branchProduct = ProductByBranch::
                 where([
                     'product_id' => $cartItem['id'],

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\CentralLogics\AdminOrderWhatsAppMessage;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
 use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\CustomerOrderStatusSms;
+use App\CentralLogics\LoyaltyDeliverySmsService;
+use App\CentralLogics\OrderDeliveredTransitionService;
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\BusinessSetting;
@@ -28,6 +31,7 @@ use Box\Spout\Writer\Exception\WriterNotOpenedException;
 use Brian2694\Toastr\Facades\Toastr;
 use DateTime;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -277,17 +281,23 @@ class OrderController extends Controller
 
     public function details($id)
     {
-        $order = $this->order->with(['details', 'customer', 'branch', 'delivery_man', 'order_partial_payments'])
-            ->where(['id' => $id])
-            ->first();
+        $order = $this->order->with([
+            'details.product',
+            'customer',
+            'branch.delivery_charge_setup',
+            'delivery_man',
+            'order_partial_payments',
+            'offline_payment',
+            'order_area.area',
+            'table',
+        ])->where(['id' => $id])->first();
 
         if (!isset($order)) {
             Toastr::info(translate('No order found!'));
             return back();
         }
 
-        $address = $order->delivery_address ?? CustomerAddress::find($order->delivery_address_id);
-        $order->address = $address;
+        $order->address = $this->resolveAdminOrderContactAddress($order);
 
         $deliverymen = $this->delivery_man->where(['is_active'=>1])
             ->where(function($query) use ($order) {
@@ -296,12 +306,36 @@ class OrderController extends Controller
             })
             ->get();
 
-        $deliveryDateTime = $order['delivery_date'] . ' ' . $order['delivery_time'];
-        $orderedTime = Carbon::createFromFormat('Y-m-d H:i:s', date("Y-m-d H:i:s", strtotime($deliveryDateTime)));
-        $remainingTime = $orderedTime->add($order['preparation_time'], 'minute')->format('Y-m-d H:i:s');
-        $order['remaining_time'] = $remainingTime;
+        $deliveryDateTime = trim(($order['delivery_date'] ?? '') . ' ' . ($order['delivery_time'] ?? ''));
+        try {
+            $orderedTime = Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s', strtotime($deliveryDateTime)));
+            $order['remaining_time'] = $orderedTime
+                ->add((int) ($order['preparation_time'] ?? 0), 'minute')
+                ->format('Y-m-d H:i:s');
+        } catch (\Throwable $e) {
+            $order['remaining_time'] = null;
+        }
 
-        return view('admin-views.order.order-view', compact('order', 'deliverymen'));
+        $whatsappMessage = AdminOrderWhatsAppMessage::build($order, $order->address);
+        $whatsappShareUrl = AdminOrderWhatsAppMessage::shareUrl($whatsappMessage);
+
+        try {
+            return view('admin-views.order.order-view', compact('order', 'deliverymen', 'whatsappMessage', 'whatsappShareUrl'));
+        } catch (\Throwable $e) {
+            Log::error('admin_order_details_render_failed', [
+                'order_id' => $order->id,
+                'order_type' => $order->order_type,
+                'user_id' => $order->user_id,
+                'branch_id' => $order->branch_id,
+                'delivery_address_id' => $order->delivery_address_id,
+                'has_offline_payment' => (bool) $order->offline_payment,
+                'address_type' => is_array($order->address) ? 'array' : (is_object($order->address) ? get_class($order->address) : gettype($order->address)),
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -332,52 +366,24 @@ class OrderController extends Controller
         }
 
         if ($request->order_status == 'delivered') {
-            if ($order->is_guest == 0){
-                if ($order->user_id) CustomerLogic::create_loyalty_point_transaction($order->user_id, $order->id, $order->order_amount, 'order_place');
+            $transition = OrderDeliveredTransitionService::transitionToDelivered($order, 'admin.order.status');
+            if (! $transition['success']) {
+                Toastr::warning($transition['user_message']);
 
-                if ($order->transaction == null) {
-                    $ol = $this->order_logic->create_transaction($order, 'admin');
-                }
-
-                $user = $this->user->find($order->user_id);
-
-                if (isset($user)){
-                    $referralData = $user?->referral_customer_details;
-
-                    if ($referralData && $referralData->is_used_by_refer == 0) {
-                        $referralEarningAmount = $referralData->ref_by_earning_amount ?? 0;
-                        $referredByUser = $this->user->find($user->refer_by);
-
-                        if ($referralEarningAmount > 0 && $referredByUser){
-                            CustomerLogic::referral_earning_wallet_transaction($order->user_id, 'referral_order_place', $referredByUser->id, $referralEarningAmount);
-                        }
-
-                       // ReferralCustomer::where('user_id', $order->user_id)->update(['is_used_by_refer' => 1]);
-                    }
-                }
+                return back();
             }
 
-            if ($order['payment_method'] == 'cash_on_delivery'){
-                $partialData = OrderPartialPayment::where(['order_id' => $order->id])->first();
-                if ($partialData){
-                    $partial = new OrderPartialPayment;
-                    $partial->order_id = $order['id'];
-                    $partial->paid_with = 'cash_on_delivery';
-                    $partial->paid_amount = $partialData->due_amount;
-                    $partial->due_amount = 0;
-                    $partial->save();
-                }
-            }
+            Toastr::success($transition['user_message']);
+
+            return back();
         }
 
         $previousOrderStatus = $order->order_status;
         $order->order_status = $request->order_status;
-        if ($request->order_status == 'delivered') {
-            $order->payment_status = 'paid';
-        }
         $order->save();
 
-        CustomerOrderStatusSms::dispatchProcessing($order->fresh(['customer', 'branch']), $previousOrderStatus);
+        $orderFresh = $order->fresh(['customer', 'branch']);
+        CustomerOrderStatusSms::dispatchProcessing($orderFresh, $previousOrderStatus);
 
         if ($request->order_status == 'out_for_delivery' && $order->delivery_man_id != null) {
             DeliveryHistory::updateOrInsert(
@@ -751,9 +757,8 @@ class OrderController extends Controller
      */
     public function generateInvoice($id): Renderable
     {
-        $order = $this->order->with(['order_partial_payments'])->where('id', $id)->first();
-        $address = $order->delivery_address ?? CustomerAddress::find($order->delivery_address_id);
-        $order->address = $address;
+        $order = $this->order->with(['order_partial_payments', 'customer'])->where('id', $id)->first();
+        $order->address = $this->resolveAdminOrderContactAddress($order);
         return view('admin-views.order.invoice', compact('order'));
     }
 
@@ -1042,6 +1047,66 @@ class OrderController extends Controller
 
         Toastr::success(translate('Order delivery area updated successfully.'));
         return back();
+    }
+
+    /**
+     * Admin blades use `$order->address` for contact + tap-to-call. Prefer stored `delivery_address` JSON;
+     * for legacy takeaway rows without it, derive from the registered customer when `is_guest === 0`.
+     */
+    private function resolveAdminOrderContactAddress(Order $order): array
+    {
+        // Use the JSON column, not the delivery_address() relation (same name in Order model).
+        $storedAddress = $order->getAttributes()['delivery_address'] ?? null;
+        if (is_string($storedAddress)) {
+            $storedAddress = json_decode($storedAddress, true);
+        }
+
+        $address = (is_array($storedAddress) && $storedAddress !== []) ? $storedAddress : null;
+
+        if ($address === null && $order->delivery_address_id) {
+            $addressModel = CustomerAddress::find($order->delivery_address_id);
+            if ($addressModel) {
+                $address = $addressModel->toArray();
+            }
+        }
+
+        $phone = trim((string) data_get($address, 'contact_person_number', ''));
+
+        if ($phone !== '') {
+            return is_array($address) ? $address : [];
+        }
+
+        if (($order->order_type ?? '') !== 'take_away' || (int) ($order->is_guest ?? 1) !== 0) {
+            return is_array($address) ? $address : [];
+        }
+
+        $order->loadMissing('customer');
+        $c = $order->customer;
+        if (! $c) {
+            return is_array($address) ? $address : [];
+        }
+
+        $name = trim((string) ($c->f_name ?? '').' '.(string) ($c->l_name ?? ''));
+        $fallbackPhone = trim((string) ($c->phone ?? ''));
+        if ($fallbackPhone === '') {
+            return is_array($address) ? $address : [];
+        }
+
+        if (filter_var((string) env('TAKEAWAY_CONTACT_DEBUG', ''), FILTER_VALIDATE_BOOLEAN)) {
+            Log::debug('admin_order_takeaway_contact_view_fallback', [
+                'order_id' => $order->id,
+            ]);
+        }
+
+        return [
+            'contact_person_name' => $name !== '' ? $name : translate('Customer'),
+            'contact_person_number' => $fallbackPhone,
+            'address' => translate('take_away'),
+            'address_type' => 'take_away',
+            'road' => '',
+            'house' => '',
+            'floor' => '',
+        ];
     }
 
 }

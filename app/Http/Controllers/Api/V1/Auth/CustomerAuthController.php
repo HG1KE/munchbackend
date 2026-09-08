@@ -805,22 +805,16 @@ class CustomerAuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'nullable|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
             'phone' => 'required|string|min:6|max:15',
+        ], [
+            'email.required' => translate('The email field is required.'),
+            'email.email' => translate('The email must be a valid email address.'),
+            'email.unique' => translate('This email has already been used in another account!'),
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
-        }
-
-        if ($request['email']){
-            $isEmailExist = $this->user->where(['email' => $request['email']])->first();
-
-            if ($isEmailExist){
-                return response()->json(['errors' => [
-                    ['code' => 'email', 'message' => translate('This email has already been used in another account!')]
-                ]], 403);
-            }
         }
 
         $temporaryToken = Str::random(40);

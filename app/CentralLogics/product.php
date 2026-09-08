@@ -4,19 +4,44 @@ namespace App\CentralLogics;
 
 
 use App\Model\Product;
+use App\Support\StorefrontVisibilitySchedule;
 use App\Model\Review;
 use App\Model\Wishlist;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class ProductLogic
 {
+    /**
+     * Cached visible catalog max price (avoids full-table scan per search/list response).
+     */
+    public static function cachedVisibleProductMaxPrice(): float
+    {
+        return (float) Cache::remember('storefront_visible_product_max_price', 600, function () {
+            $at = now();
+
+            return Product::active()->storefrontScheduleVisible()
+                ->select(['id', 'price', 'visible_from', 'visible_until', 'recurring_visibility_rules'])
+                ->get()
+                ->filter(fn (Product $p) => StorefrontVisibilitySchedule::productPasses($p, $at))
+                ->max('price') ?? 0;
+        });
+    }
+
     public static function get_product($id)
     {
-        return Product::active()->branchProductAvailability()
+        $at = now();
+        $product = Product::active()->storefrontScheduleVisible()->branchProductAvailability()
             ->withCount('reviews')
             ->with(['rating', 'reviews', 'branch_product'])
             ->where('id', $id)
             ->first();
+
+        if (! $product || ! StorefrontVisibilitySchedule::productPasses($product, $at)) {
+            return null;
+        }
+
+        return $product;
     }
 
     public static function get_latest_products($limit, $offset, $product_type, $name, $category_ids, $sort_by, $is_halal)
@@ -25,7 +50,7 @@ class ProductLogic
         $offset = is_null($offset) ? 1 : $offset;
 
         $key = explode(' ', $name);
-        $paginator = Product::active()
+        $paginator = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['branch_product', 'rating'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -59,6 +84,8 @@ class ProductLogic
             ->latest() // default sorting
             ->paginate($limit, ['*'], 'page', $offset);
 
+        StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
+
         return [
             'total_size' => $paginator->total(),
             'limit' => $limit,
@@ -70,7 +97,7 @@ class ProductLogic
     public static function get_wishlished_products($limit, $offset, $request)
     {
         $product_ids = Wishlist::where('user_id', $request->user()->id)->get()->pluck('product_id')->toArray();
-        $products = Product::active()
+        $products = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['rating', 'branch_product'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -80,6 +107,8 @@ class ProductLogic
             ->whereIn('id', $product_ids)
             ->orderBy("created_at", 'desc')
             ->paginate($limit, ['*'], 'page', $offset);
+
+        StorefrontVisibilitySchedule::filterPaginatorProducts($products);
 
         return [
             'total_size' => $products->total(),
@@ -95,7 +124,7 @@ class ProductLogic
         $offset = is_null($offset) ? 1 : $offset;
         $key = explode(' ', $name);
 
-        $paginator = Product::active()
+        $paginator = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['rating', 'branch_product'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -127,6 +156,8 @@ class ProductLogic
             ->orderBy('popularity_count', 'desc')
             ->paginate($limit, ['*'], 'page', $offset);
 
+        StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
+
         return [
             'total_size' => $paginator->total(),
             'limit' => $limit,
@@ -137,8 +168,13 @@ class ProductLogic
 
     public static function get_related_products($product_id)
     {
-        $product = Product::find($product_id);
-        return Product::active()
+        $at = now();
+        $product = Product::active()->storefrontScheduleVisible()->where('id', $product_id)->first();
+        if (! $product || ! StorefrontVisibilitySchedule::productPasses($product, $at)) {
+            return collect();
+        }
+
+        $related = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['rating', 'branch_product'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -149,6 +185,8 @@ class ProductLogic
             ->where('id', '!=', $product->id)
             ->limit(10)
             ->get();
+
+        return StorefrontVisibilitySchedule::filterProducts($related, $at);
     }
 
     public static function search_products($name, $rating, $category_id, $cuisine_id, $product_type, $sort_by, $limit, $offset, $min_price, $max_price, $is_halal)
@@ -162,7 +200,7 @@ class ProductLogic
 
         $rating_product_ids = [];
         if (isset($rating)){
-            $rating_product_ids = Product::active()
+            $rating_product_ids = Product::active()->storefrontScheduleVisible()
                 ->with('reviews')
                 ->whereHas('reviews', function ($q) use ($rating) {
                     $q->select('product_id')
@@ -171,24 +209,26 @@ class ProductLogic
                 })
                 ->pluck('id')
                 ->toArray();
+            $rating_product_ids = StorefrontVisibilitySchedule::filterProductIds($rating_product_ids);
         }
 
         $product_ids_for_category = [];
         if (isset($category_id)){
             foreach (gettype($category_id) != 'array' ? json_decode($category_id) : $category_id as $categoryId) {
-                $product_ids = Product::active()
+                $product_ids = Product::active()->storefrontScheduleVisible()
                     ->where(function ($query) use ($categoryId) {
                         $query->whereJsonContains('category_ids', ['id' => (string)$categoryId]);
                     })
                     ->pluck('id')
                     ->toArray();
+                $product_ids = StorefrontVisibilitySchedule::filterProductIds($product_ids);
                 $product_ids_for_category = array_unique(array_merge($product_ids_for_category, $product_ids));
             }
         }
 
         $key = explode(' ', $name);
 
-        $paginator = Product::active()
+        $paginator = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['rating', 'cuisines', 'branch_product'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -275,11 +315,11 @@ class ProductLogic
             ->latest()
             ->paginate($limit, ['*'], 'page', $offset);
 
-        $productMaxPrice = Product::active()->max('price') ?? 0;
+        StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
 
         return [
             'total_size' => $paginator->total(),
-            'product_max_price' => $productMaxPrice,
+            'product_max_price' => self::cachedVisibleProductMaxPrice(),
             'limit' => $limit,
             'offset' => $offset,
             'products' => $paginator->items()
@@ -341,7 +381,7 @@ class ProductLogic
         $offset = is_null($offset) ? 1 : $offset;
         $key = explode(' ', $name);
 
-        $paginator = Product::active()
+        $paginator = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['branch_product', 'rating'])
             ->where('is_recommended', 1)
@@ -366,6 +406,8 @@ class ProductLogic
             ->latest()
             ->paginate($limit, ['*'], 'page', $offset);
 
+        StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
+
         return [
             'total_size' => $paginator->total(),
             'limit' => $limit,
@@ -379,7 +421,7 @@ class ProductLogic
         $limit = is_null($limit) ? 10 : $limit;
         $offset = is_null($offset) ? 1 : $offset;
 
-        $paginator = Product::active()
+        $paginator = Product::active()->storefrontScheduleVisible()
             ->withCount('reviews')
             ->with(['branch_product', 'rating'])
             ->whereHas('branch_product.branch', function ($query) {
@@ -388,6 +430,8 @@ class ProductLogic
             ->branchProductAvailability()
             ->inRandomOrder() // Random order
             ->paginate($limit, ['*'], 'page', $offset);
+
+        StorefrontVisibilitySchedule::filterPaginatorProducts($paginator);
 
         return [
             'total_size' => $paginator->total(),

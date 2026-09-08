@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\DigitalPaymentController;
+use App\Http\Controllers\Api\V1\AbandonedCheckoutController;
 use App\Http\Controllers\Api\V1\Auth\CustomerAuthController;
 use App\Http\Controllers\Api\V1\Auth\DeliveryManLoginController;
 use App\Http\Controllers\Api\V1\Auth\KitchenLoginController;
@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\DeliverymanController;
 use App\Http\Controllers\Api\V1\DeliveryManReviewController;
 use App\Http\Controllers\Api\V1\GuestUserController;
 use App\Http\Controllers\Api\V1\KitchenController;
+use App\Http\Controllers\Api\V1\LivePresenceController;
 use App\Http\Controllers\Api\V1\LoyaltyPointController;
 use App\Http\Controllers\Api\V1\MapApiController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -30,10 +31,13 @@ use App\Http\Controllers\Api\V1\TableConfigController;
 use App\Http\Controllers\Api\V1\TableController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\WishlistController;
+use App\Http\Controllers\Api\V1\DigitalPaymentController;
 
 Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function () {
 
     Route::post('fcm-subscribe-to-topic', [CustomerController::class, 'fcmSubscribeToTopic']);
+
+    Route::post('live-presence/ping', [LivePresenceController::class, 'ping']);
 
     Route::group(['prefix' => 'auth', 'namespace' => 'Auth'], function () {
         Route::post('registration', [CustomerAuthController::class, 'registration']);
@@ -173,6 +177,11 @@ Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function
             Route::post('guest-track', [OrderController::class, 'guestTrackOrder'])->withoutMiddleware(['auth:api', 'is_active']);
             Route::post('details-guest', [OrderController::class, 'getGuestOrderDetails'])->withoutMiddleware(['auth:api', 'is_active']);
         });
+
+        Route::group(['prefix' => 'abandoned-checkout'], function () {
+            Route::post('track', [AbandonedCheckoutController::class, 'track'])->withoutMiddleware(['auth:api', 'is_active']);
+            Route::post('mark-recovered', [AbandonedCheckoutController::class, 'markRecovered'])->withoutMiddleware(['auth:api', 'is_active']);
+        });
         // Chatting
         Route::group(['prefix' => 'message'], function () {
             //customer-admin
@@ -247,6 +256,7 @@ Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function
         Route::get('products', [BranchController::class, 'products']);
     });
 
-Route::post('payment-mobile', [DigitalPaymentController::class, 'payment']);
-Route::post('add-fund-wallet', [DigitalPaymentController::class, 'addFund'])->middleware('auth:api');
+    Route::post('payment-mobile', [DigitalPaymentController::class, 'payment']);
+    Route::post('add-fund-wallet', [DigitalPaymentController::class, 'addFund'])->middleware('auth:api');
+
 });

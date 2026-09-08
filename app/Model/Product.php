@@ -5,16 +5,16 @@ namespace App\Model;
 use App\CentralLogics\Helpers;
 use App\Models\CuisineProduct;
 use App\Models\Cuisine;
+use App\Support\StorefrontVisibilitySchedule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-
 class Product extends Model
 {
     protected $casts = [
@@ -27,6 +27,9 @@ class Product extends Model
         'is_recommended' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'visible_from' => 'datetime',
+        'visible_until' => 'datetime',
+        'recurring_visibility_rules' => 'array',
     ];
 
     public function getPriceAttribute($price): float
@@ -47,6 +50,20 @@ class Product extends Model
     public function scopeActive($query)
     {
         return $query->where('status', '=', 1);
+    }
+
+    /**
+     * Optional one-time window (visible_from / visible_until) and/or optional weekly recurring rules.
+     * Evaluated dynamically against app timezone (see StorefrontVisibilitySchedule).
+     */
+    public function scopeStorefrontScheduleVisible(Builder $query, $at = null): Builder
+    {
+        return StorefrontVisibilitySchedule::applyStorefrontScope($query, $at);
+    }
+
+    public function passesStorefrontScheduleVisibility(?Carbon $at = null): bool
+    {
+        return StorefrontVisibilitySchedule::productPasses($this, $at ?? now());
     }
 
     public function scopeVisible($query)
@@ -129,12 +146,12 @@ class Product extends Model
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
-        $path = asset('public/assets/admin/img/160x160/img2.jpg');
 
-        if (!is_null($image) && Storage::disk('public')->exists('product/' . $image)) {
-            $path = asset('storage/app/public/product/' . $image);
+        if (! empty($image)) {
+            return asset('storage/app/public/product/' . $image);
         }
-        return $path;
+
+        return asset('public/assets/admin/img/160x160/img2.jpg');
     }
 
     public function getCategoryAttribute()

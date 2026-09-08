@@ -230,6 +230,12 @@
                                             </span>
                                         </a>
                                     </li>
+                                    <li class="nav-item {{Request::is('admin/order-automation*')?'active':''}}">
+                                        <a class="nav-link" href="{{route('admin.order-automation.index')}}" title="">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">{{translate('Order Automation')}}</span>
+                                        </a>
+                                    </li>
                                 </ul>
                             </li>
                             <!-- End Pages -->
@@ -464,6 +470,8 @@
                                     <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{translate('coupon')}}</span>
                                 </a>
                             </li>
+
+                            @include('admin-views.marketing.sidebar-menu-snippet')
 
                             <!-- NOTIFICATION -->
                             <li class="navbar-vertical-aside-has-menu {{Request::is('admin/notification*')?'active':''}}">
@@ -886,7 +894,8 @@
                                     <!-- Page Setup -->
                                     <li class="nav-item {{Request::is('admin/business-settings/web-app/third-party/payment-method') || Request::is('admin/business-settings/web-app/third-party/mail-config') || Request::is('admin/business-settings/web-app/third-party/sms-module')||
                                                         Request::is('admin/business-settings/web-app/third-party/map-api-settings') || Request::is('admin/business-settings/web-app/third-party/recaptcha') ||
-                                                        Request::is('admin/business-settings/web-app/third-party/social-login') || Request::is('admin/business-settings/web-app/third-party/chat')?'active':''}}">
+                                                        Request::is('admin/business-settings/web-app/third-party/social-login') || Request::is('admin/business-settings/web-app/third-party/chat') ||
+                                                        Request::is('admin/business-settings/web-app/third-party/firebase-otp-verification')?'active':''}}">
                                         <a class="nav-link" href="{{route('admin.business-settings.web-app.payment-method')}}">
                                             <span class="tio-circle nav-indicator-icon"></span>
                                             <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{translate('3rd Party Configurations')}}</span>
@@ -917,6 +926,7 @@
                             </li>
 
                         <!-- End 3rd Party -->
+
 
                         <!-- SYSTEM SETTINGS -->
                         <li class="navbar-vertical-aside-has-menu {{Request::is('admin/business-settings/web-app/system-setup*')?'active':''}}">

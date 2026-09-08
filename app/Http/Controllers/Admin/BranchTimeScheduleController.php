@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\CentralLogics\Helpers;
+use App\CentralLogics\StorefrontConfigService;
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\BranchTimeSchedule;
@@ -89,6 +90,8 @@ class BranchTimeScheduleController extends Controller
             'closing_time' => $request->end_time
         ]);
 
+        StorefrontConfigService::invalidateAfterScheduleChange();
+
         $branches = $this->branch->with(['branch_time_schedules'])->get(['id', 'name', 'status']);
         $restaurantSchedules = $this->timeSchedule->get();
 
@@ -109,6 +112,8 @@ class BranchTimeScheduleController extends Controller
         }
 
         $schedule->delete();
+
+        StorefrontConfigService::invalidateAfterScheduleChange();
 
         $branches = $this->branch->with(['branch_time_schedules'])->get(['id', 'name', 'status']);
         $restaurantSchedules = $this->timeSchedule->get();

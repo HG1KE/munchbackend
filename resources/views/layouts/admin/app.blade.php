@@ -16,11 +16,15 @@
     <!-- CSS Implementing Plugins -->
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/vendor.min.css">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/vendor/icon-set/style.css">
+    {{-- country picker --}}
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/vendor/intl-tel-input/css/intlTelInput.css') }}" />
     {{--Carousel Slider--}}
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/owl.min.css')}}">
     <!-- CSS Front Template -->
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/theme.minc619.css?v=1.0">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/style.css?v=1.0">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-shell.css?v=1.0">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/upload-file_custom.css">
     @stack('css_or_js')
 
     <script
@@ -28,7 +32,7 @@
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/toastr.css">
 </head>
 
-<body class="footer-offset">
+<body class="footer-offset munch-admin-shell">
     <div class="direction-toggle">
         <i class="tio-settings"></i>
         <span></span>
@@ -117,6 +121,30 @@
         </div>
     </div>
 
+     <!--- Global Image -->
+    <div id="imageModal" class="imageModal modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header justify-content-end gap-3 border-0 p-2">
+                    <button type="button" class="modal_img-btn border-0 btn-circle rounded-circle bg-section2 shadow-none fs-8 m-0"
+                            data-dismiss="modal" aria-label="Close">
+                            <i class="tio-clear"></i>
+                    </button>
+                </div>
+                <div class="modal-body text-center p-3 pt-0">
+                    <div class="imageModal_img_wrapper">
+                        <img src="" class="img-fluid imageModal_img" alt="{{ translate('Preview_Image') }}">
+                        <div class="imageModal_btn_wrapper">
+                            <a href="javascript:" class="btn icon-btn download_btn" title="{{ translate('Download') }}" download>
+                                <i class="tio-arrow-large-downward"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </main>
 <!-- ========== END MAIN CONTENT ========== -->
 
@@ -133,6 +161,12 @@
 <script src="{{asset('public/assets/admin')}}/js/toastr.js"></script>
 <script src="{{asset('public/assets/admin/js/owl.min.js')}}"></script>
 <script src="{{asset('public/assets/admin/js/firebase.min.js')}}"></script>
+<script src="{{asset('public/assets/admin')}}/vendor/intl-tel-input/js/intlTelInput.js"></script>
+<script src="{{asset('public/assets/admin')}}/vendor/intl-tel-input/js/utils.js"></script>
+<script src="{{asset('public/assets/admin')}}/vendor/intl-tel-input/js/intlTelInout-validation.js"></script>
+<script src="{{asset('public/assets/admin')}}/js/offcanvas.js"></script>
+<script src="{{asset('public/assets/admin/js/file-size-type-validation.js')}}"></script>
+<script src="{{asset('public/assets/admin/js/upload-file_custom.js')}}"></script>
 
 {!! Toastr::message() !!}
 
@@ -175,6 +209,57 @@
         }
 
     })
+
+    //Keyborad tabs
+    $(function () {
+        function setActive(el) {
+            // Remove from all wrappers first
+            $(".cmn_focus, .cmn_focus-shadow").removeClass("active");
+
+            // Reset any reset/submit button styles
+            $("button[type='reset']").css({ "color": "", "outline": "", "box-shadow": "" });
+            $("button[type='submit']").css({ "background-color": "", "outline": "", "box-shadow": "" });
+
+            // Find wrapper around current focus
+            let wrapper = el.closest(".cmn_focus, .cmn_focus-shadow");
+            if (wrapper.length) {
+                wrapper.addClass("active");
+            }
+
+            // If element is a reset button
+            if (el.is("button[type='reset']")) {
+                el.css({
+                    "color": "black",
+                    "outline": "2px solid #e3e3e3",
+                    "box-shadow": "0 0 5px rgba(0,0,0,0.5)"
+                });
+            }
+
+            //If element is a submit button
+            if (el.is("button[type='submit'], button[type='button']")) {
+                el.css({
+//                    "background-color": "#d52a13ed",
+//                    "outline": "2px solid #1397d51a",
+//                    "box-shadow": "0 0 5px rgba(148, 148, 148, 0.7)"
+                });
+            }
+        }
+
+        // On focus (tab or click)
+        $(document).on("focusin", "input, button, textarea, a", function () {
+            setActive($(this));
+        });
+
+        // On Tab press (extra handling for keyboard navigation)
+        $(document).on("keydown", function (e) {
+            if (e.key === "Tab" || e.keyCode === 9) {
+                setTimeout(function () {
+                    setActive($(document.activeElement));
+                }, 10);
+            }
+        });
+    });
+
 </script>
 <!-- JS Plugins Init. -->
 <script>
@@ -429,6 +514,24 @@
 </script>
 
 <script>
+    'use strict';
+    $(document).on('ready', function () {
+        $('.js-select2-custom').each(function () {
+            let $select = $(this);
+            let isInsideOffcanvas = $select.closest(".offcanvas").length > 0;
+            let isInsideModal = $select.closest(".modal").length > 0;
+            $.HSCore.components.HSSelect2.init($select, {
+                dropdownParent: isInsideOffcanvas ?
+                    $select.closest(".offcanvas") :
+                    isInsideModal ?
+                    $select.closest(".modal") :
+                    null,
+            });
+        });
+    });
+</script>
+
+<script>
         $(document).on('ready', function () {
             // INITIALIZATION OF SHOW PASSWORD
             // =======================================================
@@ -484,7 +587,7 @@
         });
     </script>
 
-<script>
+    <script>
 
         function toogleStatusModal(e, toggle_id, on_image, off_image, on_title, off_title, on_message, off_message) {
             // console.log($('#'+toggle_id).is(':checked'));
@@ -552,93 +655,135 @@
 
     </script>
 
-<script>
-    @php($admin_order_notification = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification'))
-    @php($admin_order_notification_type = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
+    <script>
+        @php($admin_order_notification = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification'))
+        @php($admin_order_notification_type = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
 
-    @if(\App\CentralLogics\Helpers::module_permission_check('order_management') && $admin_order_notification)
+        @if(\App\CentralLogics\Helpers::module_permission_check('order_management') && $admin_order_notification)
 
-        @if($admin_order_notification_type == 'manual')
-            console.log('manual')
-            setInterval(function () {
-                $.get({
-                    url: '{{route('admin.get-restaurant-data')}}',
-                    dataType: 'json',
-                    success: function (response) {
-                        let data = response.data;
-                        new_order_type = data.type;
-                        console.log(data)
-                        if (data.new_order > 0) {
-                            playAudio();
-                            $('#popup-modal').appendTo("body").modal('show');
-                        }
-                    },
-                });
-            }, 10000);
-        @endif
+            @if($admin_order_notification_type == 'manual')
+                console.log('manual')
+                setInterval(function () {
+                    $.get({
+                        url: '{{route('admin.get-restaurant-data')}}',
+                        dataType: 'json',
+                        success: function (response) {
+                            let data = response.data;
+                            new_order_type = data.type;
+                            console.log(data)
+                            if (data.new_order > 0) {
+                                playAudio();
+                                $('#popup-modal').appendTo("body").modal('show');
+                            }
+                        },
+                    });
+                }, 10000);
+            @endif
 
-        @if($admin_order_notification_type == 'firebase')
-            @php($fcm_credentials = \App\CentralLogics\Helpers::get_business_settings('fcm_credentials'))
-            var firebaseConfig = {
-                apiKey: "{{isset($fcm_credentials['apiKey']) ? $fcm_credentials['apiKey'] : ''}}",
-                authDomain: "{{isset($fcm_credentials['authDomain']) ? $fcm_credentials['authDomain'] : ''}}",
-                projectId: "{{isset($fcm_credentials['projectId']) ? $fcm_credentials['projectId'] : ''}}",
-                storageBucket: "{{isset($fcm_credentials['storageBucket']) ? $fcm_credentials['storageBucket'] : ''}}",
-                messagingSenderId: "{{isset($fcm_credentials['messagingSenderId']) ? $fcm_credentials['messagingSenderId'] : ''}}",
-                appId: "{{isset($fcm_credentials['appId']) ? $fcm_credentials['appId'] : ''}}",
-                measurementId: "{{isset($fcm_credentials['measurementId']) ? $fcm_credentials['measurementId'] : ''}}"
-            };
+            @if($admin_order_notification_type == 'firebase')
+                @php($fcm_credentials = \App\CentralLogics\Helpers::get_business_settings('fcm_credentials'))
+                var firebaseConfig = {
+                    apiKey: "{{isset($fcm_credentials['apiKey']) ? $fcm_credentials['apiKey'] : ''}}",
+                    authDomain: "{{isset($fcm_credentials['authDomain']) ? $fcm_credentials['authDomain'] : ''}}",
+                    projectId: "{{isset($fcm_credentials['projectId']) ? $fcm_credentials['projectId'] : ''}}",
+                    storageBucket: "{{isset($fcm_credentials['storageBucket']) ? $fcm_credentials['storageBucket'] : ''}}",
+                    messagingSenderId: "{{isset($fcm_credentials['messagingSenderId']) ? $fcm_credentials['messagingSenderId'] : ''}}",
+                    appId: "{{isset($fcm_credentials['appId']) ? $fcm_credentials['appId'] : ''}}",
+                    measurementId: "{{isset($fcm_credentials['measurementId']) ? $fcm_credentials['measurementId'] : ''}}"
+                };
 
 
-            firebase.initializeApp(firebaseConfig);
-            const messaging = firebase.messaging();
+                firebase.initializeApp(firebaseConfig);
+                const messaging = firebase.messaging();
 
-            function startFCM() {
-                messaging
-                    .requestPermission()
-                    .then(function() {
-                        return messaging.getToken();
-                    })
-                    .then(function(token) {
-                        subscribeTokenToBackend(token, 'admin_message');
-                    }).catch(function(error) {
-                        console.error('Error getting permission or token:', error);
-                });
-            }
-
-            function subscribeTokenToBackend(token, topic) {
-                fetch('{{url('/')}}/subscribeToTopic', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ token: token, topic: topic })
-                }).then(response => {
-                    if (response.status < 200 || response.status >= 400) {
-                        return response.text().then(text => {
-                            throw new Error(`Error subscribing to topic: ${response.status} - ${text}`);
-                        });
-                    }
-                    console.log(`Subscribed to "${topic}"`);
-                }).catch(error => {
-                    console.error('Subscription error:', error);
-                });
-            }
-
-            messaging.onMessage(function(payload) {
-                console.log(payload.data);
-                if(payload.data.order_id && payload.data.type == "order_request"){
-                    playAudio();
-                    $('#popup-modal').appendTo("body").modal('show');
+                function startFCM() {
+                    messaging
+                        .requestPermission()
+                        .then(function() {
+                            return messaging.getToken();
+                        })
+                        .then(function(token) {
+                            subscribeTokenToBackend(token, 'admin_message');
+                        }).catch(function(error) {
+                            console.error('Error getting permission or token:', error);
+                    });
                 }
-            });
 
-            startFCM();
+                function subscribeTokenToBackend(token, topic) {
+                    fetch('{{url('/')}}/subscribeToTopic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ token: token, topic: topic })
+                    }).then(response => {
+                        if (response.status < 200 || response.status >= 400) {
+                            return response.text().then(text => {
+                                throw new Error(`Error subscribing to topic: ${response.status} - ${text}`);
+                            });
+                        }
+                        console.log(`Subscribed to "${topic}"`);
+                    }).catch(error => {
+                        console.error('Subscription error:', error);
+                    });
+                }
+
+                messaging.onMessage(function(payload) {
+                    console.log(payload.data);
+                    if(payload.data.order_id && payload.data.type == "order_request"){
+                        playAudio();
+                        $('#popup-modal').appendTo("body").modal('show');
+                    }
+                });
+
+                startFCM();
+            @endif
         @endif
-    @endif
 
-</script>
+    </script>
+
+    <script>
+        $(document).ready(function() {
+        // --- Changing svg color ---
+            $("img.svg").each(function() {
+                var $img = jQuery(this);
+                var imgID = $img.attr("id");
+                var imgClass = $img.attr("class");
+                var imgURL = $img.attr("src");
+
+                jQuery.get(
+                    imgURL,
+                    function(data) {
+                        var $svg = jQuery(data).find("svg");
+
+                        if (typeof imgID !== "undefined") {
+                            $svg = $svg.attr("id", imgID);
+                        }
+                        if (typeof imgClass !== "undefined") {
+                            $svg = $svg.attr("class", imgClass + " replaced-svg");
+                        }
+
+                        $svg = $svg.removeAttr("xmlns:a");
+
+                        if (
+                            !$svg.attr("viewBox") &&
+                            $svg.attr("height") &&
+                            $svg.attr("width")
+                        ) {
+                            $svg.attr(
+                                "viewBox",
+                                "0 0 " + $svg.attr("height") + " " + $svg.attr("width")
+                            );
+                        }
+                        $img.replaceWith($svg);
+                    },
+                    "xml"
+                );
+            });
+        });
+
+    </script>
 
 
 </body>

@@ -28,6 +28,9 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class Helpers
 {
+    /** @var \Illuminate\Support\Collection<string, \App\Model\BusinessSetting>|null */
+    private static ?\Illuminate\Support\Collection $businessSettingsByKey = null;
+
     public static function error_processor($validator)
     {
         $err_keeper = [];
@@ -115,13 +118,35 @@ class Helpers
         $storage = [];
 
         if ($multi_data == true) {
+            $allAddonIds = [];
             foreach ($data as $item) {
+                $rawAddons = $item['add_ons'] ?? '[]';
+                $ids = is_array($rawAddons) ? $rawAddons : json_decode($rawAddons, true);
+                if (is_array($ids)) {
+                    foreach ($ids as $addonId) {
+                        $addonId = (int) $addonId;
+                        if ($addonId > 0) {
+                            $allAddonIds[] = $addonId;
+                        }
+                    }
+                }
+            }
+            $addonMap = $allAddonIds === []
+                ? collect()
+                : AddOn::whereIn('id', array_values(array_unique($allAddonIds)))->get()->keyBy('id');
 
+            foreach ($data as $item) {
                 $variations = [];
                 $item['category_ids'] = json_decode($item['category_ids']);
                 $item['attributes'] = json_decode($item['attributes']);
                 $item['choice_options'] = json_decode($item['choice_options']);
-                $item['add_ons'] = AddOn::whereIn('id', json_decode($item['add_ons']))->get();
+                $rawAddons = $item['add_ons'] ?? '[]';
+                $ids = is_array($rawAddons) ? $rawAddons : json_decode($rawAddons, true);
+                $ids = is_array($ids) ? $ids : [];
+                $item['add_ons'] = collect($ids)
+                    ->map(fn ($addonId) => $addonMap->get((int) $addonId))
+                    ->filter()
+                    ->values();
 
                 $item['variations'] = json_decode($item['variations'], true);
 
@@ -213,20 +238,37 @@ class Helpers
         return $data;
     }
 
+    /**
+     * @return \Illuminate\Support\Collection<string, BusinessSetting>
+     */
+    public static function businessSettingsByKey(): \Illuminate\Support\Collection
+    {
+        if (self::$businessSettingsByKey === null) {
+            self::$businessSettingsByKey = Cache::rememberForever(CACHE_BUSINESS_SETTINGS_TABLE, function () {
+                return BusinessSetting::all()->keyBy('key');
+            });
+        }
+
+        return self::$businessSettingsByKey;
+    }
+
+    public static function forgetBusinessSettingsRuntimeCache(): void
+    {
+        self::$businessSettingsByKey = null;
+        Cache::forget(CACHE_BUSINESS_SETTINGS_TABLE);
+    }
+
     public static function get_business_settings($name)
     {
         $config = null;
-        $settings = Cache::rememberForever(CACHE_BUSINESS_SETTINGS_TABLE, function () {
-            return BusinessSetting::all();
-        });
-
-        $data = $settings?->firstWhere('key', $name);
+        $data = self::businessSettingsByKey()->get($name);
         if (isset($data)) {
-            $config = json_decode($data['value'], true);
+            $config = json_decode($data->value, true);
             if (is_null($config)) {
-                $config = $data['value'];
+                $config = $data->value;
             }
         }
+
         return $config;
     }
 
@@ -249,8 +291,9 @@ class Helpers
 
     public static function currency_code()
     {
-        $currency_code = BusinessSetting::where(['key' => 'currency'])->first()->value;
-        return $currency_code;
+        $currency = self::get_business_settings('currency');
+
+        return is_string($currency) ? $currency : (string) ($currency ?? '');
     }
 
     public static function currency_symbol()
@@ -1005,16 +1048,25 @@ class Helpers
         return $ref_code;
     }
 
-    public static function update_daily_product_stock() {
+    public static function update_daily_product_stock()
+    {
+        $cacheKey = 'daily_product_stock_reset_'.now()->format('Y-m-d');
+        if (Cache::has($cacheKey)) {
+            return true;
+        }
+
         $currentDay = now()->day;
         $currentMonth = now()->month;
-        $products = ProductByBranch::where(['stock_type' => 'daily'])->get();
-        foreach ($products as $product){
-            if ($currentDay != $product['updated_at']->day || $currentMonth != $product['updated_at']->month){
+        $products = ProductByBranch::where(['stock_type' => 'daily'])->get(['id', 'sold_quantity', 'updated_at']);
+        foreach ($products as $product) {
+            if ($currentDay != $product['updated_at']->day || $currentMonth != $product['updated_at']->month) {
                 $product['sold_quantity'] = 0;
                 $product->save();
             }
         }
+
+        Cache::put($cacheKey, true, now()->endOfDay());
+
         return true;
     }
 
@@ -1039,6 +1091,23 @@ class Helpers
             }
         }
         return $data;
+    }
+
+    /**
+     * Canonical order ID for admin, API, SMS, payments, and exports.
+     * Never prepend branch_id or other prefixes — that breaks lookups and links.
+     */
+    public static function order_display_id($order): int
+    {
+        if ($order instanceof \App\Model\Order) {
+            return (int) $order->id;
+        }
+
+        if (is_array($order) && array_key_exists('id', $order)) {
+            return (int) $order['id'];
+        }
+
+        return (int) $order;
     }
 
     public static function order_status_message_key($status)
@@ -1078,10 +1147,38 @@ class Helpers
 
     public static function onErrorImage($data, $src, $error_src ,$path)
     {
-        if(isset($data) && strlen($data) >1 && Storage::disk('public')->exists($path.$data)){
+        if (isset($data) && strlen($data) > 1) {
             return $src;
         }
+
         return $error_src;
+    }
+
+    /**
+     * Build a public disk image URL without filesystem checks (shared-hosting safe).
+     */
+    public static function public_storage_image_url(?string $image, string $directory, string $placeholderAssetPath): string
+    {
+        $image = is_string($image) ? trim($image) : '';
+        if ($image !== '') {
+            return asset('storage/app/public/' . trim($directory, '/') . '/' . $image);
+        }
+
+        return asset($placeholderAssetPath);
+    }
+
+    /**
+     * Customer / user avatar for admin views — avoids render-time Storage::exists().
+     */
+    public static function user_storage_image_url($user, string $placeholderAssetPath = 'public/assets/admin/img/160x160/img1.jpg'): string
+    {
+        if ($user === null || empty($user->image)) {
+            return asset($placeholderAssetPath);
+        }
+
+        $directory = ($user->user_type ?? '') === 'kitchen' ? 'kitchen' : 'profile';
+
+        return self::public_storage_image_url($user->image, $directory, $placeholderAssetPath);
     }
 
     /**
@@ -1139,22 +1236,181 @@ class Helpers
      * @param int $dayOfWeek 0 = Sunday, 1 = Monday, etc.
      * @return array
      */
+    /** @var \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>|null */
+    private static $restaurantSchedulesByDayCache = null;
+
+    public static function forgetRestaurantSchedulesRuntimeCache(): void
+    {
+        self::$restaurantSchedulesByDayCache = null;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>
+     */
+    public static function restaurantSchedulesByDay(): \Illuminate\Support\Collection
+    {
+        if (self::$restaurantSchedulesByDayCache === null) {
+            self::$restaurantSchedulesByDayCache = \App\Model\TimeSchedule::query()
+                ->select(['day', 'opening_time', 'closing_time'])
+                ->get()
+                ->groupBy('day');
+        }
+
+        return self::$restaurantSchedulesByDayCache;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>|null  $restaurantSchedulesByDay
+     * @return array<int, array<string, mixed>>
+     */
+    public static function resolveTodaySchedulesForBranch(Branch $branch, int $dayOfWeek, $restaurantSchedulesByDay = null): array
+    {
+        if ($branch->relationLoaded('branch_time_schedules')) {
+            $branchDaySchedules = $branch->branch_time_schedules->where('day', $dayOfWeek)->values();
+        } else {
+            $branchDaySchedules = \App\Model\BranchTimeSchedule::query()
+                ->where('branch_id', $branch->id)
+                ->where('day', $dayOfWeek)
+                ->get(['opening_time', 'closing_time']);
+        }
+
+        if ($branchDaySchedules->count() > 0) {
+            return $branchDaySchedules->map(static fn ($schedule) => [
+                'opening_time' => $schedule->opening_time,
+                'closing_time' => $schedule->closing_time,
+            ])->all();
+        }
+
+        $byDay = $restaurantSchedulesByDay ?? self::restaurantSchedulesByDay();
+        $restaurant = $byDay->get($dayOfWeek, collect());
+
+        return $restaurant->map(static fn ($schedule) => [
+            'opening_time' => $schedule->opening_time,
+            'closing_time' => $schedule->closing_time,
+        ])->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $todaySchedules
+     */
+    public static function isOpenForSchedules(array $todaySchedules, string $currentTime): bool
+    {
+        if ($todaySchedules === []) {
+            return true;
+        }
+
+        foreach ($todaySchedules as $schedule) {
+            if ($currentTime >= $schedule['opening_time'] && $currentTime <= $schedule['closing_time']) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $todaySchedules
+     */
+    public static function canOrderTodayForSchedules(array $todaySchedules, string $currentTime): bool
+    {
+        if ($todaySchedules === []) {
+            return true;
+        }
+
+        foreach ($todaySchedules as $schedule) {
+            if ($currentTime <= $schedule['closing_time']) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>|null  $restaurantSchedulesByDay
+     * @return array<string, mixed>
+     */
+    public static function branchPayloadWithAvailability(
+        Branch $branch,
+        $restaurantSchedulesByDay,
+        int $dayOfWeek,
+        string $currentTime
+    ): array {
+        $branchArray = $branch->toArray();
+        $todaySchedules = self::resolveTodaySchedulesForBranch($branch, $dayOfWeek, $restaurantSchedulesByDay);
+        $branchArray['is_currently_open'] = self::isOpenForSchedules($todaySchedules, $currentTime);
+        $branchArray['can_order_today'] = self::canOrderTodayForSchedules($todaySchedules, $currentTime);
+        $branchArray['today_schedules'] = $todaySchedules;
+
+        return $branchArray;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>|null  $restaurantSchedulesByDay
+     * @return array<string, mixed>
+     */
+    public static function applyBranchAvailabilityToPayloadArray(
+        array $branchArray,
+        int $dayOfWeek,
+        string $currentTime,
+        $restaurantSchedulesByDay = null
+    ): array {
+        $todaySchedules = self::resolveTodaySchedulesFromBranchArray($branchArray, $dayOfWeek, $restaurantSchedulesByDay);
+        $branchArray['is_currently_open'] = self::isOpenForSchedules($todaySchedules, $currentTime);
+        $branchArray['can_order_today'] = self::canOrderTodayForSchedules($todaySchedules, $currentTime);
+        $branchArray['today_schedules'] = $todaySchedules;
+
+        return $branchArray;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>|null  $restaurantSchedulesByDay
+     * @return array<int, array<string, mixed>>
+     */
+    private static function resolveTodaySchedulesFromBranchArray(
+        array $branchArray,
+        int $dayOfWeek,
+        $restaurantSchedulesByDay = null
+    ): array {
+        $branchSchedules = $branchArray['branch_time_schedules'] ?? [];
+        if (is_array($branchSchedules) && $branchSchedules !== []) {
+            $filtered = array_values(array_filter(
+                $branchSchedules,
+                static fn ($schedule) => (int) ($schedule['day'] ?? -1) === $dayOfWeek
+            ));
+            if ($filtered !== []) {
+                return array_map(static fn ($schedule) => [
+                    'opening_time' => $schedule['opening_time'],
+                    'closing_time' => $schedule['closing_time'],
+                ], $filtered);
+            }
+        }
+
+        $byDay = $restaurantSchedulesByDay ?? self::restaurantSchedulesByDay();
+        $restaurant = $byDay->get($dayOfWeek, collect());
+
+        return $restaurant->map(static fn ($schedule) => [
+            'opening_time' => $schedule->opening_time,
+            'closing_time' => $schedule->closing_time,
+        ])->all();
+    }
+
     public static function getBranchAvailabilitySchedules($branchId, $dayOfWeek)
     {
-        // Check branch specific time schedules first
         $branchSchedules = \App\Model\BranchTimeSchedule::where('branch_id', $branchId)
             ->where('day', $dayOfWeek)
             ->get(['opening_time', 'closing_time']);
 
         if ($branchSchedules->count() > 0) {
             return $branchSchedules->toArray();
-        } else {
-            // Branch doesn't have specific schedules, use restaurant schedules
-            $restaurantSchedules = \App\Model\TimeSchedule::where('day', $dayOfWeek)
-                ->get(['opening_time', 'closing_time']);
-            
-            return $restaurantSchedules->toArray();
         }
+
+        $restaurantSchedules = self::restaurantSchedulesByDay()->get($dayOfWeek, collect());
+
+        return $restaurantSchedules->map(static fn ($schedule) => [
+            'opening_time' => $schedule->opening_time,
+            'closing_time' => $schedule->closing_time,
+        ])->all();
     }
 
     /**
@@ -1164,30 +1420,17 @@ class Helpers
      */
     public static function isBranchCurrentlyOpen($branchId)
     {
-        // Check if branch exists and is active
         $branch = Branch::find($branchId);
-        if (!$branch || $branch->status != 1) {
+        if (! $branch || $branch->status != 1) {
             return false;
         }
 
         $now = Carbon::now();
-        $currentTime = $now->format('H:i:s');
-        $currentDay = $now->dayOfWeek;
-        
-        $todaySchedules = self::getBranchAvailabilitySchedules($branchId, $currentDay);
-        
-        if (empty($todaySchedules)) {
-            // No schedules exist - assume 24/7 for backward compatibility
-            return true;
-        }
-        
-        foreach ($todaySchedules as $schedule) {
-            if ($currentTime >= $schedule['opening_time'] && $currentTime <= $schedule['closing_time']) {
-                return true;
-            }
-        }
-        
-        return false;
+
+        return self::isOpenForSchedules(
+            self::getBranchAvailabilitySchedules($branchId, $now->dayOfWeek),
+            $now->format('H:i:s')
+        );
     }
 
     /**
@@ -1197,31 +1440,17 @@ class Helpers
      */
     public static function canStillOrderFromBranchToday($branchId)
     {
-        // Check if branch exists and is active
         $branch = Branch::find($branchId);
-        if (!$branch || $branch->status != 1) {
+        if (! $branch || $branch->status != 1) {
             return false;
         }
 
         $now = Carbon::now();
-        $currentTime = $now->format('H:i:s');
-        $currentDay = $now->dayOfWeek;
-        
-        $todaySchedules = self::getBranchAvailabilitySchedules($branchId, $currentDay);
-        
-        if (empty($todaySchedules)) {
-            // No schedules exist - assume 24/7 for backward compatibility
-            return true;
-        }
-        
-        // Check if current time is still before any closing time today
-        foreach ($todaySchedules as $schedule) {
-            if ($currentTime <= $schedule['closing_time']) {
-                return true;
-            }
-        }
-        
-        return false;
+
+        return self::canOrderTodayForSchedules(
+            self::getBranchAvailabilitySchedules($branchId, $now->dayOfWeek),
+            $now->format('H:i:s')
+        );
     }
 
 }

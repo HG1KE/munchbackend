@@ -119,7 +119,8 @@ class TableOrderController extends Controller
      */
     public function orderDetails($id): Renderable|RedirectResponse
     {
-        $order = $this->order->with('details')->where(['id' => $id])->first();
+        $order = $this->order->with(['details.product', 'customer', 'branch', 'delivery_man', 'order_partial_payments'])
+            ->where(['id' => $id])->first();
 
         if (!isset($order)) {
             Toastr::info(translate('No more orders!'));
@@ -133,11 +134,15 @@ class TableOrderController extends Controller
             })
             ->get();
 
-        //remaining delivery time
-        $deliveryDateTime = $order['delivery_date'] . ' ' . $order['delivery_time'];
-        $orderedTime = Carbon::createFromFormat('Y-m-d H:i:s', date("Y-m-d H:i:s", strtotime($deliveryDateTime)));
-        $remainingTime = $orderedTime->add($order['preparation_time'], 'minute')->format('Y-m-d H:i:s');
-        $order['remaining_time'] = $remainingTime;
+        $deliveryDateTime = trim(($order['delivery_date'] ?? '') . ' ' . ($order['delivery_time'] ?? ''));
+        try {
+            $orderedTime = Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s', strtotime($deliveryDateTime)));
+            $order['remaining_time'] = $orderedTime
+                ->add((int) ($order['preparation_time'] ?? 0), 'minute')
+                ->format('Y-m-d H:i:s');
+        } catch (\Throwable $e) {
+            $order['remaining_time'] = null;
+        }
 
         return view('admin-views.order.order-view', compact('order','deliverymen'));
     }
