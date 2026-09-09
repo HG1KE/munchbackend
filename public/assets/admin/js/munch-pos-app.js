@@ -23,6 +23,19 @@
     var els = {};
     var renderScheduled = false;
     var toastTimer = 0;
+    var ordersUi = {
+        open: false,
+        search: '',
+        filter: 'all',
+        page: 1,
+        lastPage: 1,
+        total: 0,
+        orders: [],
+        expandedId: 0,
+        timer: 0,
+        searchTimer: 0,
+        loading: false
+    };
 
     function uuid() {
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -802,6 +815,185 @@
         }).catch(function () {});
     }
 
+    function L(key, fallback) {
+        return (CFG.labels && CFG.labels[key]) || fallback || key;
+    }
+
+    function paymentLabel(method) {
+        if (method === 'cash') return L('cash', 'Cash');
+        if (method === 'card') return L('card', 'Card');
+        if (method === 'pay_after_eating') return L('payAfter', 'Pay after eating');
+        if (method === 'cash_on_delivery') return L('cod', 'Cash On Delivery');
+        return method || '';
+    }
+
+    function paymentStatusClass(status) {
+        return status === 'paid' ? 'munch-pos-order__pill--paid' : 'munch-pos-order__pill--unpaid';
+    }
+
+    function paymentStatusLabel(status) {
+        return status === 'paid' ? L('paid', 'Paid') : L('unpaid', 'Unpaid');
+    }
+
+    function orderStatusClass(status) {
+        if (status === 'delivered') return 'munch-pos-order__pill--done';
+        if (status === 'canceled' || status === 'cancelled' || status === 'failed' || status === 'returned') {
+            return 'munch-pos-order__pill--cancel';
+        }
+        return '';
+    }
+
+    function orderFilterChips() {
+        return [
+            { id: 'all', label: L('allOrders', 'All') },
+            { id: 'delivery', label: L('delivery', 'Delivery') },
+            { id: 'takeaway', label: L('takeAway', 'Take Away') },
+            { id: 'dine_in', label: L('dineIn', 'Dine In') },
+            { id: 'glovo', label: L('glovo', 'Glovo') },
+            { id: 'uber', label: L('uber', 'Uber') },
+            { id: 'bolt_food', label: L('boltFood', 'Bolt Food') },
+            { id: 'completed', label: L('completed', 'Completed') },
+            { id: 'cancelled', label: L('cancelled', 'Cancelled') },
+            { id: 'active', label: L('active', 'Active') }
+        ];
+    }
+
+    function renderOrderFilters() {
+        if (!els.ordersFilters) return;
+        els.ordersFilters.innerHTML = orderFilterChips().map(function (chip) {
+            return '<button type="button" class="munch-pos-orders__chip' + (ordersUi.filter === chip.id ? ' is-active' : '') + '" data-order-filter="' + chip.id + '">' + escapeHtml(chip.label) + '</button>';
+        }).join('');
+    }
+
+    function renderOrderPager() {
+        if (!els.ordersPager) return;
+        if (ordersUi.lastPage <= 1) {
+            els.ordersPager.hidden = true;
+            els.ordersPager.innerHTML = '';
+            return;
+        }
+        els.ordersPager.hidden = false;
+        els.ordersPager.innerHTML =
+            '<button type="button" class="munch-pos-orders__page" data-orders-page="' + (ordersUi.page - 1) + '"' + (ordersUi.page <= 1 ? ' disabled' : '') + '>‹</button>' +
+            '<span>' + escapeHtml(L('page', 'Page')) + ' ' + ordersUi.page + ' / ' + ordersUi.lastPage + '</span>' +
+            '<button type="button" class="munch-pos-orders__page" data-orders-page="' + (ordersUi.page + 1) + '"' + (ordersUi.page >= ordersUi.lastPage ? ' disabled' : '') + '>›</button>';
+    }
+
+    function orderDetailHtml(order) {
+        var rows = (order.items || []).map(function (item) {
+            return '<tr><td>' + escapeHtml(item.name) + '</td><td>' + escapeHtml(item.quantity) + '</td><td>' + money(item.unit_price) + '</td><td>' + money(item.discount) + '</td><td>' + money(item.line_total) + '</td></tr>';
+        }).join('');
+        var html = '<dl class="munch-pos-order__details">';
+        html += '<dt>' + escapeHtml(L('customer', 'Customer')) + '</dt><dd>' + escapeHtml(order.customer || L('walkIn', 'Walk-in')) + '</dd>';
+        if (order.phone) html += '<dt>' + escapeHtml(L('phone', 'Phone')) + '</dt><dd>' + escapeHtml(order.phone) + '</dd>';
+        if (order.sales_channel === 'delivery' && order.address) {
+            html += '<dt>' + escapeHtml(L('addressLabel', 'Address')) + '</dt><dd>' + escapeHtml(order.address) + '</dd>';
+            html += '<dt>' + escapeHtml(L('deliveryFee', 'Delivery Fee')) + '</dt><dd>' + money(order.delivery_fee) + '</dd>';
+        }
+        html += '<dt>' + escapeHtml(L('items', 'Items')) + '</dt><dd><table class="munch-pos-order__table"><thead><tr><th>' + escapeHtml(L('items', 'Items')) + '</th><th>' + escapeHtml(L('quantity', 'Qty')) + '</th><th>' + escapeHtml(L('unitPrice', 'Price')) + '</th><th>' + escapeHtml(L('discount', 'Discount')) + '</th><th>' + escapeHtml(L('subtotal', 'Subtotal')) + '</th></tr></thead><tbody>' + rows + '</tbody></table></dd>';
+        html += '<dt>' + escapeHtml(L('grandTotal', 'Grand Total')) + '</dt><dd>' + money(order.grand_total) + '</dd>';
+        html += '<dt>' + escapeHtml(L('paymentMethod', 'Payment Method')) + '</dt><dd>' + escapeHtml(paymentLabel(order.payment_method)) + '</dd>';
+        if (Number(order.cash_received) > 0) {
+            html += '<dt>' + escapeHtml(L('cashReceived', 'Paid Amount')) + '</dt><dd>' + money(order.cash_received) + '</dd>';
+            html += '<dt>' + escapeHtml(L('change', 'Change')) + '</dt><dd>' + money(order.change) + '</dd>';
+        }
+        html += '<dt>' + escapeHtml(L('cashier', 'Cashier')) + '</dt><dd>' + escapeHtml(order.cashier) + '</dd>';
+        html += '<dt>' + escapeHtml(L('createdTime', 'Created at')) + '</dt><dd>' + escapeHtml(order.created_at) + '</dd>';
+        if (order.completed_at) html += '<dt>' + escapeHtml(L('completedTime', 'Delivered')) + '</dt><dd>' + escapeHtml(order.completed_at) + '</dd>';
+        html += '</dl>';
+        return html;
+    }
+
+    function renderOrdersList() {
+        if (!els.ordersList) return;
+        var scrollTop = els.ordersList.scrollTop;
+        if (!ordersUi.orders.length) {
+            els.ordersList.innerHTML = '<p class="munch-pos-orders__empty">' + escapeHtml(L('noOrders', 'No Data Found')) + '</p>';
+        } else {
+            els.ordersList.innerHTML = ordersUi.orders.map(function (order) {
+                var open = Number(ordersUi.expandedId) === Number(order.id);
+                var summary = (order.items_summary || []).join(', ');
+                return '<article class="munch-pos-order' + (open ? ' is-open' : '') + '" data-order-id="' + order.id + '">' +
+                    '<div class="munch-pos-order__top">' +
+                    '<div><p class="munch-pos-order__id">' + escapeHtml(order.number) + '</p>' +
+                    '<p class="munch-pos-order__meta"><span>' + escapeHtml(order.time) + '</span><span>' + escapeHtml(order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
+                    '<div class="munch-pos-order__total">' + money(order.grand_total) + '</div></div>' +
+                    '<div class="munch-pos-order__pills">' +
+                    '<span class="munch-pos-order__pill">' + escapeHtml(paymentLabel(order.payment_method)) + '</span>' +
+                    '<span class="munch-pos-order__pill ' + paymentStatusClass(order.payment_status) + '">' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</span>' +
+                    '<span class="munch-pos-order__pill ' + orderStatusClass(order.order_status) + '">' + escapeHtml(order.order_status_label || order.order_status) + '</span>' +
+                    '</div>' +
+                    (summary ? '<p class="munch-pos-order__items">' + escapeHtml(summary) + '</p>' : '') +
+                    (open ? orderDetailHtml(order) : '') +
+                    '</article>';
+            }).join('');
+        }
+        els.ordersList.scrollTop = scrollTop;
+        if (els.ordersMeta) {
+            els.ordersMeta.textContent = ordersUi.total ? String(ordersUi.total) : '';
+        }
+        renderOrderPager();
+    }
+
+    function fetchTodayOrders() {
+        if (!CFG.urls.todayOrders || !ordersUi.open) return Promise.resolve();
+        ordersUi.loading = true;
+        var url = CFG.urls.todayOrders + (CFG.urls.todayOrders.indexOf('?') === -1 ? '?' : '&') +
+            'search=' + encodeURIComponent(ordersUi.search) +
+            '&filter=' + encodeURIComponent(ordersUi.filter) +
+            '&page=' + encodeURIComponent(ordersUi.page);
+        return fetch(url, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-Munch-POS': '1' }
+        }).then(function (res) {
+            if (res.status === 401 || (res.redirected && String(res.url).indexOf('login') !== -1)) {
+                state.authRequired = true;
+                scheduleRender();
+                return null;
+            }
+            return res.json();
+        }).then(function (json) {
+            ordersUi.loading = false;
+            if (!json || !json.data) return;
+            ordersUi.orders = json.data.orders || [];
+            ordersUi.page = Number(json.data.page || 1);
+            ordersUi.lastPage = Number(json.data.last_page || 1);
+            ordersUi.total = Number(json.data.total || 0);
+            renderOrdersList();
+        }).catch(function () {
+            ordersUi.loading = false;
+        });
+    }
+
+    function startOrdersRefresh() {
+        stopOrdersRefresh();
+        ordersUi.timer = setInterval(function () {
+            if (ordersUi.open) fetchTodayOrders();
+        }, 15000);
+    }
+
+    function stopOrdersRefresh() {
+        if (ordersUi.timer) {
+            clearInterval(ordersUi.timer);
+            ordersUi.timer = 0;
+        }
+    }
+
+    function openOrdersModal() {
+        if (!els.ordersModal) return;
+        ordersUi.open = true;
+        els.ordersModal.hidden = false;
+        renderOrderFilters();
+        fetchTodayOrders();
+        startOrdersRefresh();
+    }
+
+    function closeOrdersModal() {
+        ordersUi.open = false;
+        stopOrdersRefresh();
+        if (els.ordersModal) els.ordersModal.hidden = true;
+    }
+
     function bind() {
         els.conn = document.getElementById('pos-conn-badge');
         els.queue = document.getElementById('pos-queue-badge');
@@ -830,6 +1022,12 @@
         els.queueList = document.getElementById('pos-queue-list');
         els.auth = document.getElementById('pos-auth');
         els.authLink = document.getElementById('pos-auth-link');
+        els.ordersModal = document.getElementById('pos-orders-modal');
+        els.ordersList = document.getElementById('pos-orders-list');
+        els.ordersFilters = document.getElementById('pos-orders-filters');
+        els.ordersPager = document.getElementById('pos-orders-pager');
+        els.ordersMeta = document.getElementById('pos-orders-meta');
+        els.ordersSearch = document.getElementById('pos-orders-search');
 
         document.getElementById('pos-search').addEventListener('input', function (ev) {
             state.search = ev.target.value;
@@ -928,6 +1126,57 @@
         });
         document.getElementById('pos-modal').addEventListener('click', function (ev) {
             if (ev.target.id === 'pos-modal') ev.target.hidden = true;
+        });
+        var viewOrders = document.getElementById('pos-view-orders');
+        if (viewOrders) viewOrders.addEventListener('click', openOrdersModal);
+        var ordersClose = document.getElementById('pos-orders-close');
+        if (ordersClose) ordersClose.addEventListener('click', closeOrdersModal);
+        var ordersRefresh = document.getElementById('pos-orders-refresh');
+        if (ordersRefresh) ordersRefresh.addEventListener('click', function () { fetchTodayOrders(); });
+        if (els.ordersModal) {
+            els.ordersModal.addEventListener('click', function (ev) {
+                if (ev.target.id === 'pos-orders-modal') closeOrdersModal();
+            });
+        }
+        if (els.ordersSearch) {
+            els.ordersSearch.addEventListener('input', function (ev) {
+                ordersUi.search = ev.target.value;
+                ordersUi.page = 1;
+                clearTimeout(ordersUi.searchTimer);
+                ordersUi.searchTimer = setTimeout(fetchTodayOrders, 280);
+            });
+        }
+        if (els.ordersFilters) {
+            els.ordersFilters.addEventListener('click', function (ev) {
+                var chip = ev.target.closest('[data-order-filter]');
+                if (!chip) return;
+                ordersUi.filter = chip.getAttribute('data-order-filter') || 'all';
+                ordersUi.page = 1;
+                renderOrderFilters();
+                fetchTodayOrders();
+            });
+        }
+        if (els.ordersList) {
+            els.ordersList.addEventListener('click', function (ev) {
+                var card = ev.target.closest('[data-order-id]');
+                if (!card) return;
+                var id = Number(card.getAttribute('data-order-id'));
+                ordersUi.expandedId = ordersUi.expandedId === id ? 0 : id;
+                renderOrdersList();
+            });
+        }
+        if (els.ordersPager) {
+            els.ordersPager.addEventListener('click', function (ev) {
+                var btn = ev.target.closest('[data-orders-page]');
+                if (!btn || btn.disabled) return;
+                var next = Number(btn.getAttribute('data-orders-page'));
+                if (!next || next < 1 || next > ordersUi.lastPage) return;
+                ordersUi.page = next;
+                fetchTodayOrders();
+            });
+        }
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape' && ordersUi.open) closeOrdersModal();
         });
         window.addEventListener('online', function () {
             state.online = true;

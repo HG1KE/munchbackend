@@ -3049,4 +3049,13 @@
   'Uber' => 'Uber',
   'Bolt Food' => 'Bolt Food',
   'Online' => 'Online',
+  'View Orders' => 'View Orders',
+  "Today's POS Orders" => "Today's POS Orders",
+  'Refresh' => 'Refresh',
+  'Order Number' => 'Order Number',
+  'Cashier' => 'Cashier',
+  'Created at' => 'Created at',
+  'Page' => 'Page',
+  'Paid' => 'Paid',
+  'Unpaid' => 'Unpaid',
 );

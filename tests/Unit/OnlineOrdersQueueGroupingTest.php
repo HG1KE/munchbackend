@@ -320,10 +320,15 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('OrderOperationsController', $branchRoutes);
         $this->assertStringContainsString("->name('online')", $branchRoutes);
         $this->assertStringContainsString('DashboardLiveCardsController', $branchRoutes);
+        $this->assertStringContainsString("->name('today-orders')", $branchRoutes);
         $this->assertStringContainsString("->name('catalog')", $branchRoutes);
         $this->assertStringContainsString("->name('heartbeat')", $branchRoutes);
 
         $posPage = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $this->assertStringContainsString('pos-view-orders', $posPage);
+        $this->assertStringContainsString('pos-orders-modal', $posPage);
+        $this->assertStringContainsString('todayOrders:', $posPage);
+        $this->assertStringContainsString("translate('View Orders')", $posPage);
         $this->assertStringContainsString('pos-del-fee', $posPage);
         $this->assertStringNotContainsString('pos-del-area', $posPage);
         $this->assertStringContainsString('delivery_charge: deliveryCharge()', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
@@ -335,6 +340,13 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('munch-pos-shell-v2', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('fetchTodayOrders', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('15000', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('els.ordersList.scrollTop', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('whereIn(\'sales_channel\', PosOrderTypes::salesChannels())', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
+        $this->assertStringContainsString('PER_PAGE = 50', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
+        $this->assertStringNotContainsString('scopePos', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
+        $this->assertStringContainsString('z-index: 45', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
         $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));

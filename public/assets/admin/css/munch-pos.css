@@ -84,6 +84,7 @@
     gap: 0.45rem;
     flex-wrap: wrap;
     justify-content: flex-end;
+    align-items: center;
 }
 
 .munch-pos-badge {
@@ -103,6 +104,20 @@
 .munch-pos-badge--sync { background: #e0f2fe; color: #075985; }
 .munch-pos-badge--ok { background: #dcfce7; color: #166534; }
 .munch-pos-badge--err { background: #fee2e2; color: #991b1b; }
+
+.munch-pos-topbar__orders {
+    border: 0;
+    border-radius: 999px;
+    min-height: 44px;
+    padding: 0.4rem 1rem;
+    background: var(--munch-pos-red);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+}
 
 .munch-pos-shell {
     flex: 1;
@@ -523,6 +538,248 @@
     font-weight: 600;
 }
 
+.munch-pos-orders {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 45;
+    display: grid;
+    place-items: center;
+    padding: 0.85rem;
+}
+
+.munch-pos-orders__card {
+    width: min(960px, 100%);
+    height: min(880px, calc(100dvh - 1.7rem));
+    background: #fff;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+.munch-pos-orders__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem 1.15rem 0.75rem;
+    border-bottom: 1px solid var(--munch-pos-line);
+}
+
+.munch-pos-orders__head h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.munch-pos-orders__meta {
+    margin: 0.2rem 0 0;
+    color: var(--munch-pos-muted);
+    font-size: 0.85rem;
+}
+
+.munch-pos-orders__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.munch-pos-orders__refresh,
+.munch-pos-orders__close,
+.munch-pos-orders__page {
+    border: 1px solid var(--munch-pos-line);
+    background: #fff;
+    min-height: 44px;
+    border-radius: 999px;
+    padding: 0.35rem 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-orders__close {
+    background: var(--munch-pos-ink);
+    color: #fff;
+    border-color: var(--munch-pos-ink);
+}
+
+.munch-pos-orders__search {
+    display: block;
+    padding: 0.75rem 1.15rem 0.35rem;
+}
+
+.munch-pos-orders__search input {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 12px;
+    padding: 0.65rem 0.9rem;
+    font-size: 1rem;
+}
+
+.munch-pos-orders__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.45rem 1.15rem 0.7rem;
+}
+
+.munch-pos-orders__chip {
+    border: 1px solid var(--munch-pos-line);
+    background: #fff;
+    min-height: 40px;
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-orders__chip.is-active {
+    background: var(--munch-pos-red);
+    border-color: var(--munch-pos-red);
+    color: #fff;
+}
+
+.munch-pos-orders__list {
+    flex: 1;
+    overflow: auto;
+    padding: 0.35rem 1.15rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.munch-pos-orders__empty {
+    margin: auto;
+    color: var(--munch-pos-muted);
+    font-weight: 600;
+}
+
+.munch-pos-order {
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 14px;
+    padding: 0.85rem 0.95rem;
+    background: var(--munch-pos-bg);
+}
+
+.munch-pos-order.is-open {
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.munch-pos-order__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.munch-pos-order__id {
+    margin: 0;
+    font-weight: 800;
+    font-size: 1.05rem;
+}
+
+.munch-pos-order__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.7rem;
+    margin: 0.35rem 0 0;
+    color: var(--munch-pos-muted);
+    font-size: 0.85rem;
+}
+
+.munch-pos-order__total {
+    font-weight: 800;
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+.munch-pos-order__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.55rem;
+}
+
+.munch-pos-order__pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 0.6rem;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.munch-pos-order__pill--paid { background: #dcfce7; color: #166534; }
+.munch-pos-order__pill--unpaid { background: #fee2e2; color: #991b1b; }
+.munch-pos-order__pill--done { background: #dcfce7; color: #166534; }
+.munch-pos-order__pill--cancel { background: #fee2e2; color: #991b1b; }
+
+.munch-pos-order__items {
+    margin: 0.55rem 0 0;
+    color: var(--munch-pos-ink);
+    font-size: 0.9rem;
+}
+
+.munch-pos-order__details {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--munch-pos-line);
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+}
+
+.munch-pos-order__details dt {
+    color: var(--munch-pos-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.munch-pos-order__details dd {
+    margin: 0 0 0.35rem;
+}
+
+.munch-pos-order__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.munch-pos-order__table th,
+.munch-pos-order__table td {
+    text-align: left;
+    padding: 0.4rem 0.35rem;
+    border-bottom: 1px solid var(--munch-pos-line);
+}
+
+.munch-pos-order__table th:nth-child(n+2),
+.munch-pos-order__table td:nth-child(n+2) {
+    text-align: right;
+}
+
+.munch-pos-orders__pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    padding: 0.7rem 1.15rem 1rem;
+    border-top: 1px solid var(--munch-pos-line);
+}
+
+.munch-pos-orders__page:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
 @media (max-width: 899px) {
     .munch-pos-shell {
         grid-template-columns: 1fr;
@@ -543,6 +800,7 @@
     .munch-pos-status { grid-column: 1 / -1; justify-content: flex-start; }
     .munch-pos-topbar__total { display: none; }
     .munch-pos-topbar__link { display: none; }
+    .munch-pos-topbar__orders { min-height: 44px; }
 }
 
 @media (min-width: 1100px) {

@@ -11,6 +11,7 @@
             <span>{{ $branchName }}</span>
         </div>
         <div class="munch-pos-status" aria-live="polite">
+            <button type="button" class="munch-pos-topbar__orders" id="pos-view-orders">{{ translate('View Orders') }}</button>
             <span class="munch-pos-badge munch-pos-badge--online" id="pos-conn-badge">{{ translate('Online') }}</span>
             <span class="munch-pos-badge munch-pos-badge--queue" id="pos-queue-badge" hidden>0</span>
             <span class="munch-pos-badge munch-pos-badge--sync" id="pos-sync-badge" hidden></span>
@@ -83,6 +84,28 @@
     <div class="munch-pos-modal__card" role="dialog" aria-modal="true" id="pos-modal-card"></div>
 </div>
 
+<div class="munch-pos-orders" id="pos-orders-modal" hidden>
+    <div class="munch-pos-orders__card" role="dialog" aria-modal="true" aria-labelledby="pos-orders-title">
+        <header class="munch-pos-orders__head">
+            <div>
+                <h2 id="pos-orders-title">{{ translate("Today's POS Orders") }}</h2>
+                <p class="munch-pos-orders__meta" id="pos-orders-meta"></p>
+            </div>
+            <div class="munch-pos-orders__actions">
+                <button type="button" class="munch-pos-orders__refresh" id="pos-orders-refresh">{{ translate('Refresh') }}</button>
+                <button type="button" class="munch-pos-orders__close" id="pos-orders-close">{{ translate('Close') }}</button>
+            </div>
+        </header>
+        <label class="munch-pos-orders__search">
+            <span class="sr-only">{{ translate('Search_here') }}</span>
+            <input type="search" id="pos-orders-search" placeholder="{{ translate('Order Number') }}, {{ translate('Name') }}, {{ translate('Phone') }}" autocomplete="off">
+        </label>
+        <div class="munch-pos-orders__filters" id="pos-orders-filters"></div>
+        <div class="munch-pos-orders__list" id="pos-orders-list"></div>
+        <footer class="munch-pos-orders__pager" id="pos-orders-pager"></footer>
+    </div>
+</div>
+
 <div class="munch-pos-toast" id="pos-toast" hidden></div>
 @endsection
 
@@ -94,6 +117,7 @@
         urls: {
             catalog: @json(route('branch.pos.catalog')),
             heartbeat: @json(route('branch.pos.heartbeat')),
+            todayOrders: @json(route('branch.pos.today-orders')),
             order: @json(route('branch.pos.order')),
             invoice: @json(url('branch/pos/invoice')),
             sw: @json(route('branch.pos.service-worker')),
@@ -136,8 +160,33 @@
             sessionExpired: @json(translate('Session expired. Please sign in again.')),
             retrying: @json(translate('Waiting to retry')),
             validationFailed: @json(translate('Needs correction')),
+            viewOrders: @json(translate('View Orders')),
+            todayOrders: @json(translate("Today's POS Orders")),
+            refresh: @json(translate('Refresh')),
+            close: @json(translate('Close')),
+            allOrders: @json(translate('All')),
+            completed: @json(translate('Completed')),
+            cancelled: @json(translate('Cancelled')),
+            active: @json(translate('Active')),
+            paid: @json(translate('Paid')),
+            unpaid: @json(translate('Unpaid')),
+            walkIn: @json(translate('walk_in_customer')),
+            customer: @json(translate('Customer')),
+            phone: @json(translate('Phone')),
+            addressLabel: @json(translate('Address')),
+            items: @json(translate('Items')),
+            quantity: @json(translate('Quantity')),
+            unitPrice: @json(translate('Price')),
+            cashReceived: @json(translate('Paid Amount')),
+            change: @json(translate('Change')),
+            cashier: @json(translate('Cashier')),
+            createdTime: @json(translate('Created at')),
+            completedTime: @json(translate('Delivered')),
+            noOrders: @json(translate('No Data Found')),
+            page: @json(translate('Page')),
+            paymentMethod: @json(translate('Payment Method')),
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.4" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.5" defer></script>
 @endpush

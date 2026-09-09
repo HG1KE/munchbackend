@@ -13,6 +13,7 @@ use App\Model\Notification;
 use App\Model\Product;
 use App\Model\Order;
 use App\Services\BranchPosCatalogService;
+use App\Services\BranchPosTodayOrdersService;
 use App\Services\OrderReadableIdService;
 use App\Support\OrderPlacementTime;
 use App\Support\PosOrderTypes;
@@ -47,6 +48,7 @@ class POSController extends Controller
         private Branch          $branch,
         private ProductByBranch $product_by_Branch,
         private BranchPosCatalogService $posCatalog,
+        private BranchPosTodayOrdersService $posTodayOrders,
     )
     {}
 
@@ -83,6 +85,23 @@ class POSController extends Controller
             'authenticated' => true,
             'csrf' => csrf_token(),
             'catalog_version' => $this->posCatalog->versionForBranch($branchId),
+        ]);
+    }
+
+    public function todayOrders(Request $request): JsonResponse
+    {
+        $page = (int) $request->input('page', 1);
+        $payload = $this->posTodayOrders->forBranch(
+            (int) auth('branch')->id(),
+            (string) (auth('branch')->user()->name ?? ''),
+            $request->input('search'),
+            $request->input('filter'),
+            $page
+        );
+
+        return response()->json([
+            'success' => 1,
+            'data' => $payload,
         ]);
     }
 
