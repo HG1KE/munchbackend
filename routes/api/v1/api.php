@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\TableController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\DigitalPaymentController;
+use App\Http\Controllers\PaystackController;
 
 Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function () {
 
@@ -258,5 +259,10 @@ Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function
 
     Route::post('payment-mobile', [DigitalPaymentController::class, 'payment']);
     Route::post('add-fund-wallet', [DigitalPaymentController::class, 'addFund'])->middleware('auth:api');
+
+    Route::group(['prefix' => 'paystack'], function () {
+        Route::post('initialize', [PaystackController::class, 'initializeInline']);
+        Route::post('verify', [PaystackController::class, 'verifyInline']);
+    });
 
 });

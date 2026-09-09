@@ -11,6 +11,8 @@ use App\Observers\BusinessSettingObserver;
 use App\Observers\CategoryObserver;
 use App\Observers\LoginSetupObserver;
 use App\Observers\OrderObserver;
+use App\Services\Paystack\PaystackConfigResolver;
+use App\Services\PaystackService;
 use App\Traits\SystemAddonTrait;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
@@ -27,7 +29,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->app->singleton(PaystackConfigResolver::class);
+
+        $this->app->singleton(PaystackService::class, function ($app) {
+            return $app->make(PaystackConfigResolver::class)->resolve();
+        });
     }
 
     /**

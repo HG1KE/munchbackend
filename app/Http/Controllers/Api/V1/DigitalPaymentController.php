@@ -8,6 +8,7 @@ use App\Library\Payer;
 use App\Library\Payment as PaymentInfo;
 use App\Library\Receiver;
 use App\Model\CustomerAddress;
+use App\Services\Payments\Intent\Support\PaymentInitiationResponder;
 use App\Traits\CalculateOrderDataTrait;
 use App\Traits\Payment;
 use App\User;
@@ -20,7 +21,9 @@ use function App\CentralLogics\translate;
 class DigitalPaymentController extends Controller
 {
     use CalculateOrderDataTrait;
-    public function __construct(){
+
+    public function __construct(private readonly PaymentInitiationResponder $responder)
+    {
         if (is_dir('App\Traits') && trait_exists('App\Traits\Payment')) {
             $this->extendWithPaymentGatewayTrait();
         }
@@ -96,6 +99,18 @@ class DigitalPaymentController extends Controller
 
         $receiver_info = new Receiver('receiver_name','example.png');
         $redirect_link = Payment::generate_link($payer, $payment_info, $receiver_info);
+
+        if ($request->payment_method === 'paystack' && $request->boolean('inline_checkout')) {
+            if (! is_string($redirect_link)) {
+                return response()->json(['errors' => [[
+                    'code' => 'payment_method',
+                    'message' => translate('Payment gateway is not supported or not configured'),
+                ]]], 403);
+            }
+
+            return $this->responder->paystackInlineCheckoutResponse($redirect_link, $customer->email ?? null);
+        }
+
         return response()->json(['redirect_link' => $redirect_link], 200);
 
     }
@@ -221,6 +236,17 @@ class DigitalPaymentController extends Controller
         $receiver_info = new Receiver('receiver_name','example.png');
 
         $redirect_link = Payment::generate_link($payer, $payment_info, $receiver_info);
+
+        if ($request->payment_method === 'paystack' && $request->boolean('inline_checkout')) {
+            if (! is_string($redirect_link)) {
+                return response()->json(['errors' => [[
+                    'code' => 'payment_method',
+                    'message' => translate('Payment gateway is not supported or not configured'),
+                ]]], 403);
+            }
+
+            return $this->responder->paystackInlineCheckoutResponse($redirect_link, $customer['email'] ?? null);
+        }
 
         return response()->json(['redirect_link' => $redirect_link], 200);
     }
