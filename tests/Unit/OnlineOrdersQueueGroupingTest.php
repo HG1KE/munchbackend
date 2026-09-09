@@ -354,10 +354,16 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('munch-pos-card__add', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringNotContainsString('munch-pos-card__add', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
         $this->assertStringContainsString('productNeedsVariation', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('productInCategory', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('pos-tabs-prev', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString('scrollBy', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('COALESCE(pos_sold.qty_sold, 0) DESC', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString('whereIn(\'orders.sales_channel\', PosOrderTypes::salesChannels())', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringNotContainsString("(int) (\$row['position'] ?? 0) === 0", file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringNotContainsString('data-addon', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringNotContainsString('addon_ids', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringNotContainsString('AddOn::', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
-        $this->assertStringContainsString('pos-catalog-no-addons-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString('pos-catalog-popularity-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));

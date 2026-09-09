@@ -28,7 +28,11 @@
                     <input type="search" id="pos-search" placeholder="{{ translate('Search_here') }}" autocomplete="off">
                 </label>
             </div>
-            <div class="munch-pos-tabs" id="pos-tabs" role="tablist"></div>
+            <div class="munch-pos-tabs-wrap" id="pos-tabs-wrap">
+                <button type="button" class="munch-pos-tabs__arrow" id="pos-tabs-prev" aria-label="Previous categories">◀</button>
+                <div class="munch-pos-tabs" id="pos-tabs" role="tablist"></div>
+                <button type="button" class="munch-pos-tabs__arrow" id="pos-tabs-next" aria-label="Next categories">▶</button>
+            </div>
             <div class="munch-pos-grid" id="pos-grid"></div>
             <p class="munch-pos-empty" id="pos-empty" hidden>{{ translate('No Data Found') }}</p>
         </section>
@@ -187,5 +191,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.7" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.8" defer></script>
 @endpush

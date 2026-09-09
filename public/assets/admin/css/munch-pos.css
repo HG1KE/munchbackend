@@ -144,6 +144,13 @@
     min-height: 52px;
 }
 
+.munch-pos-tabs-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
 .munch-pos-tabs {
     display: flex;
     gap: 0.55rem;
@@ -151,9 +158,36 @@
     padding: 0.9rem 0;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    flex: 1;
+    min-width: 0;
 }
 
 .munch-pos-tabs::-webkit-scrollbar { display: none; }
+
+.munch-pos-tabs__arrow {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--munch-pos-ink);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-tabs__arrow:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.munch-pos-tabs-wrap:not(.is-overflow) .munch-pos-tabs__arrow {
+    display: none;
+}
 
 .munch-pos-tab {
     flex: 0 0 auto;
@@ -851,6 +885,7 @@
 }
 
 .munch-pos-tab,
+.munch-pos-tabs__arrow,
 .munch-pos-card__plus,
 .munch-pos-card__step,
 .munch-pos-type,

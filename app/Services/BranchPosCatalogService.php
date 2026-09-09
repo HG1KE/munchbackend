@@ -9,6 +9,8 @@ use App\Model\Product;
 use App\Model\ProductByBranch;
 use App\Model\Table;
 use App\Models\DeliveryChargeByArea;
+use App\Support\PosOrderTypes;
+use Illuminate\Support\Facades\DB;
 
 class BranchPosCatalogService
 {
@@ -39,7 +41,10 @@ class BranchPosCatalogService
                 $query->where(['is_available' => 1, 'branch_id' => $branchId]);
             })
             ->active()
-            ->latest()
+            ->leftJoinSub($this->posSoldSubquery($branchId), 'pos_sold', 'pos_sold.product_id', '=', 'products.id')
+            ->orderByRaw('COALESCE(pos_sold.qty_sold, 0) DESC')
+            ->orderBy('products.name')
+            ->select('products.*')
             ->get();
 
         $mappedProducts = [];
@@ -118,7 +123,7 @@ class BranchPosCatalogService
 
         return hash('sha256', implode('|', [
             $branchId,
-            'pos-catalog-no-addons-1',
+            'pos-catalog-popularity-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
             (string) ($branch->a ?? 0),
@@ -127,10 +132,37 @@ class BranchPosCatalogService
             (string) $productMax,
             (string) $categoryMax,
             (string) $categoryCount,
+            (string) $this->posSoldStamp($branchId),
         ]));
     }
 
     /**
+     * Completed POS unit sales for this branch, one grouped query.
+     */
+    private function posSoldSubquery(int $branchId)
+    {
+        return DB::table('order_details')
+            ->join('orders', 'orders.id', '=', 'order_details.order_id')
+            ->where('orders.branch_id', $branchId)
+            ->whereIn('orders.sales_channel', PosOrderTypes::salesChannels())
+            ->whereIn('orders.order_status', ['delivered', 'completed'])
+            ->whereNotNull('order_details.product_id')
+            ->groupBy('order_details.product_id')
+            ->selectRaw('order_details.product_id, SUM(order_details.quantity) as qty_sold');
+    }
+
+    private function posSoldStamp(int $branchId): string
+    {
+        return (string) (DB::table('orders')
+            ->where('branch_id', $branchId)
+            ->whereIn('sales_channel', PosOrderTypes::salesChannels())
+            ->whereIn('order_status', ['delivered', 'completed'])
+            ->max('updated_at') ?: '');
+    }
+
+    /**
+     * Parent and child category ids stored on the POS product (`category_ids` JSON).
+     *
      * @return list<int>
      */
     private function categoryIds(Product $product): array
@@ -142,12 +174,14 @@ class BranchPosCatalogService
 
         $ids = [];
         foreach ($decoded as $row) {
-            if (is_array($row) && isset($row['id']) && (int) ($row['position'] ?? 0) === 0) {
+            if (is_array($row) && isset($row['id'])) {
                 $ids[] = (int) $row['id'];
+            } elseif (is_numeric($row)) {
+                $ids[] = (int) $row;
             }
         }
 
-        return $ids;
+        return array_values(array_unique(array_filter($ids)));
     }
 
     /**
