@@ -185,6 +185,7 @@
 .munch-pos-card {
     display: flex;
     flex-direction: column;
+    position: relative;
     background: var(--munch-pos-card);
     border: 1px solid var(--munch-pos-line);
     border-radius: 18px;
@@ -206,7 +207,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    padding: 0.9rem 0.95rem 1rem;
+    padding: 0.9rem 0.95rem 3.6rem;
     flex: 1;
 }
 
@@ -223,15 +224,55 @@
     margin-top: auto;
 }
 
-.munch-pos-card__add {
-    margin-top: 0.5rem;
+.munch-pos-card__actions {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    z-index: 1;
+}
+
+.munch-pos-card__plus,
+.munch-pos-card__step {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
     border: 0;
-    border-radius: 12px;
-    min-height: 48px;
+    border-radius: 50%;
     background: var(--munch-pos-red);
     color: #fff;
-    font-weight: 700;
-    font-size: 0.95rem;
+    font-weight: 800;
+    font-size: 1.45rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-card__qty {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    background: #fff;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+    padding: 2px;
+}
+
+.munch-pos-card__qty .munch-pos-card__step:first-child {
+    background: #fff;
+    color: var(--munch-pos-red);
+    border: 1px solid var(--munch-pos-line);
+}
+
+.munch-pos-card__count {
+    min-width: 1.6rem;
+    text-align: center;
+    font-weight: 800;
+    font-size: 1rem;
 }
 
 .munch-pos-empty {
@@ -810,7 +851,8 @@
 }
 
 .munch-pos-tab,
-.munch-pos-card__add,
+.munch-pos-card__plus,
+.munch-pos-card__step,
 .munch-pos-type,
 .munch-pos-qty button,
 .munch-pos-line__remove,

@@ -188,5 +188,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.5" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.6" defer></script>
 @endpush

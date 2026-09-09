@@ -347,6 +347,12 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('PER_PAGE = 50', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
         $this->assertStringNotContainsString('scopePos', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
         $this->assertStringContainsString('z-index: 45', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
+        $this->assertStringContainsString('munch-pos-card__plus', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('updateProductCard', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('refreshCartUi', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('data-card-delta', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringNotContainsString('munch-pos-card__add', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringNotContainsString('munch-pos-card__add', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
         $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
