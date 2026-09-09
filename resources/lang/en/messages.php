@@ -3112,4 +3112,11 @@
   'Test SMS sent successfully' => 'Test SMS sent successfully',
   'Test SMS could not be sent. Check credentials, endpoint, and that the gateway is configured.' => 'Test SMS could not be sent. Check credentials, endpoint, and that the gateway is configured.',
   'Invalid SMS gateway' => 'Invalid SMS gateway',
+  'SMS Provider Configuration' => 'SMS Provider Configuration',
+  'Save Configuration' => 'Save Configuration',
+  'Supported Variables' => 'Supported Variables',
+  'Click to insert at cursor position' => 'Click to insert at cursor position',
+  'SMS Preview' => 'SMS Preview',
+  'Select a template to preview' => 'Select a template to preview',
+  'Something went wrong' => 'Something went wrong',
 );

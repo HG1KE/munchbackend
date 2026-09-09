@@ -1,91 +1,113 @@
 @extends('layouts.admin.app')
 
-@section('title', translate('Transactional SMS Templates'))
+@section('title', translate('Transactional SMS'))
+
+@push('css_or_js')
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/transactional-sms.css') }}?v=1.0">
+@endpush
 
 @section('content')
     <div class="content container-fluid">
         <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
             <h2 class="h1 mb-0 d-flex align-items-center gap-2">
-                <img width="20" class="avatar-img" src="{{asset('public/assets/admin/img/icons/third-party.png')}}" alt="">
-                <span class="page-header-title">
-                    {{ translate('Transactional SMS') }}
-                </span>
+                <i class="tio-message nav-icon" style="font-size: 1.5rem;"></i>
+                <span class="page-header-title">{{ translate('Transactional SMS') }}</span>
             </h2>
         </div>
 
         @include('admin-views.business-settings.partials._3rdparty-inline-menu')
 
-        <div class="mb-4">
-            <h3 class="mb-1">{{ translate('SMS Templates') }}</h3>
-            <p class="text-muted mb-0">
-                {{ translate('Each template can be enabled independently and sent through TextSMS Transactional or TextSMS Promotional. Gateway credentials are configured under SMS Config.') }}
-            </p>
-        </div>
+        <ul class="nav nav-pills mb-3 transactional-sms-tabs">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.business-settings.web-app.sms-module') }}">
+                    {{ translate('SMS Provider Configuration') }}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ route('admin.business-settings.web-app.transactional-sms-templates') }}">
+                    {{ translate('SMS Templates') }}
+                </a>
+            </li>
+        </ul>
 
-        <form action="{{ route('admin.business-settings.web-app.transactional-sms-templates-update') }}" method="POST">
+        <form action="{{ route('admin.business-settings.web-app.transactional-sms-templates-update') }}" method="post">
             @csrf
-            <div class="row g-3">
-                @foreach($templates as $key => $template)
-                    <div class="col-lg-6">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <h4 class="mb-0">{{ translate($template['label']) }}</h4>
+            <div class="row">
+                <div class="col-lg-8">
+                    @foreach($templates as $type => $row)
+                        <div class="card mb-3 js-tx-sms-template-card" data-template-type="{{ $type }}">
+                            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <h5 class="mb-0">{{ translate($row['label']) }}</h5>
+                                <label class="switcher mb-0">
+                                    <input type="hidden" name="templates[{{ $type }}][status]" value="0">
+                                    <input type="checkbox" class="switcher_input js-tx-sms-template-enabled"
+                                           name="templates[{{ $type }}][status]" value="1"
+                                           {{ (int) ($row['status'] ?? 0) === 1 ? 'checked' : '' }}>
+                                    <span class="switcher_control"></span>
+                                </label>
                             </div>
                             <div class="card-body">
-                                @if(!empty($template['help']))
-                                    <p class="text-muted small">{{ translate($template['help']) }}</p>
+                                @if(!empty($row['help']))
+                                    <p class="text-muted fz-12 mb-2">{{ translate($row['help']) }}</p>
                                 @endif
-
-                                <div class="d-flex align-items-center gap-4 gap-xl-5 mb-30">
-                                    <div class="custom-radio">
-                                        <input type="radio" id="tpl-{{ $key }}-active"
-                                               name="templates[{{ $key }}][status]"
-                                               value="1" {{ (int)($template['status'] ?? 0) === 1 ? 'checked' : '' }}>
-                                        <label for="tpl-{{ $key }}-active">{{ translate('Active') }}</label>
-                                    </div>
-                                    <div class="custom-radio">
-                                        <input type="radio" id="tpl-{{ $key }}-inactive"
-                                               name="templates[{{ $key }}][status]"
-                                               value="0" {{ (int)($template['status'] ?? 0) !== 1 ? 'checked' : '' }}>
-                                        <label for="tpl-{{ $key }}-inactive">{{ translate('Inactive') }}</label>
-                                    </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="input-label mb-0" for="tpl-{{ $type }}">{{ translate('SMS message') }}</label>
+                                    <span class="tx-sms-char-counter js-tx-sms-char-counter">0</span>
                                 </div>
-
-                                <div class="form-group mb-3">
-                                    <label class="form-label">{{ translate('message_template') }}</label>
-                                    <textarea class="form-control" rows="4" name="templates[{{ $key }}][message]">{{ $template['message'] ?? '' }}</textarea>
-                                    @if(!empty($template['placeholders']))
-                                        <small class="text-muted d-block mt-1">
-                                            {{ translate('Available variables:') }}
-                                            {{ implode(', ', $template['placeholders']) }}
-                                        </small>
-                                    @endif
+                                <textarea id="tpl-{{ $type }}"
+                                          name="templates[{{ $type }}][message]"
+                                          class="form-control js-tx-sms-template-body"
+                                          rows="4">{{ $row['message'] ?? '' }}</textarea>
+                                <div class="form-group mb-0 mt-3">
+                                    <label class="input-label" for="tpl-gateway-{{ $type }}">{{ translate('Gateway') }}</label>
+                                    <select id="tpl-gateway-{{ $type }}"
+                                            name="templates[{{ $type }}][gateway]"
+                                            class="form-control">
+                                        <option value="transactional" {{ ($row['gateway'] ?? 'transactional') === 'transactional' ? 'selected' : '' }}>
+                                            {{ translate('TextSMS Transactional') }}
+                                        </option>
+                                        <option value="promotional" {{ ($row['gateway'] ?? '') === 'promotional' ? 'selected' : '' }}>
+                                            {{ translate('TextSMS Promotional') }}
+                                        </option>
+                                    </select>
                                 </div>
+                            </div>
+                        </div>
+                    @endforeach
 
-                                <div class="form-group mb-0">
-                                    <label class="form-label d-block">{{ translate('Gateway') }}</label>
-                                    <div class="custom-radio mb-2">
-                                        <input type="radio" id="tpl-{{ $key }}-gw-tx"
-                                               name="templates[{{ $key }}][gateway]"
-                                               value="transactional" {{ ($template['gateway'] ?? 'transactional') === 'transactional' ? 'checked' : '' }}>
-                                        <label for="tpl-{{ $key }}-gw-tx">{{ translate('TextSMS Transactional') }}</label>
-                                    </div>
-                                    <div class="custom-radio">
-                                        <input type="radio" id="tpl-{{ $key }}-gw-promo"
-                                               name="templates[{{ $key }}][gateway]"
-                                               value="promotional" {{ ($template['gateway'] ?? '') === 'promotional' ? 'checked' : '' }}>
-                                        <label for="tpl-{{ $key }}-gw-promo">{{ translate('TextSMS Promotional') }}</label>
-                                    </div>
+                    <button type="submit" class="btn btn-primary mb-4">{{ translate('Save Configuration') }}</button>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card mb-3 position-sticky" style="top: 1rem;">
+                        <div class="card-header">
+                            <h5 class="mb-0">{{ translate('Supported Variables') }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted fz-13">{{ translate('Click to insert at cursor position') }}</p>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                @foreach($variables as $token)
+                                    <button type="button" class="btn btn-sm btn-soft-secondary js-tx-sms-var-chip"
+                                            data-insert="{{ $token }}"
+                                            data-var="{{ trim($token, '{}#') }}">
+                                        {{ $token }}
+                                    </button>
+                                @endforeach
+                            </div>
+                            <h6 class="mb-2">{{ translate('SMS Preview') }}</h6>
+                            <div class="tx-sms-preview-card js-tx-sms-preview-card">
+                                <div class="tx-sms-preview-card__body js-tx-sms-preview-text">
+                                    {{ translate('Select a template to preview') }}
                                 </div>
                             </div>
                         </div>
                     </div>
-                @endforeach
-            </div>
-
-            <div class="d-flex justify-content-end mt-4 mb-5">
-                <button type="submit" class="btn btn-primary demo_check">{{ translate('Update') }}</button>
+                </div>
             </div>
         </form>
     </div>
 @endsection
+
+@push('script_2')
+    <script src="{{ asset('public/assets/admin/js/transactional-sms.js') }}?v=1.0"></script>
+@endpush

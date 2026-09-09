@@ -185,6 +185,27 @@ class SmsTemplateCatalog
     }
 
     /**
+     * Unique placeholder tokens for the Meatco-style variable chips sidebar.
+     *
+     * @return list<string>
+     */
+    public static function variableChips(): array
+    {
+        $seen = [];
+        foreach (self::definitions() as $def) {
+            foreach ($def['placeholders'] ?? [] as $token) {
+                $token = (string) $token;
+                if ($token === '' || isset($seen[$token])) {
+                    continue;
+                }
+                $seen[$token] = true;
+            }
+        }
+
+        return array_keys($seen);
+    }
+
+    /**
      * @param  array<string, mixed>  $stored
      * @return array<string, mixed>
      */

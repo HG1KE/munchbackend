@@ -98,4 +98,29 @@ class SmsTemplateRoutingTest extends TestCase
         $this->assertStringNotContainsString('textsms_ke_customer_confirm', $controller);
         $this->assertStringContainsString('textsms_transactional', $controller);
     }
+
+    public function test_templates_page_matches_meatco_layout_with_gateway_select(): void
+    {
+        $view = file_get_contents(base_path('resources/views/admin-views/business-settings/sms-templates.blade.php'));
+        $css = file_get_contents(base_path('public/assets/admin/css/transactional-sms.css'));
+        $js = file_get_contents(base_path('public/assets/admin/js/transactional-sms.js'));
+
+        $this->assertStringContainsString('js-tx-sms-template-card', $view);
+        $this->assertStringContainsString('switcher_input js-tx-sms-template-enabled', $view);
+        $this->assertStringContainsString('js-tx-sms-template-body', $view);
+        $this->assertStringContainsString('js-tx-sms-char-counter', $view);
+        $this->assertStringContainsString('col-lg-8', $view);
+        $this->assertStringContainsString('col-lg-4', $view);
+        $this->assertStringContainsString('Supported Variables', $view);
+        $this->assertStringContainsString('SMS Preview', $view);
+        $this->assertStringContainsString('Save Configuration', $view);
+        $this->assertStringContainsString('name="templates[{{ $type }}][gateway]"', $view);
+        $this->assertStringContainsString('TextSMS Transactional', $view);
+        $this->assertStringContainsString('TextSMS Promotional', $view);
+        $this->assertStringNotContainsString('custom-radio', $view);
+        $this->assertStringContainsString('.tx-sms-preview-card', $css);
+        $this->assertStringContainsString('js-tx-sms-var-chip', $js);
+        $this->assertContains('#OTP#', SmsTemplateCatalog::variableChips());
+        $this->assertContains('{customer_name}', SmsTemplateCatalog::variableChips());
+    }
 }

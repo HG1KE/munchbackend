@@ -16,8 +16,9 @@ class TransactionalSmsTemplatesController extends Controller
     public function index(): View
     {
         $templates = SMS_module::getSmsTemplates();
+        $variables = SmsTemplateCatalog::variableChips();
 
-        return view('admin-views.business-settings.sms-templates', compact('templates'));
+        return view('admin-views.business-settings.sms-templates', compact('templates', 'variables'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -39,15 +40,24 @@ class TransactionalSmsTemplatesController extends Controller
                 $gateway = SmsGatewayKeys::ASSIGNMENT_TRANSACTIONAL;
             }
 
+            $status = $row['status'] ?? 0;
+            if (is_array($status)) {
+                $status = end($status);
+            }
+
             $saved[$key] = [
-                'status' => (int) ($row['status'] ?? 0) === 1 ? 1 : 0,
+                'status' => (int) $status === 1 ? 1 : 0,
                 'message' => (string) ($row['message'] ?? ''),
                 'gateway' => $gateway,
             ];
         }
 
-        SMS_module::saveSmsTemplates($saved);
-        Toastr::success(translate('SMS templates updated successfully'));
+        try {
+            SMS_module::saveSmsTemplates($saved);
+            Toastr::success(translate('Successfully updated!'));
+        } catch (\Throwable $e) {
+            Toastr::error(translate('Something went wrong'));
+        }
 
         return back();
     }
