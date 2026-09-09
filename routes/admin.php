@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\QRCodeController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewsController;
 use App\Http\Controllers\Admin\SMSModuleController;
+use App\Http\Controllers\Admin\TransactionalSmsTemplatesController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\MarketingPromotionalSmsController;
 use App\Http\Controllers\Admin\MarketingAbandonedCheckoutController;
@@ -394,6 +395,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
                 Route::get('third-party/sms-module', [SMSModuleController::class, 'smsIndex'])->name('sms-module');
                 Route::post('sms-module-update/{sms_module}', [SMSModuleController::class, 'smsUpdate'])->name('sms-module-update');
+                Route::post('sms-module-test/{sms_module}', [SMSModuleController::class, 'smsTest'])->name('sms-module-test');
+                Route::get('third-party/transactional-sms/templates', [TransactionalSmsTemplatesController::class, 'index'])->name('transactional-sms-templates');
+                Route::post('third-party/transactional-sms/templates', [TransactionalSmsTemplatesController::class, 'update'])->name('transactional-sms-templates-update');
 
                 Route::get('third-party/payment-method', [BusinessSettingsController::class, 'paymentIndex'])->name('payment-method')->middleware('actch');
                 Route::post('payment-method-update/{payment_method}', [BusinessSettingsController::class, 'payment_update'])->name('payment-method-update')->middleware('actch');

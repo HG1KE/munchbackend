@@ -70,6 +70,11 @@ class PosOrderTypes
         return in_array(self::normalize($type), [self::GLOVO, self::UBER, self::BOLT_FOOD], true);
     }
 
+    public static function allowsManualDiscount(?string $type): bool
+    {
+        return in_array(self::normalize($type), [self::DELIVERY, self::TAKE_AWAY, self::DINE_IN], true);
+    }
+
     /**
      * Stored `orders.order_type`. Marketplace channels stay `pos` so Online Orders
      * (`notPos()` / `notDineIn()`) never picks them up.

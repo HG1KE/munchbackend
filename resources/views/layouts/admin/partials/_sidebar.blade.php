@@ -891,6 +891,7 @@
                                 <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="display: {{Request::is('admin/business-settings/web-app/third-party*')?'block':'none'}}">
                                     <!-- Page Setup -->
                                     <li class="nav-item {{Request::is('admin/business-settings/web-app/third-party/payment-method') || Request::is('admin/business-settings/web-app/third-party/mail-config') || Request::is('admin/business-settings/web-app/third-party/sms-module')||
+                                                        Request::is('admin/business-settings/web-app/third-party/transactional-sms*') ||
                                                         Request::is('admin/business-settings/web-app/third-party/map-api-settings') || Request::is('admin/business-settings/web-app/third-party/recaptcha') ||
                                                         Request::is('admin/business-settings/web-app/third-party/social-login') || Request::is('admin/business-settings/web-app/third-party/chat') ||
                                                         Request::is('admin/business-settings/web-app/third-party/firebase-otp-verification')?'active':''}}">

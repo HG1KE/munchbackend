@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\CentralLogics\Helpers;
+use App\CentralLogics\SMS_module;
 use App\Http\Controllers\Controller;
 use App\Model\BusinessSetting;
 use App\Models\Setting;
+use App\Support\SmsGatewayKeys;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -42,10 +45,25 @@ class SMSModuleController extends Controller
         }
         $dataValues = Setting::where('settings_type', 'sms_config')->whereIn('key_name', [
             'twilio', 'nexmo', '2factor', 'msg91', 'signal_wire', 'alphanet_sms',
-            'textsms_ke', 'textsms_ke_not', 'textsms_ke_customer_confirm',
         ])->get() ?? collect();
 
-        return view('admin-views.business-settings.sms-index',  compact('publishedStatus', 'paymentUrl', 'dataValues'));
+        $textSmsGateways = [
+            SMS_module::TRANSACTIONAL_SMS_GATEWAY_KEY => $this->textSmsGatewayValues(
+                SMS_module::TRANSACTIONAL_SMS_GATEWAY_KEY,
+                SmsGatewayKeys::DEFAULT_SENDSMS_ENDPOINT
+            ),
+            SMS_module::PROMOTIONAL_SMS_GATEWAY_KEY => $this->textSmsGatewayValues(
+                SMS_module::PROMOTIONAL_SMS_GATEWAY_KEY,
+                SmsGatewayKeys::DEFAULT_SENDSMS_ENDPOINT
+            ),
+        ];
+
+        return view('admin-views.business-settings.sms-index', compact(
+            'publishedStatus',
+            'paymentUrl',
+            'dataValues',
+            'textSmsGateways'
+        ));
     }
 
     /**
@@ -55,12 +73,8 @@ class SMSModuleController extends Controller
      */
     public function smsUpdate(Request $request, $module): RedirectResponse
     {
-        if ($module === 'textsms_ke_customer_confirm' && $request->has('notification_template') && ! $request->filled('order_placed_template')) {
-            $request->merge(['order_placed_template' => $request->input('notification_template')]);
-        }
-
         $validation = [
-            'gateway' => 'required|in:twilio,nexmo,2factor,msg91,signal_wire,alphanet_sms,textsms_ke,textsms_ke_not,textsms_ke_customer_confirm,textsms_ke_abandoned_cart,textsms_ke_reorder_reminder,textsms_ke_loyalty_delivery,textsms_ke_promotional',
+            'gateway' => 'required|in:twilio,nexmo,2factor,msg91,signal_wire,alphanet_sms,textsms_transactional,textsms_ke_promotional,textsms_ke_abandoned_cart,textsms_ke_reorder_reminder,textsms_ke_loyalty_delivery',
         ];
 
         $validationData = [];
@@ -109,37 +123,13 @@ class SMSModuleController extends Controller
                 'api_key' => 'required_if:status,1',
                 'otp_template' => 'required_if:status,1',
             ];
-        } elseif ($module == 'textsms_ke') {
+        } elseif ($module == 'textsms_transactional' || $module == 'textsms_ke_promotional') {
             $validationData = [
                 'status' => 'required|in:1,0',
                 'api_key' => 'required_if:status,1',
                 'partner_id' => 'required_if:status,1',
                 'sender_id' => 'required_if:status,1',
-                'otp_template' => 'required_if:status,1',
-            ];
-        } elseif ($module == 'textsms_ke_not') {
-            $validationData = [
-                'status' => 'required|in:1,0',
-                'api_key' => 'required_if:status,1',
-                'partner_id' => 'required_if:status,1',
-                'sender_id' => 'required_if:status,1',
-                'notification_template' => 'required_if:status,1',
-            ];
-        } elseif ($module == 'textsms_ke_customer_confirm') {
-            $validationData = [
-                'status' => 'required|in:1,0',
-                'api_key' => 'required_if:status,1',
-                'partner_id' => 'required_if:status,1',
-                'sender_id' => 'required_if:status,1',
-                'order_placed_template' => 'required_if:status,1',
-                'processing_template' => 'required_if:status,1',
-            ];
-        } elseif ($module == 'textsms_ke_promotional') {
-            $validationData = [
-                'status' => 'required|in:1,0',
-                'api_key' => 'required_if:status,1',
-                'partner_id' => 'required_if:status,1',
-                'sender_id' => 'required_if:status,1',
+                'endpoint' => 'nullable|url',
                 'http_timeout_seconds' => 'nullable|integer|min:5|max:120',
             ];
         } elseif ($module == 'textsms_ke_abandoned_cart') {
@@ -209,44 +199,15 @@ class SMSModuleController extends Controller
                 'api_key' => $request['api_key'],
                 'otp_template' => $request['otp_template'],
             ];
-        } elseif ($module == 'textsms_ke') {
+        } elseif ($module == 'textsms_transactional' || $module == 'textsms_ke_promotional') {
+            $defaultEndpoint = SmsGatewayKeys::DEFAULT_SENDSMS_ENDPOINT;
+            $endpoint = trim((string) $request->input('endpoint', ''));
             $additionalData = [
                 'status' => $request['status'],
                 'api_key' => $request['api_key'],
                 'partner_id' => $request['partner_id'],
                 'sender_id' => $request['sender_id'],
-                'otp_template' => $request['otp_template'],
-                'is_otp_gateway' => 1,
-            ];
-        } elseif ($module == 'textsms_ke_not') {
-            $additionalData = [
-                'status' => $request['status'],
-                'api_key' => $request['api_key'],
-                'partner_id' => $request['partner_id'],
-                'sender_id' => $request['sender_id'],
-                'notification_template' => $request['notification_template'],
-                'is_otp_gateway' => 0,
-            ];
-        } elseif ($module == 'textsms_ke_customer_confirm') {
-            $placed = $request->input('order_placed_template');
-            if ($placed === null || $placed === '') {
-                $placed = $request->input('notification_template', '');
-            }
-            $additionalData = [
-                'status' => $request['status'],
-                'api_key' => $request['api_key'],
-                'partner_id' => $request['partner_id'],
-                'sender_id' => $request['sender_id'],
-                'order_placed_template' => $placed,
-                'processing_template' => $request['processing_template'],
-                'is_otp_gateway' => 0,
-            ];
-        } elseif ($module == 'textsms_ke_promotional') {
-            $additionalData = [
-                'status' => $request['status'],
-                'api_key' => $request['api_key'],
-                'partner_id' => $request['partner_id'],
-                'sender_id' => $request['sender_id'],
+                'endpoint' => $endpoint !== '' ? $endpoint : $defaultEndpoint,
                 'http_timeout_seconds' => (string) $request->input('http_timeout_seconds', '30'),
                 'is_otp_gateway' => 0,
             ];
@@ -293,25 +254,38 @@ class SMSModuleController extends Controller
 
         $credentials= json_encode(array_merge($data, $additionalData));
 
-        DB::table('addon_settings')->updateOrInsert(['key_name' => $module, 'settings_type' => 'sms_config'], [
+        $row = [
             'key_name' => $module,
             'live_values' => $credentials,
             'test_values' => $credentials,
             'settings_type' => 'sms_config',
             'mode' => isset($request['status']) == 1  ?  'live': 'test',
             'is_active' => isset($request['status']) == 1  ?  1: 0 ,
-        ]);
+        ];
+        $exists = DB::table('addon_settings')
+            ->where('key_name', $module)
+            ->where('settings_type', 'sms_config')
+            ->exists();
+        if (! $exists) {
+            $row['id'] = (string) \Illuminate\Support\Str::uuid();
+        }
+
+        DB::table('addon_settings')->updateOrInsert(['key_name' => $module, 'settings_type' => 'sms_config'], $row);
 
         $SMSGatewayArray = [
-            'twilio','nexmo','2factor','msg91', 'signal_wire', 'textsms_ke'
+            'twilio','nexmo','2factor','msg91', 'signal_wire'
         ];
-        
-        // textsms_ke_not is not included in the array above because it's not an OTP gateway
-        // and should be allowed to be active alongside other gateways
+
+        $nonOtpModules = [
+            'textsms_transactional',
+            'textsms_ke_promotional',
+            'textsms_ke_abandoned_cart',
+            'textsms_ke_reorder_reminder',
+            'textsms_ke_loyalty_delivery',
+        ];
 
         if ($request['status'] == 1) {
-            // Only disable other gateways if this is an OTP gateway
-            if ($module != 'textsms_ke_not' && $module != 'textsms_ke_customer_confirm' && $module != 'textsms_ke_abandoned_cart' && $module != 'textsms_ke_reorder_reminder' && $module != 'textsms_ke_loyalty_delivery' && $module != 'textsms_ke_promotional') {
+            if (! in_array($module, $nonOtpModules, true)) {
                 foreach ($SMSGatewayArray as $gateway) {
                     if ($module != $gateway) {
                         $keep = Setting::where(['key_name' => $gateway, 'settings_type' => 'sms_config'])->first();
@@ -338,5 +312,60 @@ class SMSModuleController extends Controller
             }
         }
         return back();
+    }
+
+    public function smsTest(Request $request, $module): RedirectResponse
+    {
+        $request->validate([
+            'test_phone' => 'required|string|min:9|max:32',
+        ]);
+
+        if (! in_array($module, [
+            SMS_module::TRANSACTIONAL_SMS_GATEWAY_KEY,
+            SMS_module::PROMOTIONAL_SMS_GATEWAY_KEY,
+        ], true)) {
+            Toastr::error(translate('Invalid SMS gateway'));
+
+            return back();
+        }
+
+        $label = $module === SMS_module::PROMOTIONAL_SMS_GATEWAY_KEY
+            ? 'TextSMS Promotional'
+            : 'TextSMS Transactional';
+        $result = SMS_module::sendGatewayTestSms(
+            $module,
+            (string) $request->input('test_phone'),
+            'Munch test SMS from '.$label.'.'
+        );
+
+        if ($result === 'success') {
+            Toastr::success(translate('Test SMS sent successfully'));
+        } else {
+            Toastr::error(translate('Test SMS could not be sent. Check credentials, endpoint, and that the gateway is configured.'));
+        }
+
+        return back()->withInput();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function textSmsGatewayValues(string $key, string $defaultEndpoint): array
+    {
+        $row = Setting::query()
+            ->where('key_name', $key)
+            ->where('settings_type', 'sms_config')
+            ->first();
+
+        $values = is_array($row?->live_values) ? $row->live_values : [];
+
+        return [
+            'status' => (int) ($values['status'] ?? 0),
+            'api_key' => (string) ($values['api_key'] ?? ''),
+            'partner_id' => (string) ($values['partner_id'] ?? ''),
+            'sender_id' => (string) ($values['sender_id'] ?? ''),
+            'endpoint' => (string) ($values['endpoint'] ?? $defaultEndpoint),
+            'http_timeout_seconds' => (string) ($values['http_timeout_seconds'] ?? '30'),
+        ];
     }
 }

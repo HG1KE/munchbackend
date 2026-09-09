@@ -34,6 +34,30 @@
                 </div>
             @endif
 
+            <div class="col-12">
+                <h3 class="mb-1">{{ translate('SMS Gateway Configuration') }}</h3>
+                <p class="text-muted mb-0">{{ translate('Configure TextSMS credentials here. Assign which gateway sends each message on Transactional SMS Templates.') }}</p>
+            </div>
+
+            @include('admin-views.business-settings.partials._textsms-gateway-card', [
+                'gatewayKey' => \App\CentralLogics\SMS_module::TRANSACTIONAL_SMS_GATEWAY_KEY,
+                'titleKey' => 'TextSMS Transactional',
+                'helpKey' => 'Uses the TextSMS transactional sendsms endpoint. OTP still uses the official sendotp URL.',
+            ])
+
+            @include('admin-views.business-settings.partials._textsms-gateway-card', [
+                'gatewayKey' => \App\CentralLogics\SMS_module::PROMOTIONAL_SMS_GATEWAY_KEY,
+                'titleKey' => 'TextSMS Promotional',
+                'helpKey' => 'Independent promotional credentials and endpoint. Marketing campaigns use this gateway.',
+            ])
+
+            @if($dataValues->count())
+                <div class="col-12 mt-2">
+                    <h3 class="mb-1">{{ translate('Other SMS gateways') }}</h3>
+                    <p class="text-muted mb-0">{{ translate('Twilio, Nexmo and other OTP providers are unchanged.') }}</p>
+                </div>
+            @endif
+
                 @foreach($dataValues as $gateway)
                     <div class="col-md-6 mb-30 sms-gatway-cards mb-5">
                         <div class="card">
@@ -64,7 +88,7 @@
                                         <input name="gateway" value="{{$gateway->key_name}}" class="d-none">
                                         <input name="mode" value="live" class="d-none">
 
-                                        @php($skip=['gateway','mode','status'])
+                                        @php($skip=['gateway','mode','status','is_otp_gateway'])
                                         @foreach($dataValues->where('key_name',$gateway->key_name)->first()->live_values as $key=>$value)
                                             @if(!in_array($key,$skip))
                                                 <div class="form-floating mb-30 mt-30">

@@ -66,4 +66,14 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertFalse(PosOrderTypes::isPaidImmediately('dine_in', 'pay_after_eating'));
         $this->assertFalse(PosOrderTypes::isPaidImmediately('delivery', 'cash_on_delivery'));
     }
+
+    public function test_manual_discount_is_only_allowed_for_delivery_takeaway_and_dine_in(): void
+    {
+        $this->assertTrue(PosOrderTypes::allowsManualDiscount('delivery'));
+        $this->assertTrue(PosOrderTypes::allowsManualDiscount('take_away'));
+        $this->assertTrue(PosOrderTypes::allowsManualDiscount('dine_in'));
+        $this->assertFalse(PosOrderTypes::allowsManualDiscount('glovo'));
+        $this->assertFalse(PosOrderTypes::allowsManualDiscount('uber'));
+        $this->assertFalse(PosOrderTypes::allowsManualDiscount('bolt_food'));
+    }
 }

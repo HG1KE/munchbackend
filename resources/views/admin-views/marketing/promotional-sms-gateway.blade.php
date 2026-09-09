@@ -15,43 +15,18 @@
         <div class="card">
             <div class="card-header">
                 <h4 class="mb-0">{{ translate('Global marketing TextSMS credentials') }}</h4>
-                <small class="text-muted">{{ translate('Used by abandoned checkout and future promotional campaigns') }}</small>
             </div>
             <div class="card-body">
-                <form action="{{ route('admin.marketing.promotional-sms-gateway.update') }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="gateway" value="textsms_ke_promotional">
-
-                    <div class="d-flex align-items-center gap-4 mb-4">
-                        <div class="custom-radio">
-                            <input type="radio" id="promo-active" name="status" value="1" {{ (int)($values['status'] ?? 0) === 1 ? 'checked' : '' }}>
-                            <label for="promo-active">{{ translate('Active') }}</label>
-                        </div>
-                        <div class="custom-radio">
-                            <input type="radio" id="promo-inactive" name="status" value="0" {{ (int)($values['status'] ?? 0) !== 1 ? 'checked' : '' }}>
-                            <label for="promo-inactive">{{ translate('Inactive') }}</label>
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">{{ translate('api_key') }}</label>
-                        <input type="text" class="form-control" name="api_key" value="{{ config('app.mode')=='demo' ? '' : ($values['api_key'] ?? '') }}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label class="form-label">{{ translate('partner_id') }}</label>
-                        <input type="text" class="form-control" name="partner_id" value="{{ config('app.mode')=='demo' ? '' : ($values['partner_id'] ?? '') }}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label class="form-label">{{ translate('sender_id') }}</label>
-                        <input type="text" class="form-control" name="sender_id" value="{{ config('app.mode')=='demo' ? '' : ($values['sender_id'] ?? '') }}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label class="form-label">{{ translate('http_timeout_seconds') }}</label>
-                        <input type="number" min="5" max="120" class="form-control" name="http_timeout_seconds" value="{{ $values['http_timeout_seconds'] ?? '30' }}">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary demo_check">{{ translate('Update') }}</button>
-                </form>
+                <p class="mb-3">
+                    {{ translate('Promotional credentials live under Business Settings → Web App → Third Party → SMS Config (TextSMS Promotional). This page no longer duplicates that form.') }}
+                </p>
+                <p class="text-muted mb-4">
+                    {{ translate('Current status') }}:
+                    <strong>{{ (int)($values['status'] ?? 0) === 1 ? translate('Active') : translate('Inactive') }}</strong>
+                </p>
+                <a href="{{ route('admin.business-settings.web-app.sms-module') }}" class="btn btn-primary">
+                    {{ translate('Open SMS Config') }}
+                </a>
             </div>
         </div>
     </div>

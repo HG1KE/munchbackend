@@ -150,7 +150,12 @@
         return state.cart.lines.reduce(function (sum, line) { return sum + lineSubtotal(line); }, 0);
     }
 
+    function allowsDiscount() {
+        return state.cart.orderType === 'delivery' || state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in';
+    }
+
     function extraDiscount(subtotal) {
+        if (!allowsDiscount()) return 0;
         var value = Number(state.cart.discount || 0);
         if (value <= 0) return 0;
         if (state.cart.discountType === 'percent') return subtotal * value / 100;
@@ -372,18 +377,12 @@
     }
 
     function renderExtras() {
-        if (els.dineIn) els.dineIn.hidden = state.cart.orderType !== 'dine_in';
         if (els.delivery) els.delivery.hidden = state.cart.orderType !== 'delivery';
-        if (els.table && !els.table.dataset.ready) {
-            var opts = '<option value="">' + escapeHtml(CFG.labels.table) + '</option>';
-            (state.catalog.tables || []).forEach(function (table) {
-                opts += '<option value="' + table.id + '">#' + escapeHtml(table.number) + '</option>';
-            });
-            els.table.innerHTML = opts;
-            els.table.dataset.ready = '1';
+        if (els.discountWrap) els.discountWrap.hidden = !allowsDiscount();
+        if (!allowsDiscount() && Number(state.cart.discount || 0) !== 0) {
+            state.cart.discount = 0;
+            persistCart();
         }
-        if (els.table) els.table.value = state.cart.tableId || '';
-        if (els.people) els.people.value = state.cart.people || '';
         if (els.feeCurrency) els.feeCurrency.textContent = state.catalog.currency_symbol || 'Ksh';
         if (els.fee) {
             var decimals = Number(state.catalog.decimal || 0);
@@ -631,11 +630,9 @@
             order_type: state.cart.orderType,
             type: state.cart.payment,
             paid_amount: state.cart.paid || grandTotal(),
-            extra_discount: Number(state.cart.discount || 0),
+            extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
             extra_discount_type: state.cart.discountType,
             delivery_charge: deliveryCharge(),
-            table_id: state.cart.orderType === 'dine_in' ? state.cart.tableId : null,
-            people_number: state.cart.orderType === 'dine_in' ? state.cart.people : null,
             address: state.cart.orderType === 'delivery' ? {
                 contact_person_name: state.cart.address.contact_person_name || '',
                 contact_person_number: state.cart.address.contact_person_number || '',
@@ -656,8 +653,6 @@
 
     function validateCart() {
         if (!state.cart.lines.length) return CFG.labels.emptyCart;
-        if (state.cart.orderType === 'dine_in' && !state.cart.tableId) return CFG.labels.table;
-        if (state.cart.orderType === 'dine_in' && !state.cart.people) return CFG.labels.people;
         if (state.cart.orderType === 'delivery' && !String(state.cart.address.address || '').trim()) return CFG.labels.address;
         return null;
     }
@@ -884,6 +879,9 @@
         var paid = Number(state.cart.paid || 0);
         var total = grandTotal();
         return {
+            orderId: body && body.order_id ? Number(body.order_id) : 0,
+            kitchenPrinted: !!(body && body.kitchen_printed),
+            receiptPrinted: !!(body && body.receipt_printed),
             number: (body && (body.order_display_id || (body.order_id ? '#' + body.order_id : ''))) || '',
             branch: CFG.branchName || '',
             date: formatTicketDate(now),
@@ -917,6 +915,9 @@
 
     function printJobFromOrder(order) {
         return {
+            orderId: Number(order.id || 0),
+            kitchenPrinted: !!order.kitchen_printed,
+            receiptPrinted: !!order.receipt_printed,
             number: order.number || '',
             branch: order.branch || order.cashier || CFG.branchName || '',
             date: order.date || String(order.created_at || '').replace(/\s+\d{2}:\d{2}$/, ''),
@@ -958,7 +959,7 @@
         if (els.successNumber) els.successNumber.textContent = job.number || '';
         if (els.successTotal) els.successTotal.textContent = money(job.grand_total);
         if (els.successPay) els.successPay.textContent = paymentLabel(job.payment_method);
-        if (els.successPrint) els.successPrint.disabled = false;
+        applyPrintButtonState(job);
         els.successModal.hidden = false;
         renderTotals();
     }
@@ -966,18 +967,59 @@
     function dismissPlacedOrder() {
         successJob = null;
         if (els.successModal) els.successModal.hidden = true;
-        if (els.successPrint) els.successPrint.disabled = false;
         clearCart();
     }
 
-    function printPlacedOrder() {
-        var job = successJob;
-        if (!job || printBusy) return;
-        if (els.successPrint) els.successPrint.disabled = true;
-        printKitchenThenReceipt(job).then(function () {
-            dismissPlacedOrder();
-        }).catch(function () {
-            if (els.successPrint) els.successPrint.disabled = false;
+    function printedLabel(kind, done) {
+        if (kind === 'kitchen') {
+            return done ? ('✓ ' + L('kitchenPrinted', 'Kitchen Order Printed')) : L('printKitchen', 'Print Kitchen Order');
+        }
+        return done ? ('✓ ' + L('receiptPrinted', 'Receipt Printed')) : L('printReceipt', 'Print Receipt');
+    }
+
+    function applyPrintButtonState(job) {
+        if (!job || !successJob || Number(successJob.orderId) !== Number(job.orderId)) return;
+        if (els.successKitchen) {
+            els.successKitchen.disabled = !!job.kitchenPrinted;
+            els.successKitchen.textContent = printedLabel('kitchen', job.kitchenPrinted);
+        }
+        if (els.successReceipt) {
+            els.successReceipt.disabled = !!job.receiptPrinted;
+            els.successReceipt.textContent = printedLabel('receipt', job.receiptPrinted);
+        }
+    }
+
+    function rememberPrinted(orderId, kind) {
+        if (!orderId) return;
+        ordersUi.orders.forEach(function (order) {
+            if (Number(order.id) !== Number(orderId)) return;
+            if (kind === 'kitchen') order.kitchen_printed = true;
+            if (kind === 'receipt') order.receipt_printed = true;
+        });
+        if (ordersUi.open) renderOrdersList();
+    }
+
+    function markTicketPrinted(orderId, kind) {
+        if (!orderId || !CFG.urls.printTicket) return Promise.resolve();
+        return fetch(CFG.urls.printTicket, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Munch-POS': '1'
+            },
+            body: JSON.stringify({ order_id: orderId, ticket: kind })
+        }).then(function (res) {
+            return res.json().catch(function () { return {}; });
+        }).catch(function () { return {}; });
+    }
+
+    function printPlacedTicket(kind) {
+        if (!successJob) return;
+        printOneTicket(successJob, kind).then(function () {
+            applyPrintButtonState(successJob);
         });
     }
 
@@ -1002,6 +1044,9 @@
             'td.qty{width:10mm;white-space:nowrap}' +
             'td.price{width:22mm;text-align:right;white-space:nowrap}' +
             '.thanks{text-align:center;font-weight:800;margin-top:3mm;font-size:13px}' +
+            '.order-type{text-align:center;margin:3mm 0 2mm}' +
+            '.order-type__label{font-size:' + (kitchen ? '15px' : '14px') + ';font-weight:900;letter-spacing:.1em;margin:0}' +
+            '.order-type__value{font-size:' + (kitchen ? '24px' : '22px') + ';font-weight:900;margin:1mm 0 0;letter-spacing:.04em}' +
             '@media print{html,body{width:80mm;margin:0;padding:0}}' +
             'html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}';
     }
@@ -1013,16 +1058,20 @@
             '<div class="ticket">' + bodyHtml + '</div></body></html>';
     }
 
+    function orderTypeBannerHtml(job) {
+        return '<div class="order-type"><p class="order-type__label">ORDER TYPE</p>' +
+            '<p class="order-type__value">' + escapeHtml(String(job.orderType || '').toUpperCase()) + '</p></div>';
+    }
+
     function kitchenTicketHtml(job) {
         var html = '<p class="brand">' + escapeHtml(CFG.restaurantName || 'MUNCH') + '</p>';
         html += '<p class="title">' + escapeHtml(L('kitchenOrder', 'Kitchen Order')) + '</p>';
+        html += orderTypeBannerHtml(job);
         html += '<div class="meta">';
         html += '<p>' + escapeHtml(L('order', 'Order')) + ' # ' + escapeHtml(job.number || '') + '</p>';
         html += '<p>' + escapeHtml(L('date', 'Date')) + ' ' + escapeHtml(job.date || '') + '</p>';
         html += '<p>' + escapeHtml(L('time', 'Time')) + ' ' + escapeHtml(job.time || '') + '</p>';
         html += '<p>' + escapeHtml(L('branch', 'Branch')) + ' ' + escapeHtml(job.branch || '') + '</p>';
-        html += '<p>' + escapeHtml(L('orderType', 'Order Type')) + '</p>';
-        html += '<p>' + escapeHtml(job.orderType || '') + '</p>';
         html += '</div><hr class="rule">';
         html += '<div class="meta"><p>' + escapeHtml(L('items', 'Items')) + '</p></div>';
         (job.items || []).forEach(function (item) {
@@ -1046,6 +1095,7 @@
 
     function receiptTicketHtml(job) {
         var html = '<p class="brand">' + escapeHtml(CFG.restaurantName || 'MUNCH') + '</p>';
+        html += orderTypeBannerHtml(job);
         html += '<div class="meta">';
         html += '<p>' + escapeHtml(L('branch', 'Branch')) + '</p><p>' + escapeHtml(job.branch || '') + '</p>';
         html += '<p>' + escapeHtml(L('order', 'Order')) + ' # ' + escapeHtml(job.number || '') + '</p>';
@@ -1121,13 +1171,18 @@
         });
     }
 
-    function printKitchenThenReceipt(job) {
+    function printOneTicket(job, kind) {
         if (!job || printBusy) return Promise.resolve();
+        if (kind === 'kitchen' && job.kitchenPrinted) return Promise.resolve();
+        if (kind === 'receipt' && job.receiptPrinted) return Promise.resolve();
         printBusy = true;
-        return printTicket(kitchenTicketHtml(job)).then(function () {
-            return new Promise(function (resolve) { setTimeout(resolve, 400); });
-        }).then(function () {
-            return printTicket(receiptTicketHtml(job));
+        var html = kind === 'kitchen' ? kitchenTicketHtml(job) : receiptTicketHtml(job);
+        return printTicket(html).then(function () {
+            if (kind === 'kitchen') job.kitchenPrinted = true;
+            else job.receiptPrinted = true;
+            rememberPrinted(job.orderId, kind);
+            applyPrintButtonState(job);
+            return markTicketPrinted(job.orderId, kind);
         }).then(function () {
             printBusy = false;
         }).catch(function (err) {
@@ -1319,7 +1374,10 @@
                     '<div><p class="munch-pos-order__id">' + escapeHtml(order.number) + '</p>' +
                     '<p class="munch-pos-order__meta"><span>' + escapeHtml(order.time) + '</span><span>' + escapeHtml(order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
                     '<div class="munch-pos-order__side"><div class="munch-pos-order__total">' + money(order.grand_total) + '</div>' +
-                    '<button type="button" class="munch-pos-order__print" data-print-order="' + order.id + '">' + escapeHtml(L('print', 'Print')) + '</button></div></div>' +
+                    '<div class="munch-pos-order__prints">' +
+                    '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +
+                    '<button type="button" class="munch-pos-order__print munch-pos-order__print--receipt" data-print-receipt="' + order.id + '"' + (order.receipt_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('receipt', order.receipt_printed)) + '</button>' +
+                    '</div></div></div>' +
                     '<div class="munch-pos-order__pills">' +
                     '<span class="munch-pos-order__pill">' + escapeHtml(paymentLabel(order.payment_method)) + '</span>' +
                     '<span class="munch-pos-order__pill ' + paymentStatusClass(order.payment_status) + '">' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</span>' +
@@ -1407,15 +1465,13 @@
         els.grid = document.getElementById('pos-grid');
         els.empty = document.getElementById('pos-empty');
         els.types = document.getElementById('pos-types');
-        els.dineIn = document.getElementById('pos-dine-in');
         els.delivery = document.getElementById('pos-delivery');
-        els.table = document.getElementById('pos-table');
-        els.people = document.getElementById('pos-people');
         els.fee = document.getElementById('pos-del-fee');
         els.feeCurrency = document.getElementById('pos-del-fee-currency');
         els.lines = document.getElementById('pos-lines');
         els.totals = document.getElementById('pos-totals');
         els.pay = document.getElementById('pos-pay');
+        els.discountWrap = document.getElementById('pos-discount-wrap');
         els.discount = document.getElementById('pos-discount');
         els.discountType = document.getElementById('pos-discount-type');
         els.paid = document.getElementById('pos-paid');
@@ -1428,7 +1484,8 @@
         els.successNumber = document.getElementById('pos-success-number');
         els.successTotal = document.getElementById('pos-success-total');
         els.successPay = document.getElementById('pos-success-pay');
-        els.successPrint = document.getElementById('pos-success-print');
+        els.successKitchen = document.getElementById('pos-success-kitchen');
+        els.successReceipt = document.getElementById('pos-success-receipt');
         els.successClose = document.getElementById('pos-success-close');
         els.printFrame = document.getElementById('pos-print-frame');
         els.topTotal = document.getElementById('pos-top-total');
@@ -1505,8 +1562,6 @@
             persistCart();
             scheduleRender();
         });
-        els.table.addEventListener('change', function () { state.cart.tableId = els.table.value; persistCart(); });
-        els.people.addEventListener('input', function () { state.cart.people = els.people.value; persistCart(); });
         ['pos-del-name', 'pos-del-phone', 'pos-del-address'].forEach(function (id) {
             var node = document.getElementById(id);
             if (!node) return;
@@ -1546,7 +1601,8 @@
             if (successJob) return;
             clearCart();
         });
-        if (els.successPrint) els.successPrint.addEventListener('click', printPlacedOrder);
+        if (els.successKitchen) els.successKitchen.addEventListener('click', function () { printPlacedTicket('kitchen'); });
+        if (els.successReceipt) els.successReceipt.addEventListener('click', function () { printPlacedTicket('receipt'); });
         if (els.successClose) els.successClose.addEventListener('click', dismissPlacedOrder);
         if (els.successModal) {
             els.successModal.addEventListener('click', function (ev) {
@@ -1587,11 +1643,12 @@
         }
         if (els.ordersList) {
             els.ordersList.addEventListener('click', function (ev) {
-                var printBtn = ev.target.closest('[data-print-order]');
-                if (printBtn) {
-                    var printId = Number(printBtn.getAttribute('data-print-order'));
+                var kitchenBtn = ev.target.closest('[data-print-kitchen]');
+                var receiptBtn = ev.target.closest('[data-print-receipt]');
+                if (kitchenBtn || receiptBtn) {
+                    var printId = Number((kitchenBtn || receiptBtn).getAttribute(kitchenBtn ? 'data-print-kitchen' : 'data-print-receipt'));
                     var order = ordersUi.orders.find(function (row) { return Number(row.id) === printId; });
-                    if (order) printKitchenThenReceipt(printJobFromOrder(order));
+                    if (order) printOneTicket(printJobFromOrder(order), kitchenBtn ? 'kitchen' : 'receipt');
                     return;
                 }
                 var card = ev.target.closest('[data-order-id]');

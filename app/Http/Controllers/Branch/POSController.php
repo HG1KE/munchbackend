@@ -105,6 +105,34 @@ class POSController extends Controller
         ]);
     }
 
+    public function markTicketPrinted(Request $request): JsonResponse
+    {
+        $ticket = (string) $request->input('ticket');
+        if (! in_array($ticket, ['kitchen', 'receipt'], true)) {
+            return response()->json(['success' => 0, 'message' => 'Invalid ticket'], 422);
+        }
+
+        $order = $this->order
+            ->where('id', (int) $request->input('order_id'))
+            ->where('branch_id', auth('branch')->id())
+            ->whereIn('sales_channel', PosOrderTypes::salesChannels())
+            ->first();
+
+        if (! $order) {
+            return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
+        }
+
+        $column = $ticket === 'kitchen' ? 'kitchen_printed_at' : 'receipt_printed_at';
+        if ($order->{$column} === null) {
+            $order->{$column} = now();
+            $order->save();
+        }
+
+        return response()->json(array_merge([
+            'success' => 1,
+        ], $this->posPrintFlags($order)));
+    }
+
     public function serviceWorker()
     {
         $path = public_path('assets/admin/js/munch-pos-sw.js');
@@ -559,8 +587,13 @@ class POSController extends Controller
             $order->order_amount = $totalPrice + $totalTaxAmount + $order->delivery_charge + $totalAddonTax;
             $order->coupon_discount_amount = 0.00;
             $order->branch_id = auth('branch')->id();
-            $order->table_id = session()->get('table_id');
-            $order->number_of_people = session()->get('people_number');
+            if ($this->isJsonPosOrder($request)) {
+                $order->table_id = null;
+                $order->number_of_people = null;
+            } else {
+                $order->table_id = session()->get('table_id');
+                $order->number_of_people = session()->get('people_number');
+            }
 
             OrderPlacementTime::applyToOrder($order, $placedAt);
             $order->save();
@@ -660,12 +693,12 @@ class POSController extends Controller
             }
 
             if ($this->isJsonPosOrder($request)) {
-                return response()->json([
+                return response()->json(array_merge([
                     'success' => 1,
                     'order_id' => $order->id,
                     'order_display_id' => Helpers::order_display_id($order),
                     'message' => translate('order_placed_successfully'),
-                ]);
+                ], $this->posPrintFlags($order)));
             }
 
             return back();
@@ -678,13 +711,13 @@ class POSController extends Controller
                     ->where('client_uuid', $clientUuid)
                     ->first();
                 if ($existing) {
-                    return response()->json([
+                    return response()->json(array_merge([
                         'success' => 1,
                         'duplicate' => true,
                         'order_id' => $existing->id,
                         'order_display_id' => Helpers::order_display_id($existing),
                         'message' => translate('order_placed_successfully'),
-                    ]);
+                    ], $this->posPrintFlags($existing)));
                 }
             }
         }
@@ -1036,6 +1069,17 @@ class POSController extends Controller
         return (new FastExcel($data))->download('pos-orders.xlsx');
     }
 
+    /**
+     * @return array{kitchen_printed: bool, receipt_printed: bool}
+     */
+    private function posPrintFlags(Order $order): array
+    {
+        return [
+            'kitchen_printed' => $order->kitchen_printed_at !== null,
+            'receipt_printed' => $order->receipt_printed_at !== null,
+        ];
+    }
+
     private function isJsonPosOrder(Request $request): bool
     {
         return $request->expectsJson() || $request->header('X-Munch-POS') === '1';
@@ -1087,13 +1131,13 @@ class POSController extends Controller
                 ->where('client_uuid', $clientUuid)
                 ->first();
             if ($existing) {
-                return response()->json([
+                return response()->json(array_merge([
                     'success' => 1,
                     'duplicate' => true,
                     'order_id' => $existing->id,
                     'order_display_id' => Helpers::order_display_id($existing),
                     'message' => translate('order_placed_successfully'),
-                ]);
+                ], $this->posPrintFlags($existing)));
             }
         }
 
@@ -1118,23 +1162,16 @@ class POSController extends Controller
             return $this->posFail($request, translate('cart_empty_warning'));
         }
 
-        $cart['extra_discount'] = (float) $request->input('extra_discount', 0);
+        $cart['extra_discount'] = PosOrderTypes::allowsManualDiscount($request->input('order_type'))
+            ? (float) $request->input('extra_discount', 0)
+            : 0;
         $cart['extra_discount_type'] = $request->input('extra_discount_type', 'amount') === 'percent' ? 'percent' : 'amount';
 
         $request->session()->put('cart', $cart);
         $request->session()->put('order_type', PosOrderTypes::normalize($request->input('order_type')));
         $request->session()->forget('customer_id');
-
-        if ($request->filled('table_id')) {
-            $request->session()->put('table_id', $request->input('table_id'));
-        } else {
-            $request->session()->forget('table_id');
-        }
-        if ($request->filled('people_number')) {
-            $request->session()->put('people_number', $request->input('people_number'));
-        } else {
-            $request->session()->forget('people_number');
-        }
+        $request->session()->forget('table_id');
+        $request->session()->forget('people_number');
 
         $address = $request->input('address');
         if (is_array($address) && PosOrderTypes::isDelivery($request->input('order_type'))) {

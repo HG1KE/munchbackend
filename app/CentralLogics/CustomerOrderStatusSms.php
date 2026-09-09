@@ -3,9 +3,10 @@
 namespace App\CentralLogics;
 
 use App\Model\Order;
+use App\Support\SmsTemplateCatalog;
 
 /**
- * Customer-facing TextSMS (textsms_ke_customer_confirm): order placed + processing only.
+ * Customer-facing TextSMS: order placed + processing templates (gateway chosen per template).
  */
 class CustomerOrderStatusSms
 {
@@ -24,8 +25,7 @@ class CustomerOrderStatusSms
                 return;
             }
 
-            $config = SMS_module::get_settings('textsms_ke_customer_confirm');
-            if (! isset($config) || (int) ($config['status'] ?? 0) !== 1) {
+            if (! SMS_module::isTemplateSendable(SmsTemplateCatalog::ORDER_PLACED)) {
                 return;
             }
 
@@ -68,8 +68,7 @@ class CustomerOrderStatusSms
                 return;
             }
 
-            $config = SMS_module::get_settings('textsms_ke_customer_confirm');
-            if (! isset($config) || (int) ($config['status'] ?? 0) !== 1) {
+            if (! SMS_module::isTemplateSendable(SmsTemplateCatalog::PROCESSING)) {
                 return;
             }
 

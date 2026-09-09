@@ -15,7 +15,7 @@
         <div class="card">
             <div class="card-header">
                 <h4 class="mb-0">{{ translate('Campaign settings') }}</h4>
-                <small class="text-muted">{{ translate('Sent when loyalty points are credited after a delivered order. This campaign must be Active, and Customer order confirmation SMS (transactional gateway) must also be active with credentials. Test SMS can work even when this campaign is inactive.') }}</small>
+                <small class="text-muted">{{ translate('Sent when loyalty points are credited after a delivered order. This campaign must be Active, and TextSMS Transactional must also be active with credentials. Test SMS can work even when this campaign is inactive.') }}</small>
             </div>
             <div class="card-body">
                 <form action="{{ route('admin.marketing.loyalty-delivery-sms.update') }}" method="POST">

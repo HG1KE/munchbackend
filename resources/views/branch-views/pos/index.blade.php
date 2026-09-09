@@ -40,10 +40,6 @@
         <aside class="munch-pos-cart" aria-label="{{ translate('Billing_Section') }}">
             <div class="munch-pos-cart__scroll">
                 <div class="munch-pos-types" id="pos-types"></div>
-                <div class="munch-pos-extra" id="pos-dine-in" hidden>
-                    <select id="pos-table" aria-label="{{ translate('Select Table') }}"></select>
-                    <input type="number" id="pos-people" min="1" max="99" placeholder="{{ translate('Number Of People') }}">
-                </div>
                 <div class="munch-pos-extra" id="pos-delivery" hidden>
                     <input type="text" id="pos-del-name" placeholder="{{ translate('Name') }}" autocomplete="name">
                     <input type="tel" id="pos-del-phone" placeholder="{{ translate('Phone') }}" autocomplete="tel">
@@ -65,7 +61,7 @@
             </div>
             <div class="munch-pos-footer">
                 <div class="munch-pos-totals" id="pos-totals"></div>
-                <div class="munch-pos-discount">
+                <div class="munch-pos-discount" id="pos-discount-wrap">
                     <input type="number" id="pos-discount" min="0" step="1" placeholder="{{ translate('Discount') }}">
                     <select id="pos-discount-type">
                         <option value="amount">{{ translate('Amount') }}</option>
@@ -128,7 +124,8 @@
                 <dd id="pos-success-pay"></dd>
             </div>
         </dl>
-        <button type="button" class="munch-pos-place" id="pos-success-print">{{ translate('Print Kitchen Order & Receipt') }}</button>
+        <button type="button" class="munch-pos-place" id="pos-success-kitchen">{{ translate('Print Kitchen Order') }}</button>
+        <button type="button" class="munch-pos-success__receipt" id="pos-success-receipt">{{ translate('Print Receipt') }}</button>
         <button type="button" class="munch-pos-clear" id="pos-success-close">{{ translate('Close') }}</button>
     </div>
 </div>
@@ -149,6 +146,7 @@
             catalog: @json(route('branch.pos.catalog')),
             heartbeat: @json(route('branch.pos.heartbeat')),
             todayOrders: @json(route('branch.pos.today-orders')),
+            printTicket: @json(route('branch.pos.print-ticket')),
             order: @json(route('branch.pos.order')),
             invoice: @json(url('branch/pos/invoice')),
             sw: @json(route('branch.pos.service-worker')),
@@ -217,7 +215,10 @@
             paymentMethod: @json(translate('Payment Method')),
             order: @json(translate('Order')),
             placedSuccess: @json(translate('Order Placed Successfully')),
-            printKitchenReceipt: @json(translate('Print Kitchen Order & Receipt')),
+            printKitchen: @json(translate('Print Kitchen Order')),
+            printReceipt: @json(translate('Print Receipt')),
+            kitchenPrinted: @json(translate('Kitchen Order Printed')),
+            receiptPrinted: @json(translate('Receipt Printed')),
             print: @json(translate('Print')),
             kitchenOrder: @json(translate('Kitchen Order')),
             orderType: @json(translate('Order Type')),
@@ -231,5 +232,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.9" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.0" defer></script>
 @endpush

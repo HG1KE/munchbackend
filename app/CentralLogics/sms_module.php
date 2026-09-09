@@ -3,6 +3,9 @@
 namespace App\CentralLogics;
 
 use App\Model\BusinessSetting;
+use App\Support\SmsGatewayKeys;
+use App\Support\SmsGatewayMigrator;
+use App\Support\SmsTemplateCatalog;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -11,10 +14,13 @@ use Twilio\Rest\Client;
 class SMS_module
 {
     /** Official JSON POST endpoint for standard SMS (branch alerts, customer templates). Not the OTP endpoint. */
-    private const TEXTSMS_KE_SENDSMS_URL = 'https://sms.textsms.co.ke/api/services/sendsms/';
+    private const TEXTSMS_KE_SENDSMS_URL = SmsGatewayKeys::DEFAULT_SENDSMS_ENDPOINT;
+
+    /** Consolidated transactional TextSMS credentials (OTP + order/branch templates by default). */
+    public const TRANSACTIONAL_SMS_GATEWAY_KEY = SmsGatewayKeys::TRANSACTIONAL;
 
     /** Global marketing / promotional TextSMS credentials (shared by abandoned checkout and future campaigns). */
-    public const PROMOTIONAL_SMS_GATEWAY_KEY = 'textsms_ke_promotional';
+    public const PROMOTIONAL_SMS_GATEWAY_KEY = SmsGatewayKeys::PROMOTIONAL;
 
     /** Abandoned-checkout campaign settings only (template, delays, etc.). */
     public const ABANDONED_CHECKOUT_CAMPAIGN_KEY = 'textsms_ke_abandoned_cart';
@@ -25,8 +31,8 @@ class SMS_module
     /** Loyalty points credited on delivered order (template + toggle; sends via transactional gateway). */
     public const LOYALTY_DELIVERY_CAMPAIGN_KEY = 'textsms_ke_loyalty_delivery';
 
-    /** Transactional TextSMS for customer order status / loyalty delivery (not promotional). */
-    public const TRANSACTIONAL_CUSTOMER_CONFIRM_KEY = 'textsms_ke_customer_confirm';
+    /** @deprecated Use {@see self::TRANSACTIONAL_SMS_GATEWAY_KEY}. Alias kept for leftover readers. */
+    public const TRANSACTIONAL_CUSTOMER_CONFIRM_KEY = SmsGatewayKeys::LEGACY_CUSTOMER_CONFIRM;
 
     public static function send($receiver, $otp)
     {
@@ -60,8 +66,7 @@ class SMS_module
             return self::alphanet_sms($receiver, $otp);
         }
 
-        $config = self::get_settings('textsms_ke');
-        if (isset($config) && $config['status'] == 1) {
+        if (self::isTemplateSendable(SmsTemplateCatalog::CUSTOMER_OTP)) {
             return self::textsms_ke($receiver, $otp);
         }
 
@@ -275,7 +280,7 @@ class SMS_module
 
     public static function textsms_ke($receiver, $otp)
     {
-        $config = self::get_settings('textsms_ke');
+        $config = self::resolveTemplateGatewayConfig(SmsTemplateCatalog::CUSTOMER_OTP);
         $response = 'error';
         if (isset($config) && $config['status'] == 1) {
             // Format the receiver number if needed (ensure it starts with country code)
@@ -293,7 +298,8 @@ class SMS_module
                 }
             }
 
-            $message = str_replace("#OTP#", $otp, $config['otp_template']);
+            $otpTemplate = (string) ($config['otp_template'] ?? '');
+            $message = str_replace("#OTP#", $otp, $otpTemplate);
             $api_key = $config['api_key'];
             $partner_id = $config['partner_id'];
             $shortcode = $config['sender_id'];
@@ -309,7 +315,7 @@ class SMS_module
             try {
                 $curl = curl_init();
                 curl_setopt_array($curl, [
-                    CURLOPT_URL => 'https://sms.textsms.co.ke/api/services/sendotp/',
+                    CURLOPT_URL => SmsGatewayKeys::DEFAULT_SENDOTP_ENDPOINT,
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_ENCODING => '',
                     CURLOPT_MAXREDIRS => 10,
@@ -449,7 +455,7 @@ class SMS_module
         ];
 
         $payloadJson = json_encode($postData);
-        $requestUrl = self::TEXTSMS_KE_SENDSMS_URL;
+        $requestUrl = self::resolveSendSmsEndpoint($config);
 
         if ($logLabel !== null) {
             Log::info('textsms.general.http_attempt', [
@@ -617,26 +623,15 @@ class SMS_module
      */
     public static function textsms_ke_not($receiver, $data)
     {
-        $config = self::get_settings('textsms_ke_not');
-
-        $title = $data['title'] ?? '';
-        $description = $data['description'] ?? '';
-        $customer_name = $data['customer_name'] ?? '';
-        $order_amount = $data['order_amount'] ?? '';
-
         $vars = [
             'order_id' => (string)($data['order_display_id'] ?? $data['order_id'] ?? ''),
-            'title' => $title,
-            'description' => $description,
-            'customer_name' => $customer_name,
-            'order_amount' => $order_amount,
+            'title' => (string) ($data['title'] ?? ''),
+            'description' => (string) ($data['description'] ?? ''),
+            'customer_name' => (string) ($data['customer_name'] ?? ''),
+            'order_amount' => (string) ($data['order_amount'] ?? ''),
         ];
 
-        $message = isset($config['notification_template'])
-            ? self::textsms_ke_replace_notification_placeholders($config['notification_template'], $vars)
-            : '';
-
-        return self::textsms_ke_send_general_message($config, $receiver, $message, 'textsms_ke_not');
+        return self::sendViaTemplate(SmsTemplateCatalog::BRANCH_NEW_ORDER, $receiver, $vars, 'textsms_ke_not');
     }
 
     /**
@@ -647,7 +642,10 @@ class SMS_module
      */
     public static function textsms_ke_customer_status_sms(string $receiver, array $data, string $templateField): string
     {
-        $config = self::get_settings('textsms_ke_customer_confirm');
+        $templateKey = SmsTemplateCatalog::LEGACY_CUSTOMER_CONFIRM_FIELDS[$templateField] ?? null;
+        if ($templateKey === null) {
+            return 'error';
+        }
 
         $vars = [
             'order_id' => (string) ($data['order_display_id'] ?? $data['order_id'] ?? ''),
@@ -660,18 +658,7 @@ class SMS_module
             'order_status' => (string) ($data['order_status'] ?? ''),
         ];
 
-        $template = '';
-        if (is_array($config) && isset($config[$templateField]) && $config[$templateField] !== '') {
-            $template = (string) $config[$templateField];
-        } elseif ($templateField === 'order_placed_template' && is_array($config) && ! empty($config['notification_template'])) {
-            $template = (string) $config['notification_template'];
-        }
-
-        $message = $template !== ''
-            ? self::textsms_ke_replace_notification_placeholders($template, $vars)
-            : '';
-
-        return self::textsms_ke_send_general_message($config, $receiver, $message, 'textsms_ke_customer_confirm');
+        return self::sendViaTemplate($templateKey, $receiver, $vars, 'textsms_ke_customer_confirm');
     }
 
 
@@ -692,7 +679,7 @@ class SMS_module
 
         $merged = $campaign;
         if (is_array($promo)) {
-            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+            foreach (['api_key', 'partner_id', 'sender_id', 'endpoint'] as $k) {
                 if (isset($promo[$k]) && (string) $promo[$k] !== '') {
                     $merged[$k] = $promo[$k];
                 }
@@ -771,7 +758,7 @@ class SMS_module
 
         $merged = $campaign;
         if (is_array($promo)) {
-            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+            foreach (['api_key', 'partner_id', 'sender_id', 'endpoint'] as $k) {
                 if (isset($promo[$k]) && (string) $promo[$k] !== '') {
                     $merged[$k] = $promo[$k];
                 }
@@ -833,7 +820,7 @@ class SMS_module
 
         $merged = is_array($campaign) ? $campaign : [];
         if (is_array($promo)) {
-            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+            foreach (['api_key', 'partner_id', 'sender_id', 'endpoint'] as $k) {
                 if (isset($promo[$k]) && (string) $promo[$k] !== '') {
                     $merged[$k] = $promo[$k];
                 }
@@ -859,7 +846,7 @@ class SMS_module
     }
 
     /**
-     * Loyalty delivery: campaign template/toggle + transactional {@see self::TRANSACTIONAL_CUSTOMER_CONFIRM_KEY} credentials.
+     * Loyalty delivery: campaign template/toggle + transactional {@see self::TRANSACTIONAL_SMS_GATEWAY_KEY} credentials.
      *
      * @return array<string,mixed>|null
      */
@@ -913,11 +900,11 @@ class SMS_module
             return null;
         }
 
-        $transactional = self::get_settings(self::TRANSACTIONAL_CUSTOMER_CONFIRM_KEY);
+        $transactional = self::getTransactionalGateway();
 
         $merged = $campaign;
         if (is_array($transactional)) {
-            foreach (['api_key', 'partner_id', 'sender_id'] as $k) {
+            foreach (['api_key', 'partner_id', 'sender_id', 'endpoint'] as $k) {
                 if (isset($transactional[$k]) && (string) $transactional[$k] !== '') {
                     $merged[$k] = $transactional[$k];
                 }
@@ -947,7 +934,7 @@ class SMS_module
     public static function describeLoyaltyDeliveryRuntimeConfig(): array
     {
         $campaign = self::get_settings(self::LOYALTY_DELIVERY_CAMPAIGN_KEY);
-        $transactional = self::get_settings(self::TRANSACTIONAL_CUSTOMER_CONFIRM_KEY);
+        $transactional = self::getTransactionalGateway();
         $runtime = self::getLoyaltyDeliveryRuntimeConfig();
 
         $campaignOn = is_array($campaign) && (int) ($campaign['status'] ?? 0) === 1;
@@ -982,12 +969,312 @@ class SMS_module
 
     public static function get_settings($name)
     {
+        if ($name === SmsGatewayKeys::LEGACY_OTP) {
+            return self::legacyOtpSettings();
+        }
+        if ($name === SmsGatewayKeys::LEGACY_BRANCH) {
+            return self::legacyBranchNotificationSettings();
+        }
+        if ($name === SmsGatewayKeys::LEGACY_CUSTOMER_CONFIRM) {
+            return self::legacyCustomerConfirmSettings();
+        }
+
+        return self::readSmsConfigRow($name);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function getTransactionalGateway(): ?array
+    {
+        $cfg = self::readSmsConfigRow(self::TRANSACTIONAL_SMS_GATEWAY_KEY);
+        if (is_array($cfg) && SmsGatewayMigrator::hasApiKey($cfg)) {
+            return $cfg;
+        }
+
+        $legacy = SmsGatewayMigrator::pickTransactionalSource(
+            self::readSmsConfigRow(SmsGatewayKeys::LEGACY_CUSTOMER_CONFIRM),
+            self::readSmsConfigRow(SmsGatewayKeys::LEGACY_OTP),
+            self::readSmsConfigRow(SmsGatewayKeys::LEGACY_BRANCH)
+        );
+        if (is_array($legacy)) {
+            $status = SmsGatewayMigrator::transactionalShouldBeActive(
+                self::readSmsConfigRow(SmsGatewayKeys::LEGACY_CUSTOMER_CONFIRM),
+                self::readSmsConfigRow(SmsGatewayKeys::LEGACY_OTP),
+                self::readSmsConfigRow(SmsGatewayKeys::LEGACY_BRANCH)
+            ) ? 1 : 0;
+
+            return SmsGatewayMigrator::buildTransactionalPayload($legacy, $status);
+        }
+
+        return $cfg;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function getPromotionalGateway(): ?array
+    {
+        return self::readSmsConfigRow(self::PROMOTIONAL_SMS_GATEWAY_KEY);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function getGatewayByAssignment(string $assignment): ?array
+    {
+        if ($assignment === SmsGatewayKeys::ASSIGNMENT_PROMOTIONAL) {
+            return self::getPromotionalGateway();
+        }
+
+        return self::getTransactionalGateway();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function getSmsTemplate(string $key): array
+    {
+        $all = self::getSmsTemplates();
+
+        return $all[$key] ?? SmsTemplateCatalog::normalizeTemplate($key);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSmsTemplates(): array
+    {
+        $stored = self::readTemplateStore();
+        if ($stored !== []) {
+            return SmsTemplateCatalog::hydrateAll($stored);
+        }
+
+        return SmsGatewayMigrator::seedTemplates(
+            self::readSmsConfigRow(SmsGatewayKeys::LEGACY_CUSTOMER_CONFIRM),
+            self::readSmsConfigRow(SmsGatewayKeys::LEGACY_OTP),
+            self::readSmsConfigRow(SmsGatewayKeys::LEGACY_BRANCH)
+        );
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $templates
+     */
+    public static function saveSmsTemplates(array $templates): void
+    {
+        $normalized = SmsTemplateCatalog::hydrateAll($templates);
+        $payload = ['templates' => $normalized];
+
+        \App\Models\Setting::query()->updateOrCreate(
+            [
+                'key_name' => SmsGatewayKeys::TEMPLATES,
+                'settings_type' => SmsGatewayKeys::TEMPLATES_TYPE,
+            ],
+            [
+                'live_values' => $payload,
+                'test_values' => $payload,
+                'mode' => 'live',
+                'is_active' => 1,
+            ]
+        );
+    }
+
+    public static function isTemplateSendable(string $key): bool
+    {
+        $template = self::getSmsTemplate($key);
+        $gateway = self::getGatewayByAssignment((string) ($template['gateway'] ?? SmsGatewayKeys::ASSIGNMENT_TRANSACTIONAL));
+
+        return self::isTemplateSendableFromParts($template, $gateway);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $template
+     * @param  array<string, mixed>|null  $gateway
+     */
+    public static function isTemplateSendableFromParts(?array $template, ?array $gateway): bool
+    {
+        if (! is_array($template) || (int) ($template['status'] ?? 0) !== 1) {
+            return false;
+        }
+        if (! is_array($gateway) || (int) ($gateway['status'] ?? 0) !== 1) {
+            return false;
+        }
+
+        return self::hasCompleteTextSmsCredentials($gateway);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $config
+     */
+    public static function resolveSendSmsEndpoint(?array $config): string
+    {
+        return SmsGatewayMigrator::normalizeEndpoint(
+            is_array($config) ? ($config['endpoint'] ?? null) : null,
+            self::TEXTSMS_KE_SENDSMS_URL
+        );
+    }
+
+    /**
+     * @param  array<string, string|int|float>  $vars
+     */
+    public static function sendViaTemplate(string $templateKey, string $receiver, array $vars, ?string $logLabel = null): string
+    {
+        $template = self::getSmsTemplate($templateKey);
+        $gateway = self::resolveTemplateGatewayConfig($templateKey);
+        $label = $logLabel ?? $templateKey;
+
+        if (! self::isTemplateSendableFromParts($template, $gateway)) {
+            Log::info('textsms.template.skipped', [
+                'template' => $templateKey,
+                'gateway_assignment' => $template['gateway'] ?? null,
+                'template_status' => $template['status'] ?? null,
+                'gateway_status' => is_array($gateway) ? ($gateway['status'] ?? null) : null,
+            ]);
+
+            return 'error';
+        }
+
+        $body = (string) ($template['message'] ?? '');
+        $message = $body !== ''
+            ? self::textsms_ke_replace_notification_placeholders($body, array_map('strval', $vars))
+            : '';
+
+        return self::textsms_ke_send_general_message($gateway, $receiver, $message, $label);
+    }
+
+    /**
+     * Gateway credentials plus the OTP template body for sendotp.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function resolveTemplateGatewayConfig(string $templateKey): ?array
+    {
+        $template = self::getSmsTemplate($templateKey);
+        $gateway = self::getGatewayByAssignment((string) ($template['gateway'] ?? SmsGatewayKeys::ASSIGNMENT_TRANSACTIONAL));
+        if (! is_array($gateway)) {
+            return null;
+        }
+
+        $merged = $gateway;
+        $merged['otp_template'] = (string) ($template['message'] ?? '');
+        $merged['notification_template'] = (string) ($template['message'] ?? '');
+        if ((int) ($template['status'] ?? 0) !== 1 || (int) ($gateway['status'] ?? 0) !== 1) {
+            $merged['status'] = 0;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Send a test message through a specific TextSMS gateway (transactional or promotional).
+     */
+    public static function sendGatewayTestSms(string $gatewayKey, string $receiver, string $message): string
+    {
+        $config = $gatewayKey === self::PROMOTIONAL_SMS_GATEWAY_KEY
+            ? self::getPromotionalGateway()
+            : self::getTransactionalGateway();
+
+        if (! is_array($config) || ! self::hasCompleteTextSmsCredentials($config)) {
+            return 'error';
+        }
+
+        $test = $config;
+        $test['status'] = 1;
+
+        return self::textsms_ke_send_general_message($test, $receiver, $message, $gatewayKey.'_test');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function readSmsConfigRow(string $name): ?array
+    {
         $config = DB::table('addon_settings')->where('key_name', $name)
             ->where('settings_type', 'sms_config')->first();
 
-        if (isset($config) && !is_null($config->live_values)) {
-            return json_decode($config->live_values, true);
+        if (isset($config) && ! is_null($config->live_values)) {
+            $decoded = json_decode($config->live_values, true);
+
+            return is_array($decoded) ? $decoded : null;
         }
+
         return null;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private static function readTemplateStore(): array
+    {
+        $row = DB::table('addon_settings')
+            ->where('key_name', SmsGatewayKeys::TEMPLATES)
+            ->where('settings_type', SmsGatewayKeys::TEMPLATES_TYPE)
+            ->first();
+
+        if (! $row || $row->live_values === null) {
+            return [];
+        }
+
+        $decoded = json_decode((string) $row->live_values, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $templates = $decoded['templates'] ?? $decoded;
+
+        return is_array($templates) ? $templates : [];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function legacyOtpSettings(): ?array
+    {
+        $fromNew = self::resolveTemplateGatewayConfig(SmsTemplateCatalog::CUSTOMER_OTP);
+        if (is_array($fromNew) && (self::hasCompleteTextSmsCredentials($fromNew) || ($fromNew['otp_template'] ?? '') !== '')) {
+            return $fromNew;
+        }
+
+        return self::readSmsConfigRow(SmsGatewayKeys::LEGACY_OTP);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function legacyBranchNotificationSettings(): ?array
+    {
+        $fromNew = self::resolveTemplateGatewayConfig(SmsTemplateCatalog::BRANCH_NEW_ORDER);
+        if (is_array($fromNew)) {
+            return $fromNew;
+        }
+
+        return self::readSmsConfigRow(SmsGatewayKeys::LEGACY_BRANCH);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function legacyCustomerConfirmSettings(): ?array
+    {
+        $placed = self::getSmsTemplate(SmsTemplateCatalog::ORDER_PLACED);
+        $processing = self::getSmsTemplate(SmsTemplateCatalog::PROCESSING);
+        $gateway = self::getGatewayByAssignment((string) ($placed['gateway'] ?? SmsGatewayKeys::ASSIGNMENT_TRANSACTIONAL));
+        if (! is_array($gateway)) {
+            $gateway = self::getTransactionalGateway();
+        }
+        if (! is_array($gateway)) {
+            return self::readSmsConfigRow(SmsGatewayKeys::LEGACY_CUSTOMER_CONFIRM);
+        }
+
+        $sendable = self::isTemplateSendable(SmsTemplateCatalog::ORDER_PLACED)
+            || self::isTemplateSendable(SmsTemplateCatalog::PROCESSING);
+
+        $merged = $gateway;
+        $merged['status'] = $sendable ? 1 : 0;
+        $merged['order_placed_template'] = (string) ($placed['message'] ?? '');
+        $merged['processing_template'] = (string) ($processing['message'] ?? '');
+        $merged['notification_template'] = (string) ($placed['message'] ?? '');
+
+        return $merged;
     }
 }

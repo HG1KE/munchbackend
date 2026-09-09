@@ -75,6 +75,8 @@ class Order extends Model
         'customer_confirmed_sms_sent_at' => 'datetime',
         'customer_placement_sms_sent_at' => 'datetime',
         'customer_processing_sms_sent_at' => 'datetime',
+        'kitchen_printed_at' => 'datetime',
+        'receipt_printed_at' => 'datetime',
     ];
 
     public function details(): HasMany

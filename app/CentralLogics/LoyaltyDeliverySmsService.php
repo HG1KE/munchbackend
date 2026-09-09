@@ -241,7 +241,7 @@ class LoyaltyDeliverySmsService
         if (! is_array($config)) {
             return [
                 'ok' => false,
-                'message' => 'Transactional SMS is not configured. Enable Customer order confirmation SMS (textsms_ke_customer_confirm) first.',
+                'message' => 'Transactional SMS is not configured. Enable TextSMS Transactional first.',
             ];
         }
 

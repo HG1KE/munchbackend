@@ -153,6 +153,8 @@ class BranchPosTodayOrdersService
             'order_status_label' => $this->statusLabel($status),
             'cash_received' => $paid,
             'change' => max(0, $paid - $grand),
+            'kitchen_printed' => $order->kitchen_printed_at !== null,
+            'receipt_printed' => $order->receipt_printed_at !== null,
             'items' => $items,
             'items_summary' => array_map(fn ($item) => $item['quantity'].'x '.$item['name'], $items),
         ];
