@@ -77,7 +77,8 @@
             "app/CentralLogics/Constants.php",
             "app/Library/Constant.php",
             "app/Library/Responses.php",
-            "app/CentralLogics/AddFundHook.php"
+            "app/CentralLogics/AddFundHook.php",
+            "app/CentralLogics/OrderPlaceHook.php"
         ],
         "psr-4": {
             "App\\": "app/",

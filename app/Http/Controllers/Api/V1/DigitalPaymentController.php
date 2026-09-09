@@ -179,9 +179,30 @@ class DigitalPaymentController extends Controller
             $order_amount -= $customer->wallet_balance;
         }
 
+        $couponSnapshot = null;
+        if (! empty($amountData['coupon_code'])) {
+            $couponSnapshot = [
+                'code' => $amountData['coupon_code'],
+                'discount_amount' => (float) ($amountData['coupon_discount_amount'] ?? 0),
+                'validated_at' => now()->toIso8601String(),
+                'payment_amount' => (float) $order_amount,
+            ];
+        }
+
         $additional_data = [
             'business_name' => Helpers::get_business_settings('restaurant_name') ?? '',
-            'business_logo' => asset('storage/app/public/restaurant/' . Helpers::get_business_settings('logo'))
+            'business_logo' => asset('storage/app/public/restaurant/' . Helpers::get_business_settings('logo')),
+            'place_order_draft' => $request->except([
+                'payment_method',
+                'call_back',
+                'payment_platform',
+                'inline_checkout',
+            ]),
+            'coupon_snapshot' => $couponSnapshot,
+            'checkout_customer_id' => $customer_id,
+            'checkout_is_guest' => $is_guest,
+            'checkout_guest_id' => $is_guest ? $customer_id : null,
+            'checkout_amount' => (float) $order_amount,
         ];
 
 

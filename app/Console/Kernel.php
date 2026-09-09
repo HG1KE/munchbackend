@@ -56,6 +56,11 @@ class Kernel extends ConsoleKernel
         $orderAutomationSchedule
             ->withoutOverlapping(10)
             ->name('orders-auto-complete-eligible');
+
+        $schedule->command('paystack:reconcile-unverified')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(5)
+            ->onOneServer();
     }
 
     /**

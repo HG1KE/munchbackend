@@ -103,6 +103,23 @@ class OrderController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
+        $paystackReference = trim((string) ($request->transaction_reference ?? ''));
+        if ((string) $request->payment_method === 'paystack' && $paystackReference !== '') {
+            $existingPaystackOrder = $this->order->newQuery()
+                ->where('payment_method', 'paystack')
+                ->where('transaction_reference', $paystackReference)
+                ->orderByDesc('id')
+                ->first();
+            if ($existingPaystackOrder) {
+                return response()->json([
+                    'message' => translate('order_success'),
+                    'order_id' => $existingPaystackOrder->id,
+                    'readable_order_id' => $existingPaystackOrder->readable_order_id,
+                    'order_display_id' => Helpers::order_display_id($existingPaystackOrder),
+                ], 200);
+            }
+        }
+
         if (count($request['cart']) < 1) {
             return response()->json(['errors' => [['code' => 'empty-cart', 'message' => translate('cart is empty')]]], 403);
         }
@@ -515,6 +532,25 @@ class OrderController extends Controller
                 'order_display_id' => $readableOrderId,
             ], 200);
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            if ((string) $request->payment_method === 'paystack' && $paystackReference !== '') {
+                $existingPaystackOrder = $this->order->newQuery()
+                    ->where('payment_method', 'paystack')
+                    ->where('transaction_reference', $paystackReference)
+                    ->orderByDesc('id')
+                    ->first();
+                if ($existingPaystackOrder) {
+                    return response()->json([
+                        'message' => translate('order_success'),
+                        'order_id' => $existingPaystackOrder->id,
+                        'readable_order_id' => $existingPaystackOrder->readable_order_id,
+                        'order_display_id' => Helpers::order_display_id($existingPaystackOrder),
+                    ], 200);
+                }
+            }
+
+            return response()->json([$e], 403);
         } catch (\Exception $e) {
             DB::rollBack(); // Rollback transaction on failure
             return response()->json([$e], 403);

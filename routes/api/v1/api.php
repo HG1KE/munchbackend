@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\TableController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\DigitalPaymentController;
+use App\Http\Controllers\Api\V1\PaystackWebhookController;
 use App\Http\Controllers\PaystackController;
 
 Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function () {
@@ -263,6 +264,11 @@ Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function
     Route::group(['prefix' => 'paystack'], function () {
         Route::post('initialize', [PaystackController::class, 'initializeInline']);
         Route::post('verify', [PaystackController::class, 'verifyInline']);
+        Route::post('webhook', [PaystackWebhookController::class, 'handle'])
+            ->withoutMiddleware([
+                'throttle:api',
+                \App\Http\Middleware\VerifyCsrfToken::class,
+            ]);
     });
 
 });

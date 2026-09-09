@@ -161,7 +161,7 @@ class PaystackInlineCheckoutContractTest extends TestCase
     public function test_verify_marks_paid_runs_hook_and_is_idempotent(): void
     {
         $reference = 'PSK_verify_'.Str::lower(Str::random(8));
-        $payment = $this->makePaymentRequest('order', $reference);
+        $payment = $this->makePaymentRequest('add-fund', $reference);
         $payment->success_hook = 'paystack_test_success_hook';
         $payment->save();
 
@@ -232,6 +232,14 @@ class PaystackInlineCheckoutContractTest extends TestCase
         $this->assertSame('fail', $response->getData(true)['status']);
         $this->assertSame(0, (int) PaymentRequest::query()->find($payment->id)->is_paid);
         $this->assertSame(0, $GLOBALS['paystack_test_success_hook_calls']);
+    }
+
+    public function test_webhook_rejects_invalid_signature(): void
+    {
+        $response = app(\App\Http\Controllers\Api\V1\PaystackWebhookController::class)
+            ->handle(Request::create('/api/v1/paystack/webhook', 'POST', [], [], [], [], '{"event":"charge.success"}'));
+
+        $this->assertSame(401, $response->getStatusCode());
     }
 
     private function makeCustomer(): User
@@ -323,6 +331,7 @@ class PaystackInlineCheckoutContractTest extends TestCase
 
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
+            $table->string('payment_method')->nullable();
             $table->string('transaction_reference')->nullable();
             $table->string('readable_order_id')->nullable();
         });
@@ -349,6 +358,11 @@ class PaystackInlineCheckoutContractTest extends TestCase
             $table->string('payment_method')->nullable();
             $table->longText('additional_data')->nullable();
             $table->unsignedTinyInteger('is_paid')->default(0);
+            $table->string('placement_status')->nullable();
+            $table->unsignedBigInteger('placed_order_id')->nullable();
+            $table->json('placement_error')->nullable();
+            $table->timestamp('placement_attempted_at')->nullable();
+            $table->json('place_order_draft')->nullable();
             $table->longText('payer_information')->nullable();
             $table->longText('external_redirect_link')->nullable();
             $table->longText('receiver_information')->nullable();

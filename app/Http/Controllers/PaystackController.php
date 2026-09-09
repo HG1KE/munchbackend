@@ -6,6 +6,9 @@ use App\Exceptions\PaystackException;
 use App\Model\Order;
 use App\Models\PaymentRequest;
 use App\Models\User;
+use App\Services\Paystack\PaystackFulfillmentService;
+use App\Services\Paystack\PaystackFulfillmentSource;
+use App\Services\Paystack\PaystackGatewayStatus;
 use App\Services\PaystackService;
 use App\Traits\Processor;
 use Illuminate\Http\JsonResponse;
@@ -187,6 +190,27 @@ class PaystackController extends Controller
             );
 
             $httpStatus = ($result['status'] ?? '') === 'success' ? 200 : 402;
+            if ($httpStatus === 200 && $this->orderPaymentVerifiedButNotPlaced($result)) {
+                $placementCode = $result['placement_error']['code'] ?? 'order_not_placed';
+                if ($placementCode === 'missing_place_order_draft') {
+                    return response()->json($result, 200);
+                }
+
+                Log::critical('paystack.paid_without_order', [
+                    'reference' => $reference,
+                    'payment_id' => $result['payment_id'] ?? null,
+                    'placement_status' => $result['placement_status'] ?? null,
+                    'placement_error' => $result['placement_error'] ?? null,
+                    'stage' => 'verify_inline_response',
+                ]);
+
+                return response()->json(array_merge($result, [
+                    'errors' => [[
+                        'code' => $placementCode,
+                        'message' => $result['placement_error']['message'] ?? 'Payment received but order placement failed. Our team has been notified.',
+                    ]],
+                ]), 422);
+            }
 
             return response()->json($result, $httpStatus);
         } catch (PaystackException $exception) {
@@ -223,35 +247,54 @@ class PaystackController extends Controller
 
     public function handleGatewayCallback(Request $request)
     {
-        $paymentDetails = Paystack::getPaymentData();
+        $reference = $request->query('reference') ?? $request->query('trxref');
 
-        if ($paymentDetails['status'] == true) {
-            $attributeId = $paymentDetails['data']['metadata']['attribute_id'] ?? null;
-            $existing = $attributeId !== null
-                ? $this->payment::where(['attribute_id' => $attributeId])->first()
-                : null;
+        if (! $reference) {
+            Log::warning('paystack.callback_missing_reference');
 
-            if ($existing && (int) $existing->is_paid === 1) {
-                return $this->payment_response($existing, 'success');
+            return redirect()->route('payment-fail');
+        }
+
+        if (! $this->paystack->isConfigured()) {
+            Log::warning('paystack.callback_unconfigured', ['reference' => $reference]);
+
+            return redirect()->route('payment-fail');
+        }
+
+        try {
+            $result = $this->verifyAndCompletePayment((string) $reference, null, forRedirect: true);
+
+            if (($result['status'] ?? '') === 'success' && isset($result['payment_request'])) {
+                if ($this->orderPaymentVerifiedButNotPlaced($result)
+                    && ($result['placement_error']['code'] ?? null) !== 'missing_place_order_draft') {
+                    Log::critical('paystack.paid_without_order', [
+                        'reference' => $reference,
+                        'payment_id' => $result['payment_id'] ?? null,
+                        'placement_status' => $result['placement_status'] ?? null,
+                        'placement_error' => $result['placement_error'] ?? null,
+                        'stage' => 'gateway_callback',
+                    ]);
+
+                    return $this->payment_response($result['payment_request'], 'fail');
+                }
+
+                return $this->payment_response($result['payment_request'], 'success');
             }
 
-            $this->payment::where(['attribute_id' => $paymentDetails['data']['metadata']['attribute_id']])->update([
-                'payment_method' => 'paystack',
-                'is_paid' => 1,
-                'transaction_id' => $request['trxref'],
+            $paymentData = $result['payment_request'] ?? null;
+            if ($this->shouldInvokePaymentFailureHook($result, $paymentData)) {
+                call_user_func($paymentData->failure_hook, $paymentData);
+            }
+
+            return $this->payment_response($paymentData, 'fail');
+        } catch (PaystackException $exception) {
+            Log::error('paystack.callback_verify_error', [
+                'reference' => $reference,
+                'message' => $exception->getMessage(),
             ]);
-            $data = $this->payment::where(['attribute_id' => $paymentDetails['data']['metadata']['attribute_id']])->first();
-            if (isset($data) && function_exists($data->success_hook)) {
-                call_user_func($data->success_hook, $data);
-            }
-            return $this->payment_response($data, 'success');
-        }
 
-        $payment_data = $this->payment::where(['attribute_id' => $paymentDetails['data']['metadata']['attribute_id']])->first();
-        if (isset($payment_data) && function_exists($payment_data->failure_hook)) {
-            call_user_func($payment_data->failure_hook, $payment_data);
+            return redirect()->route('payment-fail');
         }
-        return $this->payment_response($payment_data, 'fail');
     }
 
     /**
@@ -306,108 +349,41 @@ class PaystackController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function verifyAndCompletePayment(string $reference, ?string $paymentId = null): array
+    private function verifyAndCompletePayment(string $reference, ?string $paymentId = null, bool $forRedirect = false): array
     {
-        $alreadyPaid = $this->resolvePaymentRequest($paymentId, $reference, null);
-        if (
-            $alreadyPaid !== null
-            && (int) $alreadyPaid->is_paid === 1
-            && (string) $alreadyPaid->transaction_id === $reference
-        ) {
-            Log::info('paystack.verify_idempotent_success', [
-                'reference' => $reference,
-                'payment_id' => $alreadyPaid->id,
-            ]);
+        $source = $forRedirect
+            ? PaystackFulfillmentSource::GATEWAY_CALLBACK
+            : PaystackFulfillmentSource::BROWSER_VERIFY;
 
-            return $this->formatVerifyResult('success', $alreadyPaid, $reference);
-        }
+        $result = app(PaystackFulfillmentService::class)->fulfillPaidCharge($reference, $source, $paymentId);
 
-        $paymentDetails = $this->paystack->verifyTransaction($reference);
-        $gatewaySuccess = ($paymentDetails['status'] ?? false) === true
-            && (string) ($paymentDetails['data']['status'] ?? '') === 'success';
-
-        $paymentRequest = $this->resolvePaymentRequest($paymentId, $reference, $paymentDetails);
-
-        if (! $gatewaySuccess) {
+        if ($result['status'] === 'success') {
+            if ($result['outcome'] === 'already_placed') {
+                Log::info('paystack.verify_idempotent_success', [
+                    'reference' => $reference,
+                    'payment_id' => $result['payment_request']?->id,
+                ]);
+            } elseif (in_array($result['outcome'], ['order_placed', 'verified_not_placed', 'verified_non_order'], true)) {
+                Log::info('paystack.verify_success', [
+                    'reference' => $reference,
+                    'attribute_id' => $result['payment_request']?->attribute_id,
+                    'payment_id' => $result['payment_request']?->id,
+                ]);
+            }
+        } elseif ($result['outcome'] === 'not_paid') {
             Log::warning('paystack.verify_not_successful', [
                 'reference' => $reference,
-                'gateway_status' => $paymentDetails['data']['status'] ?? null,
-            ]);
-
-            return $this->formatVerifyResult('fail', $paymentRequest, $reference);
-        }
-
-        if ($paymentRequest === null) {
-            return $this->formatVerifyResult('fail', null, $reference);
-        }
-
-        if ((int) $paymentRequest->is_paid !== 1) {
-            $this->payment::where(['id' => $paymentRequest->id])->update([
-                'payment_method' => 'paystack',
-                'is_paid' => 1,
-                'transaction_id' => $reference,
-            ]);
-            $paymentRequest = $this->payment::where(['id' => $paymentRequest->id])->first() ?? $paymentRequest;
-
-            if (isset($paymentRequest) && function_exists($paymentRequest->success_hook)) {
-                call_user_func($paymentRequest->success_hook, $paymentRequest);
-            }
-
-            Log::info('paystack.verify_success', [
-                'reference' => $reference,
-                'attribute_id' => $paymentRequest->attribute_id ?? null,
-                'payment_id' => $paymentRequest->id ?? null,
+                'gateway_status' => $result['payment_details']['data']['status'] ?? null,
             ]);
         }
 
-        return $this->formatVerifyResult('success', $paymentRequest, $reference);
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $paymentDetails
-     */
-    private function resolvePaymentRequest(?string $paymentId, string $reference, ?array $paymentDetails): ?PaymentRequest
-    {
-        if ($paymentId !== null && $paymentId !== '') {
-            $byId = $this->payment::where(['id' => $paymentId])->first();
-            if ($byId !== null) {
-                return $byId;
-            }
-        }
-
-        $byReference = $this->payment::where(['transaction_id' => $reference])
-            ->orderByDesc('created_at')
-            ->first();
-        if ($byReference !== null) {
-            return $byReference;
-        }
-
-        if ($paymentDetails === null) {
-            return null;
-        }
-
-        $metadata = $paymentDetails['data']['metadata'] ?? [];
-        if (is_string($metadata)) {
-            $metadata = json_decode($metadata, true) ?? [];
-        }
-        if (! is_array($metadata)) {
-            $metadata = [];
-        }
-
-        $resolvedId = $metadata['payment_request_id'] ?? null;
-        if (is_string($resolvedId) && $resolvedId !== '') {
-            $byMetaId = $this->payment::where(['id' => $resolvedId])->first();
-            if ($byMetaId !== null) {
-                return $byMetaId;
-            }
-        }
-
-        $attributeId = $metadata['attribute_id'] ?? null;
-        if ($attributeId !== null && $attributeId !== '') {
-            return $this->payment::where(['attribute_id' => $attributeId])->first();
-        }
-
-        return null;
+        return $this->formatVerifyResult(
+            $result['status'] === 'success' ? 'success' : 'fail',
+            $result['payment_request'] ?? null,
+            $reference,
+            $forRedirect,
+            $result
+        );
     }
 
     /**
@@ -417,6 +393,8 @@ class PaystackController extends Controller
         string $status,
         ?PaymentRequest $paymentRequest,
         string $reference,
+        bool $forRedirect = false,
+        ?array $fulfillmentResult = null,
     ): array {
         $tokenString = $paymentRequest
             ? 'payment_method=paystack&&attribute_id=' . $paymentRequest->attribute_id . '&&transaction_reference=' . $reference
@@ -430,14 +408,31 @@ class PaystackController extends Controller
                 . '&&token=' . base64_encode($tokenString);
         }
 
-        $orderMeta = $this->resolveVerifiedOrderMeta($paymentRequest, $reference);
+        $orderMeta = $fulfillmentResult !== null
+            ? [
+                'order_id' => $fulfillmentResult['order_id'] ?? null,
+                'readable_order_id' => null,
+                'order_display_id' => null,
+                'order_placed' => (bool) ($fulfillmentResult['order_placed'] ?? false),
+                'placement_status' => $fulfillmentResult['placement_status'] ?? null,
+                'placement_error' => $fulfillmentResult['placement_error'] ?? null,
+            ]
+            : $this->resolveVerifiedOrderMeta($paymentRequest, $reference);
 
-        return [
+        if (($orderMeta['order_placed'] ?? false) && $orderMeta['order_id'] !== null) {
+            $order = Order::query()->find($orderMeta['order_id']);
+            $orderMeta['readable_order_id'] = $order?->readable_order_id;
+            $orderMeta['order_display_id'] = $order !== null
+                ? \App\CentralLogics\Helpers::order_display_id($order)
+                : (string) $orderMeta['order_id'];
+        }
+
+        $payload = [
             'status' => $status,
             'reference' => $reference,
             'token' => base64_encode($tokenString),
             'callback_url' => $callbackUrl,
-            'payment_request' => null,
+            'payment_request' => $forRedirect ? $paymentRequest : null,
             'attribute_id' => $paymentRequest->attribute_id ?? null,
             'payment_id' => $paymentRequest->id ?? null,
             'order_id' => $orderMeta['order_id'],
@@ -447,6 +442,12 @@ class PaystackController extends Controller
             'placement_status' => $orderMeta['placement_status'],
             'placement_error' => $orderMeta['placement_error'],
         ];
+
+        if ($forRedirect) {
+            $payload['payment_details'] = $fulfillmentResult['payment_details'] ?? null;
+        }
+
+        return $payload;
     }
 
     /**
@@ -500,5 +501,49 @@ class PaystackController extends Controller
     private function findUnpaidPaymentRequest(string $paymentId): ?PaymentRequest
     {
         return $this->payment::where(['id' => $paymentId])->where(['is_paid' => 0])->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function orderPaymentVerifiedButNotPlaced(array $result): bool
+    {
+        if (($result['status'] ?? '') !== 'success') {
+            return false;
+        }
+
+        $paymentRequest = $result['payment_request'] ?? null;
+        if ($paymentRequest instanceof PaymentRequest) {
+            return $paymentRequest->attribute === 'order' && ! ($result['order_placed'] ?? false);
+        }
+
+        if (isset($result['payment_id'])) {
+            $row = PaymentRequest::query()->find($result['payment_id']);
+
+            return $row !== null
+                && $row->attribute === 'order'
+                && ! ($result['order_placed'] ?? false);
+        }
+
+        return ! ($result['order_placed'] ?? true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function shouldInvokePaymentFailureHook(array $result, mixed $paymentRequest): bool
+    {
+        if (! $paymentRequest instanceof PaymentRequest) {
+            return false;
+        }
+
+        if (! function_exists((string) $paymentRequest->failure_hook)) {
+            return false;
+        }
+
+        $gatewayStatus = $result['payment_details']['data']['status'] ?? null;
+        $resultStatus = ($result['status'] ?? '') === 'fail' ? 'failed' : (string) ($result['status'] ?? '');
+
+        return PaystackGatewayStatus::shouldInvokeFailureHook($resultStatus, $gatewayStatus);
     }
 }

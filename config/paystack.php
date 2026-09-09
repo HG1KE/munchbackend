@@ -35,4 +35,30 @@ return [
      */
     'merchantEmail' => getenv('MERCHANT_EMAIL','showrov2185@gmail.com'),
 
+    'recovery_min_age_minutes' => (int) env('PAYSTACK_RECOVERY_MIN_AGE_MINUTES', 2),
+    'recovery_batch_limit' => (int) env('PAYSTACK_RECOVERY_BATCH_LIMIT', 25),
+    'reconcile_min_age_minutes' => (int) env('PAYSTACK_RECONCILE_MIN_AGE_MINUTES', 5),
+    'reconcile_batch_limit' => (int) env('PAYSTACK_RECONCILE_BATCH_LIMIT', 50),
+    'reconcile_newest_first' => filter_var(
+        env('PAYSTACK_RECONCILE_NEWEST_FIRST', true),
+        FILTER_VALIDATE_BOOL
+    ),
+    'reconcile_terminal_not_paid_statuses' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env(
+            'PAYSTACK_RECONCILE_TERMINAL_NOT_PAID_STATUSES',
+            'abandoned,failed,reversed,deferred_abandoned'
+        ))
+    ))),
+    'reconcile_in_progress_statuses' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env(
+            'PAYSTACK_RECONCILE_IN_PROGRESS_STATUSES',
+            'ongoing,processing,pending'
+        ))
+    ))),
+    'reconcile_in_progress_cooldown_minutes' => (int) env('PAYSTACK_RECONCILE_IN_PROGRESS_COOLDOWN_MINUTES', 60),
+    'reconcile_verify_failed_cooldown_minutes' => (int) env('PAYSTACK_RECONCILE_VERIFY_FAILED_COOLDOWN_MINUTES', 15),
+    'webhook_path' => env('PAYSTACK_WEBHOOK_PATH', '/api/v1/paystack/webhook'),
+
 ];
