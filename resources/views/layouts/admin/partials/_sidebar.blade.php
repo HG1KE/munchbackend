@@ -98,16 +98,6 @@
                                 <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                             </li>
 
-                            <li class="navbar-vertical-aside-has-menu {{Request::is('admin/verify-offline-payment*') ?'show active':''}}">
-                                <a class="js-navbar-vertical-aside-menu-link nav-link"
-                                   href="{{route('admin.verify-offline-payment', ['pending'])}}" title="{{translate('Verify_Offline_Payment')}}">
-                                    <i class="tio-shopping-basket nav-icon"></i>
-                                    <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
-                                        {{translate('Verify_Offline_Payment')}}
-                                    </span>
-                                </a>
-                            </li>
-
                             <li class="navbar-vertical-aside-has-menu {{Request::is('admin/orders/list/*')?'active':''}}">
                                 <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:">
                                     <i class="tio-shopping-cart nav-icon"></i>
