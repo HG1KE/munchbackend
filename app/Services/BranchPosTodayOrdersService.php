@@ -123,18 +123,26 @@ class BranchPosTodayOrdersService
             $itemDiscount += $line['discount'] * $line['quantity'];
         }
 
+        $branchName = (string) ($order->branch?->name ?: '');
+        if ($branchName === '') {
+            $branchName = $cashierName !== '' ? $cashierName : 'POS';
+        }
+
         return [
             'id' => (int) $order->id,
             'number' => \App\CentralLogics\Helpers::order_display_id($order),
+            'date' => $created?->format('d M Y') ?: '',
             'time' => $created?->format('H:i') ?: '',
             'created_at' => $created?->format('d M Y H:i') ?: '',
             'completed_at' => $completed?->format('d M Y H:i'),
             'sales_channel' => (string) $order->sales_channel,
             'sales_channel_label' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
-            'cashier' => $cashierName !== '' ? $cashierName : (string) ($order->branch?->name ?: 'POS'),
+            'branch' => $branchName,
+            'cashier' => $cashierName !== '' ? $cashierName : $branchName,
             'customer' => $customerName !== '' ? $customerName : 'Walk-in',
             'phone' => $phone,
             'address' => $order->sales_channel === 'delivery' ? (string) ($address?->address ?: '') : '',
+            'notes' => trim((string) ($order->order_note ?: '')),
             'delivery_fee' => (float) $order->delivery_charge,
             'discount' => (float) $order->extra_discount + $itemDiscount,
             'subtotal' => $subtotal,
@@ -148,6 +156,54 @@ class BranchPosTodayOrdersService
             'items' => $items,
             'items_summary' => array_map(fn ($item) => $item['quantity'].'x '.$item['name'], $items),
         ];
+    }
+
+    /**
+     * Kitchen-ticket option labels from stored order_details.variation JSON.
+     *
+     * @param  mixed  $variation
+     * @return list<string>
+     */
+    public static function variationOptionLabels($variation): array
+    {
+        if (is_string($variation)) {
+            $variation = json_decode($variation, true);
+        }
+        if (! is_array($variation)) {
+            return [];
+        }
+
+        $labels = [];
+        foreach ($variation as $group) {
+            if (! is_array($group)) {
+                continue;
+            }
+            $values = $group['values'] ?? null;
+            if (is_array($values) && array_key_exists('label', $values)) {
+                foreach ((array) $values['label'] as $label) {
+                    $label = trim((string) $label);
+                    if ($label !== '') {
+                        $labels[] = $label;
+                    }
+                }
+                continue;
+            }
+            if (! is_array($values)) {
+                continue;
+            }
+            foreach ($values as $value) {
+                if (is_array($value) && isset($value['label'])) {
+                    $label = trim((string) $value['label']);
+                    if ($label !== '') {
+                        $labels[] = $label;
+                    }
+                } elseif (is_string($value) && trim($value) !== '') {
+                    $labels[] = trim($value);
+                }
+            }
+        }
+
+        return $labels;
     }
 
     /**
@@ -176,6 +232,7 @@ class BranchPosTodayOrdersService
         return [
             'name' => $name,
             'quantity' => $qty,
+            'options' => self::variationOptionLabels($detail->variation),
             'unit_price' => $unit,
             'discount' => $discount,
             'line_total' => max(0, ($unit - $discount) * $qty + $addonTotal),

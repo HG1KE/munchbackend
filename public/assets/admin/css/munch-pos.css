@@ -855,6 +855,130 @@
     cursor: default;
 }
 
+.munch-pos-order__side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    flex-shrink: 0;
+}
+
+.munch-pos-order__print {
+    border: 1px solid var(--munch-pos-ink);
+    background: var(--munch-pos-ink);
+    color: #fff;
+    min-height: 36px;
+    border-radius: 999px;
+    padding: 0.2rem 0.8rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-success {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 46;
+    display: grid;
+    place-items: center;
+    padding: 0.85rem;
+}
+
+.munch-pos-success__card {
+    width: min(420px, 100%);
+    background: #fff;
+    border-radius: 20px;
+    padding: 1.35rem 1.25rem 1.2rem;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+    display: grid;
+    gap: 0.7rem;
+    text-align: center;
+}
+
+.munch-pos-success__mark {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.munch-pos-success__card h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.munch-pos-success__meta {
+    margin: 0.35rem 0 0.15rem;
+    display: grid;
+    gap: 0.55rem;
+    text-align: left;
+}
+
+.munch-pos-success__meta div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: baseline;
+}
+
+.munch-pos-success__meta dt {
+    margin: 0;
+    color: var(--munch-pos-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.munch-pos-success__meta dd {
+    margin: 0;
+    font-weight: 800;
+}
+
+.munch-pos-success__card .munch-pos-place,
+.munch-pos-success__card .munch-pos-clear {
+    width: 100%;
+}
+
+.munch-pos-print-frame {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 80mm;
+    height: 200mm;
+    border: 0;
+    background: #fff;
+    pointer-events: none;
+}
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+
+    html,
+    body.munch-pos-body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        width: 80mm;
+    }
+
+    body.munch-pos-body > *:not(.munch-pos-print-frame) {
+        display: none !important;
+    }
+
+    .munch-pos-print-frame {
+        position: static;
+        left: 0;
+        width: 80mm;
+        height: auto;
+        opacity: 1;
+    }
+}
+
 @media (max-width: 899px) {
     .munch-pos-shell {
         grid-template-columns: 1fr;

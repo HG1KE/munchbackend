@@ -326,6 +326,22 @@ class OnlineOrdersQueueGroupingTest extends TestCase
 
         $posPage = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
         $this->assertStringContainsString('pos-view-orders', $posPage);
+        $this->assertStringContainsString('pos-success-modal', $posPage);
+        $this->assertStringContainsString('pos-success-print', $posPage);
+        $this->assertStringContainsString("translate('Print Kitchen Order & Receipt')", $posPage);
+        $this->assertStringContainsString('pos-print-frame', $posPage);
+        $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body))', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('printKitchenThenReceipt', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('kitchenTicketHtml', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('receiptTicketHtml', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('data-print-order', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('toast(CFG.labels.queuedSaved)', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringNotContainsString("clearCart();\n                toast(CFG.labels.placed);", file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('@media print', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
+        $this->assertStringContainsString('80mm', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
+        $this->assertStringContainsString('z-index: 46', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
+        $this->assertStringContainsString('variationOptionLabels', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
+        $this->assertStringContainsString("'options' => self::variationOptionLabels", file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
         $this->assertStringContainsString('pos-orders-modal', $posPage);
         $this->assertStringContainsString('todayOrders:', $posPage);
         $this->assertStringContainsString("translate('View Orders')", $posPage);
@@ -368,6 +384,18 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
+    }
+
+    public function test_pos_kitchen_variation_labels_parse_stored_and_cart_shapes(): void
+    {
+        $this->assertSame(['BBQ', 'Extra Cheese'], \App\Services\BranchPosTodayOrdersService::variationOptionLabels([
+            ['name' => 'Sauce', 'values' => [['label' => 'BBQ', 'optionPrice' => 0]]],
+            ['name' => 'Extras', 'values' => ['label' => ['Extra Cheese']]],
+        ]));
+        $this->assertSame(['BBQ'], \App\Services\BranchPosTodayOrdersService::variationOptionLabels(
+            json_encode([['name' => 'Sauce', 'values' => [['label' => 'BBQ']]]])
+        ));
+        $this->assertSame([], \App\Services\BranchPosTodayOrdersService::variationOptionLabels(null));
     }
 
     private function service(): DashboardOrderOperationsService

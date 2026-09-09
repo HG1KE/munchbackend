@@ -110,6 +110,31 @@
     </div>
 </div>
 
+<div class="munch-pos-success" id="pos-success-modal" hidden>
+    <div class="munch-pos-success__card" role="dialog" aria-modal="true" aria-labelledby="pos-success-title">
+        <p class="munch-pos-success__mark" aria-hidden="true">✅</p>
+        <h2 id="pos-success-title">{{ translate('Order Placed Successfully') }}</h2>
+        <dl class="munch-pos-success__meta">
+            <div>
+                <dt>{{ translate('Order') }} #</dt>
+                <dd id="pos-success-number"></dd>
+            </div>
+            <div>
+                <dt>{{ translate('Grand Total') }}</dt>
+                <dd id="pos-success-total"></dd>
+            </div>
+            <div>
+                <dt>{{ translate('Payment Method') }}</dt>
+                <dd id="pos-success-pay"></dd>
+            </div>
+        </dl>
+        <button type="button" class="munch-pos-place" id="pos-success-print">{{ translate('Print Kitchen Order & Receipt') }}</button>
+        <button type="button" class="munch-pos-clear" id="pos-success-close">{{ translate('Close') }}</button>
+    </div>
+</div>
+
+<iframe id="pos-print-frame" class="munch-pos-print-frame" title="{{ translate('Print') }}"></iframe>
+
 <div class="munch-pos-toast" id="pos-toast" hidden></div>
 @endsection
 
@@ -117,6 +142,8 @@
 <script>
     window.MUNCH_POS = {
         catalog: @json($catalog),
+        branchName: @json($branchName),
+        restaurantName: 'MUNCH',
         csrf: @json(csrf_token()),
         urls: {
             catalog: @json(route('branch.pos.catalog')),
@@ -188,8 +215,21 @@
             noOrders: @json(translate('No Data Found')),
             page: @json(translate('Page')),
             paymentMethod: @json(translate('Payment Method')),
+            order: @json(translate('Order')),
+            placedSuccess: @json(translate('Order Placed Successfully')),
+            printKitchenReceipt: @json(translate('Print Kitchen Order & Receipt')),
+            print: @json(translate('Print')),
+            kitchenOrder: @json(translate('Kitchen Order')),
+            orderType: @json(translate('Order Type')),
+            date: @json(translate('Date')),
+            time: @json(translate('Time')),
+            branch: @json(translate('Branch')),
+            deliveryNotes: @json(translate('Delivery Notes')),
+            cashReceivedPrint: @json(translate('Cash Received')),
+            balance: @json(translate('Balance')),
+            thanks: @json(translate('Thank you for choosing Munch')),
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.8" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.9" defer></script>
 @endpush

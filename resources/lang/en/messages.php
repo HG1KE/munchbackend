@@ -3059,4 +3059,12 @@
   'Paid' => 'Paid',
   'Unpaid' => 'Unpaid',
   'Cart empty' => 'Cart empty',
+  'Order Placed Successfully' => 'Order Placed Successfully',
+  'Print Kitchen Order & Receipt' => 'Print Kitchen Order & Receipt',
+  'Kitchen Order' => 'Kitchen Order',
+  'Thank you for choosing Munch' => 'Thank you for choosing Munch',
+  'Cash Received' => 'Cash Received',
+  'Balance' => 'Balance',
+  'Delivery Notes' => 'Delivery Notes',
+  'Order Type' => 'Order Type',
 );
