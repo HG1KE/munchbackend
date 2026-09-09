@@ -37,7 +37,7 @@ HEALTH_FAIL=0
 # Logging. Verbose on purpose so an SSH session is a complete audit trail.
 # ---------------------------------------------------------------------------
 stage() { printf '\n======== %s ========\n' "$*"; }
-info()  { printf '--> %s\n' "$*"; }
+info()  { printf -- '--> %s\n' "$*"; }
 ok()    { printf 'OK  %s\n' "$*"; }
 warn()  { printf 'WARN  %s\n' "$*"; }
 fail()  { printf 'ERROR  %s\n' "$*" >&2; exit 1; }
