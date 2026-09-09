@@ -34,14 +34,9 @@ PREVIOUS="$(run_as_app git rev-parse HEAD)"
 mkdir -p "$(dirname "${RELEASE_LOG}")"
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) before ${PREVIOUS}" >>"${RELEASE_LOG}"
 
-# Single-branch clones only track the original setup branch.
-run_as_app git fetch origin "+refs/heads/${REPO_BRANCH}:refs/remotes/origin/${REPO_BRANCH}"
-if run_as_app git show-ref --verify --quiet "refs/heads/${REPO_BRANCH}"; then
-  run_as_app git checkout "${REPO_BRANCH}"
-else
-  run_as_app git checkout -b "${REPO_BRANCH}" --track "origin/${REPO_BRANCH}"
-fi
-run_as_app git pull --ff-only origin "${REPO_BRANCH}"
+# Single-branch clones do not treat origin/main as a remote-tracking branch.
+run_as_app git fetch origin "${REPO_BRANCH}"
+run_as_app git checkout -B "${REPO_BRANCH}" FETCH_HEAD
 
 install_public_front_controller "${SCRIPT_DIR}"
 install_nginx_site "${SCRIPT_DIR}"
