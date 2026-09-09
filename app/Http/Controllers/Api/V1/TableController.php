@@ -77,7 +77,7 @@ class TableController extends Controller
             $order->coupon_discount_title = $request->coupon_discount_title == 0 ? null : 'coupon_discount_title';
             $order->payment_method = $request->payment_method;
             $order->payment_status = $request->payment_status;
-            $order->order_status = 'confirmed';
+            $order->order_status = 'pending';
             $order->coupon_code = $request['coupon_code'];
             $order->transaction_reference = $request->transaction_reference ?? null;
             $order->order_note = $request['order_note'];

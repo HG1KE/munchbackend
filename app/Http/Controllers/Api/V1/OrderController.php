@@ -227,7 +227,7 @@ class OrderController extends Controller
             $paymentStatus = ($request->payment_method == 'cash_on_delivery' || $request->payment_method == 'offline_payment') ? 'unpaid' : 'paid';
         }
 
-        $orderStatus = ($request->payment_method == 'cash_on_delivery' || $request->payment_method == 'offline_payment') ? 'pending' : 'confirmed';
+        $orderStatus = 'pending';
 
         if ($request['order_type'] == 'take_away'){
             $deliveryCharge = 0;
@@ -607,7 +607,7 @@ class OrderController extends Controller
                 //
             }
 
-            if ($or['order_status'] == 'confirmed') {
+            if (in_array($or['order_status'], ['pending', 'confirmed'], true)) {
                 $data = [
                     'title' => translate('You have a new order - (Order Confirmed).'),
                     'description' => $order_id,

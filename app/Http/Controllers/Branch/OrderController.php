@@ -372,7 +372,7 @@ class OrderController extends Controller
         }
 
         //kitchen order notification
-        if ($request->order_status == 'confirmed') {
+        if (in_array($request->order_status, ['confirmed', 'processing'], true)) {
             $data = [
                 'title' => translate('You have a new order - (Order Confirmed).'),
                 'description' => $order->id,
