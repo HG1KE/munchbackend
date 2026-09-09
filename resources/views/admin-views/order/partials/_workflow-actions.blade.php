@@ -4,6 +4,7 @@
     $showBeginPreparing = in_array($currentStatus, ['pending', 'confirmed'], true);
     $showOutForDelivery = $currentStatus === 'processing';
     $showMarkDelivered = $currentStatus === 'out_for_delivery';
+    $showCancelOrder = ! in_array($currentStatus, ['delivered', 'returned', 'failed', 'canceled'], true);
 @endphp
 
 <div class="w-100">
@@ -34,6 +35,14 @@
                data-route="{{ route($statusRoute, ['id' => $order['id'], 'order_status' => 'delivered']) }}"
                data-message="{{ translate('Change status to delivered ?') }}">
                 {{ translate('Mark as Delivered') }}
+            </a>
+        @endif
+        @if($showCancelOrder)
+            <a class="btn btn-secondary route-alert"
+               href="javascript:"
+               data-route="{{ route($statusRoute, ['id' => $order['id'], 'order_status' => 'canceled']) }}"
+               data-message="{{ translate('Change status to canceled ?') }}">
+                {{ translate('Cancel Order') }}
             </a>
         @endif
     </div>

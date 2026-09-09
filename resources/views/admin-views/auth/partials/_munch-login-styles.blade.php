@@ -32,8 +32,8 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at 20% 30%, rgba(255, 103, 103, 0.08), transparent 55%),
-                    radial-gradient(circle at 80% 70%, rgba(252, 106, 87, 0.06), transparent 50%);
+        background: radial-gradient(circle at 20% 30%, rgba(231, 3, 45, 0.08), transparent 55%),
+                    radial-gradient(circle at 80% 70%, rgba(231, 3, 45, 0.06), transparent 50%);
         pointer-events: none;
     }
 

@@ -402,8 +402,8 @@ body.munch-admin-shell .form--control {
 body.munch-admin-shell .form-control:focus,
 body.munch-admin-shell .custom-select:focus,
 body.munch-admin-shell .form--control:focus {
-    border-color: var(--c1, #ff6767);
-    box-shadow: 0 0 0 3px rgba(var(--c1-rgb, 255, 103, 103), 0.12);
+    border-color: var(--c1, #E7032D);
+    box-shadow: 0 0 0 3px rgba(var(--c1-rgb, 231, 3, 45), 0.12);
 }
 
 body.munch-admin-shell .input-label,

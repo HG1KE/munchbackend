@@ -1,7 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 :root {
-    --c1: #ff6767;
-    --c1-rgb: 255, 103, 103;
+    --c1: #E7032D;
+    --c1-rgb: 231, 3, 45;
+    --c1-dark: #C10226;
+    --primary: #E7032D;
     --c2: #006ae5;
     --tc: #334257;
 }
@@ -112,7 +114,7 @@
 
 .badge-soft-c1 {
     color: var(--c1);
-    background-color: rgba(255, 103, 103, 0.1);
+    background-color: rgba(var(--c1-rgb), 0.1);
 }
 
 .text-c1,
@@ -159,7 +161,7 @@
 .navbar-vertical-aside-has-menu.show > .nav-link,
 .navbar-vertical .navbar-nav.nav-tabs .active > .nav-link,
 .navbar-vertical .navbar-nav.nav-tabs .active.nav-link {
-    background: rgba(255, 103, 103, 0.1);
+    background: rgba(var(--c1-rgb), 0.1);
     border-radius: 5px;
 }
 
@@ -211,7 +213,7 @@
 }
 
 .sidebar--search-form .search--form-group input {
-    border: 1px solid rgba(252, 106, 87, 0.4);
+    border: 1px solid rgba(var(--c1-rgb), 0.4);
     padding-inline-start: 40px;
 }
 
@@ -257,8 +259,8 @@
 
 .custom-select:focus,
 .form-control:focus {
-    box-shadow: 0 0 10px rgba(255, 103, 103, 0.1);
-    border-color: rgba(255, 103, 103, 0.4);
+    box-shadow: 0 0 10px rgba(var(--c1-rgb), 0.1);
+    border-color: rgba(var(--c1-rgb), 0.4);
 }
 
 .font-weight-semibold {
@@ -355,7 +357,7 @@
 .option-select-btn {
     display: flex;
     background: #ffffff;
-    border: 1px solid rgba(255, 111, 112, 0.2);
+    border: 1px solid rgba(var(--c1-rgb), 0.2);
     border-radius: 5px;
     padding: 3px;
 }
@@ -409,7 +411,7 @@
     position: relative;
     padding: 10px 0;
     color: #758590;
-    border-bottom: 1px solid rgba(252, 106, 87, 0.1);
+    border-bottom: 1px solid rgba(var(--c1-rgb), 0.1);
     -webkit-margin-after: 10px;
     margin-block-end: 10px;
 }

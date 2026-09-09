@@ -3,7 +3,7 @@
 @section('title', translate('Order Details'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/meatco-order-operations.css') }}?v=1.11">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/meatco-order-operations.css') }}?v=1.12">
 @endpush
 
 

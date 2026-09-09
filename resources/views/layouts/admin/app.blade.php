@@ -21,9 +21,9 @@
     {{--Carousel Slider--}}
     <link rel="stylesheet" href="{{asset('public/assets/admin/css/owl.min.css')}}">
     <!-- CSS Front Template -->
-    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/theme.minc619.css?v=1.0">
-    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/style.css?v=1.0">
-    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-shell.css?v=1.0">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/theme.minc619.css?v=1.2">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/style.css?v=1.2">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-shell.css?v=1.2">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/upload-file_custom.css">
     @stack('css_or_js')
 
@@ -351,7 +351,7 @@
             type: 'warning',
             showCancelButton: true,
             cancelButtonColor: 'default',
-            confirmButtonColor: '#FC6A57',
+            confirmButtonColor: '#E7032D',
             cancelButtonText: '{{translate("No")}}',
             confirmButtonText:'{{translate("Yes")}}',
             reverseButtons: true
@@ -375,7 +375,7 @@
             type: 'warning',
             showCancelButton: true,
             cancelButtonColor: 'default',
-            confirmButtonColor: '#FC6A57',
+            confirmButtonColor: '#E7032D',
             cancelButtonText: '{{translate("No")}}',
             confirmButtonText: '{{translate("Yes")}}',
             reverseButtons: true
@@ -456,7 +456,7 @@
             text: 'Want to change status',
             type: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#FC6A57',
+            confirmButtonColor: '#E7032D',
             cancelButtonColor: 'default',
             cancelButtonText: '{{translate("No")}}',
             confirmButtonText: '{{translate("Yes")}}',

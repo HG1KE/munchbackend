@@ -273,6 +273,8 @@ class OnlineOrdersQueueGroupingTest extends TestCase
 
         $workflow = file_get_contents(resource_path('views/admin-views/order/partials/_workflow-actions.blade.php'));
         $this->assertStringContainsString('Begin Preparing', $workflow);
+        $this->assertStringContainsString('Cancel Order', $workflow);
+        $this->assertStringContainsString("order_status' => 'canceled'", $workflow);
         $this->assertStringContainsString("order_status' => 'processing'", $workflow);
         $this->assertStringNotContainsString('<select', $workflow);
 

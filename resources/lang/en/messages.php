@@ -1183,6 +1183,7 @@
   'Card' => 'Card',
   'pay_after_eating' => 'Pay after eating',
   'Cancel_Order' => 'Cancel Order',
+  'Cancel Order' => 'Cancel Order',
   'Place_Order' => 'Place Order',
   'update_discount' => 'Update discount',
   'update_tax' => 'Update tax',
