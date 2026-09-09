@@ -68,7 +68,7 @@ class OrderController extends Controller
         $userId = (bool)auth('api')->user() ? auth('api')->user()->id : $request['guest_id'];
         $userType = (bool)auth('api')->user() ? 0 : 1;
 
-        $order = $this->order->where(['id' => $request['order_id'], 'user_id' => $userId, 'is_guest' => $userType])->first();
+        $order = \App\Support\OrderPublicNumber::resolveForCustomer((string) $request['order_id'], (int) $userId, (int) $userType);
         if (!isset($order)) {
             return response()->json([
                 'errors' => [
@@ -77,7 +77,7 @@ class OrderController extends Controller
             ], 404);
         }
 
-        return response()->json(OrderLogic::track_order($request['order_id']), 200);
+        return response()->json(OrderLogic::track_order($order->id), 200);
     }
 
     /**
@@ -275,8 +275,10 @@ class OrderController extends Controller
             DB::beginTransaction();
 
             $order_id = 100000 + (int) $this->order->max('id') + 1;
+            $readableOrderId = app(\App\Services\OrderReadableIdService::class)->reserveNextReadableId();
             $or = [
                 'id' => $order_id,
+                'readable_order_id' => $readableOrderId,
                 'user_id' => $userId,
                 'is_guest' => $userType,
                 'order_amount' => Helpers::set_price($request['order_amount']),
@@ -506,7 +508,9 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => translate('order_success'),
-                'order_id' => $order_id
+                'order_id' => $order_id,
+                'readable_order_id' => $readableOrderId,
+                'order_display_id' => $readableOrderId,
             ], 200);
 
         } catch (\Exception $e) {
@@ -580,7 +584,8 @@ class OrderController extends Controller
                 }
             }
             $restaurantName = Helpers::get_business_settings('restaurant_name');
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: $order_id);
+            $displayOrderId = Helpers::order_display_id($or);
+            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: $displayOrderId);
 
             try {
                 if ($value && isset($fcmToken)) {
@@ -607,11 +612,13 @@ class OrderController extends Controller
                 //
             }
 
-            if (in_array($or['order_status'], ['pending', 'confirmed'], true)) {
+                if (in_array($or['order_status'], ['pending', 'confirmed'], true)) {
                 $data = [
                     'title' => translate('You have a new order - (Order Confirmed).'),
-                    'description' => $order_id,
+                    'description' => $displayOrderId,
                     'order_id' => $order_id,
+                    'readable_order_id' => $or['readable_order_id'] ?? null,
+                    'order_display_id' => $displayOrderId,
                     'image' => '',
                     'order_status' => $or['order_status'],
                 ];
@@ -731,6 +738,8 @@ class OrderController extends Controller
                 })->filter();
 
             $data['product_images'] = $productImages->toArray();
+            $data['readable_order_id'] = $data->readable_order_id;
+            $data['order_display_id'] = Helpers::order_display_id($data);
 
             return $data;
         });
@@ -762,17 +771,21 @@ class OrderController extends Controller
         $userId = (bool)auth('api')->user() ? auth('api')->user()->id : $request['guest_id'];
         $userType = (bool)auth('api')->user() ? 0 : 1;
 
-        $details = $this->order_detail->with(['order',
-            'order.delivery_man' => function ($query) {
-                $query->select('id', 'f_name', 'l_name', 'phone', 'email', 'image', 'branch_id', 'is_active');
-            },
-            'order.delivery_man.rating', 'order.delivery_address', 'order.order_partial_payments' , 'order.offline_payment', 'order.deliveryman_review'])
-            ->withCount(['reviews'])
-            ->where(['order_id' => $request['order_id']])
-            ->whereHas('order', function ($q) use ($userId, $userType){
-                $q->where([ 'user_id' => $userId, 'is_guest' => $userType ]);
-            })
-            ->get();
+        $order = \App\Support\OrderPublicNumber::resolveForCustomer((string) $request['order_id'], (int) $userId, (int) $userType);
+        $details = collect();
+        if ($order) {
+            $details = $this->order_detail->with(['order',
+                'order.delivery_man' => function ($query) {
+                    $query->select('id', 'f_name', 'l_name', 'phone', 'email', 'image', 'branch_id', 'is_active');
+                },
+                'order.delivery_man.rating', 'order.delivery_address', 'order.order_partial_payments' , 'order.offline_payment', 'order.deliveryman_review'])
+                ->withCount(['reviews'])
+                ->where(['order_id' => $order->id])
+                ->whereHas('order', function ($q) use ($userId, $userType){
+                    $q->where([ 'user_id' => $userId, 'is_guest' => $userType ]);
+                })
+                ->get();
+        }
 
         if ($details->count() < 1) {
             return response()->json([
@@ -792,7 +805,7 @@ class OrderController extends Controller
      */
     public function cancelOrder(Request $request): JsonResponse
     {
-        $order = $this->order::find($request['order_id']);
+        $order = \App\Support\OrderPublicNumber::resolve((string) $request['order_id']);
 
         if (!isset($order)){
             return response()->json(['errors' => [['code' => 'order', 'message' => 'Order not found!']]], 404);
@@ -805,8 +818,8 @@ class OrderController extends Controller
         $userId = (bool)auth('api')->user() ? auth('api')->user()->id : $request['guest_id'];
         $userType = (bool)auth('api')->user() ? 0 : 1;
 
-        if ($this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $request['order_id']])->first()) {
-            $this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $request['order_id']])->update([
+        if ($this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $order->id])->first()) {
+            $this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $order->id])->update([
                 'order_status' => 'canceled'
             ]);
             return response()->json(['message' => translate('order_canceled')], 200);

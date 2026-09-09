@@ -245,7 +245,7 @@
                                     <td>{{ $orders->firstitem() + $key }}</td>
                                     <td>
                                         <a class="text-dark"
-                                            href="{{ route('admin.orders.details', ['id' => $order['id']]) }}">{{ $order['id'] }}</a>
+                                            href="{{ route('admin.orders.details', ['id' => $order['id']]) }}">{{ \App\CentralLogics\Helpers::order_display_id($order) }}</a>
                                     </td>
                                     <td>
                                         @if ($order->is_guest == 0)

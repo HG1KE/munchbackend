@@ -63,7 +63,10 @@ class KitchenController extends Controller
             ->whereIn('order_status', ['confirmed', 'cooking', 'done'])
             ->when($search != null, function ($query) use ($key) {
                 foreach ($key as $value) {
-                    $query->Where('id', 'like', "%{$value}%");
+                    $query->where(function ($inner) use ($value) {
+                        $inner->where('id', 'like', "%{$value}%")
+                            ->orWhere('readable_order_id', 'like', '%'.strtoupper(ltrim(trim($value), '#')).'%');
+                    });
                 }
             })
             ->latest()

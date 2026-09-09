@@ -45,7 +45,7 @@
                                 <h3 class="mb-3">{{ translate('Table - D2 ') }}</h3>
                                 @if(($table['order'] != null))
                                     @foreach($table['order'] as $order)
-                                        <div class="fz-14 mb-1">{{ translate('order id') }}: <strong>{{ $order['id'] }}</strong></div>
+                                        <div class="fz-14 mb-1">{{ translate('order id') }}: <strong>{{ \App\CentralLogics\Helpers::order_display_id($order) }}</strong></div>
                                     @endforeach
                                 @else
                                     <div class="fz-14 mb-1">{{ translate('current status') }} - <strong>{{ translate('empty') }}</strong></div>

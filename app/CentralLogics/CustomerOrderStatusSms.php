@@ -104,7 +104,7 @@ class CustomerOrderStatusSms
         $statusLabel = ucwords(str_replace('_', ' ', (string) $order->order_status));
 
         return [
-            'order_id' => (string) $order->id,
+            'order_id' => Helpers::order_display_id($order),
             'title' => '',
             'description' => '',
             'customer_name' => $customerName,

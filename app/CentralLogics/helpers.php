@@ -233,6 +233,9 @@ class Helpers
                 $detail->variant = gettype($detail->variant) != 'array' ? json_decode($detail->variant) : $detail->variant;
                 $detail->add_on_qtys = gettype($detail->add_on_qtys) != 'array' ? json_decode($detail->add_on_qtys) : $detail->add_on_qtys;
             }
+
+            $data['readable_order_id'] = $data['readable_order_id'] ?? null;
+            $data['order_display_id'] = self::order_display_id($data);
         }
 
         return $data;
@@ -1094,20 +1097,11 @@ class Helpers
     }
 
     /**
-     * Canonical order ID for admin, API, SMS, payments, and exports.
-     * Never prepend branch_id or other prefixes — that breaks lookups and links.
+     * User-facing order reference (e.g. A10001). Falls back to internal numeric id.
      */
-    public static function order_display_id($order): int
+    public static function order_display_id($order): string
     {
-        if ($order instanceof \App\Model\Order) {
-            return (int) $order->id;
-        }
-
-        if (is_array($order) && array_key_exists('id', $order)) {
-            return (int) $order['id'];
-        }
-
-        return (int) $order;
+        return \App\Support\OrderPublicNumber::display($order);
     }
 
     public static function order_status_message_key($status)

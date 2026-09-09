@@ -6,6 +6,7 @@ use App\Models\OfflinePayment;
 use App\Models\GuestUser;
 use App\Models\OrderChangeAmount;
 use App\Models\OrderPartialPayment;
+use App\Services\OrderReadableIdService;
 use App\User;
 use App\Models\OrderArea;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,29 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
+    protected $appends = [
+        'order_display_id',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Order $order) {
+            if (empty($order->readable_order_id)) {
+                $order->readable_order_id = app(OrderReadableIdService::class)->reserveNextReadableId();
+            }
+        });
+    }
+
+    public function getOrderDisplayIdAttribute(): string
+    {
+        return \App\CentralLogics\Helpers::order_display_id($this);
+    }
+
+    public function getPublicOrderNumberAttribute(): ?string
+    {
+        return $this->readable_order_id;
+    }
+
     protected $casts = [
         'order_amount' => 'float',
         'coupon_discount_amount' => 'float',

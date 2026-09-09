@@ -91,7 +91,7 @@
                                 <tr class="status-{{$order['order_status']}} class-all">
                                     <td>{{$orders->firstitem()+$key}}</td>
                                     <td class="table-column-pl-0">
-                                        <a href="{{route('admin.orders.details',['id'=>$order['id']])}}">{{$order['id']}}</a>
+                                        <a href="{{route('admin.orders.details',['id'=>$order['id']])}}">{{ \App\CentralLogics\Helpers::order_display_id($order) }}</a>
                                     </td>
                                     <td>{{date('d M Y',strtotime($order['created_at']))}}</td>
                                     <td>

@@ -15,7 +15,7 @@
                     {{$key+1}}
                 </td>
                 <td class="table-column-pl-0">
-                    <a href="{{route('admin.orders.details',['id'=>$row['order_id']])}}">{{$row['order_id']}}</a>
+                    <a href="{{route('admin.orders.details',['id'=>$row['order_id']])}}">{{ $row['order_display_id'] ?? $row['order_id'] }}</a>
                 </td>
                 <td>{{date('d M Y',strtotime($row['date']))}}</td>
                 <td>{{$row['quantity']}}</td>

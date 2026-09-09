@@ -102,7 +102,7 @@
                                     <tr>
                                         <td>{{$orders->firstItem() + $key}}</td>
                                         <td class="table-column-pl-0 text-center">
-                                            <a class="text-dark" href="{{route('admin.orders.details',['id'=>$order['id']])}}">{{$order['id']}}</a>
+                                            <a class="text-dark" href="{{route('admin.orders.details',['id'=>$order['id']])}}">{{ \App\CentralLogics\Helpers::order_display_id($order) }}</a>
                                         </td>
                                         <td class="text-center">{{ Helpers::set_symbol($order['order_amount'] + $order['delivery_charge']) }}</td>
                                         <td>

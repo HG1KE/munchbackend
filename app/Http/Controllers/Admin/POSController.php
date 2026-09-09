@@ -14,6 +14,7 @@ use App\Model\DeliveryMan;
 use App\Model\Notification;
 use App\Model\Product;
 use App\Model\Order;
+use App\Services\OrderReadableIdService;
 use App\Model\OrderDetail;
 use App\Model\ProductByBranch;
 use App\Model\Table;
@@ -639,7 +640,7 @@ class POSController extends Controller
                         }
                     }
                     $restaurantName = Helpers::get_business_settings('restaurant_name');
-                    $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: $order_id);
+                    $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: Helpers::order_display_id($order));
 
                     if ($value && isset($customerFcmToken)) {
                         $data = [
@@ -746,9 +747,7 @@ class POSController extends Controller
             $key = explode(' ', $request['search']);
             $query = $query->where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('id', 'like', "%{$value}%")
-                        ->orWhere('order_status', 'like', "%{$value}%")
-                        ->orWhere('transaction_reference', 'like', "%{$value}%");
+                    OrderReadableIdService::applyTerm($q, $value);
                 }
             });
             $query_param = ['search' => $request['search']];
@@ -862,9 +861,7 @@ class POSController extends Controller
             $key = explode(' ', $request['search']);
             $orders = $query->where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('id', 'like', "%{$value}%")
-                        ->orWhere('order_status', 'like', "%{$value}%")
-                        ->orWhere('transaction_reference', 'like', "%{$value}%");
+                    OrderReadableIdService::applyTerm($q, $value);
                 }
             })->get();
 
@@ -898,7 +895,7 @@ class POSController extends Controller
         foreach ($orders as $key => $order) {
             $data[] = array(
                 'SL' => ++$key,
-                'Order ID' => $order->id,
+                'Order ID' => Helpers::order_display_id($order),
                 'Order Date' => date('d M Y', strtotime($order['created_at'])) . ' ' . date("h:i A", strtotime($order['created_at'])),
                 'Customer Info' => $order['user_id'] == null ? 'Walk in Customer' : $order?->customer?->f_name . ' ' . $order?->customer?->l_name,
                 'Branch' => $order->branch ? $order->branch->name : 'Branch Deleted',

@@ -38,6 +38,7 @@ class OrderLogic
         try {
             $or = [
                 'id' => 100000 + Order::all()->count() + 1,
+                'readable_order_id' => app(\App\Services\OrderReadableIdService::class)->reserveNextReadableId(),
                 'user_id' => $customer_id,
                 'order_amount' => CartManager::cart_grand_total($cart) - $discount,
                 'payment_status' => 'unpaid',

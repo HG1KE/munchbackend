@@ -67,7 +67,7 @@
 
                 <div class="row mt-4">
                     <div class="col-6">
-                        <h5>{{translate('Order ID : ')}}{{$order['id']}}</h5>
+                        <h5>{{translate('Order ID : ')}}{{ \App\CentralLogics\Helpers::order_display_id($order) }}</h5>
                     </div>
                     <div class="col-6">
                         <h5 style="font-weight: lighter">

@@ -6,6 +6,7 @@ use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\DeliveryMan;
 use App\Model\Order;
+use App\Services\OrderReadableIdService;
 use App\Model\Table;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
@@ -40,9 +41,7 @@ class TableOrderController extends Controller
             $key = explode(' ', $request['search']);
             $orders = $this->order->where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('id', 'like', "%{$value}%")
-                        ->orWhere('order_status', 'like', "%{$value}%")
-                        ->orWhere('transaction_reference', 'like', "%{$value}%");
+                    OrderReadableIdService::applyTerm($q, $value);
                     }
                 })
                 ->when($from && $to, function ($query) use ($from, $to) {
@@ -245,9 +244,7 @@ class TableOrderController extends Controller
             ->when($search, function ($q) use ($search) {
                 $key = explode(' ', $search);
                 foreach ($key as $value) {
-                    $q->orWhere('id', 'like', "%{$value}%")
-                        ->orWhere('order_status', 'like', "%{$value}%")
-                        ->orWhere('transaction_reference', 'like', "%{$value}%");
+                    OrderReadableIdService::applyTerm($q, $value);
                 }
             })
             ->when($from && $to, function ($q) use ($from, $to) {
@@ -271,7 +268,7 @@ class TableOrderController extends Controller
         foreach ($orders as $key => $order) {
             $data[] = array(
                 'SL' => ++$key,
-                'Order ID' => $order->id,
+                'Order ID' => Helpers::order_display_id($order),
                 'Order Date' => date('d M Y h:m A', strtotime($order['created_at'])),
                 'Customer Info' => $order['user_id'] == null ? 'Walk in Customer' : ($order->customer == null ? 'Customer Unavailable' : $order->customer['f_name'] . ' ' . $order->customer['l_name']),
                 'Branch' => $order->branch ? $order->branch->name : 'Branch Deleted',

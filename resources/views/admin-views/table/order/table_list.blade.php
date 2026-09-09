@@ -25,7 +25,7 @@
                                 <div id="demo_{{$table->id}}" class="collapse px-2" >
                                     @if($table->order)
                                         @foreach($table['order'] as $order)
-                                            <h5>{{ translate('order id') }}: {{ $order['id'] }}</h5>
+                                            <h5>{{ translate('order id') }}: {{ \App\CentralLogics\Helpers::order_display_id($order) }}</h5>
                                         @endforeach
                                     @endif
                                 </div>

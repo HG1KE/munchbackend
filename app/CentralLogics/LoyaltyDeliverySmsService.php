@@ -167,7 +167,7 @@ class LoyaltyDeliverySmsService
                 'customer_name' => $customerName,
                 'earned_points' => (string) $earnedPoints,
                 'current_points' => (string) $currentPoints,
-                'order_id' => (string) $order->id,
+                'order_id' => Helpers::order_display_id($order),
             ];
 
             $renderedBody = SMS_module::renderLoyaltyDeliveryMessage($config, $vars);

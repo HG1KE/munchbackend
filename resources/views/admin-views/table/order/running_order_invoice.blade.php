@@ -87,7 +87,7 @@
                             @php($dueAmount+= $order->order_amount)
                         @endif
 
-                        <h5>{{translate('Order ID : ')}}{{$order['id']}}</h5>
+                        <h5>{{translate('Order ID : ')}}{{ \App\CentralLogics\Helpers::order_display_id($order) }}</h5>
                     <table class="table table-bordered mt-3">
                         <tbody>
 

@@ -11,7 +11,7 @@
             <div class="dropdown-menu px-3" style="min-width: 200px; min-height: 200px">
                 @if(($table['order'] != null))
                     @foreach($table['order'] as $order)
-                        <h5 class="">{{ translate('order id') }}: {{ $order['id'] }}</h5>
+                        <h5 class="">{{ translate('order id') }}: {{ \App\CentralLogics\Helpers::order_display_id($order) }}</h5>
                     @endforeach
                 @else
                     <h5 class="">{{ translate('current status') }} - {{ translate('empty') }}</h5>

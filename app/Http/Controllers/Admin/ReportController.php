@@ -171,6 +171,7 @@ class ReportController extends Controller
                         $orderTotal = $price * $detail['quantity'];
                         $data[] = [
                             'order_id' => $order['id'],
+                            'order_display_id' => Helpers::order_display_id($order),
                             'date' => $order['created_at'],
                             'customer' => $order->customer,
                             'price' => $orderTotal,
@@ -185,6 +186,7 @@ class ReportController extends Controller
                     $orderTotal = $price * $detail['quantity'];
                     $data[] = [
                         'order_id' => $order['id'],
+                        'order_display_id' => Helpers::order_display_id($order),
                         'date' => $order['created_at'],
                         'customer' => $order->customer,
                         'price' => $orderTotal,
@@ -225,6 +227,7 @@ class ReportController extends Controller
                     $orderTotal = $price * $detail['quantity'];
                     $data[] = [
                         'order_id' => $order['id'],
+                        'order_display_id' => Helpers::order_display_id($order),
                         'date' => $order['created_at'],
                         'customer' => $order->customer,
                         'price' => $orderTotal,
@@ -272,11 +275,15 @@ class ReportController extends Controller
         $totalSold = 0;
         $totalQuantity = 0;
 
+        $orderDisplayIds = $this->order->whereIn('id', $orders)->get()
+            ->mapWithKeys(fn ($order) => [$order->id => Helpers::order_display_id($order)]);
+
         foreach ($this->orderDetail->whereIn('order_id', $orders)->latest()->get() as $detail) {
             $price = $detail['price'] - $detail['discount_on_product'];
             $orderTotal = $price * $detail['quantity'];
             $data[] = [
                 'order_id' => $detail['order_id'],
+                'order_display_id' => $orderDisplayIds[$detail['order_id']] ?? $detail['order_id'],
                 'date' => $detail['created_at'],
                 'price' => $orderTotal,
                 'quantity' => $detail['quantity'],

@@ -13,6 +13,7 @@ use App\Model\BusinessSetting;
 use App\Model\CustomerAddress;
 use App\Model\DeliveryHistory;
 use App\Model\Order;
+use App\Services\OrderReadableIdService;
 use App\Models\DeliveryChargeByArea;
 use App\Models\OfflinePayment;
 use App\Models\OrderArea;
@@ -85,9 +86,7 @@ class OrderController extends Controller
                 ->whereDate('delivery_date', '<=', Carbon::now()->format('Y-m-d'))
                 ->where(function ($q) use ($key) {
                     foreach ($key as $value) {
-                        $q->orWhere('id', 'like', "%{$value}%")
-                            ->orWhere('order_status', 'like', "%{$value}%")
-                            ->orWhere('transaction_reference', 'like', "%{$value}%");
+                        OrderReadableIdService::applyTerm($q, $value);
                     }
                 });
             $queryParam = ['search' => $request['search']];
@@ -316,7 +315,7 @@ class OrderController extends Controller
             }
         }
 
-        $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+        $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
         $customerFcmToken = null;
         if($order->is_guest == 0){
@@ -591,7 +590,7 @@ class OrderController extends Controller
         $orders = session('order_data_export');
         foreach ($orders as $key => $order) {
             $data[$key]['SL'] = ++$key;
-            $data[$key]['Order ID'] = $order->id;
+            $data[$key]['Order ID'] = Helpers::order_display_id($order);
             $data[$key]['Order Date'] = date('d M Y h:m A', strtotime($order['created_at']));
             $data[$key]['Customer Info'] = $order['user_id'] == null ? 'Walk in Customer' : ($order->customer == null ? 'Customer Unavailable' : $order->customer['f_name'] . ' ' . $order->customer['l_name']);
             $data[$key]['Branch'] = $order->branch ? $order->branch->name : 'Branch Deleted';
@@ -644,8 +643,7 @@ class OrderController extends Controller
                 $keys = explode(' ', $request['search']);
                 return $query->where(function ($query) use ($keys) {
                     foreach ($keys as $key) {
-                        $query->where('id', 'LIKE', '%' . $key . '%')
-                            ->orWhere('order_status', 'LIKE', "%{$key}%")
+                        OrderReadableIdService::applyTerm($query, $key)
                             ->orWhere('payment_status', 'LIKE', "{$key}%");
                     }
                 });
@@ -712,7 +710,7 @@ class OrderController extends Controller
             $deliverymanName = $order->delivery_man ? $order->delivery_man->f_name. ' '. $order->delivery_man->l_name : '';
             $customerName = $order->is_guest == 0 ? ($order->customer ? $order->customer->f_name. ' '. $order->customer->l_name : '') : '';
 
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
             $customerFcmToken = null;
             if($order->is_guest == 0){

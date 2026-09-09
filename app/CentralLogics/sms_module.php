@@ -625,7 +625,7 @@ class SMS_module
         $order_amount = $data['order_amount'] ?? '';
 
         $vars = [
-            'order_id' => (string)($data['order_id'] ?? ''),
+            'order_id' => (string)($data['order_display_id'] ?? $data['order_id'] ?? ''),
             'title' => $title,
             'description' => $description,
             'customer_name' => $customer_name,
@@ -650,7 +650,7 @@ class SMS_module
         $config = self::get_settings('textsms_ke_customer_confirm');
 
         $vars = [
-            'order_id' => (string) ($data['order_id'] ?? ''),
+            'order_id' => (string) ($data['order_display_id'] ?? $data['order_id'] ?? ''),
             'title' => (string) ($data['title'] ?? ''),
             'description' => (string) ($data['description'] ?? ''),
             'customer_name' => (string) ($data['customer_name'] ?? ''),

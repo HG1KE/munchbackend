@@ -16,6 +16,7 @@ use App\Model\CustomerAddress;
 use App\Model\DeliveryHistory;
 use App\Model\DeliveryMan;
 use App\Model\Order;
+use App\Services\OrderReadableIdService;
 use App\Model\TableOrder;
 use App\Models\DeliveryChargeByArea;
 use App\Models\GuestUser;
@@ -78,9 +79,7 @@ class OrderController extends Controller
             $key = explode(' ', $request['search']);
             $query->where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('id', 'like', "%{$value}%")
-                        ->orWhere('order_status', 'like', "%{$value}%")
-                        ->orWhere('transaction_reference', 'like', "%{$value}%");
+                    OrderReadableIdService::applyTerm($q, $value);
                 }
             });
             $queryParam['search'] = $search;
@@ -122,9 +121,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -144,9 +141,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -166,9 +161,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -188,9 +181,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -209,9 +200,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -231,9 +220,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -253,9 +240,7 @@ class OrderController extends Controller
                 ->when($request->has('search'), function ($query) use ($key) {
                     $query->where(function ($q) use ($key) {
                         foreach ($key as $value) {
-                            $q->orWhere('id', 'like', "%{$value}%")
-                                ->orWhere('order_status', 'like', "%{$value}%")
-                                ->orWhere('transaction_reference', 'like', "%{$value}%");
+                            OrderReadableIdService::applyTerm($q, $value);
                         }
                     });
                 })
@@ -420,7 +405,7 @@ class OrderController extends Controller
             }
         }
 
-        $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+        $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
         $customerFcmToken = null;
         if($order->is_guest == 0){
@@ -593,7 +578,7 @@ class OrderController extends Controller
             $deliverymanName = $order->delivery_man ? $order->delivery_man->f_name. ' '. $order->delivery_man->l_name : '';
             $customerName = $order->customer ? $order->customer->f_name. ' '. $order->customer->l_name : '';
 
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
             try {
                 if ($value) {
@@ -663,7 +648,7 @@ class OrderController extends Controller
         $deliverymanName = $order->delivery_man ? $order->delivery_man->f_name. ' '. $order->delivery_man->l_name : '';
         $customerName = $order->customer ? $order->customer->f_name. ' '. $order->customer->l_name : '';
 
-        $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+        $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
         try {
             if ($value) {
@@ -691,7 +676,7 @@ class OrderController extends Controller
                         }
                     }
 
-                    $data['description'] = Helpers::text_variable_data_format(value:$notifyMessage, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+                    $data['description'] = Helpers::text_variable_data_format(value:$notifyMessage, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
                     Helpers::send_push_notif_to_device($customerFcmToken, $data);
                 }
             }
@@ -825,9 +810,7 @@ class OrderController extends Controller
             $key = explode(' ', $request['search']);
             $query->where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('id', 'like', "%{$value}%")
-                        ->orWhere('order_status', 'like', "%{$value}%")
-                        ->orWhere('transaction_reference', 'like', "%{$value}%");
+                    OrderReadableIdService::applyTerm($q, $value);
                 }
             });
             $queryParam['search'] = $search;
@@ -862,7 +845,7 @@ class OrderController extends Controller
         foreach ($orders as $key => $order) {
             $data[] = array(
                 'SL' => ++$key,
-                'Order ID' => $order->id,
+                'Order ID' => Helpers::order_display_id($order),
                 'Order Date' => date('d M Y h:m A', strtotime($order['created_at'])),
                 'Customer Info' => $order['user_id'] == null ? 'Walk in Customer' : ($order->customer == null ? 'Customer Unavailable' : $order->customer['f_name'] . ' ' . $order->customer['l_name']),
                 'Branch' => $order->branch ? $order->branch->name : 'Branch Deleted',
@@ -935,7 +918,7 @@ class OrderController extends Controller
             $deliverymanName = $order->delivery_man ? $order->delivery_man->f_name. ' '. $order->delivery_man->l_name : '';
             $customerName = $order->is_guest == 0 ? ($order->customer ? $order->customer->f_name. ' '. $order->customer->l_name : '') : '';
 
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
             $customerFcmToken = null;
             if($order->is_guest == 0){

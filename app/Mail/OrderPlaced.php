@@ -69,10 +69,11 @@ class OrderPlaced extends Mailable
             }
         }
 
-        $title = Helpers::text_variable_data_format( value:$data['title']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$order_id??'');
-        $body = Helpers::text_variable_data_format( value:$data['body']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$order_id??'');
-        $footer_text = Helpers::text_variable_data_format( value:$data['footer_text']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$order_id??'');
-        $copyright_text = Helpers::text_variable_data_format( value:$data['copyright_text']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$order_id??'');
+        $displayOrderId = Helpers::order_display_id($order);
+        $title = Helpers::text_variable_data_format( value:$data['title']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$displayOrderId);
+        $body = Helpers::text_variable_data_format( value:$data['body']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$displayOrderId);
+        $footer_text = Helpers::text_variable_data_format( value:$data['footer_text']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$displayOrderId);
+        $copyright_text = Helpers::text_variable_data_format( value:$data['copyright_text']??'',user_name:$user_name??'',restaurant_name:$restaurant_name??'',delivery_man_name:$delivery_man_name??'',order_id:$displayOrderId);
 
         // **🔹 Generate Invoice PDF**
         $pdf = Facade\Pdf::loadView('email-templates.invoice', compact('order'));
@@ -88,7 +89,7 @@ class OrderPlaced extends Mailable
                     'copyright_text' => $copyright_text,
                     'order' => $order
                 ])
-            ->attachData($pdfContent, 'Invoice_Order_' . $order->id . '.pdf', [
+            ->attachData($pdfContent, 'Invoice_Order_' . $displayOrderId . '.pdf', [
                 'mime' => 'application/pdf',
             ]);
     }

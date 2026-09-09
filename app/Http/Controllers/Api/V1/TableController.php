@@ -230,7 +230,7 @@ class TableController extends Controller
 
             $notification = $this->notification;
             $notification->title = "You have a new order from Table - (Order Confirmed). ";
-            $notification->description = $order->id;
+            $notification->description = Helpers::order_display_id($order);
             $notification->status = 1;
 
             try {
@@ -318,6 +318,8 @@ class TableController extends Controller
             return response()->json([
                 'message' => translate('order_placed_successfully!!'),
                 'order_id' => $order->id,
+                'readable_order_id' => $order->readable_order_id,
+                'order_display_id' => Helpers::order_display_id($order),
                 'branch_table_token' => $token->branch_table_token,
             ], 200);
 

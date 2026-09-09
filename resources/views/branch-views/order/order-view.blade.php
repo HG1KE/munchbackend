@@ -22,7 +22,7 @@
                         <div class="row gy-2">
                             <div class="col-sm-6 d-flex flex-column justify-content-between">
                                 <div>
-                                    <h2 class="page-header-title h1 mb-3">{{translate('order')}} #{{$order['id']}}</h2>
+                                    <h2 class="page-header-title h1 mb-3">{{translate('order')}} #{{ \App\CentralLogics\Helpers::order_display_id($order) }}</h2>
                                     <h5 class="text-capitalize">
                                         <i class="tio-shop"></i>
                                         {{translate('branch')}} :

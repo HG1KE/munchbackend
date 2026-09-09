@@ -213,7 +213,7 @@ class OrderDeliveredTransitionService
                 user_name: $customerName,
                 restaurant_name: $restaurantName,
                 delivery_man_name: $deliverymanName,
-                order_id: $order->id
+                order_id: Helpers::order_display_id($order)
             );
 
             if (! $value) {

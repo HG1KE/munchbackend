@@ -67,7 +67,7 @@
 
                     <!--                    <div class="col-6">
                         @foreach($orders as $order)
-                        <h5>{{translate('Order ID : ')}}{{$order['id']}}</h5>
+                        <h5>{{translate('Order ID : ')}}{{ \App\CentralLogics\Helpers::order_display_id($order) }}</h5>
                         @endforeach
                     </div>-->
                     <!--                    <div class="col-6">
@@ -115,7 +115,7 @@
                         @php($due_amount+= $order->order_amount)
                     @endif
 
-                    <h5>{{translate('Order ID : ')}}{{$order['id']}}</h5>
+                    <h5>{{translate('Order ID : ')}}{{ \App\CentralLogics\Helpers::order_display_id($order) }}</h5>
                     <table class="table table-bordered mt-3">
                         <tbody>
 

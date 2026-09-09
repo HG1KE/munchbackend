@@ -1358,7 +1358,7 @@
                 <h4 class="offcanvas-title mb-2">{{ translate('Edit_Products') }}</h4>
                 <div class="d-flex gap-2 gap-sm-4 flex-wrap align-items-center">
                     <h5 class="mb-0 d-flex gap-1 align-items-center">
-                        <span class="mr-3">{{ translate('Order') }} #{{ $order->id }}</span>
+                        <span class="mr-3">{{ translate('Order') }} #{{ \App\CentralLogics\Helpers::order_display_id($order) }}</span>
                         <span class="badge badge-soft--info px-2 py-1 text-capitalize mr-3">{{ str_replace('_',' ',$order['order_status']) }}</span>
                     </h5>
                     <h5 class="mb-0 d-flex gap-1 align-items-center px-4">

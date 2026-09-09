@@ -486,7 +486,7 @@
                                         <div class="card-body py-0">
                                             <div class="row">
                                                 <div class="col-sm mb-2 mb-sm-0">
-                                                    <h2 class="font-weight-normal mb-1">#{{$order['id']}} <small
+                                                    <h2 class="font-weight-normal mb-1">#{{ \App\CentralLogics\Helpers::order_display_id($order) }} <small
                                                             class="font-size-sm text-body text-uppercase">{{translate('id')}}</small>
                                                     </h2>
                                                     <h5 class="text-hover-primary mb-0">{{translate('order')}} {{translate('amount')}}
@@ -518,7 +518,7 @@
                                         <div class="card-body py-0">
                                             <div class="row">
                                                 <div class="col-sm mb-2 mb-sm-0">
-                                                    <h2 class="font-weight-normal mb-1">#{{$order['id']}} <small
+                                                    <h2 class="font-weight-normal mb-1">#{{ \App\CentralLogics\Helpers::order_display_id($order) }} <small
                                                             class="font-size-sm text-body text-uppercase">{{translate('id')}}</small>
                                                     </h2>
                                                     <h5 class="text-hover-primary mb-0">{{translate('order')}} {{translate('amount')}}

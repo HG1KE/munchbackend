@@ -12,6 +12,7 @@ use App\Model\CustomerAddress;
 use App\Model\Notification;
 use App\Model\Product;
 use App\Model\Order;
+use App\Services\OrderReadableIdService;
 use App\Model\OrderDetail;
 use App\Model\ProductByBranch;
 use App\Model\Table;
@@ -601,7 +602,7 @@ class POSController extends Controller
                 }
 
                 $restaurantName = Helpers::get_business_settings('restaurant_name');
-                $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: $orderId);
+                $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: Helpers::order_display_id($order));
 
 
                 if ($value && isset($customerFcmToken)) {
@@ -692,9 +693,7 @@ class POSController extends Controller
                 $keywords = explode(' ', $search);
                 $q->where(function ($subQuery) use ($keywords) {
                     foreach ($keywords as $keyword) {
-                        $subQuery->orWhere('id', 'like', "%{$keyword}%")
-                            ->orWhere('order_status', 'like', "%{$keyword}%")
-                            ->orWhere('transaction_reference', 'like', "%{$keyword}%");
+                        OrderReadableIdService::applyTerm($subQuery, $keyword);
                     }
                 });
             })
@@ -942,9 +941,7 @@ class POSController extends Controller
                 $keywords = explode(' ', $search);
                 $q->where(function ($subQuery) use ($keywords) {
                     foreach ($keywords as $keyword) {
-                        $subQuery->orWhere('id', 'like', "%{$keyword}%")
-                            ->orWhere('order_status', 'like', "%{$keyword}%")
-                            ->orWhere('transaction_reference', 'like', "%{$keyword}%");
+                        OrderReadableIdService::applyTerm($subQuery, $keyword);
                     }
                 });
             })
@@ -962,7 +959,7 @@ class POSController extends Controller
         $data = $orders->map(function ($order, $key) {
             return [
                 'SL' => $key + 1,
-                'Order ID' => $order->id,
+                'Order ID' => Helpers::order_display_id($order),
                 'Order Date' => date('d M Y h:i A', strtotime($order->created_at)),
                 'Customer Info' => $order->user_id ? "{$order->customer?->f_name} {$order->customer?->l_name}" : 'Walk-in Customer',
                 'Total Amount' => Helpers::set_symbol($order->order_amount),

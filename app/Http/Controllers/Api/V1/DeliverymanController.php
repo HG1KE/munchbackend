@@ -300,7 +300,7 @@ class DeliverymanController extends Controller
                 }
             }
 
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
 
         } elseif ($request['status'] == 'delivered') {
             $loyaltyResult = null;
@@ -361,7 +361,7 @@ class DeliverymanController extends Controller
                 }
             }
 
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: $order->id);
+            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName, delivery_man_name: $deliverymanName, order_id: Helpers::order_display_id($order));
         }
 
         try {

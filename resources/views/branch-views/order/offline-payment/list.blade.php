@@ -66,7 +66,7 @@
                             <tr class="status-{{$order['order_status']}} class-all">
                                 <td>{{$orders->firstitem()+$key}}</td>
                                 <td>
-                                    <a class="text-dark" href="{{route('branch.orders.details',['id'=>$order['id']])}}">{{$order['id']}}</a>
+                                    <a class="text-dark" href="{{route('branch.orders.details',['id'=>$order['id']])}}">{{ \App\CentralLogics\Helpers::order_display_id($order) }}</a>
                                 </td>
                                 <td>
                                     <div>{{date('d M Y',strtotime($order['delivery_date']))}}</div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Branch;
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\Order;
+use App\Services\OrderReadableIdService;
 use App\Model\Table;
 use Box\Spout\Common\Exception\InvalidArgumentException;
 use Box\Spout\Common\Exception\IOException;
@@ -61,9 +62,7 @@ class TableOrderController extends Controller
                 ->where(['branch_id' => auth('branch')->id()])
                 ->where(function ($q) use ($key) {
                     foreach ($key as $value) {
-                        $q->orWhere('id', 'like', "%{$value}%")
-                            ->orWhere('order_status', 'like', "%{$value}%")
-                            ->orWhere('transaction_reference', 'like', "%{$value}%");
+                        OrderReadableIdService::applyTerm($q, $value);
                     }
                 });
             $queryParam = ['search' => $request['search']];
@@ -209,7 +208,7 @@ class TableOrderController extends Controller
         $orders = session('order_data_export');
         foreach ($orders as $key => $order) {
             $data[$key]['SL'] = ++$key;
-            $data[$key]['Order ID'] = $order->id;
+            $data[$key]['Order ID'] = Helpers::order_display_id($order);
             $data[$key]['Order Date'] = date('d M Y h:m A', strtotime($order['created_at']));
             $data[$key]['Customer Info'] = $order['user_id'] == null ? 'Walk in Customer' : ($order->customer == null ? 'Customer Unavailable' : $order->customer['f_name'] . ' ' . $order->customer['l_name']);
             $data[$key]['Branch'] = $order->branch ? $order->branch->name : 'Branch Deleted';

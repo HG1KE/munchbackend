@@ -231,7 +231,7 @@
                                             <tr>
                                                 <td>
                                                     <h3 class="subtitle">{{ translate('Order_Summary') }}</h3>
-                                                    <span class="d-block">{{ translate('Order') }}# {{ $order->id }}</span>
+                                                    <span class="d-block">{{ translate('Order') }}# {{ \App\CentralLogics\Helpers::order_display_id($order) }}</span>
                                                     <span class="d-block">{{ $order->refunded }}</span>
                                                 </td>
                                                 <td style="max-width:130px">

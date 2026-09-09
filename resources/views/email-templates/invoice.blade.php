@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Type" content="text/html;"/>
     <meta charset="UTF-8">
-    <title>Invoice #{{ $order->id }}</title>
+    <title>Invoice #{{ \App\CentralLogics\Helpers::order_display_id($order) }}</title>
 
     <style>
         @media print {
@@ -89,7 +89,7 @@
                         <td style="width: 50%; vertical-align: top;">
                             <h5
                                 style="font-weight: 700 !important; font-size: .75rem; line-height: 1.4; margin-top: 0; margin-bottom: .5rem;">
-                                {{ translate('Order ID : ') }}{{ $order['id'] }}
+                                {{ translate('Order ID : ') }}{{ \App\CentralLogics\Helpers::order_display_id($order) }}
                             </h5>
                         </td>
                         <td style="width: 50%; vertical-align: top; text-align: right;">

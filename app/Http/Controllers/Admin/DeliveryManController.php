@@ -511,7 +511,8 @@ class DeliveryManController extends Controller
                 $key = explode(' ', $search);
                 $query->where(function ($q) use ($key) {
                     foreach ($key as $value) {
-                        $q->orWhere('id', 'like', "%{$value}%");
+                        $q->orWhere('id', 'like', "%{$value}%")
+                            ->orWhere('readable_order_id', 'like', '%'.strtoupper(ltrim(trim($value), '#')).'%');
                     }
                 });
             })
@@ -581,7 +582,8 @@ class DeliveryManController extends Controller
                 $key = explode(' ', $search);
                 $query->where(function ($q) use ($key) {
                     foreach ($key as $value) {
-                        $q->orWhere('id', 'like', "%{$value}%");
+                        $q->orWhere('id', 'like', "%{$value}%")
+                            ->orWhere('readable_order_id', 'like', '%'.strtoupper(ltrim(trim($value), '#')).'%');
                     }
                 });
             })
@@ -598,7 +600,7 @@ class DeliveryManController extends Controller
         foreach ($orders as $key => $order) {
             $data[] = array(
                 'SL' => ++$key,
-                'Order ID' => $order->id,
+                'Order ID' => Helpers::order_display_id($order),
                 'Order Date' => date('d M Y h:m A', strtotime($order['created_at'])),
                 'Customer Info' => $order['user_id'] == null ? 'Walk in Customer' : ($order->customer == null ? 'Customer Unavailable' : $order->customer['f_name'] . ' ' . $order->customer['l_name']),
                 'Branch' => $order->branch ? $order->branch->name : 'Branch Deleted',
