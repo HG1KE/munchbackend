@@ -9,7 +9,7 @@ They are **not** executed from this phase. Do not run them against HostAfrica or
 | Application root | `/var/www/portal.munch.co.ke` |
 | Nginx document root | `/var/www/portal.munch.co.ke/public` |
 | Git remote | `https://github.com/HG1KE/munchbackend.git` |
-| Deploy branch | `sync/hostafrica-production` |
+| Deploy branch | `main` |
 | PHP | 8.3-FPM |
 | Queue (Phase A) | `sync` (Supervisor unit present, not loaded) |
 

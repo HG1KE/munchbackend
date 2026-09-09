@@ -5,7 +5,7 @@ APP_ROOT="${APP_ROOT:-/var/www/portal.munch.co.ke}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 WEB_USER="${WEB_USER:-www-data}"
 REPO_URL="${REPO_URL:-https://github.com/HG1KE/munchbackend.git}"
-REPO_BRANCH="${REPO_BRANCH:-sync/hostafrica-production}"
+REPO_BRANCH="${REPO_BRANCH:-main}"
 RELEASE_LOG="${APP_ROOT}/storage/app/releases.log"
 ROLLBACK_PIN="${APP_ROOT}/storage/app/ROLLBACK_PIN"
 
@@ -57,9 +57,15 @@ reload_web() {
 
 install_nginx_site() {
   local script_dir="$1"
-  install -m 0644 "${script_dir}/nginx/portal.munch.co.ke.conf" \
-    /etc/nginx/sites-available/portal.munch.co.ke.conf
-  ln -sfn /etc/nginx/sites-available/portal.munch.co.ke.conf \
-    /etc/nginx/sites-enabled/portal.munch.co.ke.conf
+  local dest="/etc/nginx/sites-available/portal.munch.co.ke.conf"
+
+  # Certbot appends listen 443 / HTTP→HTTPS to the live file. Do not replace it.
+  if [[ -f "${dest}" ]] && grep -q "managed by Certbot" "${dest}"; then
+    echo "Leaving ${dest} in place (Certbot-managed HTTPS)"
+  else
+    install -m 0644 "${script_dir}/nginx/portal.munch.co.ke.conf" "${dest}"
+  fi
+
+  ln -sfn "${dest}" /etc/nginx/sites-enabled/portal.munch.co.ke.conf
   rm -f /etc/nginx/sites-enabled/portal.munch.co.ke
 }
