@@ -43,7 +43,13 @@
                     <input type="text" id="pos-del-name" placeholder="{{ translate('Name') }}" autocomplete="name">
                     <input type="tel" id="pos-del-phone" placeholder="{{ translate('Phone') }}" autocomplete="tel">
                     <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Address') }}"></textarea>
-                    <select id="pos-del-area" hidden></select>
+                    <label class="munch-pos-fee">
+                        <span>{{ translate('Delivery Fee') }}</span>
+                        <span class="munch-pos-fee__field">
+                            <span class="munch-pos-fee__currency" id="pos-del-fee-currency">Ksh</span>
+                            <input type="number" id="pos-del-fee" min="0" step="1" inputmode="decimal" value="0" aria-label="{{ translate('Delivery Fee') }}">
+                        </span>
+                    </label>
                 </div>
                 <ul class="munch-pos-lines" id="pos-lines"></ul>
                 <div class="munch-pos-auth" id="pos-auth" hidden>
@@ -109,6 +115,7 @@
             syncFailed: @json(translate('Failed to sync')),
             subtotal: @json(translate('Subtotal')),
             deliveryCharge: @json(translate('Delivery Charge')),
+            deliveryFee: @json(translate('Delivery Fee')),
             discount: @json(translate('Discount')),
             grandTotal: @json(translate('Grand Total')),
             cash: @json(translate('Cash')),
@@ -132,5 +139,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.3" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.4" defer></script>
 @endpush

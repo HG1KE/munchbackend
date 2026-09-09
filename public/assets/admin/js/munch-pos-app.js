@@ -7,7 +7,7 @@
     var CART_KEY = 'current';
     var state = {
         catalog: CFG.catalog || { products: [], categories: [], addons: [], tables: [], delivery: {} },
-        cart: { lines: [], orderType: 'take_away', tableId: '', people: '', discount: 0, discountType: 'amount', payment: 'cash', paid: '', address: {} },
+        cart: { lines: [], orderType: 'take_away', tableId: '', people: '', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {} },
         categoryId: 0,
         search: '',
         online: navigator.onLine,
@@ -146,24 +146,16 @@
         return Math.min(value, subtotal);
     }
 
-    function deliveryCharge(subtotal) {
+    function deliveryCharge() {
         if (state.cart.orderType !== 'delivery') return 0;
-        var setup = state.catalog.delivery || {};
-        if (Number(setup.free_over_status) === 1 && subtotal >= Number(setup.free_over_amount || 0) && Number(setup.free_over_amount) > 0) {
-            return 0;
-        }
-        if (setup.type === 'area') {
-            var areaId = Number(state.cart.address.selected_area_id || 0);
-            var area = (setup.areas || []).find(function (row) { return row.id === areaId; });
-            return area ? Number(area.charge || 0) : 0;
-        }
-        if (setup.type === 'distance') return Number(setup.minimum_charge || 0);
-        return Number(setup.fixed_charge || 0);
+        var fee = Number(state.cart.deliveryFee || 0);
+        if (!isFinite(fee) || fee < 0) return 0;
+        return fee;
     }
 
     function grandTotal() {
         var sub = cartSubtotal();
-        return Math.max(0, sub + deliveryCharge(sub) - extraDiscount(sub));
+        return Math.max(0, sub + deliveryCharge() - extraDiscount(sub));
     }
 
     function filteredProducts() {
@@ -298,19 +290,12 @@
         }
         if (els.table) els.table.value = state.cart.tableId || '';
         if (els.people) els.people.value = state.cart.people || '';
-        var areas = (state.catalog.delivery && state.catalog.delivery.areas) || [];
-        if (els.area) {
-            if ((state.catalog.delivery && state.catalog.delivery.type) === 'area' && areas.length) {
-                els.area.hidden = false;
-                if (!els.area.dataset.ready) {
-                    els.area.innerHTML = '<option value="">Area</option>' + areas.map(function (area) {
-                        return '<option value="' + area.id + '">' + escapeHtml(area.name) + ' · ' + money(area.charge) + '</option>';
-                    }).join('');
-                    els.area.dataset.ready = '1';
-                }
-                els.area.value = state.cart.address.selected_area_id || '';
-            } else {
-                els.area.hidden = true;
+        if (els.feeCurrency) els.feeCurrency.textContent = state.catalog.currency_symbol || 'Ksh';
+        if (els.fee) {
+            var decimals = Number(state.catalog.decimal || 0);
+            els.fee.step = decimals > 0 ? String(1 / Math.pow(10, decimals)) : '1';
+            if (document.activeElement !== els.fee) {
+                els.fee.value = state.cart.orderType === 'delivery' ? (state.cart.deliveryFee || 0) : 0;
             }
         }
     }
@@ -385,10 +370,10 @@
         if (!els.totals) return;
         var sub = cartSubtotal();
         var disc = extraDiscount(sub);
-        var del = deliveryCharge(sub);
+        var del = deliveryCharge();
         var html = '<div><span>' + escapeHtml(CFG.labels.subtotal) + '</span><span>' + money(sub) + '</span></div>';
         if (state.cart.orderType === 'delivery') {
-            html += '<div><span>' + escapeHtml(CFG.labels.deliveryCharge) + '</span><span>' + money(del) + '</span></div>';
+            html += '<div><span>' + escapeHtml(CFG.labels.deliveryFee || CFG.labels.deliveryCharge) + '</span><span>' + money(del) + '</span></div>';
         }
         if (disc > 0) {
             html += '<div><span>' + escapeHtml(CFG.labels.discount) + '</span><span>−' + money(disc) + '</span></div>';
@@ -541,14 +526,13 @@
             paid_amount: state.cart.paid || grandTotal(),
             extra_discount: Number(state.cart.discount || 0),
             extra_discount_type: state.cart.discountType,
+            delivery_charge: deliveryCharge(),
             table_id: state.cart.orderType === 'dine_in' ? state.cart.tableId : null,
             people_number: state.cart.orderType === 'dine_in' ? state.cart.people : null,
             address: state.cart.orderType === 'delivery' ? {
                 contact_person_name: state.cart.address.contact_person_name || '',
                 contact_person_number: state.cart.address.contact_person_number || '',
                 address: state.cart.address.address || '',
-                selected_area_id: state.cart.address.selected_area_id || null,
-                area_id: state.cart.address.selected_area_id || null,
                 distance: 0
             } : null,
             items: state.cart.lines.map(function (line) {
@@ -830,7 +814,8 @@
         els.delivery = document.getElementById('pos-delivery');
         els.table = document.getElementById('pos-table');
         els.people = document.getElementById('pos-people');
-        els.area = document.getElementById('pos-del-area');
+        els.fee = document.getElementById('pos-del-fee');
+        els.feeCurrency = document.getElementById('pos-del-fee-currency');
         els.lines = document.getElementById('pos-lines');
         els.totals = document.getElementById('pos-totals');
         els.pay = document.getElementById('pos-pay');
@@ -913,9 +898,11 @@
                 persistCart();
             });
         });
-        if (els.area) {
-            els.area.addEventListener('change', function () {
-                state.cart.address.selected_area_id = els.area.value;
+        if (els.fee) {
+            els.fee.addEventListener('input', function () {
+                var fee = Number(els.fee.value);
+                if (!isFinite(fee) || fee < 0) fee = 0;
+                state.cart.deliveryFee = fee;
                 persistCart();
                 scheduleRender();
             });

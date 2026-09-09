@@ -531,15 +531,13 @@ class POSController extends Controller
         $tax = isset($cart['tax']) ? $cart['tax'] : 0;
         $totalTaxAmount = ($tax > 0) ? (($totalPrice * $tax) / 100) : $totalTaxAmount;
 
-        $deliveryCharge = PosOrderTypes::showsDeliveryCharge($orderType)
-            ? Helpers::get_delivery_charge(branchId: auth('branch')->id() ?? 1, distance:  $distance, selectedDeliveryArea: $areaId, orderAmount: $totalPrice + $totalTaxAmount + $totalAddonTax)
-            : 0;
+        $deliveryCharge = $this->resolvePosDeliveryCharge($request, $orderType, $distance, $areaId, $totalPrice + $totalTaxAmount + $totalAddonTax);
 
         try {
             $order->extra_discount = $extraDiscount ?? 0;
             $order->total_tax_amount = $totalTaxAmount;
-            $order->order_amount = $totalPrice + $totalTaxAmount + $order->delivery_charge+$totalAddonTax;
             $order->delivery_charge = $deliveryCharge;
+            $order->order_amount = $totalPrice + $totalTaxAmount + $order->delivery_charge + $totalAddonTax;
             $order->coupon_discount_amount = 0.00;
             $order->branch_id = auth('branch')->id();
             $order->table_id = session()->get('table_id');
@@ -1134,6 +1132,24 @@ class POSController extends Controller
         $clientUuid = trim((string) $request->input('client_uuid', ''));
 
         return $clientUuid === '' ? null : $clientUuid;
+    }
+
+    private function resolvePosDeliveryCharge(Request $request, string $orderType, mixed $distance, mixed $areaId, float $orderAmount): float
+    {
+        if (! PosOrderTypes::showsDeliveryCharge($orderType)) {
+            return 0;
+        }
+
+        if ($this->isJsonPosOrder($request)) {
+            return max(0, (float) $request->input('delivery_charge', 0));
+        }
+
+        return (float) Helpers::get_delivery_charge(
+            branchId: auth('branch')->id() ?? 1,
+            distance: $distance,
+            selectedDeliveryArea: $areaId,
+            orderAmount: $orderAmount
+        );
     }
 
     /**

@@ -324,7 +324,11 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString("->name('heartbeat')", $branchRoutes);
 
         $posPage = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
-        $this->assertStringContainsString('munch-pos-app', $posPage);
+        $this->assertStringContainsString('pos-del-fee', $posPage);
+        $this->assertStringNotContainsString('pos-del-area', $posPage);
+        $this->assertStringContainsString('delivery_charge: deliveryCharge()', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringNotContainsString('selected_area_id', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('resolvePosDeliveryCharge', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('[hidden]', file_get_contents(public_path('assets/admin/css/munch-pos.css')));

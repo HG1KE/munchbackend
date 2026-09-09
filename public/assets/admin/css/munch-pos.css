@@ -277,13 +277,36 @@
 .munch-pos-extra textarea,
 .munch-pos-discount input,
 .munch-pos-discount select,
-.munch-pos-paid input {
+.munch-pos-paid input,
+.munch-pos-fee__field input {
     width: 100%;
     border: 1px solid var(--munch-pos-line);
     border-radius: 12px;
     padding: 0.75rem 0.85rem;
     font: inherit;
     min-height: 46px;
+}
+
+.munch-pos-fee {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.munch-pos-fee > span:first-child {
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.munch-pos-fee__field {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.munch-pos-fee__currency {
+    font-weight: 800;
+    color: var(--munch-pos-muted);
 }
 
 .munch-pos-lines {
