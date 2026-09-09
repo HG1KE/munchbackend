@@ -3048,4 +3048,5 @@
   'Glovo' => 'Glovo',
   'Uber' => 'Uber',
   'Bolt Food' => 'Bolt Food',
+  'Online' => 'Online',
 );
