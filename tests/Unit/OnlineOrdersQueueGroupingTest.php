@@ -321,12 +321,17 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString("->name('online')", $branchRoutes);
         $this->assertStringContainsString('DashboardLiveCardsController', $branchRoutes);
         $this->assertStringContainsString("->name('catalog')", $branchRoutes);
+        $this->assertStringContainsString("->name('heartbeat')", $branchRoutes);
 
         $posPage = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
         $this->assertStringContainsString('munch-pos-app', $posPage);
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
+        $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
+        $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
     }
 
     private function service(): DashboardOrderOperationsService

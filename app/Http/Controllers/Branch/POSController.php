@@ -66,9 +66,23 @@ class POSController extends Controller
 
     public function catalog(): JsonResponse
     {
+        $branchId = (int) auth('branch')->id();
+
         return response()->json([
             'success' => 1,
-            'data' => $this->posCatalog->forBranch((int) auth('branch')->id()),
+            'data' => $this->posCatalog->forBranch($branchId),
+        ]);
+    }
+
+    public function heartbeat(): JsonResponse
+    {
+        $branchId = (int) auth('branch')->id();
+
+        return response()->json([
+            'success' => 1,
+            'authenticated' => true,
+            'csrf' => csrf_token(),
+            'catalog_version' => $this->posCatalog->versionForBranch($branchId),
         ]);
     }
 
@@ -430,11 +444,13 @@ class POSController extends Controller
         $order->order_type = PosOrderTypes::databaseType($orderType);
         $order->coupon_code = $request->coupon_code ?? null;
         $order->payment_method = $request->type;
-        $order->transaction_reference = $request->transaction_reference ?? null;
+        $order->transaction_reference = $request->input('transaction_reference');
+        $order->client_uuid = $this->posClientUuid($request);
+        $order->sales_channel = PosOrderTypes::salesChannel($orderType);
         $order->delivery_address_id = PosOrderTypes::isDelivery($orderType) && $customerAddress ? $customerAddress->id : null;
         $order->delivery_date = $placedAt->format('Y-m-d');
         $order->delivery_time = $placedAt->format('H:i:s');
-        $order->order_note = PosOrderTypes::orderNote($orderType);
+        $order->order_note = $request->filled('order_note') ? $request->input('order_note') : null;
         $order->checked = 1;
         $order->created_at = $placedAt;
         $order->updated_at = $placedAt;
@@ -638,6 +654,22 @@ class POSController extends Controller
             return back();
         } catch (\Exception $e) {
             info($e);
+            $clientUuid = $this->posClientUuid($request);
+            if ($this->isJsonPosOrder($request) && $clientUuid) {
+                $existing = $this->order
+                    ->where('branch_id', auth('branch')->id())
+                    ->where('client_uuid', $clientUuid)
+                    ->first();
+                if ($existing) {
+                    return response()->json([
+                        'success' => 1,
+                        'duplicate' => true,
+                        'order_id' => $existing->id,
+                        'order_display_id' => Helpers::order_display_id($existing),
+                        'message' => translate('order_placed_successfully'),
+                    ]);
+                }
+            }
         }
 
         return $this->posFail($request, translate('failed_to_place_order'), 500);
@@ -689,8 +721,9 @@ class POSController extends Controller
     {
         $from = $request->from;
         $to = $request->to;
-        $queryParam = [];
         $search = $request['search'];
+        $salesChannel = $request->input('sales_channel');
+        $salesChannels = PosOrderTypes::salesChannels();
 
         $this->order->where(['checked' => 0])->update(['checked' => 1]);
 
@@ -707,10 +740,14 @@ class POSController extends Controller
             ->when($request->from && $request->to, function ($q) use ($request) {
                 $q->whereBetween('created_at', [$request->from, Carbon::parse($request->to)->endOfDay()]);
             })
+            ->when($salesChannel && in_array($salesChannel, $salesChannels, true), function ($q) use ($salesChannel) {
+                $q->where('sales_channel', $salesChannel);
+            })
             ->latest()
-            ->paginate(Helpers::getPagination());
+            ->paginate(Helpers::getPagination())
+            ->appends($request->query());
 
-        return view('branch-views.pos.order.list', compact('orders', 'search', 'from', 'to'));
+        return view('branch-views.pos.order.list', compact('orders', 'search', 'from', 'to', 'salesChannel', 'salesChannels'));
     }
 
     /**
@@ -955,6 +992,9 @@ class POSController extends Controller
             ->when($request->from && $request->to, function ($q) use ($request) {
                 $q->whereBetween('created_at', [$request->from, Carbon::parse($request->to)->endOfDay()]);
             })
+            ->when($request->filled('sales_channel') && in_array($request->input('sales_channel'), PosOrderTypes::salesChannels(), true), function ($q) use ($request) {
+                $q->where('sales_channel', $request->input('sales_channel'));
+            })
             ->latest()
             ->get();
 
@@ -972,7 +1012,7 @@ class POSController extends Controller
                 'Total Amount' => Helpers::set_symbol($order->order_amount),
                 'Payment Status' => ucfirst($order->payment_status),
                 'Order Status' => ucfirst(str_replace('_', ' ', $order->order_status)),
-                'Order Type' => $order->order_type === 'take_away' ? 'Take Away' : 'Delivery',
+                'Order Type' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
             ];
         });
 
@@ -1023,12 +1063,11 @@ class POSController extends Controller
      */
     private function prepareJsonPosOrder(Request $request): ?JsonResponse
     {
-        $clientUuid = trim((string) $request->input('client_uuid', ''));
-        if ($clientUuid !== '') {
-            $reference = $this->posClientReference($clientUuid);
+        $clientUuid = $this->posClientUuid($request);
+        if ($clientUuid !== null) {
             $existing = $this->order
                 ->where('branch_id', auth('branch')->id())
-                ->where('transaction_reference', $reference)
+                ->where('client_uuid', $clientUuid)
                 ->first();
             if ($existing) {
                 return response()->json([
@@ -1039,7 +1078,6 @@ class POSController extends Controller
                     'message' => translate('order_placed_successfully'),
                 ]);
             }
-            $request->merge(['transaction_reference' => $reference]);
         }
 
         $items = $request->input('items', []);
@@ -1091,9 +1129,11 @@ class POSController extends Controller
         return null;
     }
 
-    private function posClientReference(string $clientUuid): string
+    private function posClientUuid(Request $request): ?string
     {
-        return 'pos:'.$clientUuid;
+        $clientUuid = trim((string) $request->input('client_uuid', ''));
+
+        return $clientUuid === '' ? null : $clientUuid;
     }
 
     /**

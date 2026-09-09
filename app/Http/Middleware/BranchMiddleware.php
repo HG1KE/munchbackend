@@ -19,6 +19,13 @@ class BranchMiddleware
         if (Auth::guard('branch')->check()) {
             return $next($request);
         }
+        if ($request->expectsJson() || $request->header('X-Munch-POS') === '1') {
+            return response()->json([
+                'success' => 0,
+                'code' => 'unauthenticated',
+                'message' => 'Session expired. Please sign in again.',
+            ], 401);
+        }
         return redirect()->route('branch.auth.login');
     }
 }

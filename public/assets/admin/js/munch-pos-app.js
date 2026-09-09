@@ -12,6 +12,8 @@
         search: '',
         online: navigator.onLine,
         queueCount: 0,
+        queueItems: [],
+        authRequired: false,
         syncLabel: '',
         syncKind: '',
         placing: false,
@@ -168,7 +170,7 @@
         var q = (state.search || '').trim().toLowerCase();
         return (state.catalog.products || []).filter(function (p) {
             if (state.categoryId && (p.category_ids || []).indexOf(state.categoryId) === -1) return false;
-            if (q && String(p.name || '').toLowerCase().indexOf(q) === -1) return false;
+            if (q && String(p.name || '').toLowerCase().indexOf(q) === -1 && String(p.id) !== q) return false;
             return true;
         });
     }
@@ -189,6 +191,7 @@
         renderTypes();
         renderExtras();
         renderLines();
+        renderQueue();
         renderTotals();
         renderPay();
     }
@@ -205,6 +208,10 @@
             } else {
                 els.queue.hidden = true;
             }
+        }
+        if (els.auth) {
+            els.auth.hidden = !state.authRequired;
+            if (els.authLink && CFG.urls.login) els.authLink.href = CFG.urls.login;
         }
         if (els.sync) {
             if (state.syncLabel) {
@@ -235,8 +242,8 @@
         var start = 0;
         var end = list.length;
         if (list.length > 80) {
-            var rowH = 232;
-            var cols = Math.max(2, Math.floor(els.grid.clientWidth / 172) || 2);
+            var rowH = 300;
+            var cols = Math.max(2, Math.floor(els.grid.clientWidth / 220) || 2);
             var top = els.grid.scrollTop;
             var vis = Math.ceil(els.grid.clientHeight / rowH) + 3;
             var startRow = Math.max(0, Math.floor(top / rowH) - 1);
@@ -246,8 +253,8 @@
         }
         for (i = start; i < end; i++) html += productCard(list[i]);
         if (list.length > 80) {
-            var remain = Math.ceil((list.length - end) / Math.max(2, Math.floor(els.grid.clientWidth / 172) || 2));
-            html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (remain * 232) + 'px"></div>';
+            var remain = Math.ceil((list.length - end) / cols);
+            html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (remain * 300) + 'px"></div>';
         }
         els.grid.innerHTML = html;
     }
@@ -346,6 +353,34 @@
         return bits.join(' · ');
     }
 
+    function queueStatusLabel(row) {
+        if (row.status === 'syncing') return CFG.labels.syncing;
+        if (row.status === 'failed') return CFG.labels.validationFailed;
+        if (row.status === 'auth') return CFG.labels.sessionExpired;
+        return CFG.labels.retrying;
+    }
+
+    function renderQueue() {
+        if (!els.queueList) return;
+        var rows = state.queueItems || [];
+        if (!rows.length) {
+            els.queueList.hidden = true;
+            els.queueList.innerHTML = '';
+            return;
+        }
+        els.queueList.hidden = false;
+        els.queueList.innerHTML = rows.map(function (row) {
+            var klass = 'munch-pos-queue__item';
+            if (row.status === 'failed') klass += ' is-failed';
+            if (row.status === 'auth') klass += ' is-auth';
+            if (row.status === 'syncing') klass += ' is-syncing';
+            var detail = row.lastError ? ' — ' + row.lastError : '';
+            return '<li class="' + klass + '"><strong>' + escapeHtml(queueStatusLabel(row)) + '</strong>' +
+                escapeHtml((row.payload && row.payload.order_type ? row.payload.order_type : 'order') + ' · ' + (row.createdAt || '').replace('T', ' ').slice(0, 19)) +
+                escapeHtml(detail) + '</li>';
+        }).join('');
+    }
+
     function renderTotals() {
         if (!els.totals) return;
         var sub = cartSubtotal();
@@ -360,6 +395,7 @@
         }
         html += '<div class="is-grand"><span>' + escapeHtml(CFG.labels.grandTotal) + '</span><span>' + money(grandTotal()) + '</span></div>';
         els.totals.innerHTML = html;
+        if (els.topTotal) els.topTotal.textContent = money(grandTotal());
         if (els.discount) els.discount.value = state.cart.discount || '';
         if (els.discountType) els.discountType.value = state.cart.discountType;
         if (els.place) els.place.disabled = !state.cart.lines.length || state.placing;
@@ -540,7 +576,47 @@
         return (meta && meta.getAttribute('content')) || CFG.csrf || '';
     }
 
-    function postOrder(payload) {
+    function setCsrf(token) {
+        if (!token) return;
+        CFG.csrf = token;
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) meta.setAttribute('content', token);
+    }
+
+    function parsePosResponse(res, body) {
+        body = body && typeof body === 'object' ? body : {};
+        body._http = res.status;
+        body._ok = res.ok;
+        if (res.redirected && String(res.url).indexOf('login') !== -1) {
+            body._http = 401;
+            body.code = 'unauthenticated';
+        }
+        return body;
+    }
+
+    function refreshHeartbeat() {
+        if (!CFG.urls.heartbeat) return Promise.resolve(null);
+        return fetch(CFG.urls.heartbeat, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-Munch-POS': '1' }
+        }).then(function (res) {
+            if (res.status === 401 || (res.redirected && String(res.url).indexOf('login') !== -1)) {
+                state.authRequired = true;
+                scheduleRender();
+                return false;
+            }
+            return res.json().then(function (json) {
+                if (json && json.csrf) setCsrf(json.csrf);
+                state.authRequired = false;
+                if (json && json.catalog_version && json.catalog_version !== (state.catalog.version || '')) {
+                    return refreshCatalog(true).then(function () { return true; });
+                }
+                return true;
+            });
+        }).catch(function () { return null; });
+    }
+
+    function postOrder(payload, retried) {
         return fetch(CFG.urls.order, {
             method: 'POST',
             credentials: 'same-origin',
@@ -552,10 +628,15 @@
             },
             body: JSON.stringify(payload)
         }).then(function (res) {
+            if (res.status === 419 && !retried) {
+                return refreshHeartbeat().then(function (ok) {
+                    if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
+                    if (!ok) return { success: 0, _http: 419, _ok: false };
+                    return postOrder(payload, true);
+                });
+            }
             return res.json().catch(function () { return {}; }).then(function (body) {
-                body._http = res.status;
-                body._ok = res.ok;
-                return body;
+                return parsePosResponse(res, body);
             });
         });
     }
@@ -570,7 +651,9 @@
 
     function refreshQueueCount() {
         return idbGetAll('queue').then(function (rows) {
-            state.queueCount = rows.filter(function (row) { return row.status !== 'synced'; }).length;
+            state.queueItems = (rows || []).filter(function (row) { return row.status !== 'synced'; });
+            state.queueCount = state.queueItems.length;
+            state.authRequired = state.queueItems.some(function (row) { return row.status === 'auth'; }) || state.authRequired;
             scheduleRender();
         });
     }
@@ -593,9 +676,12 @@
         state.syncKind = 'sync';
         scheduleRender();
         return idbGetAll('queue').then(function (rows) {
-            var pending = rows.filter(function (row) { return row.status !== 'synced' && row.status !== 'syncing'; });
+            var pending = rows.filter(function (row) {
+                return row.status === 'queued' || row.status === 'auth' || row.status === 'syncing';
+            });
             var chain = Promise.resolve();
             pending.forEach(function (row) {
+                if (row.status === 'syncing') row.status = 'queued';
                 chain = chain.then(function () { return syncOne(row); });
             });
             return chain;
@@ -628,19 +714,28 @@
             if (body && (body.success === 1 || body.duplicate)) {
                 return idbDelete('queue', row.id).then(refreshQueueCount);
             }
-            if (body && body._http >= 400 && body._http < 500 && body._http !== 419) {
+            if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
+                row.status = 'auth';
+                row.lastError = CFG.labels.sessionExpired;
+                state.authRequired = true;
+                state.syncLabel = CFG.labels.sessionExpired;
+                state.syncKind = 'err';
+                return idbPut('queue', row).then(refreshQueueCount);
+            }
+            if (body && body._http === 422) {
                 row.status = 'failed';
-                row.lastError = body.message || CFG.labels.syncFailed;
+                row.lastError = body.message || CFG.labels.validationFailed;
                 state.syncLabel = CFG.labels.syncFailed;
                 state.syncKind = 'err';
                 return idbPut('queue', row).then(refreshQueueCount);
             }
             row.status = 'queued';
-            row.lastError = (body && body.message) || CFG.labels.syncFailed;
-            return idbPut('queue', row);
+            row.lastError = (body && body.message) || CFG.labels.retrying;
+            return idbPut('queue', row).then(refreshQueueCount);
         }).catch(function () {
             row.status = 'queued';
-            return idbPut('queue', row);
+            row.lastError = CFG.labels.retrying;
+            return idbPut('queue', row).then(refreshQueueCount);
         });
     }
 
@@ -667,7 +762,14 @@
                 toast(CFG.labels.placed);
                 return;
             }
-            if (body && body._http >= 400 && body._http < 500 && body._http !== 419) {
+            if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
+                state.authRequired = true;
+                return enqueue(payload).then(function () {
+                    clearCart();
+                    toast(CFG.labels.sessionExpired);
+                });
+            }
+            if (body && body._http === 422) {
                 toast((body && body.message) || CFG.labels.syncFailed);
                 return;
             }
@@ -686,10 +788,20 @@
         });
     }
 
-    function refreshCatalog() {
-        if (!navigator.onLine || !CFG.urls.catalog) return;
-        fetch(CFG.urls.catalog, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-            .then(function (res) { return res.json(); })
+    function refreshCatalog(force) {
+        if (!navigator.onLine || !CFG.urls.catalog) return Promise.resolve();
+        if (!force) {
+            return refreshHeartbeat();
+        }
+        return fetch(CFG.urls.catalog, { credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Munch-POS': '1' } })
+            .then(function (res) {
+                if (res.status === 401) {
+                    state.authRequired = true;
+                    scheduleRender();
+                    return null;
+                }
+                return res.json();
+            })
             .then(function (json) {
                 if (json && json.data) {
                     indexCatalog(json.data);
@@ -729,6 +841,10 @@
         els.change = document.getElementById('pos-change');
         els.place = document.getElementById('pos-place');
         els.toast = document.getElementById('pos-toast');
+        els.topTotal = document.getElementById('pos-top-total');
+        els.queueList = document.getElementById('pos-queue-list');
+        els.auth = document.getElementById('pos-auth');
+        els.authLink = document.getElementById('pos-auth-link');
 
         document.getElementById('pos-search').addEventListener('input', function (ev) {
             state.search = ev.target.value;
@@ -829,8 +945,7 @@
         window.addEventListener('online', function () {
             state.online = true;
             scheduleRender();
-            syncQueue();
-            refreshCatalog();
+            refreshHeartbeat().then(function () { syncQueue(); });
         });
         window.addEventListener('offline', function () {
             state.online = false;
@@ -841,11 +956,14 @@
             if (now !== state.online) {
                 state.online = now;
                 scheduleRender();
-                if (now) syncQueue();
+                if (now) refreshHeartbeat().then(function () { syncQueue(); });
             } else if (now && state.queueCount) {
                 syncQueue();
             }
         }, 10000);
+        setInterval(function () {
+            if (navigator.onLine) refreshHeartbeat();
+        }, 30000);
         if ('serviceWorker' in navigator && CFG.urls.sw) {
             navigator.serviceWorker.register(CFG.urls.sw).catch(function () {});
             navigator.serviceWorker.addEventListener('message', function (ev) {
@@ -862,14 +980,16 @@
             idbGet('cart', CART_KEY),
             idbPut('meta', { csrf: csrfToken(), orderUrl: CFG.urls.order }, 'session')
         ]).then(function (results) {
-            if (results[0] && results[0].products) indexCatalog(results[0]);
-            else if (CFG.catalog) idbPut('catalog', CFG.catalog, 'latest');
+            if (results[0] && results[0].products && (!CFG.catalog || !CFG.catalog.version || results[0].version === CFG.catalog.version)) {
+                indexCatalog(results[0]);
+            } else if (CFG.catalog) {
+                idbPut('catalog', CFG.catalog, 'latest');
+            }
             if (results[1] && Array.isArray(results[1].lines)) state.cart = Object.assign(state.cart, results[1]);
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();
-            refreshCatalog();
-            if (navigator.onLine) syncQueue();
+            if (navigator.onLine) refreshHeartbeat().then(function () { syncQueue(); });
         }).catch(function () {
             scheduleRender();
         });

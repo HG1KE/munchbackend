@@ -15,6 +15,7 @@ use App\Model\Notification;
 use App\Model\Product;
 use App\Model\Order;
 use App\Services\OrderReadableIdService;
+use App\Support\PosOrderTypes;
 use App\Model\OrderDetail;
 use App\Model\ProductByBranch;
 use App\Model\Table;
@@ -902,7 +903,7 @@ class POSController extends Controller
                 'Total Amount' => Helpers::set_symbol($order['order_amount']),
                 'Payment Status' => $order->payment_status == 'paid' ? 'Paid' : 'Unpaid',
                 'Order Status' => $order['order_status'] == 'pending' ? 'Pending' : ($order['order_status'] == 'confirmed' ? 'Confirmed' : ($order['order_status'] == 'processing' ? 'Processing' : ($order['order_status'] == 'delivered' ? 'Delivered' : ($order['order_status'] == 'picked_up' ? 'Out For Delivery' : str_replace('_', ' ', $order['order_status']))))),
-                'Order Type' => $order['order_type'] == 'take_away' ? 'Take Away' : 'Delivery',
+                'Order Type' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
             );
         }
 

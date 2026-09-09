@@ -6,7 +6,8 @@ namespace App\Support;
  * Branch POS order-type contract (UI values vs stored orders.order_type).
  *
  * Marketplace channels (Glovo / Uber / Bolt Food) are stored as `pos` so they
- * never appear on the Online Orders board. The channel name is kept in order_note.
+ * never appear on the Online Orders board. The cashier-facing channel is stored
+ * in `sales_channel`, never in `order_note`.
  */
 class PosOrderTypes
 {
@@ -84,13 +85,49 @@ class PosOrderTypes
         };
     }
 
-    public static function orderNote(?string $type): ?string
+    /**
+     * Dedicated POS sales channel. Independent of `order_type` and `order_note`.
+     *
+     * @return 'pos'|'delivery'|'takeaway'|'dine_in'|'glovo'|'uber'|'bolt_food'
+     */
+    public static function salesChannel(?string $type): string
     {
         return match (self::normalize($type)) {
-            self::GLOVO => 'Glovo',
-            self::UBER => 'Uber',
-            self::BOLT_FOOD => 'Bolt Food',
-            default => null,
+            self::DELIVERY => 'delivery',
+            self::TAKE_AWAY => 'takeaway',
+            self::DINE_IN => 'dine_in',
+            self::GLOVO => 'glovo',
+            self::UBER => 'uber',
+            self::BOLT_FOOD => 'bolt_food',
+            default => 'pos',
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function salesChannels(): array
+    {
+        return ['pos', 'delivery', 'takeaway', 'dine_in', 'glovo', 'uber', 'bolt_food'];
+    }
+
+    public static function channelLabel(?string $salesChannel, ?string $orderType = null): string
+    {
+        return match ($salesChannel ?: '') {
+            'pos' => 'POS',
+            'delivery' => 'Delivery',
+            'takeaway' => 'Take Away',
+            'dine_in' => 'Dine In',
+            'glovo' => 'Glovo',
+            'uber' => 'Uber',
+            'bolt_food' => 'Bolt Food',
+            default => match ($orderType ?: '') {
+                'pos' => 'POS',
+                'dine_in' => 'Dine In',
+                'delivery' => 'Delivery',
+                'take_away' => 'Take Away',
+                default => $orderType ? (string) $orderType : 'POS',
+            },
         };
     }
 

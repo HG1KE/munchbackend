@@ -38,6 +38,7 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
         Route::group(['prefix' => 'pos', 'as' => 'pos.'], function () {
             Route::get('/', [POSController::class, 'index'])->name('index');
             Route::get('catalog', [POSController::class, 'catalog'])->name('catalog');
+            Route::get('heartbeat', [POSController::class, 'heartbeat'])->name('heartbeat');
             Route::get('service-worker.js', [POSController::class, 'serviceWorker'])->name('service-worker');
             Route::get('quick-view', [POSController::class, 'quickView'])->name('quick-view');
             Route::post('variant_price', [POSController::class, 'variantPrice'])->name('variant_price');

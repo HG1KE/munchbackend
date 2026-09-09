@@ -164,7 +164,7 @@
                                     @endif
                                 </td>
                                 <td class="text-capitalize">
-                                    <span class="badge-soft-success px-2 py-1 rounded">{{translate($order['order_type'])}}</span>
+                                    <span class="badge-soft-success px-2 py-1 rounded">{{ translate(\App\Support\PosOrderTypes::channelLabel($order->sales_channel, $order->order_type)) }}</span>
                                 </td>
                                 <td>
                                     <div class="d-flex justify-content-center gap-2">

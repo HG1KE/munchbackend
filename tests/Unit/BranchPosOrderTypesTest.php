@@ -39,10 +39,20 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('pos', PosOrderTypes::databaseType('bolt_food'));
         $this->assertSame('dine_in', PosOrderTypes::databaseType('dine_in'));
         $this->assertSame('delivery', PosOrderTypes::databaseType('delivery'));
-        $this->assertSame('Glovo', PosOrderTypes::orderNote('glovo'));
-        $this->assertSame('Uber', PosOrderTypes::orderNote('uber'));
-        $this->assertSame('Bolt Food', PosOrderTypes::orderNote('bolt_food'));
-        $this->assertNull(PosOrderTypes::orderNote('take_away'));
+        $this->assertSame('takeaway', PosOrderTypes::salesChannel('take_away'));
+        $this->assertSame('delivery', PosOrderTypes::salesChannel('delivery'));
+        $this->assertSame('dine_in', PosOrderTypes::salesChannel('dine_in'));
+        $this->assertSame('glovo', PosOrderTypes::salesChannel('glovo'));
+        $this->assertSame('uber', PosOrderTypes::salesChannel('uber'));
+        $this->assertSame('bolt_food', PosOrderTypes::salesChannel('bolt_food'));
+        $this->assertSame('takeaway', PosOrderTypes::salesChannel('unknown'));
+        $this->assertSame([
+            'pos', 'delivery', 'takeaway', 'dine_in', 'glovo', 'uber', 'bolt_food',
+        ], PosOrderTypes::salesChannels());
+        $this->assertFalse(method_exists(PosOrderTypes::class, 'orderNote'));
+        $this->assertSame('Glovo', PosOrderTypes::channelLabel('glovo'));
+        $this->assertSame('Take Away', PosOrderTypes::channelLabel('takeaway', 'pos'));
+        $this->assertSame('POS', PosOrderTypes::channelLabel(null, 'pos'));
     }
 
     public function test_paid_and_status_defaults_match_existing_takeaway_and_dine_in_rules(): void

@@ -7,6 +7,7 @@ use App\Model\AddOn;
 use App\Model\Branch;
 use App\Model\Category;
 use App\Model\Product;
+use App\Model\ProductByBranch;
 use App\Model\Table;
 use App\Models\DeliveryChargeByArea;
 
@@ -114,6 +115,7 @@ class BranchPosCatalogService
 
         return [
             'generated_at' => now()->toIso8601String(),
+            'version' => $this->versionForBranch($branchId),
             'branch_id' => $branchId,
             'currency_symbol' => $currencySymbol,
             'currency_position' => Helpers::get_business_settings('currency_symbol_position') ?: 'left',
@@ -125,6 +127,38 @@ class BranchPosCatalogService
             'tables' => $tables,
             'delivery' => $this->deliverySetup($branchId),
         ];
+    }
+
+    /**
+     * Lightweight fingerprint of price, availability, categories, add-ons, and modifiers.
+     */
+    public function versionForBranch(int $branchId): string
+    {
+        $branch = ProductByBranch::query()
+            ->where('branch_id', $branchId)
+            ->selectRaw('MAX(updated_at) as u, COUNT(*) as c, SUM(is_available) as a, SUM(price) as p, SUM(discount) as d')
+            ->first();
+        $productMax = Product::query()->max('updated_at');
+        $addon = AddOn::withoutGlobalScopes()
+            ->selectRaw('MAX(updated_at) as u, COUNT(*) as c, SUM(price) as p')
+            ->first();
+        $categoryMax = Category::query()->max('updated_at');
+        $categoryCount = Category::query()->where(['position' => 0])->count();
+
+        return hash('sha256', implode('|', [
+            $branchId,
+            (string) ($branch->u ?? ''),
+            (string) ($branch->c ?? 0),
+            (string) ($branch->a ?? 0),
+            (string) ($branch->p ?? 0),
+            (string) ($branch->d ?? 0),
+            (string) $productMax,
+            (string) ($addon->u ?? ''),
+            (string) ($addon->c ?? 0),
+            (string) ($addon->p ?? 0),
+            (string) $categoryMax,
+            (string) $categoryCount,
+        ]));
     }
 
     /**

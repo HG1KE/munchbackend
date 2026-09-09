@@ -26,19 +26,32 @@
                             <div class="col-12 pb-0">
                                 <h4 class="mb-0">{{translate('select_date_range')}}</h4>
                             </div>
-                            <div class="col-sm-6 col-md-4">
+                            <div class="col-sm-6 col-md-3">
                                 <div class="form-group mb-0">
                                     <label class="text-dark">{{translate('start_date')}}</label>
                                     <input type="date" name="from" value="{{$from}}" id="from_date" class="form-control">
                                 </div>
                             </div>
-                            <div class="col-sm-6 col-md-4">
+                            <div class="col-sm-6 col-md-3">
                                 <div class="form-group mb-0">
                                     <label class="text-dark">{{translate('end_date')}}</label>
                                     <input type="date" value="{{$to}}" name="to" id="to_date" class="form-control">
                                 </div>
                             </div>
-                            <div class="col-sm-12 col-md-4">
+                            <div class="col-sm-6 col-md-3">
+                                <div class="form-group mb-0">
+                                    <label class="text-dark">{{translate('order_Type')}}</label>
+                                    <select name="sales_channel" class="form-control">
+                                        <option value="">{{translate('All')}}</option>
+                                        @foreach($salesChannels as $channel)
+                                            <option value="{{ $channel }}" {{ ($salesChannel ?? '') === $channel ? 'selected' : '' }}>
+                                                {{ translate(\App\Support\PosOrderTypes::channelLabel($channel)) }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
                                 <button type="submit" class="btn btn-primary btn-block">{{translate('show_data')}}</button>
                             </div>
                         </div>
@@ -74,7 +87,7 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-right">
                                 <li>
-                                    <a type="submit" class="dropdown-item d-flex align-items-center gap-2" href="{{ route('branch.pos.export-excel') }}?&from={{$from}}&to={{$to}}&search={{$search}}">
+                                    <a type="submit" class="dropdown-item d-flex align-items-center gap-2" href="{{ route('branch.pos.export-excel') }}?from={{$from}}&to={{$to}}&search={{$search}}&sales_channel={{ $salesChannel ?? '' }}">
                                         <img width="14" src="{{asset('public/assets/admin/img/icons/excel.png')}}" alt="">
                                         {{ translate('Excel') }}
                                     </a>
@@ -164,7 +177,7 @@
                                     @endif
                                 </td>
                                 <td class="text-capitalize">
-                                    <span class="badge-soft-success px-2 py-1 rounded">{{translate($order['order_type'])}}</span>
+                                    <span class="badge-soft-success px-2 py-1 rounded">{{ translate(\App\Support\PosOrderTypes::channelLabel($order->sales_channel, $order->order_type)) }}</span>
                                 </td>
                                 <td>
                                     <div class="d-flex justify-content-center gap-2">

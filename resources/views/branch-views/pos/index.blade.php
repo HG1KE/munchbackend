@@ -15,6 +15,7 @@
             <span class="munch-pos-badge munch-pos-badge--queue" id="pos-queue-badge" hidden>0</span>
             <span class="munch-pos-badge munch-pos-badge--sync" id="pos-sync-badge" hidden></span>
         </div>
+        <div class="munch-pos-topbar__total" id="pos-top-total"></div>
         <a class="munch-pos-topbar__link" href="{{ route('branch.pos.orders') }}">{{ translate('orders') }}</a>
     </header>
 
@@ -45,6 +46,11 @@
                     <select id="pos-del-area" hidden></select>
                 </div>
                 <ul class="munch-pos-lines" id="pos-lines"></ul>
+                <div class="munch-pos-auth" id="pos-auth" hidden>
+                    <p>{{ translate('Session expired. Please sign in again.') }}</p>
+                    <a class="munch-pos-auth__btn" id="pos-auth-link" href="{{ route('branch.auth.login') }}">{{ translate('Sign in') }}</a>
+                </div>
+                <ul class="munch-pos-queue" id="pos-queue-list" hidden></ul>
             </div>
             <div class="munch-pos-footer">
                 <div class="munch-pos-totals" id="pos-totals"></div>
@@ -81,9 +87,11 @@
         csrf: @json(csrf_token()),
         urls: {
             catalog: @json(route('branch.pos.catalog')),
+            heartbeat: @json(route('branch.pos.heartbeat')),
             order: @json(route('branch.pos.order')),
             invoice: @json(url('branch/pos/invoice')),
             sw: @json(route('branch.pos.service-worker')),
+            login: @json(route('branch.auth.login')),
         },
         labels: {
             all: @json(translate('All Categories')),
@@ -117,8 +125,12 @@
             address: @json(translate('please select a delivery address')),
             placed: @json(translate('order_placed_successfully')),
             queuedSaved: @json(translate('Order saved offline')),
+            signIn: @json(translate('Sign in')),
+            sessionExpired: @json(translate('Session expired. Please sign in again.')),
+            retrying: @json(translate('Waiting to retry')),
+            validationFailed: @json(translate('Needs correction')),
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.0" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.2" defer></script>
 @endpush

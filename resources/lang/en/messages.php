@@ -3041,4 +3041,11 @@
   'In-store' => 'In-store',
   'Full-screen checkout · works offline' => 'Full-screen checkout · works offline',
   'Open' => 'Open',
+  'Sign in' => 'Sign in',
+  'Session expired. Please sign in again.' => 'Session expired. Please sign in again.',
+  'Waiting to retry' => 'Waiting to retry',
+  'Needs correction' => 'Needs correction',
+  'Glovo' => 'Glovo',
+  'Uber' => 'Uber',
+  'Bolt Food' => 'Bolt Food',
 );
