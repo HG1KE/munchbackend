@@ -12,7 +12,10 @@ use App\Model\CustomerAddress;
 use App\Model\Notification;
 use App\Model\Product;
 use App\Model\Order;
+use App\Services\BranchPosCatalogService;
 use App\Services\OrderReadableIdService;
+use App\Support\OrderPlacementTime;
+use App\Support\PosOrderTypes;
 use App\Model\OrderDetail;
 use App\Model\ProductByBranch;
 use App\Model\Table;
@@ -43,6 +46,7 @@ class POSController extends Controller
         private Product         $product,
         private Branch          $branch,
         private ProductByBranch $product_by_Branch,
+        private BranchPosCatalogService $posCatalog,
     )
     {}
 
@@ -52,39 +56,31 @@ class POSController extends Controller
      */
     public function index(Request $request): Renderable
     {
-        $category = $request->query('category_id', 0);
-        $categories = $this->category->where(['position' => 0])->active()->get();
-        $keyword = $request->keyword;
-        $key = explode(' ', $keyword);
-        $selectedCustomer = $this->user->where('id', session('customer_id'))->first();
-        $selectedTable = $this->table->where('id', session('table_id'))->first();
+        $branchId = (int) auth('branch')->id();
 
-        $products = $this->product
-            ->with('product_by_branch')
-            ->with(['product_by_branch' => function ($q) {
-                $q->where(['is_available' => 1, 'branch_id' => auth('branch')->id()]);
-            }])
-            ->whereHas('product_by_branch', function ($q) {
-                $q->where(['is_available' => 1, 'branch_id' => auth('branch')->id()]);
-            })
-            ->when($request->has('category_id') && $request['category_id'] != 0, function ($query) use ($request) {
-                $query->whereJsonContains('category_ids', [['id' => (string)$request['category_id']]]);
-            })
-            ->when($keyword, function ($query) use ($key) {
-                return $query->where(function ($q) use ($key) {
-                    foreach ($key as $value) {
-                        $q->orWhere('name', 'like', "%{$value}%");
-                    }
-                });
-            })
-            ->active()
-            ->latest()
-            ->paginate(Helpers::getPagination());
+        return view('branch-views.pos.index', [
+            'catalog' => $this->posCatalog->forBranch($branchId),
+            'branchName' => (string) (auth('branch')->user()->name ?? ''),
+        ]);
+    }
 
-        $branch = $this->branch->find(auth('branch')->id());
-        $tables = $this->table->where(['branch_id' => auth('branch')->id()])->get();
+    public function catalog(): JsonResponse
+    {
+        return response()->json([
+            'success' => 1,
+            'data' => $this->posCatalog->forBranch((int) auth('branch')->id()),
+        ]);
+    }
 
-        return view('branch-views.pos.index', compact('categories', 'products', 'category', 'keyword', 'branch', 'tables', 'selectedTable', 'selectedCustomer'));
+    public function serviceWorker()
+    {
+        $path = public_path('assets/admin/js/munch-pos-sw.js');
+
+        return response()->file($path, [
+            'Content-Type' => 'application/javascript; charset=UTF-8',
+            'Cache-Control' => 'no-cache',
+            'Service-Worker-Allowed' => '/branch/pos',
+        ]);
     }
 
     /**
@@ -341,73 +337,71 @@ class POSController extends Controller
 
     /**
      * @param Request $request
-     * @return RedirectResponse
+     * @return RedirectResponse|JsonResponse
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      */
-    public function placeOrder(Request $request): RedirectResponse
+    public function placeOrder(Request $request): RedirectResponse|JsonResponse
     {
-        if ($request->session()->has('cart')) {
-            if (count($request->session()->get('cart')) < 1) {
-                Toastr::error(translate('cart_empty_warning'));
-                return back();
+        if ($this->isJsonPosOrder($request)) {
+            $prepared = $this->prepareJsonPosOrder($request);
+            if ($prepared instanceof JsonResponse) {
+                return $prepared;
             }
-        } else {
-            Toastr::error(translate('cart_empty_warning'));
-            return back();
         }
 
-        $orderType = session()->has('order_type') ? session()->get('order_type') : 'take_away';
+        if ($request->session()->has('cart')) {
+            if (count($request->session()->get('cart')) < 1) {
+                return $this->posFail($request, translate('cart_empty_warning'));
+            }
+        } else {
+            return $this->posFail($request, translate('cart_empty_warning'));
+        }
 
-        if ($orderType == 'dine_in'){
+        $orderType = PosOrderTypes::normalize(
+            session()->has('order_type') ? (string) session()->get('order_type') : PosOrderTypes::TAKE_AWAY
+        );
+
+        if (PosOrderTypes::isDineIn($orderType)) {
             if (!session()->has('table_id')){
-                Toastr::error(translate('please select a table number'));
-                return back();
+                return $this->posFail($request, translate('please select a table number'));
             }
             if (!session()->has('people_number')){
-                Toastr::error(translate('please enter people number'));
-                return back();
+                return $this->posFail($request, translate('please enter people number'));
             }
 
             $table = Table::find(session('table_id'));
             if (isset($table) && session('people_number') > $table->capacity  || session('people_number') < 1 ) {
-                Toastr::error(translate('enter valid people number between 1 to '. $table->capacity));
-                return back();
+                return $this->posFail($request, translate('enter valid people number between 1 to '. $table->capacity));
             }
         }
 
         $deliveryCharge = 0;
         $distance = 0;
         $areaId = null;
+        $customerAddress = null;
 
-        // store customer address for home delivery
-        if ($orderType == 'home_delivery'){
-            if (!session()->has('customer_id')){
-                Toastr::error(translate('please select a customer'));
-                return back();
-            }
-
+        if (PosOrderTypes::isDelivery($orderType)) {
             if (!session()->has('address')){
-                Toastr::error(translate('please select a delivery address'));
-                return back();
+                return $this->posFail($request, translate('please select a delivery address'));
             }
 
             $addressData = session()->get('address');
             $distance = $addressData['distance'] ?? 0;
-            $areaId = $addressData['area_id'];
+            $areaId = $addressData['area_id'] ?? $addressData['selected_area_id'] ?? null;
 
             $address = [
                 'address_type' => 'Home',
-                'contact_person_name' => $addressData['contact_person_name'],
-                'contact_person_number' => $addressData['contact_person_number'],
-                'address' => $addressData['address'],
-                'floor' => $addressData['floor'],
-                'road' => $addressData['road'],
-                'house' => $addressData['house'],
-                'longitude' => (string)$addressData['longitude'],
-                'latitude' => (string)$addressData['latitude'],
-                'user_id' => session()->get('customer_id'),
-                'is_guest' => 0,
+                'contact_person_name' => $addressData['contact_person_name'] ?? 'POS Delivery',
+                'contact_person_number' => $addressData['contact_person_number'] ?? '',
+                'address' => $addressData['address'] ?? '',
+                'floor' => $addressData['floor'] ?? null,
+                'road' => $addressData['road'] ?? null,
+                'house' => $addressData['house'] ?? null,
+                'longitude' => (string) ($addressData['longitude'] ?? ''),
+                'latitude' => (string) ($addressData['latitude'] ?? ''),
+                'user_id' => session()->get('customer_id') ?: null,
+                'is_guest' => session()->get('customer_id') ? 0 : 1,
             ];
             $customerAddress = CustomerAddress::create($address);
         }
@@ -427,22 +421,23 @@ class POSController extends Controller
         $order = $this->order;
         $order->id = $orderId;
 
+        $placedAt = $this->resolvePosPlacedAt($request);
+
         $order->user_id = session()->get('customer_id') ?? null;
-        $order->coupon_discount_title = $request->coupon_discount_title == 0 ? null : 'coupon_discount_title';
-        $order->payment_status = ($orderType == 'take_away') ? 'paid' : (($orderType == 'dine_in' && $request->type != 'pay_after_eating') ? 'paid' : 'unpaid');
-        $order->order_status = $orderType == 'take_away' ? 'delivered' : 'confirmed' ;
-        $order->order_type = ($orderType == 'take_away') ? 'pos' : (($orderType == 'dine_in') ? 'dine_in' : (($orderType == 'home_delivery') ? 'delivery' : null));
+        $order->coupon_discount_title = $request->coupon_discount_title == 0 ? null : $request->coupon_discount_title;
+        $order->payment_status = PosOrderTypes::isPaidImmediately($orderType, $request->type) ? 'paid' : 'unpaid';
+        $order->order_status = PosOrderTypes::defaultStatus($orderType);
+        $order->order_type = PosOrderTypes::databaseType($orderType);
         $order->coupon_code = $request->coupon_code ?? null;
         $order->payment_method = $request->type;
         $order->transaction_reference = $request->transaction_reference ?? null;
-        // $order->delivery_charge = $deliveryCharge;
-        $order->delivery_address_id = $orderType == 'home_delivery' ? $customerAddress->id : null;
-        $order->delivery_date = Carbon::now()->format('Y-m-d');
-        $order->delivery_time = Carbon::now()->format('H:i:s');
-        $order->order_note = null;
+        $order->delivery_address_id = PosOrderTypes::isDelivery($orderType) && $customerAddress ? $customerAddress->id : null;
+        $order->delivery_date = $placedAt->format('Y-m-d');
+        $order->delivery_time = $placedAt->format('H:i:s');
+        $order->order_note = PosOrderTypes::orderNote($orderType);
         $order->checked = 1;
-        $order->created_at = now();
-        $order->updated_at = now();
+        $order->created_at = $placedAt;
+        $order->updated_at = $placedAt;
 
         foreach ($cart as $c) {
             if (is_array($c)) {
@@ -514,14 +509,15 @@ class POSController extends Controller
         }
         if (isset($cart['extra_discount']) && $cart['extra_discount_type'] == 'amount') {
             if ($cart['extra_discount'] > $totalPriceForDiscountValidation) {
-                Toastr::error(translate('discount_can_not_be_more_than '). $totalPriceForDiscountValidation);
-                return back();
+                return $this->posFail($request, translate('discount_can_not_be_more_than '). $totalPriceForDiscountValidation);
             }
         }
         $tax = isset($cart['tax']) ? $cart['tax'] : 0;
         $totalTaxAmount = ($tax > 0) ? (($totalPrice * $tax) / 100) : $totalTaxAmount;
 
-        $deliveryCharge = Helpers::get_delivery_charge(branchId: auth('branch')->id() ?? 1, distance:  $distance, selectedDeliveryArea: $areaId, orderAmount: $totalPrice + $totalTaxAmount + $totalAddonTax);
+        $deliveryCharge = PosOrderTypes::showsDeliveryCharge($orderType)
+            ? Helpers::get_delivery_charge(branchId: auth('branch')->id() ?? 1, distance:  $distance, selectedDeliveryArea: $areaId, orderAmount: $totalPrice + $totalTaxAmount + $totalAddonTax)
+            : 0;
 
         try {
             $order->extra_discount = $extraDiscount ?? 0;
@@ -533,6 +529,7 @@ class POSController extends Controller
             $order->table_id = session()->get('table_id');
             $order->number_of_people = session()->get('people_number');
 
+            OrderPlacementTime::applyToOrder($order, $placedAt);
             $order->save();
 
             foreach ($orderDetails as $key => $item) {
@@ -562,7 +559,9 @@ class POSController extends Controller
             session()->forget('address');
             session()->forget('order_type');
 
-            Toastr::success(translate('order_placed_successfully'));
+            if (! $this->isJsonPosOrder($request)) {
+                Toastr::success(translate('order_placed_successfully'));
+            }
 
             //send notification to kitchen
             if ($order->order_type == 'dine_in') {
@@ -582,7 +581,7 @@ class POSController extends Controller
             }
 
             //send notification to customer for home delivery
-            if ($order->order_type == 'delivery'){
+            if ($order->order_type == 'delivery' && $order->user_id){
                 $message = Helpers::order_status_update_message('confirmed');
                 $customer = $this->user->find($order->user_id);
                 $customerFcmToken = $customer?->cm_firebase_token;
@@ -627,13 +626,21 @@ class POSController extends Controller
                 }
             }
 
+            if ($this->isJsonPosOrder($request)) {
+                return response()->json([
+                    'success' => 1,
+                    'order_id' => $order->id,
+                    'order_display_id' => Helpers::order_display_id($order),
+                    'message' => translate('order_placed_successfully'),
+                ]);
+            }
+
             return back();
         } catch (\Exception $e) {
             info($e);
         }
 
-        //Toastr::warning(translate('failed_to_place_order'));
-        return back();
+        return $this->posFail($request, translate('failed_to_place_order'), 500);
     }
 
     /**
@@ -972,7 +979,231 @@ class POSController extends Controller
         return (new FastExcel($data))->download('pos-orders.xlsx');
     }
 
+    private function isJsonPosOrder(Request $request): bool
+    {
+        return $request->expectsJson() || $request->header('X-Munch-POS') === '1';
+    }
 
+    private function posFail(Request $request, string $message, int $status = 422): RedirectResponse|JsonResponse
+    {
+        if ($this->isJsonPosOrder($request)) {
+            return response()->json([
+                'success' => 0,
+                'message' => $message,
+            ], $status);
+        }
 
+        Toastr::error($message);
 
+        return back();
+    }
+
+    private function resolvePosPlacedAt(Request $request): Carbon
+    {
+        $raw = $request->input('placed_at');
+        if (! is_string($raw) || trim($raw) === '') {
+            return now();
+        }
+
+        try {
+            $placedAt = Carbon::parse($raw);
+        } catch (\Throwable) {
+            return now();
+        }
+
+        if ($placedAt->isFuture()) {
+            return now();
+        }
+
+        return $placedAt;
+    }
+
+    /**
+     * Hydrate the session cart from a JSON POS payload and short-circuit duplicates.
+     */
+    private function prepareJsonPosOrder(Request $request): ?JsonResponse
+    {
+        $clientUuid = trim((string) $request->input('client_uuid', ''));
+        if ($clientUuid !== '') {
+            $reference = $this->posClientReference($clientUuid);
+            $existing = $this->order
+                ->where('branch_id', auth('branch')->id())
+                ->where('transaction_reference', $reference)
+                ->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => 1,
+                    'duplicate' => true,
+                    'order_id' => $existing->id,
+                    'order_display_id' => Helpers::order_display_id($existing),
+                    'message' => translate('order_placed_successfully'),
+                ]);
+            }
+            $request->merge(['transaction_reference' => $reference]);
+        }
+
+        $items = $request->input('items', []);
+        if (! is_array($items) || $items === []) {
+            return $this->posFail($request, translate('cart_empty_warning'));
+        }
+
+        $cart = collect([]);
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $line = $this->composeLineItem($item);
+            if (! ($line['ok'] ?? false)) {
+                return $this->posFail($request, (string) ($line['message'] ?? translate('failed_to_place_order')));
+            }
+            $cart->push($line['data']);
+        }
+
+        if ($cart->isEmpty()) {
+            return $this->posFail($request, translate('cart_empty_warning'));
+        }
+
+        $cart['extra_discount'] = (float) $request->input('extra_discount', 0);
+        $cart['extra_discount_type'] = $request->input('extra_discount_type', 'amount') === 'percent' ? 'percent' : 'amount';
+
+        $request->session()->put('cart', $cart);
+        $request->session()->put('order_type', PosOrderTypes::normalize($request->input('order_type')));
+        $request->session()->forget('customer_id');
+
+        if ($request->filled('table_id')) {
+            $request->session()->put('table_id', $request->input('table_id'));
+        } else {
+            $request->session()->forget('table_id');
+        }
+        if ($request->filled('people_number')) {
+            $request->session()->put('people_number', $request->input('people_number'));
+        } else {
+            $request->session()->forget('people_number');
+        }
+
+        $address = $request->input('address');
+        if (is_array($address) && PosOrderTypes::isDelivery($request->input('order_type'))) {
+            $request->session()->put('address', $address);
+        } else {
+            $request->session()->forget('address');
+        }
+
+        return null;
+    }
+
+    private function posClientReference(string $clientUuid): string
+    {
+        return 'pos:'.$clientUuid;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array{ok: bool, data?: array<string, mixed>, message?: string}
+     */
+    private function composeLineItem(array $input): array
+    {
+        $productId = (int) ($input['id'] ?? 0);
+        $product = $this->product->find($productId);
+        if (! $product) {
+            return ['ok' => false, 'message' => translate('failed_to_place_order')];
+        }
+
+        $data = [];
+        $data['id'] = $product->id;
+        $str = '';
+        $variations = [];
+        $addonPrice = 0;
+        $variationPrice = 0;
+        $addonTotalTax = 0;
+
+        $branchProduct = $this->product_by_Branch
+            ->where(['product_id' => $productId, 'branch_id' => auth('branch')->id()])
+            ->first();
+        $branchProductPrice = 0;
+        $discountData = [];
+
+        if (isset($branchProduct)) {
+            $branchProductVariations = $branchProduct->variations;
+            $requestVariations = $input['variations'] ?? [];
+
+            if ($requestVariations && is_array($branchProductVariations) && count($branchProductVariations)) {
+                foreach ($requestVariations as $value) {
+                    if (! is_array($value)) {
+                        continue;
+                    }
+                    if (($value['required'] ?? '') == 'on' && !isset($value['values'])) {
+                        return [
+                            'ok' => false,
+                            'message' => translate('Please select items from') . ' ' . ($value['name'] ?? ''),
+                        ];
+                    }
+                    if (isset($value['values']) && ($value['min'] ?? 0) != 0 && ($value['min'] ?? 0) > count($value['values']['label'] ?? [])) {
+                        return [
+                            'ok' => false,
+                            'message' => translate('Please select minimum ') . $value['min'] . translate(' For ') . $value['name'] . '.',
+                        ];
+                    }
+                    if (isset($value['values']) && ($value['max'] ?? 0) != 0 && ($value['max'] ?? 0) < count($value['values']['label'] ?? [])) {
+                        return [
+                            'ok' => false,
+                            'message' => translate('Please select maximum ') . $value['max'] . translate(' For ') . $value['name'] . '.',
+                        ];
+                    }
+                }
+                $variationData = Helpers::get_varient($branchProductVariations, $requestVariations);
+                $variationPrice = $variationData['price'];
+                $variations = $requestVariations;
+            }
+
+            $branchProductPrice = $branchProduct['price'];
+            $discountData = [
+                'discount_type' => $branchProduct['discount_type'],
+                'discount' => $branchProduct['discount']
+            ];
+        }
+
+        $price = $branchProductPrice + $variationPrice;
+        $data['variation_price'] = $variationPrice;
+        $discountOnProduct = Helpers::discount_calculate($discountData, $price);
+
+        $data['variations'] = $variations;
+        $data['variant'] = $str;
+        $data['quantity'] = max(1, (int) ($input['quantity'] ?? 1));
+        $data['price'] = $price;
+        $data['name'] = $product->name;
+        $data['discount'] = $discountOnProduct;
+        $data['image'] = $product->image;
+        $data['add_ons'] = [];
+        $data['add_on_qtys'] = [];
+        $data['add_on_prices'] = [];
+        $data['add_on_tax'] = [];
+
+        $addonIds = $input['addon_id'] ?? [];
+        $addonQuantities = $input['addon_quantities'] ?? [];
+        if (is_array($addonIds) && $addonIds !== []) {
+            foreach ($addonIds as $id) {
+                $id = (int) $id;
+                $addOn = AddOn::withoutGlobalScopes()->find($id);
+                if (! $addOn) {
+                    continue;
+                }
+                $qty = (int) ($addonQuantities[$id] ?? $addonQuantities[(string) $id] ?? $input['addon-quantity'.$id] ?? 1);
+                $qty = max(1, $qty);
+                $unitPrice = (float) ($input['addon-price'.$id] ?? $addOn->price);
+                $addonPrice += $unitPrice * $qty;
+                $data['add_on_qtys'][] = $qty;
+                $data['add_on_prices'][] = $addOn['price'];
+                $addonTax = ($addOn['price'] * ($addOn['tax'] ?? 0)/100);
+                $addonTotalTax += ($addonTax * $qty);
+                $data['add_on_tax'][] = $addonTax;
+            }
+            $data['add_ons'] = array_map('intval', array_values($addonIds));
+        }
+
+        $data['addon_price'] = $addonPrice;
+        $data['addon_total_tax'] = $addonTotalTax;
+        $data['discount_data'] = $discountData;
+
+        return ['ok' => true, 'data' => $data];
+    }
 }

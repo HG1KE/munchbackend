@@ -1,0 +1,450 @@
+:root {
+    --munch-pos-red: #E7032D;
+    --munch-pos-red-dark: #C10226;
+    --munch-pos-ink: #0f172a;
+    --munch-pos-muted: #64748b;
+    --munch-pos-line: #e2e8f0;
+    --munch-pos-bg: #f8fafc;
+    --munch-pos-card: #ffffff;
+}
+
+.munch-pos-body {
+    margin: 0;
+    font-family: "Open Sans", system-ui, sans-serif;
+    background: var(--munch-pos-bg);
+    color: var(--munch-pos-ink);
+    min-height: 100dvh;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+
+.munch-pos-app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+.munch-pos-topbar {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: #fff;
+    border-bottom: 1px solid var(--munch-pos-line);
+    min-height: 56px;
+}
+
+.munch-pos-topbar__back,
+.munch-pos-topbar__link {
+    color: var(--munch-pos-red);
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.munch-pos-topbar__title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.munch-pos-topbar__title strong {
+    font-size: 1.05rem;
+    letter-spacing: -0.02em;
+}
+
+.munch-pos-topbar__title span {
+    font-size: 0.75rem;
+    color: var(--munch-pos-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.munch-pos-status {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.munch-pos-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.munch-pos-badge--online { background: #dcfce7; color: #166534; }
+.munch-pos-badge--offline { background: #fee2e2; color: #991b1b; }
+.munch-pos-badge--queue { background: #fff7ed; color: #9a3412; }
+.munch-pos-badge--sync { background: #e0f2fe; color: #075985; }
+.munch-pos-badge--ok { background: #dcfce7; color: #166534; }
+.munch-pos-badge--err { background: #fee2e2; color: #991b1b; }
+
+.munch-pos-shell {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 420px);
+    min-height: 0;
+}
+
+.munch-pos-catalog {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: 0.85rem 1rem 1rem;
+}
+
+.munch-pos-search input {
+    width: 100%;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    background: #fff;
+}
+
+.munch-pos-tabs {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding: 0.75rem 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.munch-pos-tabs::-webkit-scrollbar { display: none; }
+
+.munch-pos-tab {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.55rem 0.95rem;
+    background: #fff;
+    color: var(--munch-pos-ink);
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-height: 40px;
+}
+
+.munch-pos-tab.is-active {
+    background: var(--munch-pos-red);
+    color: #fff;
+}
+
+.munch-pos-grid {
+    flex: 1;
+    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    align-content: start;
+    -webkit-overflow-scrolling: touch;
+}
+
+.munch-pos-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--munch-pos-card);
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 16px;
+    overflow: hidden;
+    content-visibility: auto;
+    contain-intrinsic-size: 220px;
+    min-height: 220px;
+}
+
+.munch-pos-card img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    background: #f1f5f9;
+}
+
+.munch-pos-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.7rem 0.75rem 0.8rem;
+    flex: 1;
+}
+
+.munch-pos-card__name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 1.25;
+}
+
+.munch-pos-card__price {
+    color: var(--munch-pos-red);
+    font-weight: 700;
+    margin-top: auto;
+}
+
+.munch-pos-card__add {
+    margin-top: 0.4rem;
+    border: 0;
+    border-radius: 10px;
+    min-height: 40px;
+    background: var(--munch-pos-red);
+    color: #fff;
+    font-weight: 700;
+}
+
+.munch-pos-empty {
+    text-align: center;
+    color: var(--munch-pos-muted);
+    padding: 2rem 1rem;
+}
+
+.munch-pos-cart {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #fff;
+    border-left: 1px solid var(--munch-pos-line);
+}
+
+.munch-pos-cart__scroll {
+    flex: 1;
+    overflow: auto;
+    padding: 0.85rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.munch-pos-types {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.munch-pos-type {
+    border: 1px solid var(--munch-pos-line);
+    background: #fff;
+    border-radius: 10px;
+    min-height: 42px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: var(--munch-pos-ink);
+}
+
+.munch-pos-type.is-active {
+    background: var(--munch-pos-red);
+    border-color: var(--munch-pos-red);
+    color: #fff;
+}
+
+.munch-pos-extra {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+}
+
+.munch-pos-extra input,
+.munch-pos-extra select,
+.munch-pos-extra textarea,
+.munch-pos-discount input,
+.munch-pos-discount select,
+.munch-pos-paid input {
+    width: 100%;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+}
+
+.munch-pos-lines {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.65rem;
+}
+
+.munch-pos-line {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.35rem 0.6rem;
+    padding: 0.7rem;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 12px;
+}
+
+.munch-pos-line__name { font-weight: 700; font-size: 0.9rem; }
+.munch-pos-line__meta { grid-column: 1 / -1; color: var(--munch-pos-muted); font-size: 0.75rem; }
+.munch-pos-line__sub { font-weight: 700; }
+
+.munch-pos-qty {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.munch-pos-qty button,
+.munch-pos-line__remove {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: #f1f5f9;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.munch-pos-line__remove { color: var(--munch-pos-red); }
+
+.munch-pos-footer {
+    position: sticky;
+    bottom: 0;
+    padding: 0.75rem 0.85rem 1rem;
+    border-top: 1px solid var(--munch-pos-line);
+    background: #fff;
+    display: grid;
+    gap: 0.55rem;
+}
+
+.munch-pos-totals {
+    display: grid;
+    gap: 0.28rem;
+    font-size: 0.9rem;
+}
+
+.munch-pos-totals div {
+    display: flex;
+    justify-content: space-between;
+}
+
+.munch-pos-totals .is-grand {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--munch-pos-red);
+}
+
+.munch-pos-discount,
+.munch-pos-paid {
+    display: grid;
+    grid-template-columns: 1fr 72px;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.munch-pos-paid { grid-template-columns: 1fr auto; }
+
+.munch-pos-pay {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+}
+
+.munch-pos-pay button {
+    min-height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--munch-pos-line);
+    background: #fff;
+    font-weight: 700;
+}
+
+.munch-pos-pay button.is-active {
+    background: var(--munch-pos-ink);
+    color: #fff;
+    border-color: var(--munch-pos-ink);
+}
+
+.munch-pos-place {
+    min-height: 48px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--munch-pos-red);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.munch-pos-place:disabled {
+    opacity: 0.45;
+}
+
+.munch-pos-clear {
+    min-height: 40px;
+    border: 0;
+    background: transparent;
+    color: var(--munch-pos-muted);
+    font-weight: 600;
+}
+
+.munch-pos-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: grid;
+    place-items: end center;
+    z-index: 40;
+    padding: 1rem;
+}
+
+.munch-pos-modal__card {
+    width: min(520px, 100%);
+    max-height: 90dvh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 1rem;
+}
+
+.munch-pos-choice {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--munch-pos-line);
+}
+
+.munch-pos-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    background: var(--munch-pos-ink);
+    color: #fff;
+    padding: 0.7rem 1rem;
+    border-radius: 999px;
+    z-index: 50;
+    font-weight: 600;
+}
+
+@media (max-width: 899px) {
+    .munch-pos-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) minmax(280px, 42dvh);
+    }
+
+    .munch-pos-cart {
+        border-left: 0;
+        border-top: 1px solid var(--munch-pos-line);
+    }
+
+    .munch-pos-topbar {
+        grid-template-columns: auto 1fr auto;
+    }
+
+    .munch-pos-topbar__link { display: none; }
+}
+
+@media (min-width: 1100px) {
+    .munch-pos-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+}

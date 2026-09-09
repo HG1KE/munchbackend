@@ -23,6 +23,7 @@
             @include('partials._dashboard-online-orders', [
                 'operations' => $operations ?? ['online' => 0],
                 'onlineRoute' => 'branch.orders.online',
+                'posRoute' => 'branch.pos.index',
                 'liveCardsUrl' => route('branch.dashboard.live-cards'),
             ])
         </div>

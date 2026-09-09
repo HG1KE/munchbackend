@@ -277,6 +277,8 @@ class OnlineOrdersQueueGroupingTest extends TestCase
     {
         $dashboard = file_get_contents(resource_path('views/partials/_dashboard-online-orders.blade.php'));
         $this->assertStringContainsString("translate('Online Orders')", $dashboard);
+        $this->assertStringContainsString("translate('POS')", $dashboard);
+        $this->assertStringContainsString('posRoute', $dashboard);
         $this->assertStringContainsString('meatco-ops-tile--express', $dashboard);
         $this->assertStringContainsString('data-live-card="online"', $dashboard);
         $this->assertStringNotContainsString('Express Orders', $dashboard);
@@ -318,6 +320,13 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('OrderOperationsController', $branchRoutes);
         $this->assertStringContainsString("->name('online')", $branchRoutes);
         $this->assertStringContainsString('DashboardLiveCardsController', $branchRoutes);
+        $this->assertStringContainsString("->name('catalog')", $branchRoutes);
+
+        $posPage = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $this->assertStringContainsString('munch-pos-app', $posPage);
+        $this->assertStringNotContainsString('customer_id', $posPage);
+        $this->assertStringNotContainsString('Select Customer', $posPage);
+        $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
     }
 
     private function service(): DashboardOrderOperationsService
