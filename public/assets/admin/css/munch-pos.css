@@ -454,6 +454,10 @@
     font-weight: 600;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 .munch-pos-modal {
     position: fixed;
     inset: 0;
