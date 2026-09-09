@@ -542,22 +542,10 @@
                                                 <a href="tel:{{ $address? $address['contact_person_number']: '' }}" class="info">{{ $address? $address['contact_person_number']: '' }}</a>
                                             </div>
                                             <div class="d-flex">
-                                                <div class="name">{{translate('floor')}}</div>
-                                                <div class="info">{{$address['floor'] ?? ''}}</div>
-                                            </div>
-                                            <div class="d-flex">
-                                                <div class="name">{{translate('house')}}</div>
-                                                <div class="info">{{$address['house'] ?? ''}}</div>
-                                            </div>
-                                            <div class="d-flex">
                                                 <div class="name">{{translate('address')}}</div>
                                                 <div class="info">{{$address['address'] ?? ''}}</div>
                                             </div>
-                                            <div class="d-flex">
-                                                <div class="name">{{translate('road')}}</div>
-                                                <div class="info">{{$address['road'] ?? ''}}</div>
-                                            </div>
-                                            @if($order->order_area)
+                                            @if($order->order_area && ! empty($order?->order_area?->area?->area_name))
                                                 <div class="d-flex">
                                                     <div class="name">{{translate('Area')}}</div>
                                                     <div class="info edit-btn cursor-pointer">

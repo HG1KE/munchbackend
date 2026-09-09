@@ -727,22 +727,10 @@
                                                    class="info">{{ $address? $address['contact_person_number']: '' }}</a>
                                             </div>
                                             <div class="d-flex">
-                                                <div class="name">{{translate('floor')}}</div>
-                                                <div class="info">{{$address['floor'] ?? ''}}</div>
-                                            </div>
-                                            <div class="d-flex">
-                                                <div class="name">{{translate('house')}}</div>
-                                                <div class="info">{{$address['house'] ?? ''}}</div>
-                                            </div>
-                                            <div class="d-flex">
-                                                <div class="name">{{translate('road')}}</div>
-                                                <div class="info">{{$address['road'] ?? ''}}</div>
-                                            </div>
-                                            <div class="d-flex">
                                                 <div class="name">{{translate('address')}}</div>
                                                 <div class="info">{{$address['address'] ?? ''}}</div>
                                             </div>
-                                            @if($hasOrderArea)
+                                            @if($hasOrderArea && ! empty($orderAreaName))
                                                 <div class="d-flex">
                                                     <div class="name">{{translate('Area')}}</div>
                                                     <div class="info edit-btn cursor-pointer">
