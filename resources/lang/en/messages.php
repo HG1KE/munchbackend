@@ -2975,4 +2975,5 @@
   'Off' => 'Off',
   'Settings updated successfully' => 'Settings updated successfully',
   'b5' => 'B5',
+  'This branch is currently inactive. Activate the branch to set availability time slots.' => 'This branch is currently inactive. Activate the branch to set availability time slots.',
 );
