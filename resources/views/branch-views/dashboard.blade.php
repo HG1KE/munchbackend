@@ -5,6 +5,7 @@
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" src="{{asset('public/assets/admin')}}/vendor/apex/apexcharts.css"></link>
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/meatco-order-operations.css') }}?v=1.11">
 @endpush
 
 @section('content')
@@ -19,30 +20,11 @@
         </div>
 
         <div class="card card-body mb-3">
-            <div class="row justify-content-between align-items-center g-2 mb-3">
-                <div class="col-auto">
-                    <h4 class="d-flex align-items-center gap-10 mb-0">
-                        <img width="20" class="avatar-img rounded-0" src="{{asset('public/assets/admin/img/icons/business_analytics.png')}}" alt="Business Analytics">
-                        {{translate('Business_Analytics')}}
-                    </h4>
-                </div>
-                <div class="col-auto">
-                    <select class="custom-select  min-w200" name="statistics_type" onchange="order_stats_update(this.value)">
-                        <option value="overall" {{session()->has('statistics_type') && session('statistics_type') == 'overall'?'selected':''}}>
-                            {{translate('Overall Statistics')}}
-                        </option>
-                        <option value="today" {{session()->has('statistics_type') && session('statistics_type') == 'today'?'selected':''}}>
-                            {{translate("Today")."'s"}} {{translate("Statistics")}}
-                        </option>
-                        <option value="this_month" {{session()->has('statistics_type') && session('statistics_type') == 'this_month'?'selected':''}}>
-                            {{translate("This Month")."'s"}} {{translate("Statistics")}}
-                        </option>
-                    </select>
-                </div>
-            </div>
-            <div class="row g-2" id="order_stats">
-                @include('branch-views.partials._dashboard-order-stats',['data'=>$data])
-            </div>
+            @include('partials._dashboard-online-orders', [
+                'operations' => $operations ?? ['online' => 0],
+                'onlineRoute' => 'branch.orders.online',
+                'liveCardsUrl' => route('branch.dashboard.live-cards'),
+            ])
         </div>
 
         <div class="grid-chart mb-3">
@@ -575,4 +557,5 @@
         chart.render();
 
     </script>
+    <script src="{{ asset('public/assets/admin/js/dashboard-online-orders.js') }}?v=1.0"></script>
 @endpush

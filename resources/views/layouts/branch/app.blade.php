@@ -152,7 +152,7 @@
     }
 
     $('.check-order').on('click', function (){
-        location.href = '{{route('branch.orders.list',['status'=>'all'])}}';
+        location.href = '{{route('branch.orders.online')}}';
     })
 
     $('.route-alert').on('click', function (){

@@ -1,0 +1,1008 @@
+/**
+ * Meatco operations feature module (NOT shell layout).
+ * Prefixes: .meatco-ops-*, .meatco-express-*, .meatco-scheduled-*, .meatco-delivery-routes-*, .meatco-operations-panel
+ * @see docs/MEATCO_ADMIN_CSS.md
+ */
+
+.meatco-operations-panel.meatco-ops-dashboard {
+    padding: 0.25rem 0 0.5rem;
+}
+
+.meatco-operations-panel .meatco-ops-dashboard__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.25rem;
+    letter-spacing: -0.02em;
+}
+
+.meatco-operations-panel .meatco-ops-dashboard__subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0 0 1.25rem;
+}
+
+.meatco-operations-panel .meatco-ops-dashboard__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.meatco-operations-panel .meatco-ops-dashboard__grid--with-complaints {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 1080px;
+}
+
+@media (max-width: 991.98px) {
+    .meatco-operations-panel .meatco-ops-dashboard__grid--with-complaints {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 720px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .meatco-operations-panel .meatco-ops-dashboard__grid,
+    .meatco-operations-panel .meatco-ops-dashboard__grid--with-complaints {
+        grid-template-columns: 1fr;
+        max-width: none;
+    }
+}
+
+.meatco-operations-panel .meatco-ops-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    min-height: 140px;
+    padding: 1.25rem 1.35rem;
+    border-radius: 14px;
+    text-decoration: none !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border: 1px solid transparent;
+}
+
+.meatco-operations-panel .meatco-ops-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+    text-decoration: none !important;
+}
+
+.meatco-operations-panel .meatco-ops-tile--express {
+    background: linear-gradient(145deg, #EC1C24 0%, #c91820 100%);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.meatco-operations-panel .meatco-ops-tile--scheduled {
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.meatco-operations-panel .meatco-ops-tile--complaints {
+    background: linear-gradient(145deg, #107980 0%, #0d5f66 100%);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.meatco-operations-panel .meatco-ops-tile__label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.9;
+    margin-bottom: 0.35rem;
+}
+
+.meatco-operations-panel .meatco-ops-tile__heading {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+    color: inherit;
+}
+
+.meatco-operations-panel .meatco-ops-tile__hint {
+    font-size: 0.8125rem;
+    opacity: 0.88;
+    margin: 0;
+    color: inherit;
+}
+
+.meatco-operations-panel .meatco-ops-tile__meta {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    margin: 0.35rem 0 0;
+    line-height: 1.35;
+}
+
+.meatco-operations-panel .meatco-ops-tile.is-live-updated {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), 0 8px 24px rgba(15, 23, 42, 0.14);
+    transition: box-shadow 0.35s ease;
+}
+
+.meatco-operations-panel .meatco-ops-tile__count {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-top: auto;
+    padding-top: 0.75rem;
+    color: inherit;
+}
+
+/* Express queue page — operational sections */
+.meatco-express-section {
+    margin-bottom: 2.25rem;
+}
+
+.meatco-express-section__header {
+    margin-bottom: 1rem;
+}
+
+.meatco-express-section__title {
+    display: inline;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #0f172a;
+    margin: 0;
+}
+
+.meatco-express-section__count {
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: #64748b;
+    margin-left: 0.35rem;
+}
+
+.meatco-express-section__subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 0.35rem;
+}
+
+.meatco-express-section--prep .meatco-express-section__title,
+.meatco-express-section--pending .meatco-express-section__title,
+.meatco-express-section--packing .meatco-express-section__title {
+    color: #0f172a;
+}
+
+.meatco-express-section--upcoming .meatco-express-section__title {
+    color: #1d4ed8;
+}
+
+.meatco-express-section--upcoming .meatco-express-card {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+}
+
+.meatco-express-card__schedule {
+    display: inline-block;
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1e40af;
+}
+
+.meatco-fulfillment-badge--scheduled-express {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.meatco-express-section--dispatched .meatco-express-section__title {
+    color: #475569;
+}
+
+.meatco-express-section--dispatched .meatco-express-card {
+    border-color: #e8edf3;
+    background: #f8fafc;
+}
+
+.meatco-express-section--dispatched .meatco-express-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.meatco-express-card--dispatched .meatco-express-card__timer,
+.meatco-express-card__timer--frozen {
+    background: #e2e8f0;
+    color: #475569;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    animation: none !important;
+}
+
+.meatco-express-card--in-transit {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+}
+
+.meatco-express-card--in-transit .meatco-express-card__timer {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.meatco-express-card--delivered {
+    opacity: 0.88;
+}
+
+.meatco-express-card--delivered .meatco-express-card__timer {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.meatco-express-section--dispatched .meatco-express-card--sla-delay,
+.meatco-express-section--dispatched .meatco-express-card--sla-escalated,
+.meatco-express-section--dispatched .meatco-express-card--sla-critical,
+.meatco-express-card--delivered.meatco-express-card--sla-delay,
+.meatco-express-card--delivered.meatco-express-card--sla-escalated,
+.meatco-express-card--delivered.meatco-express-card--sla-critical {
+    animation: none !important;
+    border-width: 1px;
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    box-shadow: none;
+}
+
+.meatco-express-section--dispatched .meatco-express-card__timer--sla-delay,
+.meatco-express-section--dispatched .meatco-express-card__timer--sla-escalated,
+.meatco-express-section--dispatched .meatco-express-card__timer--sla-critical,
+.meatco-express-card--delivered .meatco-express-card__timer--sla-critical {
+    animation: none !important;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.meatco-express-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.meatco-express-upcoming-btn {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.meatco-express-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.meatco-express-card {
+    display: block;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    text-decoration: none !important;
+    color: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.meatco-express-card:hover {
+    border-color: rgba(236, 28, 36, 0.45);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    text-decoration: none !important;
+    color: inherit;
+}
+
+.meatco-express-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.meatco-express-card__id {
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.meatco-express-card__timer {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1.125rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+/* Express queue SLA — card tabloids only (30 / 45 / 60+ minutes) */
+.meatco-express-card--sla-delay {
+    border-color: rgba(236, 28, 36, 0.5);
+    animation: meatco-express-sla-pulse 2.4s ease-in-out infinite;
+}
+
+.meatco-express-card--sla-escalated {
+    border-color: rgba(236, 28, 36, 0.72);
+    animation: meatco-express-sla-pulse 1.8s ease-in-out infinite;
+}
+
+.meatco-express-card--sla-critical {
+    border-width: 2px;
+    border-color: #EC1C24;
+    animation: meatco-express-sla-pulse-strong 1.4s ease-in-out infinite;
+}
+
+.meatco-express-card__timer--sla-delay {
+    background: #fef2f2;
+    color: #EC1C24;
+    font-weight: 800;
+}
+
+.meatco-express-card__timer--sla-escalated {
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: 800;
+    box-shadow: 0 0 0 1px rgba(236, 28, 36, 0.2);
+}
+
+.meatco-express-card__timer--sla-critical {
+    background: #EC1C24;
+    color: #fff;
+    font-weight: 800;
+    animation: meatco-ops-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes meatco-express-sla-pulse {
+    0%, 100% {
+        border-color: rgba(236, 28, 36, 0.38);
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+        background-color: #fff;
+    }
+    50% {
+        border-color: rgba(236, 28, 36, 0.92);
+        box-shadow: 0 0 0 2px rgba(236, 28, 36, 0.14), 0 4px 14px rgba(236, 28, 36, 0.12);
+        background-color: #fff8f8;
+    }
+}
+
+@keyframes meatco-express-sla-pulse-strong {
+    0%, 100% {
+        border-color: #EC1C24;
+        box-shadow: 0 0 0 0 rgba(236, 28, 36, 0.2);
+        background-color: #fff5f5;
+    }
+    50% {
+        border-color: #b91c1c;
+        box-shadow: 0 0 0 3px rgba(236, 28, 36, 0.22), 0 6px 18px rgba(236, 28, 36, 0.18);
+        background-color: #ffecec;
+    }
+}
+
+@keyframes meatco-ops-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.82; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .meatco-express-card--sla-delay,
+    .meatco-express-card--sla-escalated,
+    .meatco-express-card--sla-critical {
+        animation: none;
+        background-color: #fff8f8;
+        border-color: #EC1C24;
+    }
+
+    .meatco-express-card__timer--sla-critical {
+        animation: none;
+    }
+}
+
+.meatco-express-card__meta {
+    font-size: 0.8125rem;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+}
+
+.meatco-express-card__meta strong {
+    color: #334155;
+    font-weight: 600;
+}
+
+.meatco-express-card__meta--customer {
+    color: #334155;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.meatco-customer-name-with-badge {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    max-width: 100%;
+    vertical-align: middle;
+}
+
+.meatco-customer-name-with-badge__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.meatco-gold-membership-badge {
+    flex-shrink: 0;
+    margin-left: 0.25rem;
+    font-size: 0.625rem;
+    line-height: 1.2;
+    padding: 0.15rem 0.4rem;
+    letter-spacing: 0.05em;
+}
+
+.meatco-customer-name-with-badge .meatco-gold-membership-badge {
+    margin-left: 0 !important;
+}
+
+.meatco-express-card__meta--customer .meatco-customer-name-with-badge {
+    display: flex;
+    width: 100%;
+}
+
+.meatco-scheduled-table td .meatco-customer-name-with-badge {
+    display: inline-flex;
+    max-width: 100%;
+}
+
+.meatco-express-card__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.meatco-ops-badge {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+}
+
+.meatco-ops-badge--status {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.meatco-ops-badge--paid {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.meatco-ops-badge--unpaid {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.meatco-ops-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px dashed #cbd5e1;
+}
+
+.meatco-ops-empty--compact {
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Express order detail (admin/branch order view) */
+.meatco-express-detail-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    background: #EC1C24;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.meatco-express-detail-badge--sub {
+    background: #fef2f2;
+    color: #EC1C24;
+    border: 1px solid rgba(236, 28, 36, 0.35);
+}
+
+.meatco-express-detail-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    background: #f8fafc;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.meatco-express-detail-panel__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+}
+
+.meatco-express-detail-panel__dispatch {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+}
+
+.meatco-express-detail-panel__timer-wrap {
+    margin-bottom: 0.5rem;
+}
+
+.meatco-express-detail-panel__timer {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    color: #334155;
+}
+
+.meatco-express-detail-panel__hint {
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.meatco-express-detail-panel--warn {
+    border-color: #fdba74;
+    background: #fff7ed;
+    box-shadow: 0 0 0 1px rgba(194, 65, 12, 0.08);
+}
+
+.meatco-express-detail-panel--warn .meatco-express-detail-panel__timer,
+.meatco-express-detail-panel--warn .meatco-express-detail-panel__dispatch {
+    color: #c2410c;
+}
+
+.meatco-express-detail-panel--urgent {
+    border-color: rgba(236, 28, 36, 0.55);
+    background: #fef2f2;
+    box-shadow: 0 0 0 1px rgba(236, 28, 36, 0.12);
+}
+
+.meatco-express-detail-panel--urgent .meatco-express-detail-panel__timer,
+.meatco-express-detail-panel--urgent .meatco-express-detail-panel__dispatch {
+    color: #EC1C24;
+}
+
+.meatco-express-detail-panel--dispatched {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.meatco-express-detail-panel--dispatched .meatco-express-detail-panel__timer,
+.meatco-express-detail-panel--dispatched .meatco-express-card__timer--frozen {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.meatco-express-detail-panel--dispatched .meatco-express-detail-panel__dispatch {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.meatco-express-detail-panel--urgent .meatco-express-detail-panel__timer {
+    animation: meatco-ops-pulse 1.5s ease-in-out infinite;
+}
+
+.meatco-express-detail-panel--completed {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.meatco-express-detail-panel--completed .meatco-express-detail-panel__timer {
+    font-size: 1.5rem;
+    color: #15803d;
+    background: transparent;
+    letter-spacing: 0.01em;
+    animation: none !important;
+}
+
+/* Scheduled logistics */
+.meatco-scheduled-group {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    background: #fff;
+}
+
+.meatco-scheduled-group__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem 0.65rem 0;
+    background: #f8fafc;
+}
+
+.meatco-scheduled-group__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    min-width: 0;
+    padding: 0.2rem 0 0.2rem 1.1rem;
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    border: none;
+    text-align: left;
+}
+
+.meatco-scheduled-group__toggle:hover {
+    background: transparent;
+}
+
+.meatco-scheduled-group__head:hover {
+    background: #f1f5f9;
+}
+
+.meatco-scheduled-group__print {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-right: 0.85rem;
+}
+
+.meatco-scheduled-group__date {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.meatco-scheduled-group__count {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.meatco-scheduled-group__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.meatco-scheduled-group__toggle--with-total {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+
+.meatco-scheduled-group__total {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    text-align: center;
+    padding: 0 0.25rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.meatco-scheduled-table {
+    width: 100%;
+    font-size: 0.875rem;
+}
+
+.meatco-scheduled-table th {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    font-weight: 700;
+    padding: 0.5rem 1rem;
+    background: #fafbfc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.meatco-scheduled-table td {
+    padding: 0.65rem 1rem;
+    border-top: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.meatco-scheduled-table tr:hover td {
+    background: #fafbfc;
+}
+
+.meatco-scheduled-table a {
+    font-weight: 700;
+    color: #EC1C24;
+}
+
+.meatco-scheduled-group__body {
+    display: none;
+}
+
+.meatco-scheduled-group.is-open .meatco-scheduled-group__body {
+    display: block;
+}
+
+.meatco-scheduled-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+
+.meatco-scheduled-group.is-open .meatco-scheduled-group__chevron {
+    transform: rotate(180deg);
+}
+
+.meatco-scheduled-group__chevron {
+    transition: transform 0.2s ease;
+    color: #64748b;
+}
+
+@media (max-width: 767.98px) {
+    .meatco-scheduled-group__toggle--with-total {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "date meta"
+            "total total";
+    }
+
+    .meatco-scheduled-group__toggle--with-total .meatco-scheduled-group__date {
+        grid-area: date;
+    }
+
+    .meatco-scheduled-group__toggle--with-total .meatco-scheduled-group__meta {
+        grid-area: meta;
+        justify-self: end;
+    }
+
+    .meatco-scheduled-group__toggle--with-total .meatco-scheduled-group__total {
+        grid-area: total;
+        justify-self: start;
+        font-size: 0.875rem;
+    }
+
+    .meatco-scheduled-table {
+        min-width: 720px;
+    }
+}
+
+/* Scheduled batch print (dispatch sheet) */
+.meatco-scheduled-batch-print__sheet-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.meatco-scheduled-batch-print__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    color: #0f172a;
+}
+
+.meatco-scheduled-batch-print__subtitle {
+    color: #64748b;
+    font-size: 0.9375rem;
+}
+
+.meatco-scheduled-batch-print__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.meatco-scheduled-batch-print__order {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px dashed #e2e8f0;
+}
+
+.meatco-scheduled-batch-print__order:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.meatco-scheduled-batch-print__note {
+    margin-bottom: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #78350f;
+}
+
+@media print {
+    .meatco-scheduled-batch-print__order {
+        page-break-after: always;
+        break-after: page;
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .meatco-scheduled-batch-print__order:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    .meatco-scheduled-batch-print__sheet-head {
+        display: none !important;
+    }
+}
+
+/* Delivery route planning (D6/D8) */
+.meatco-delivery-routes-toolbar__grid {
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) minmax(160px, 240px) minmax(120px, 160px) 1fr;
+    gap: 1rem;
+    align-items: end;
+}
+
+.meatco-delivery-routes-toolbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+@media (max-width: 767.98px) {
+    .meatco-delivery-routes-toolbar__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .meatco-delivery-routes-toolbar__grid--branch {
+        grid-template-columns: 1fr;
+    }
+
+    .meatco-delivery-routes-toolbar__actions {
+        justify-content: stretch;
+    }
+
+    .meatco-delivery-routes-toolbar__actions .btn {
+        flex: 1 1 auto;
+    }
+}
+
+.meatco-delivery-routes-toolbar__grid--branch {
+    grid-template-columns: minmax(140px, 200px) minmax(120px, 160px) 1fr;
+}
+
+.meatco-delivery-routes-summary {
+    font-size: 0.875rem;
+}
+
+.meatco-delivery-routes-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.meatco-delivery-routes-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.meatco-delivery-route-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.meatco-delivery-route-card__head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 1rem 1.1rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.meatco-delivery-route-card__head:hover {
+    background: #f8fafc;
+}
+
+.meatco-delivery-route-card__label {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.meatco-delivery-route-card__meta {
+    display: block;
+    font-size: 0.8125rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.meatco-delivery-route-card__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+.meatco-delivery-route-card__chevron {
+    color: #94a3b8;
+    transition: transform 0.15s ease;
+}
+
+.meatco-delivery-route-card.is-open .meatco-delivery-route-card__chevron {
+    transform: rotate(180deg);
+}
+
+.meatco-delivery-route-card__body {
+    padding: 0 1.1rem 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.meatco-delivery-route-card__assign {
+    max-width: 320px;
+    margin: 1rem 0;
+}
+
+.meatco-delivery-route-stops-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    border-top: 0;
+}
+
+.meatco-delivery-route-stops-table td {
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+@media (max-width: 575.98px) {
+    .meatco-delivery-route-card__head {
+        grid-template-columns: 1fr auto;
+    }
+
+    .meatco-delivery-route-card__badges {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+}
+
+.meatco-operations-panel .meatco-ops-dashboard__grid--single {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 520px;
+}

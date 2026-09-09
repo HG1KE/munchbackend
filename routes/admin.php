@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerWalletController;
 use App\Http\Controllers\Admin\CustomRoleController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DashboardLiveCardsController;
 use App\Http\Controllers\Admin\DatabaseSettingsController;
 use App\Http\Controllers\Admin\DeliveryManController;
 use App\Http\Controllers\Admin\EmailTemplateController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\Admin\LoyaltyPointController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OfflinePaymentMethodController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OrderOperationsController;
 use App\Http\Controllers\Admin\OrderAutomationController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\ProductController;
@@ -69,6 +71,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::get('/', [DashboardController::class, 'dashboard'])->name('dashboard');
         Route::post('order-stats', [DashboardController::class, 'orderStats'])->name('order-stats');
         Route::get('dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live-stats');
+        Route::get('dashboard/live-cards', DashboardLiveCardsController::class)->name('dashboard.live-cards');
         Route::get('settings', [SystemController::class, 'settings'])->name('settings');
         Route::post('settings', [SystemController::class, 'settingsUpdate']);
         Route::post('settings-password', [SystemController::class, 'settingsPasswordUpdate'])->name('settings-password');
@@ -224,6 +227,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         });
 
         Route::group(['prefix' => 'orders', 'as' => 'orders.', 'middleware' => ['module:order_management']], function () {
+            Route::get('online', [OrderOperationsController::class, 'online'])->name('online');
             Route::get('list/{status}', [OrderController::class, 'list'])->name('list');
             Route::get('export-excel', [OrderController::class, 'exportExcel'])->name('export-excel');
             Route::get('details/{id}', [OrderController::class, 'details'])->name('details');

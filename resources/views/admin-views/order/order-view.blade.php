@@ -2,6 +2,10 @@
 
 @section('title', translate('Order Details'))
 
+@push('css_or_js')
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/meatco-order-operations.css') }}?v=1.11">
+@endpush
+
 @section('content')
     @php
         $munchImgProduct = asset('public/assets/admin/img/160x160/img2.jpg');
@@ -578,6 +582,7 @@
                             @endif
 
                             @if($order['order_type'] != 'pos')
+                                @include('partials.order-operations._online-order-timer-panel')
                                 @include('admin-views.order.partials._workflow-actions', ['statusRoute' => 'admin.orders.status'])
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center gap-10 form-control">
@@ -1406,6 +1411,7 @@
 
 @push('script_2')
 
+    <script src="{{ asset('public/assets/admin/js/meatco-order-operations.js') }}?v=1.9"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const whatsappBtn = document.getElementById('send-whatsapp-order-btn');

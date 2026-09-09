@@ -12,6 +12,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
 use App\Model\Review;
+use App\Services\DashboardOrderOperationsService;
 use App\User;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Carbon;
@@ -30,7 +31,8 @@ class DashboardController extends Controller
         private User        $user,
         private Product     $product,
         private Category    $category,
-        private Branch      $branch
+        private Branch      $branch,
+        private DashboardOrderOperationsService $orderOperations,
     )
     {}
 
@@ -150,8 +152,9 @@ class DashboardController extends Controller
         $donut['failed'] = $donutData->where('order_status', 'failed')->count();
 
         $data['recent_orders'] = $this->order->latest()->take(5)->get();
+        $operations = $this->orderOperations->dashboardCounts(null);
 
-        return view('admin-views.dashboard', compact('data', 'earning', 'order_statistics_chart', 'donut'));
+        return view('admin-views.dashboard', compact('data', 'earning', 'order_statistics_chart', 'donut', 'operations'));
     }
 
     /**

@@ -18,6 +18,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
 use App\Model\ProductByBranch;
+use App\Support\OrderPlacementTime;
 use App\Support\StorefrontVisibilitySchedule;
 use App\Model\TimeSchedule;
 use App\Models\GuestUser;
@@ -441,6 +442,7 @@ class OrderController extends Controller
 
             $or['total_tax_amount'] = $totalTaxAmount;
             $or['referral_discount'] = $referralDiscount;
+            $or = array_merge($or, OrderPlacementTime::insertAttributes());
 
             $o_id = $this->order->insertGetId($or);
 

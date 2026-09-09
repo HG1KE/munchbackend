@@ -7,6 +7,9 @@ use App\Models\GuestUser;
 use App\Models\OrderChangeAmount;
 use App\Models\OrderPartialPayment;
 use App\Services\OrderReadableIdService;
+use App\Support\OnlineOrderStatus;
+use App\Support\OrderDispatchedTime;
+use App\Support\OrderPlacementTime;
 use App\User;
 use App\Models\OrderArea;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +28,18 @@ class Order extends Model
         static::creating(function (Order $order) {
             if (empty($order->readable_order_id)) {
                 $order->readable_order_id = app(OrderReadableIdService::class)->reserveNextReadableId();
+            }
+            OrderPlacementTime::applyToOrder($order);
+        });
+
+        static::saving(function (Order $order) {
+            try {
+                if ($order->isDirty('order_status')
+                    && (string) $order->order_status === OnlineOrderStatus::OUT_FOR_DELIVERY) {
+                    OrderDispatchedTime::applyToOrder($order);
+                }
+            } catch (\Throwable) {
+                // Never block order persistence from timer stamps.
             }
         });
     }

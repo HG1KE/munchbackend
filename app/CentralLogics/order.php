@@ -6,6 +6,7 @@ use App\Model\CustomerAddress;
 use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
+use App\Support\OrderPlacementTime;
 use App\Support\StorefrontVisibilitySchedule;
 use App\Model\OrderTransaction;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +53,7 @@ class OrderLogic
                 'created_at' => now(),
                 'updated_at' => now()
             ];
+            $or = array_merge($or, OrderPlacementTime::insertAttributes());
 
             $o_id = DB::table('orders')->insertGetId($or);
 

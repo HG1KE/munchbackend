@@ -335,7 +335,7 @@
 <script>
 
     function check_order() {
-        location.href = '{{route('admin.orders.list',['status'=>'all'])}}';
+        location.href = '{{route('admin.orders.online')}}';
     }
 
     $('.route-alert').on('click', function (){

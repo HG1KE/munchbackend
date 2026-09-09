@@ -2,6 +2,10 @@
 
 @section('title', translate('Order Details'))
 
+@push('css_or_js')
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/meatco-order-operations.css') }}?v=1.11">
+@endpush
+
 
 @section('content')
     <div class="content container-fluid">
@@ -420,6 +424,7 @@
                             @endif
 
                             @if($order['order_type'] != 'pos')
+                                @include('partials.order-operations._online-order-timer-panel')
                                 @include('admin-views.order.partials._workflow-actions', ['statusRoute' => 'branch.orders.status'])
 
                                 <div>
@@ -1023,6 +1028,7 @@
 @endsection
 
 @push('script_2')
+    <script src="{{ asset('public/assets/admin/js/meatco-order-operations.js') }}?v=1.9"></script>
     <script>
         $('.assign-deliveryman').on('click', function (){
             let id = $(this).data('id');

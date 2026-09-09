@@ -17,6 +17,7 @@ use App\Model\DeliveryHistory;
 use App\Model\DeliveryMan;
 use App\Model\Order;
 use App\Services\OrderReadableIdService;
+use App\Support\OrderViewBootstrap;
 use App\Model\TableOrder;
 use App\Models\DeliveryChargeByArea;
 use App\Models\GuestUser;
@@ -305,7 +306,10 @@ class OrderController extends Controller
         $whatsappShareUrl = AdminOrderWhatsAppMessage::shareUrl($whatsappMessage);
 
         try {
-            return view('admin-views.order.order-view', compact('order', 'deliverymen', 'whatsappMessage', 'whatsappShareUrl'));
+            return view('admin-views.order.order-view', array_merge(
+                compact('order', 'deliverymen', 'whatsappMessage', 'whatsappShareUrl'),
+                OrderViewBootstrap::expressTimerViewVars($order)
+            ));
         } catch (\Throwable $e) {
             Log::error('admin_order_details_render_failed', [
                 'order_id' => $order->id,

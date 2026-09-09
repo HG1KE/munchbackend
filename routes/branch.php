@@ -5,8 +5,10 @@ use App\Http\Controllers\Branch\Auth\LoginController;
 use App\Http\Controllers\Branch\BusinessSettingsController;
 use App\Http\Controllers\Branch\BranchPromotionController;
 use App\Http\Controllers\Branch\DashboardController;
+use App\Http\Controllers\Branch\DashboardLiveCardsController;
 use App\Http\Controllers\Branch\KitchenController;
 use App\Http\Controllers\Branch\OrderController;
+use App\Http\Controllers\Branch\OrderOperationsController;
 use App\Http\Controllers\Branch\POSController;
 use App\Http\Controllers\Branch\ProductController;
 use App\Http\Controllers\Branch\SystemController;
@@ -24,6 +26,7 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
     Route::group(['middleware' => ['branch', 'branch_status']], function () {
         Route::get('/', [DashboardController::class, 'dashboard'])->name('dashboard');
         Route::post('order-stats', [DashboardController::class, 'orderStats'])->name('order-stats');
+        Route::get('dashboard/live-cards', DashboardLiveCardsController::class)->name('dashboard.live-cards');
         Route::get('order-statistics', [DashboardController::class, 'orderStatistics'])->name('order-statistics');
         Route::get('earning-statistics', [DashboardController::class, 'earningStatistics'])->name('earning-statistics');
         Route::get('settings', [DashboardController::class, 'settings'])->name('settings');
@@ -59,6 +62,7 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
         });
 
         Route::group(['prefix' => 'orders', 'as' => 'orders.'], function () {
+            Route::get('online', [OrderOperationsController::class, 'online'])->name('online');
             Route::get('list/{status}', [OrderController::class, 'list'])->name('list');
             Route::get('details/{id}', [OrderController::class, 'details'])->name('details');
             Route::post('increase-preparation-time/{id}', [OrderController::class, 'preparationTime'])->name('increase-preparation-time');

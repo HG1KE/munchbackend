@@ -6,6 +6,7 @@ use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\Order;
+use App\Services\DashboardOrderOperationsService;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class DashboardController extends Controller
     public function __construct(
         private Order  $order,
         private Branch $branch,
+        private DashboardOrderOperationsService $orderOperations,
     )
     {}
 
@@ -92,7 +94,9 @@ class DashboardController extends Controller
             ->get();
 
 
-        return view('branch-views.dashboard', compact('data', 'earning', 'orderStatisticsChart', 'donut'));
+        $operations = $this->orderOperations->dashboardCounts((int) auth('branch')->id());
+
+        return view('branch-views.dashboard', compact('data', 'earning', 'orderStatisticsChart', 'donut', 'operations'));
     }
 
     /**

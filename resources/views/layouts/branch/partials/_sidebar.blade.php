@@ -87,7 +87,7 @@
                             <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                         </li>
 
-                        <li class="navbar-vertical-aside-has-menu {{Request::is('branch/orders/list*')?'active':''}}">
+                        <li class="navbar-vertical-aside-has-menu {{Request::is('branch/orders/list*') || Request::is('branch/orders/online')?'active':''}}">
                             <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:"
                                title="{{translate('order')}}">
                                 <i class="tio-shopping-cart nav-icon"></i>
@@ -96,7 +96,15 @@
                                 </span>
                             </a>
                             <ul class="js-navbar-vertical-aside-submenu nav nav-sub"
-                                style="display: {{Request::is('branch/orders/list*')?'block':'none'}}">
+                                style="display: {{Request::is('branch/orders/list*') || Request::is('branch/orders/online')?'block':'none'}}">
+                                <li class="nav-item {{Request::is('branch/orders/online')?'active':''}}">
+                                    <a class="nav-link" href="{{route('branch.orders.online')}}" title="">
+                                        <span class="tio-circle nav-indicator-icon"></span>
+                                        <span class="text-truncate sidebar--badge-container">
+                                            {{translate('Online Orders')}}
+                                        </span>
+                                    </a>
+                                </li>
                                 <li class="nav-item {{Request::is('branch/orders/list/all')?'active':''}}">
                                     <a class="nav-link" href="{{route('branch.orders.list',['all'])}}" title="">
                                         <span class="tio-circle nav-indicator-icon"></span>

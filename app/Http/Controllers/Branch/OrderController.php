@@ -14,6 +14,7 @@ use App\Model\CustomerAddress;
 use App\Model\DeliveryHistory;
 use App\Model\Order;
 use App\Services\OrderReadableIdService;
+use App\Support\OrderViewBootstrap;
 use App\Models\DeliveryChargeByArea;
 use App\Models\OfflinePayment;
 use App\Models\OrderArea;
@@ -193,7 +194,10 @@ class OrderController extends Controller
         $remainingTime = $orderedTime->add($order['preparation_time'], 'minute')->format('Y-m-d H:i:s');
         $order['remaining_time'] = $remainingTime;
 
-        return view('branch-views.order.order-view', compact('order'));
+        return view('branch-views.order.order-view', array_merge(
+            compact('order'),
+            OrderViewBootstrap::expressTimerViewVars($order)
+        ));
     }
 
     /**
