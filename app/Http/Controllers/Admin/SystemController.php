@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Model\Admin;
 use App\Model\BusinessSetting;
 use App\Model\Order;
+use App\Services\DashboardOrderOperationsService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -22,6 +23,7 @@ class SystemController extends Controller
         private Order           $order,
         private Admin           $admin,
         private BusinessSetting $businessSetting,
+        private DashboardOrderOperationsService $operations,
     )
     {
     }
@@ -31,10 +33,9 @@ class SystemController extends Controller
      */
     public function restaurantData(): JsonResponse
     {
-        $newOrder = $this->order->where(['checked' => 0])->count();
         return response()->json([
             'success' => 1,
-            'data' => ['new_order' => $newOrder]
+            'data' => $this->operations->pendingOrderAlertPayload(null),
         ]);
     }
 

@@ -234,24 +234,41 @@
         @php($admin_order_notification_type = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
 
         @if($admin_order_notification)
+            var munchPendingAlertUrl = '{{ route('branch.get-restaurant-data') }}';
+            var munchPendingAlertStorageKey = 'munch_pending_order_alert_max_id_branch';
+
+            function munchPlayPendingOrderAlert(data) {
+                var count = Number(data && data.new_order ? data.new_order : 0);
+                var maxId = Number(data && data.latest_pending_id ? data.latest_pending_id : 0);
+                if (!(count > 0 && maxId > 0)) {
+                    return;
+                }
+                var lastAlertedId = 0;
+                try {
+                    lastAlertedId = Number(sessionStorage.getItem(munchPendingAlertStorageKey) || 0);
+                } catch (e) { /* ignore */ }
+                if (maxId <= lastAlertedId) {
+                    return;
+                }
+                try {
+                    sessionStorage.setItem(munchPendingAlertStorageKey, String(maxId));
+                } catch (e) { /* ignore */ }
+                playAudio();
+                $('#popup-modal').appendTo("body").modal('show');
+            }
+
+            function munchFetchPendingOrderAlert() {
+                $.get({
+                    url: munchPendingAlertUrl,
+                    dataType: 'json',
+                    success: function (response) {
+                        munchPlayPendingOrderAlert((response && response.data) ? response.data : {});
+                    },
+                });
+            }
 
             @if($admin_order_notification_type == 'manual')
-                console.log('manual')
-                setInterval(function () {
-                    $.get({
-                        url: '{{route('branch.get-restaurant-data')}}',
-                        dataType: 'json',
-                        success: function (response) {
-                            let data = response.data;
-                            new_order_type = data.type;
-                            console.log(data)
-                            if (data.new_order > 0) {
-                                playAudio();
-                                $('#popup-modal').appendTo("body").modal('show');
-                            }
-                        },
-                    });
-                }, 10000);
+                setInterval(munchFetchPendingOrderAlert, 10000);
             @endif
 
             @if($admin_order_notification_type == 'firebase')
@@ -304,10 +321,8 @@
                 }
 
                 messaging.onMessage(function(payload) {
-                    console.log(payload.data);
-                    if(payload.data.order_id && payload.data.type == "order_request"){
-                        playAudio();
-                        $('#popup-modal').appendTo("body").modal('show');
+                    if (payload.data && payload.data.order_id && payload.data.type == "order_request") {
+                        munchFetchPendingOrderAlert();
                     }
                 });
 

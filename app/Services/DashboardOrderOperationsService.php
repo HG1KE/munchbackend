@@ -49,11 +49,46 @@ class DashboardOrderOperationsService
     }
 
     /**
+     * Same scope as the Online Orders Pending column (not POS / dine-in / scheduled).
+     */
+    public function pendingQueueQuery(?int $branchId = null): Builder
+    {
+        return $this->baseQuery($branchId)
+            ->whereIn('order_status', OnlineOrderStatus::pendingQueueStatuses());
+    }
+
+    /**
+     * Unseen pending-queue orders that may ring the new-order alert.
+     *
+     * @return array{new_order: int, latest_pending_id: int}
+     */
+    public function pendingOrderAlertPayload(?int $branchId = null): array
+    {
+        $ids = $this->pendingQueueQuery($branchId)
+            ->where('checked', 0)
+            ->orderBy('id')
+            ->pluck('id');
+
+        return [
+            'new_order' => $ids->count(),
+            'latest_pending_id' => (int) ($ids->last() ?? 0),
+        ];
+    }
+
+    public function acknowledgePendingQueue(?int $branchId = null): void
+    {
+        $this->pendingQueueQuery($branchId)->update(['checked' => 1]);
+    }
+
+    /**
      * @return Collection<int, Order>
      */
     public function expressPendingQueue(?int $branchId = null): Collection
     {
-        return $this->statusQueue($branchId, OnlineOrderStatus::pendingQueueStatuses());
+        return $this->pendingQueueQuery($branchId)
+            ->with($this->cardRelations())
+            ->orderBy('created_at')
+            ->get();
     }
 
     /**

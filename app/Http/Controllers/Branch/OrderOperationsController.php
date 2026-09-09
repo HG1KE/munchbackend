@@ -15,6 +15,7 @@ class OrderOperationsController extends Controller
     public function online(): Renderable
     {
         $branchId = (int) auth('branch')->id();
+        $this->operations->acknowledgePendingQueue($branchId);
         $pending = $this->operations->mapExpressOrderCards(
             $this->operations->expressPendingQueue($branchId),
             'pending'

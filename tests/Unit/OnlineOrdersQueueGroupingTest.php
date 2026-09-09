@@ -111,6 +111,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
             $table->text('delivery_address')->nullable();
             $table->date('delivery_date')->nullable();
             $table->boolean('is_guest')->default(true);
+            $table->boolean('checked')->default(false);
             $table->timestamp('placed_at')->nullable();
             $table->timestamp('dispatched_at')->nullable();
             $table->timestamps();
@@ -184,6 +185,44 @@ class OnlineOrdersQueueGroupingTest extends TestCase
 
         $this->assertSame([9], $this->service()->expressPendingQueue(null)->pluck('id')->all());
         $this->assertSame(1, $this->service()->dashboardCounts(null)['online']);
+    }
+
+    public function test_pending_order_alert_matches_pending_queue_and_ignores_other_statuses(): void
+    {
+        $this->insertOrder(20, ['order_status' => 'pending', 'checked' => 0]);
+        $this->insertOrder(21, ['order_status' => 'confirmed', 'checked' => 0]);
+        $this->insertOrder(22, ['order_status' => 'processing', 'checked' => 0]);
+        $this->insertOrder(23, ['order_status' => 'out_for_delivery', 'checked' => 0]);
+        $this->insertOrder(24, ['order_status' => 'delivered', 'checked' => 0]);
+        $this->insertOrder(25, ['order_status' => 'canceled', 'checked' => 0]);
+        $this->insertOrder(26, ['order_status' => 'failed', 'checked' => 0]);
+        $this->insertOrder(27, ['order_status' => 'returned', 'checked' => 0]);
+        $this->insertOrder(28, ['order_type' => 'pos', 'checked' => 0]);
+        $this->insertOrder(29, ['order_type' => 'dine_in', 'checked' => 0]);
+        $this->insertOrder(30, ['delivery_date' => now()->addDay()->format('Y-m-d'), 'checked' => 0]);
+
+        $payload = $this->service()->pendingOrderAlertPayload(null);
+
+        $this->assertSame(2, $payload['new_order']);
+        $this->assertSame(21, $payload['latest_pending_id']);
+        $this->assertSame(
+            $this->service()->expressPendingQueue(null)->pluck('id')->all(),
+            [20, 21]
+        );
+    }
+
+    public function test_acknowledging_pending_queue_stops_the_alert_without_removing_board_cards(): void
+    {
+        $this->insertOrder(31, ['order_status' => 'pending', 'checked' => 0]);
+        $this->insertOrder(32, ['order_status' => 'processing', 'checked' => 0]);
+
+        $this->service()->acknowledgePendingQueue(null);
+
+        $payload = $this->service()->pendingOrderAlertPayload(null);
+        $this->assertSame(0, $payload['new_order']);
+        $this->assertSame(0, $payload['latest_pending_id']);
+        $this->assertSame([31], $this->service()->expressPendingQueue(null)->pluck('id')->all());
+        $this->assertSame([32], $this->service()->expressPackingQueue(null)->pluck('id')->all());
     }
 
     public function test_delivered_orders_are_not_in_the_live_count(): void
@@ -317,6 +356,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
             ]),
             'delivery_date' => now()->format('Y-m-d'),
             'is_guest' => 1,
+            'checked' => 0,
             'placed_at' => $createdAt,
             'dispatched_at' => null,
             'created_at' => $createdAt,
