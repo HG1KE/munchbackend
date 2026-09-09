@@ -129,44 +129,6 @@
                                                 {{$order->branch?$order->branch->name:'Branch deleted!'}}
                                             </label>
                                         </h5>
-                                        @if($order['order_type']!='take_away' && $order['order_type'] != 'pos' && $order['order_type'] != 'dine_in')
-
-                                            @if($googleMapStatus)
-                                                <div class="hs-unfold ml-1">
-                                                    @if($order['order_status']=='out_for_delivery')
-                                                        @php
-                                                            $origin = \App\Model\DeliveryHistory::where(['deliveryman_id' => $order['delivery_man_id'], 'order_id' => $order['id']])->first();
-                                                            $current = \App\Model\DeliveryHistory::where(['deliveryman_id' => $order['delivery_man_id'], 'order_id' => $order['id']])->latest()->first();
-                                                            $hasDeliveryOriginAndCurrent = ! empty($origin) && ! empty($current);
-                                                        @endphp
-                                                        @if($hasDeliveryOriginAndCurrent)
-                                                            <a class="btn btn-outline-primary px-2 py-1 btn-sm"
-                                                               target="_blank"
-                                                               title="{{translate('Delivery Man Last Location')}}"
-                                                               data-toggle="tooltip" data-placement="top"
-                                                               href="https://www.google.com/maps/dir/?api=1&origin={{$origin['latitude']}},{{$origin['longitude']}}&destination={{$current['latitude']}},{{$current['longitude']}}">
-                                                                <i class="tio-poi"></i> {{translate('Show_Location_in_Map')}}
-                                                            </a>
-                                                        @else
-                                                            <a class="btn btn-outline-primary px-2 py-1 btn-sm"
-                                                               href="javascript:" data-toggle="tooltip"
-                                                               data-placement="top"
-                                                               title="{{translate('Waiting for location...')}}">
-                                                                <i class="tio-poi"></i> {{translate('Show_Location_in_Map')}}
-                                                            </a>
-                                                        @endif
-                                                    @else
-                                                        <a class="btn btn-outline-primary px-2 py-1 btn-sm last-location-view"
-                                                           href="javascript:"
-                                                           data-toggle="tooltip" data-placement="top"
-                                                           title="{{translate('Only available when order is out for delivery!')}}">
-                                                            <i class="tio-poi"></i> {{translate('Show_Location_in_Map')}}
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            @endif
-
-                                        @endif
                                     </div>
 
                                     <div class="mt-2 d-flex flex-column">
@@ -194,10 +156,8 @@
                                             class="tio-date-range"></i>{{date('d M Y',strtotime($order['created_at']))}} {{ date(config('time_format'), strtotime($order['created_at'])) }}
                                     </div>
                                 </div>
+                                @if($order['order_note'] || $order['bring_change_amount'])
                                 <div>
-                                    <h5>{{translate('Cutlery Option')}} : <span
-                                            class="{{ $order['is_cutlery_required'] == 1 ? 'badge-soft-success' : 'badge-soft-danger' }}">{{$order['is_cutlery_required'] == 1 ? 'On' : 'Off'}}</span>
-                                    </h5>
                                     @if($order['order_note'])
                                         <h5>{{translate('order')}} {{translate('note')}} : {{$order['order_note']}}</h5>
                                     @endif
@@ -207,48 +167,10 @@
                                         </h5>
                                     @endif
                                 </div>
+                                @endif
                             </div>
                             <div class="col-sm-5">
                                 <div class="text-sm-right fz-12">
-                                    {{-- <div class="d-flex flex-wrap gap-2 justify-content-sm-end">
-                                        @if($order['order_type']!='take_away' && $order['order_type'] != 'pos' && $order['order_type'] != 'dine_in')
-
-                                            @if($googleMapStatus)
-                                                <div class="hs-unfold ml-1">
-                                                    @if($order['order_status']=='out_for_delivery')
-                                                        @php
-                                                            $origin = \App\Model\DeliveryHistory::where(['deliveryman_id' => $order['delivery_man_id'], 'order_id' => $order['id']])->first();
-                                                            $current = \App\Model\DeliveryHistory::where(['deliveryman_id' => $order['delivery_man_id'], 'order_id' => $order['id']])->latest()->first();
-                                                            $hasDeliveryOriginAndCurrent = ! empty($origin) && ! empty($current);
-                                                        @endphp
-                                                        @if($hasDeliveryOriginAndCurrent)
-                                                            <a class="btn btn-outline-primary" target="_blank"
-                                                               title="{{translate('Delivery Man Last Location')}}" data-toggle="tooltip" data-placement="top"
-                                                               href="https://www.google.com/maps/dir/?api=1&origin={{$origin['latitude']}},{{$origin['longitude']}}&destination={{$current['latitude']}},{{$current['longitude']}}">
-                                                                <i class="tio-map"></i> {{translate('Show_Location_in_Map')}}
-                                                            </a>
-                                                        @else
-                                                            <a class="btn btn-outline-primary" href="javascript:" data-toggle="tooltip"
-                                                               data-placement="top" title="{{translate('Waiting for location...')}}">
-                                                                <i class="tio-map"></i> {{translate('Show_Location_in_Map')}}
-                                                            </a>
-                                                        @endif
-                                                    @else
-                                                        <a class="btn btn-outline-dark last-location-view" href="javascript:"
-                                                           data-toggle="tooltip" data-placement="top"
-                                                           title="{{translate('Only available when order is out for delivery!')}}">
-                                                            <i class="tio-map"></i> {{translate('Show_Location_in_Map')}}
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            @endif
-
-                                        @endif
-                                        <a class="btn btn-info" href={{route('admin.orders.generate-invoice',[$order['id']])}}>
-                                            <i class="tio-print"></i> {{translate('Print_Invoice')}}
-                                        </a>
-                                    </div> --}}
-
                                     <div class="d-flex gap-3 justify-content-sm-end my-3">
                                         <div class="text-dark font-weight-semibold">{{translate('Status')}} :</div>
                                         @if($order['order_status']=='pending')
