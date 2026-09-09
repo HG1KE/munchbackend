@@ -6,6 +6,7 @@ use App\Model\Branch;
 use App\Model\Currency;
 use App\Model\SocialMedia;
 use App\Model\TimeSchedule;
+use App\Services\Auth\EmergencyOtpModeService;
 use App\Traits\HelperTrait;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -108,6 +109,10 @@ class StorefrontConfigService
         }
 
         $payload['advance_maintenance_mode'] = (new self)->checkMaintenanceMode();
+
+        if (isset($payload['customer_verification']) && is_array($payload['customer_verification'])) {
+            $payload['customer_verification']['emergency_otp_mode'] = app(EmergencyOtpModeService::class)->enabled();
+        }
 
         return $payload;
     }
@@ -250,6 +255,7 @@ class StorefrontConfigService
             'phone' => $phoneVerification,
             'email' => $emailVerification,
             'firebase' => (int) ($firebaseOTPVerification['status'] ?? 0),
+            'emergency_otp_mode' => app(EmergencyOtpModeService::class)->enabled(),
         ];
 
         $loginOptions = Helpers::get_login_settings('login_options');

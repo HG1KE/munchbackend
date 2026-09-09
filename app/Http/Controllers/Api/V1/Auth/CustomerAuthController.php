@@ -11,12 +11,14 @@ use App\Model\EmailVerifications;
 use App\Model\PhoneVerification;
 use App\Models\LoginSetup;
 use App\Models\ReferralCustomer;
+use App\Services\Auth\EmergencyOtpModeService;
 use App\User;
 use Firebase\JWT\JWT;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -24,6 +26,7 @@ use Illuminate\Http\JsonResponse;
 use GuzzleHttp\Client;
 use Illuminate\Support\Carbon;
 use Carbon\CarbonInterval;
+use Throwable;
 
 class CustomerAuthController extends Controller
 {
@@ -32,7 +35,8 @@ class CustomerAuthController extends Controller
         private BusinessSetting   $businessSetting,
         private PhoneVerification $phoneVerification,
         private LoginSetup $loginSetup,
-        private ReferralCustomer $referralCustomer
+        private ReferralCustomer $referralCustomer,
+        private EmergencyOtpModeService $emergencyOtpMode,
     ){}
     /**
      * @param Request $request
@@ -170,6 +174,10 @@ class CustomerAuthController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
+        if ($this->emergencyOtpMode->enabled()) {
+            return $this->emergencyOtpLoginOrSignupResponse((string) $request['phone']);
+        }
+
         $phoneVerification = (int) $this->loginSetup->where(['key' => 'phone_verification'])?->first()->value ?? 0;
 
         if ($phoneVerification == 1) {
@@ -301,6 +309,10 @@ class CustomerAuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
+        }
+
+        if ($this->emergencyOtpMode->enabled()) {
+            return $this->emergencyOtpLoginOrSignupResponse((string) $request['phone']);
         }
 
         $maxOTPHit = Helpers::get_business_settings('maximum_otp_hit') ?? 5;
@@ -694,6 +706,10 @@ class CustomerAuthController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
+        if ($this->emergencyOtpMode->enabled()) {
+            return $this->emergencyOtpLoginOrSignupResponse((string) $request['phone']);
+        }
+
         $maxOTPHit = Helpers::get_business_settings('maximum_otp_hit') ?? 5;
         $maxOTPHitTime = Helpers::get_business_settings('otp_resend_time') ?? 60;// seconds
         $tempBlockTime = Helpers::get_business_settings('temporary_block_time') ?? 600; // seconds
@@ -1032,6 +1048,88 @@ class CustomerAuthController extends Controller
 
         $token = $user->createToken('RestaurantCustomerAuth')->accessToken;
         return response()->json(['token' => $token], 200);
+    }
+
+    /**
+     * Meatco Emergency OTP bypass: existing customers receive a Passport token
+     * immediately; unknown phones receive a pending registration token.
+     */
+    private function emergencyOtpLoginOrSignupResponse(string $phone): JsonResponse
+    {
+        $existing = $this->user->where(['phone' => $phone, 'user_type' => null])->first();
+
+        if ($existing !== null && (int) ($existing->is_active ?? 0) !== 1) {
+            Log::info('auth_otp.check_phone_inactive_customer', [
+                'phone_hash' => substr(hash('sha256', $phone), 0, 12),
+                'customer_id' => $existing->id,
+            ]);
+
+            return response()->json([
+                'errors' => [['code' => 'active', 'message' => translate('This user is not active!')]],
+            ], 403);
+        }
+
+        if ($existing === null) {
+            Log::warning('auth_otp.emergency_bypass_registration_required', [
+                'phone_hash' => substr(hash('sha256', $phone), 0, 12),
+            ]);
+
+            $temporaryToken = Str::random(40);
+            DB::table('phone_verifications')->updateOrInsert(['phone' => $phone], [
+                'phone' => $phone,
+                'token' => $temporaryToken,
+                'otp_hit_count' => 0,
+                'is_temp_blocked' => 0,
+                'temp_block_time' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'temporary_token' => $temporaryToken,
+                'status' => false,
+                'otp_required' => false,
+                'emergency_otp_mode' => true,
+                'customer_created' => false,
+            ], 200);
+        }
+
+        try {
+            $token = $this->issueRestaurantCustomerToken($existing);
+        } catch (Throwable $exception) {
+            Log::error('auth_otp.emergency_token_failed', [
+                'phone_hash' => substr(hash('sha256', $phone), 0, 12),
+                'customer_id' => $existing->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'errors' => [['code' => 'auth', 'message' => translate('Unable to complete login. Please try again.')]],
+            ], 503);
+        }
+
+        Log::warning('auth_otp.emergency_bypass_used', [
+            'phone_hash' => substr(hash('sha256', $phone), 0, 12),
+            'customer_id' => $existing->id,
+            'customer_created' => false,
+        ]);
+
+        return response()->json([
+            'message' => translate('Phone number is already registered'),
+            'token' => $token,
+            'status' => true,
+            'otp_required' => false,
+            'emergency_otp_mode' => true,
+            'customer_created' => false,
+        ], 200);
+    }
+
+    /**
+     * Same Passport personal-access token as normal OTP login.
+     */
+    protected function issueRestaurantCustomerToken(User $user): string
+    {
+        return $user->createToken('RestaurantCustomerAuth')->accessToken;
     }
 
 }

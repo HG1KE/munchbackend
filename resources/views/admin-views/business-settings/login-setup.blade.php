@@ -163,6 +163,37 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="emergency-otp-mode my-5">
+                            <div class="alert alert-danger mb-3" role="alert">
+                                <h3 class="mb-2">&#9888; {{ translate('Emergency Mode') }}</h3>
+                                <p class="mb-1 font-weight-bold">{{ translate('OTP verification is currently DISABLED when Emergency OTP Mode is enabled.') }}</p>
+                                <p class="mb-0">{{ translate('Any customer can access an account using only a phone number. Only enable during SMS outages.') }}</p>
+                            </div>
+                            <div class="bg-soft-danger p-4 border border-danger rounded">
+                                <div class="row">
+                                    <div class="col-lg-4 col-sm-6 mb-2">
+                                        <div class="form-control d-flex justify-content-between align-items-center gap-3">
+                                            <label class="text-dark mb-0">{{ translate('Emergency OTP Mode') }}
+                                                <i class="tio-info-outined"
+                                                   data-toggle="tooltip"
+                                                   data-placement="top"
+                                                   title="{{ translate('When enabled, phone OTP generation and SMS delivery are bypassed for customer OTP login/signup.') }}">
+                                                </i>
+                                            </label>
+                                            <input name="emergency_otp_mode" class="rounded" type="checkbox"
+                                                   {{ $emergencyOtpMode ? 'checked' : '' }}
+                                                   id="emergency-otp-mode">
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-8 col-sm-6 mb-2">
+                                        <label class="input-label">{{ translate('Emergency Mode Reason') }}</label>
+                                        <textarea name="emergency_otp_mode_reason" class="form-control" rows="2"
+                                                  placeholder="{{ translate('Optional reason, for example: Safaricom SMS outage') }}">{{ $emergencyOtpModeReason }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="btn--container mb-4 mx-4">

@@ -2978,4 +2978,13 @@
   'This branch is currently inactive. Activate the branch to set availability time slots.' => 'This branch is currently inactive. Activate the branch to set availability time slots.',
   'Begin Preparing' => 'Begin Preparing',
   'Mark as Delivered' => 'Mark as Delivered',
+  'Emergency Mode' => 'Emergency Mode',
+  'Emergency OTP Mode' => 'Emergency OTP Mode',
+  'Emergency Mode Reason' => 'Emergency Mode Reason',
+  'OTP verification is currently DISABLED when Emergency OTP Mode is enabled.' => 'OTP verification is currently DISABLED when Emergency OTP Mode is enabled.',
+  'Any customer can access an account using only a phone number. Only enable during SMS outages.' => 'Any customer can access an account using only a phone number. Only enable during SMS outages.',
+  'When enabled, phone OTP generation and SMS delivery are bypassed for customer OTP login/signup.' => 'When enabled, phone OTP generation and SMS delivery are bypassed for customer OTP login/signup.',
+  'Optional reason, for example: Safaricom SMS outage' => 'Optional reason, for example: Safaricom SMS outage',
+  'Unable to complete login. Please try again.' => 'Unable to complete login. Please try again.',
+  'Number is ready to register' => 'Number is ready to register',
 );

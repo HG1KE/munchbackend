@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Model\BusinessSetting;
 use App\Models\LoginSetup;
 use App\Models\Setting;
+use App\Services\Auth\EmergencyOtpModeService;
 use App\Traits\HelperTrait;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class LoginSetupController extends Controller
 {
     use HelperTrait;
     public function __construct(
-        private LoginSetup $loginSetup
+        private LoginSetup $loginSetup,
+        private EmergencyOtpModeService $emergencyOtpMode,
     ){}
 
     public function loginSetup()
@@ -28,7 +30,9 @@ class LoginSetupController extends Controller
 
         $emailVerification = (int) $this->loginSetup->where(['key' => 'email_verification'])?->first()->value ?? 0;
         $phoneVerification = (int) $this->loginSetup->where(['key' => 'phone_verification'])?->first()->value ?? 0;
-        return view('admin-views.business-settings.login-setup', compact('emailVerification', 'phoneVerification', 'loginOptions', 'socialMediaLoginOptions'));
+        $emergencyOtpMode = $this->emergencyOtpMode->enabled();
+        $emergencyOtpModeReason = $this->emergencyOtpMode->reason();
+        return view('admin-views.business-settings.login-setup', compact('emailVerification', 'phoneVerification', 'emergencyOtpMode', 'emergencyOtpModeReason', 'loginOptions', 'socialMediaLoginOptions'));
     }
 
     public function loginSetupUpdate(Request $request)
@@ -70,6 +74,12 @@ class LoginSetupController extends Controller
         $this->InsertOrUpdateLoginData(['key' => 'phone_verification'], [
                 'value' => $request->has('phone_verification') ? 1: 0,
             ]
+        );
+        $this->emergencyOtpMode->set(
+            $request->has('emergency_otp_mode'),
+            $request->input('emergency_otp_mode_reason'),
+            (int) (auth('admin')->id() ?? 0),
+            $request->ip(),
         );
 
         Toastr::success(translate('Settings updated!'));
