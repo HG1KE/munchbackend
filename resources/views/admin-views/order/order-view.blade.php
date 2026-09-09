@@ -682,17 +682,6 @@
                                 </div>
                             @endif
                             @if($order->customer || $order->is_guest == 1)
-                                <div>
-                                    <label
-                                        class="font-weight-bold text-dark fz-14">{{translate('Delivery_Date_&_Time')}} {{$order['delivery_date'] > \Carbon\Carbon::now()->format('Y-m-d')? translate('(Scheduled)') : ''}}</label>
-                                    <div class="d-flex gap-2 flex-wrap flex-xxl-nowrap">
-                                        <input name="delivery_date" type="date" class="form-control delivery-date"
-                                               value="{{$order['delivery_date'] ?? ''}}">
-                                        <input name="delivery_time" type="time" class="form-control delivery-time"
-                                               value="{{$order['delivery_time'] ?? ''}}">
-                                    </div>
-
-                                </div>
                                 @if($order['order_type']!='take_away' && $order['order_type'] != 'pos' && $order['order_type'] != 'dine_in' && !$order['delivery_man_id'])
 
                                     <a href="#"
@@ -705,20 +694,6 @@
                                     </a>
                                 @endif
                             @endif
-                            <div>
-                                @if($showFoodPreparationControls)
-                                    <label
-                                        class="font-weight-bold text-dark fz-14">{{translate('Food_Preparation_Time')}}</label>
-                                    <div class="form-control justify-content-between">
-                                        <span class="ml-2 ml-sm-3 ">
-                                        <i class="tio-timer d-none" id="timer-icon"></i>
-                                        <span id="counter" class="text-info"></span>
-                                        <i class="tio-edit p-2 d-none li-pointer" id="edit-icon" data-toggle="modal"
-                                           data-target="#counter-change" data-whatever="@mdo"></i>
-                                        </span>
-                                    </div>
-                                @endif
-                            </div>
 
 
                             @if($order->delivery_man_id && $order->delivery_man)

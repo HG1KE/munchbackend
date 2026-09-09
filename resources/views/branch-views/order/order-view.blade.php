@@ -475,13 +475,6 @@
                                 </div>
                             @endif
                             @if($order->customer || $order->is_guest == 1)
-                                <div>
-                                    <label class="font-weight-bold text-dark fz-14">{{translate('Delivery_Date_&_Time')}} {{$order['delivery_date'] > \Carbon\Carbon::now()->format('Y-m-d')? translate('(Scheduled)') : ''}}</label>
-                                    <div class="d-flex gap-2 flex-wrap flex-xxl-nowrap">
-                                        <input onchange="changeDeliveryTimeDate(this)" name="delivery_date" type="date" class="form-control" value="{{$order['delivery_date'] ?? ''}}">
-                                        <input onchange="changeDeliveryTimeDate(this)" name="delivery_time" type="time" class="form-control" value="{{$order['delivery_time'] ?? ''}}">
-                                    </div>
-                                </div>
                                 @if($order['order_type']!='take_away' && $order['order_type'] != 'pos' && $order['order_type'] != 'dine_in' && !$order['delivery_man_id'])
 
                                     <a href="#" class="btn btn-primary btn-block d-flex gap-1 justify-content-center align-items-center" data-toggle="modal" data-target="#assignDeliveryMan">
@@ -490,18 +483,6 @@
                                     </a>
                                 @endif
                             @endif
-                            <div>
-                                @if($order['order_type'] != 'pos' && $order['order_type'] != 'take_away' && ($order['order_status'] != DELIVERED && $order['order_status'] != RETURNED && $order['order_status'] != CANCELED && $order['order_status'] != FAILED && $order['order_status'] != COMPLETED))
-                                    <label class="font-weight-bold text-dark fz-14">{{translate('Food_Preparation_Time')}}</label>
-                                    <div class="form-control justify-content-between">
-                                        <span class="ml-2 ml-sm-3 ">
-                                        <i class="tio-timer d-none" id="timer-icon"></i>
-                                        <span id="counter" class="text-info"></span>
-                                        <i class="tio-edit p-2 d-none cursor-pointer" id="edit-icon" data-toggle="modal" data-target="#counter-change" data-whatever="@mdo"></i>
-                                        </span>
-                                    </div>
-                                @endif
-                            </div>
                             @if($order->delivery_man_id)
                                 <div class="card mb-3">
                                     <div class="card-body">
@@ -568,7 +549,7 @@
                                         <div class="mb-4 d-flex gap-2 justify-content-between">
                                             <h4 class="mb-0 d-flex gap-2">
                                                 <i class="tio-user text-dark"></i>
-                                                {{translate('Delivery_Informatrion')}}
+                                                {{translate('Delivery_Information')}}
                                             </h4>
 
                                             <div class="edit-btn cursor-pointer" data-toggle="modal" data-target="#deliveryInfoModal">
