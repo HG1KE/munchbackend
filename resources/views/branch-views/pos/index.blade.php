@@ -149,7 +149,6 @@
             add: @json(translate('Add To Cart')),
             required: @json(translate('Required')),
             optional: @json(translate('optional')),
-            addons: @json(translate('addon')),
             emptyCart: @json(translate('cart_empty_warning')),
             table: @json(translate('please select a table number')),
             people: @json(translate('please enter people number')),
@@ -188,5 +187,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.6" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=1.7" defer></script>
 @endpush

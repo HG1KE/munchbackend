@@ -353,6 +353,11 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('data-card-delta', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringNotContainsString('munch-pos-card__add', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringNotContainsString('munch-pos-card__add', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
+        $this->assertStringContainsString('productNeedsVariation', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringNotContainsString('data-addon', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringNotContainsString('addon_ids', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringNotContainsString('AddOn::', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString('pos-catalog-no-addons-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));

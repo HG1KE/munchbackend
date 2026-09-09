@@ -6,7 +6,7 @@
     var DB_VERSION = 1;
     var CART_KEY = 'current';
     var state = {
-        catalog: CFG.catalog || { products: [], categories: [], addons: [], tables: [], delivery: {} },
+        catalog: CFG.catalog || { products: [], categories: [], tables: [], delivery: {} },
         cart: { lines: [], orderType: 'take_away', tableId: '', people: '', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {} },
         categoryId: 0,
         search: '',
@@ -17,8 +17,7 @@
         syncLabel: '',
         syncKind: '',
         placing: false,
-        productMap: {},
-        addonMap: {}
+        productMap: {}
     };
     var els = {};
     var renderScheduled = false;
@@ -116,9 +115,11 @@
     function indexCatalog(catalog) {
         state.catalog = catalog;
         state.productMap = {};
-        state.addonMap = {};
         (catalog.products || []).forEach(function (p) { state.productMap[p.id] = p; });
-        (catalog.addons || []).forEach(function (a) { state.addonMap[a.id] = a; });
+    }
+
+    function productNeedsVariation(product) {
+        return !!(product && (product.variations || []).length);
     }
 
     function variationPrice(product, selections) {
@@ -136,11 +137,6 @@
         var product = state.productMap[line.productId];
         if (!product) return 0;
         var unit = Number(product.price) - Number(product.discount || 0) + variationPrice(product, line.variations || []);
-        (line.addon_id || []).forEach(function (id) {
-            var addon = state.addonMap[id];
-            var qty = Number((line.addon_quantities && line.addon_quantities[id]) || 1);
-            unit += Number(addon ? addon.price : 0) * qty;
-        });
         return unit;
     }
 
@@ -390,13 +386,6 @@
             var labels = (group.values && group.values.label) || [];
             if (labels.length) bits.push((group.name ? group.name + ': ' : '') + labels.join(', '));
         });
-        (line.addon_id || []).forEach(function (id) {
-            var addon = state.addonMap[id];
-            if (addon) {
-                var qty = Number((line.addon_quantities && line.addon_quantities[id]) || 1);
-                bits.push(addon.name + (qty > 1 ? ' ×' + qty : ''));
-            }
-        });
         return bits.join(' · ');
     }
 
@@ -493,7 +482,7 @@
     }
 
     function addSimple(product) {
-        if (product.has_modifiers) {
+        if (productNeedsVariation(product)) {
             openModifiers(product);
             return;
         }
@@ -510,7 +499,7 @@
         var product = state.productMap[productId];
         if (!product || !delta) return;
         if (delta > 0) {
-            if (product.has_modifiers) {
+            if (productNeedsVariation(product)) {
                 if (productQty(productId) === 0) {
                     openModifiers(product);
                     return;
@@ -538,27 +527,22 @@
     }
 
     function openModifiers(product) {
+        if (!productNeedsVariation(product)) {
+            addSimple(product);
+            return;
+        }
         var card = document.getElementById('pos-modal-card');
         var modal = document.getElementById('pos-modal');
         if (!card || !modal) return;
         var html = '<h3>' + escapeHtml(product.name) + '</h3>';
         (product.variations || []).forEach(function (group, gi) {
             html += '<div><strong>' + escapeHtml(group.name) + '</strong> <small>' + escapeHtml(group.required === 'on' ? CFG.labels.required : CFG.labels.optional) + '</small>';
-            (group.values || []).forEach(function (opt, oi) {
+            (group.values || []).forEach(function (opt) {
                 var type = group.type === 'multi' ? 'checkbox' : 'radio';
                 html += '<label class="munch-pos-choice"><span><input type="' + type + '" name="g' + gi + '" value="' + escapeAttr(opt.label) + '" data-g="' + gi + '"> ' + escapeHtml(opt.label) + '</span><span>' + money(opt.optionPrice) + '</span></label>';
             });
             html += '</div>';
         });
-        if ((product.addon_ids || []).length) {
-            html += '<div><strong>' + escapeHtml(CFG.labels.addons) + '</strong>';
-            product.addon_ids.forEach(function (id) {
-                var addon = state.addonMap[id];
-                if (!addon) return;
-                html += '<label class="munch-pos-choice"><span><input type="checkbox" data-addon="' + id + '"> ' + escapeHtml(addon.name) + '</span><span>' + money(addon.price) + '</span></label>';
-            });
-            html += '</div>';
-        }
         html += '<div class="munch-pos-qty" style="margin:1rem 0"><button type="button" id="pos-mod-minus">−</button><span id="pos-mod-qty">1</span><button type="button" id="pos-mod-plus">+</button></div>';
         html += '<button type="button" class="munch-pos-place" id="pos-mod-add">' + escapeHtml(CFG.labels.add) + '</button>';
         html += '<button type="button" class="munch-pos-clear" id="pos-mod-close">Close</button>';
@@ -589,19 +573,12 @@
                 toast(CFG.labels.required);
                 return;
             }
-            var addonIds = [];
-            var addonQty = {};
-            card.querySelectorAll('input[data-addon]:checked').forEach(function (input) {
-                var id = Number(input.getAttribute('data-addon'));
-                addonIds.push(id);
-                addonQty[id] = 1;
-            });
             state.cart.lines.push({
                 productId: product.id,
                 quantity: qty,
                 variations: variations,
-                addon_id: addonIds,
-                addon_quantities: addonQty,
+                addon_id: [],
+                addon_quantities: {},
                 has_modifiers: true
             });
             persistCart();
@@ -633,8 +610,8 @@
                     id: line.productId,
                     quantity: line.quantity,
                     variations: line.variations,
-                    addon_id: line.addon_id,
-                    addon_quantities: line.addon_quantities
+                    addon_id: [],
+                    addon_quantities: {}
                 };
             })
         };

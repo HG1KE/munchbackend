@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\CentralLogics\Helpers;
-use App\Model\AddOn;
 use App\Model\Branch;
 use App\Model\Category;
 use App\Model\Product;
@@ -43,7 +42,6 @@ class BranchPosCatalogService
             ->latest()
             ->get();
 
-        $addonIds = [];
         $mappedProducts = [];
         foreach ($products as $product) {
             $branchProduct = $product->product_by_branch->first();
@@ -51,14 +49,7 @@ class BranchPosCatalogService
                 continue;
             }
 
-            $ids = json_decode((string) $product->add_ons, true);
-            $ids = is_array($ids) ? array_map('intval', $ids) : [];
-            foreach ($ids as $id) {
-                if ($id > 0) {
-                    $addonIds[$id] = true;
-                }
-            }
-
+            $variations = $this->normalizeVariations($branchProduct->variations);
             $price = (float) $branchProduct->price;
             $discountData = [
                 'discount_type' => $branchProduct->discount_type,
@@ -74,25 +65,9 @@ class BranchPosCatalogService
                 'price' => $price,
                 'discount' => $discountAmount,
                 'discount_data' => $discountData,
-                'has_modifiers' => $this->hasModifiers($branchProduct->variations, $ids),
-                'variations' => $this->normalizeVariations($branchProduct->variations),
-                'addon_ids' => $ids,
+                'has_modifiers' => $variations !== [],
+                'variations' => $variations,
             ];
-        }
-
-        $addons = [];
-        if ($addonIds !== []) {
-            $addons = AddOn::withoutGlobalScopes()
-                ->whereIn('id', array_keys($addonIds))
-                ->get(['id', 'name', 'price', 'tax'])
-                ->map(fn ($addon) => [
-                    'id' => (int) $addon->id,
-                    'name' => (string) $addon->getRawOriginal('name') ?: (string) $addon->name,
-                    'price' => (float) $addon->price,
-                    'tax' => (float) ($addon->tax ?? 0),
-                ])
-                ->values()
-                ->all();
         }
 
         $tables = Table::query()
@@ -123,14 +98,13 @@ class BranchPosCatalogService
             'placeholder_image' => asset('public/assets/admin/img/160x160/img2.jpg'),
             'categories' => $categories,
             'products' => $mappedProducts,
-            'addons' => $addons,
             'tables' => $tables,
             'delivery' => $this->deliverySetup($branchId),
         ];
     }
 
     /**
-     * Lightweight fingerprint of price, availability, categories, add-ons, and modifiers.
+     * Lightweight fingerprint of price, availability, categories, and variations.
      */
     public function versionForBranch(int $branchId): string
     {
@@ -139,23 +113,18 @@ class BranchPosCatalogService
             ->selectRaw('MAX(updated_at) as u, COUNT(*) as c, SUM(is_available) as a, SUM(price) as p, SUM(discount) as d')
             ->first();
         $productMax = Product::query()->max('updated_at');
-        $addon = AddOn::withoutGlobalScopes()
-            ->selectRaw('MAX(updated_at) as u, COUNT(*) as c, SUM(price) as p')
-            ->first();
         $categoryMax = Category::query()->max('updated_at');
         $categoryCount = Category::query()->where(['position' => 0])->count();
 
         return hash('sha256', implode('|', [
             $branchId,
+            'pos-catalog-no-addons-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
             (string) ($branch->a ?? 0),
             (string) ($branch->p ?? 0),
             (string) ($branch->d ?? 0),
             (string) $productMax,
-            (string) ($addon->u ?? ''),
-            (string) ($addon->c ?? 0),
-            (string) ($addon->p ?? 0),
             (string) $categoryMax,
             (string) $categoryCount,
         ]));
@@ -179,15 +148,6 @@ class BranchPosCatalogService
         }
 
         return $ids;
-    }
-
-    /**
-     * @param  mixed  $variations
-     * @param  list<int>  $addonIds
-     */
-    private function hasModifiers($variations, array $addonIds): bool
-    {
-        return $addonIds !== [] || $this->normalizeVariations($variations) !== [];
     }
 
     /**

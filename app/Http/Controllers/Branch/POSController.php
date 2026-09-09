@@ -1187,9 +1187,7 @@ class POSController extends Controller
         $data['id'] = $product->id;
         $str = '';
         $variations = [];
-        $addonPrice = 0;
         $variationPrice = 0;
-        $addonTotalTax = 0;
 
         $branchProduct = $this->product_by_Branch
             ->where(['product_id' => $productId, 'branch_id' => auth('branch')->id()])
@@ -1252,31 +1250,8 @@ class POSController extends Controller
         $data['add_on_qtys'] = [];
         $data['add_on_prices'] = [];
         $data['add_on_tax'] = [];
-
-        $addonIds = $input['addon_id'] ?? [];
-        $addonQuantities = $input['addon_quantities'] ?? [];
-        if (is_array($addonIds) && $addonIds !== []) {
-            foreach ($addonIds as $id) {
-                $id = (int) $id;
-                $addOn = AddOn::withoutGlobalScopes()->find($id);
-                if (! $addOn) {
-                    continue;
-                }
-                $qty = (int) ($addonQuantities[$id] ?? $addonQuantities[(string) $id] ?? $input['addon-quantity'.$id] ?? 1);
-                $qty = max(1, $qty);
-                $unitPrice = (float) ($input['addon-price'.$id] ?? $addOn->price);
-                $addonPrice += $unitPrice * $qty;
-                $data['add_on_qtys'][] = $qty;
-                $data['add_on_prices'][] = $addOn['price'];
-                $addonTax = ($addOn['price'] * ($addOn['tax'] ?? 0)/100);
-                $addonTotalTax += ($addonTax * $qty);
-                $data['add_on_tax'][] = $addonTax;
-            }
-            $data['add_ons'] = array_map('intval', array_values($addonIds));
-        }
-
-        $data['addon_price'] = $addonPrice;
-        $data['addon_total_tax'] = $addonTotalTax;
+        $data['addon_price'] = 0;
+        $data['addon_total_tax'] = 0;
         $data['discount_data'] = $discountData;
 
         return ['ok' => true, 'data' => $data];
