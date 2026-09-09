@@ -6,7 +6,7 @@
 [program:portal-munch-worker]
 process_name=%(program_name)s_%(process_num)02d
 command=/usr/bin/php8.3 /var/www/portal.munch.co.ke/artisan queue:work --queue=sms-recovery,default --sleep=1 --tries=3 --max-time=3600
-autostart=false
+autostart=true
 autorestart=true
 startsecs=1
 stopasgroup=true
