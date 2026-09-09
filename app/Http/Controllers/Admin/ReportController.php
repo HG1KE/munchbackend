@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade as PDF;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -55,24 +56,19 @@ class ReportController extends Controller
         $startDate = $request->from;
         $endDate = $request->to;
 
-        $orders = $this->order->where(['order_status' => 'delivered'])
-            ->when($request->from && $request->to, function ($q) use ($from, $to) {
-                session()->put('from_date', $from);
-                session()->put('to_date', $to);
-                $q->whereBetween('created_at', [$from, $to]);
-            })->get();
+        $deliveredOrders = $this->deliveredOrdersQuery($request, $from, $to);
 
-        $addonTaxAmount = 0;
+        $orderTotals = (clone $deliveredOrders)
+            ->selectRaw('COALESCE(SUM(total_tax_amount), 0) as product_tax, COALESCE(SUM(order_amount), 0) as total_sold')
+            ->first();
 
-        foreach ($orders as $order) {
-            foreach ($order->details as $detail) {
-                $addonTaxAmount += $detail->add_on_tax_amount;
-            }
-        }
+        $addonTaxAmount = (float) (clone $deliveredOrders)
+            ->join('order_details', 'order_details.order_id', '=', 'orders.id')
+            ->sum('order_details.add_on_tax_amount');
 
-        $productTax = $orders->sum('total_tax_amount');
+        $productTax = (float) ($orderTotals->product_tax ?? 0);
+        $total_sold = (float) ($orderTotals->total_sold ?? 0);
         $total_tax = $productTax + $addonTaxAmount;
-        $total_sold = $orders->sum('order_amount');
 
         if ($startDate == null) {
             session()->put('from_date', date('Y-m-01'));
@@ -80,6 +76,19 @@ class ReportController extends Controller
         }
 
         return view('admin-views.report.earning-index', compact('total_tax', 'total_sold', 'from', 'to', 'startDate', 'endDate'));
+    }
+
+    /**
+     * Delivered orders for the earning report, with the same optional date filter as before.
+     */
+    private function deliveredOrdersQuery(Request $request, Carbon $from, Carbon $to): Builder
+    {
+        return $this->order->where(['order_status' => 'delivered'])
+            ->when($request->from && $request->to, function ($q) use ($from, $to) {
+                session()->put('from_date', $from);
+                session()->put('to_date', $to);
+                $q->whereBetween('created_at', [$from, $to]);
+            });
     }
 
     /**
