@@ -12,28 +12,17 @@
 return [
 
     /**
-     * Public Key From Paystack Dashboard
-     *
+     * Cached .env snapshots only. Runtime resolution is PaystackConfigResolver:
+     * non-empty env overrides admin payment settings; empty values are ignored.
      */
-    'publicKey' => getenv('PAYSTACK_PUBLIC_KEY','pk_test_984c15fc89e28647c149e49654c69475ef565eaf'),
-
-    /**
-     * Secret Key From Paystack Dashboard
-     *
-     */
-    'secretKey' => getenv('PAYSTACK_SECRET_KEY','sk_test_77556985d455a0fd326da6662273ad1c3eb8f097'),
-
-    /**
-     * Paystack Payment URL
-     *
-     */
-    'paymentUrl' => getenv('PAYSTACK_PAYMENT_URL',"https://api.paystack.co"),
-
-    /**
-     * Optional email address of the merchant
-     *
-     */
-    'merchantEmail' => getenv('MERCHANT_EMAIL','showrov2185@gmail.com'),
+    'publicKey' => env('PAYSTACK_PUBLIC_KEY'),
+    'secretKey' => env('PAYSTACK_SECRET_KEY'),
+    'paymentUrl' => env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'),
+    'merchantEmail' => env('MERCHANT_EMAIL'),
+    'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+    'secret_key' => env('PAYSTACK_SECRET_KEY'),
+    'payment_url' => env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'),
+    'merchant_email' => env('MERCHANT_EMAIL'),
 
     'recovery_min_age_minutes' => (int) env('PAYSTACK_RECOVERY_MIN_AGE_MINUTES', 2),
     'recovery_batch_limit' => (int) env('PAYSTACK_RECOVERY_BATCH_LIMIT', 25),

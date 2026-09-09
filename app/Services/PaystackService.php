@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\PaystackException;
+use App\Services\Paystack\PaystackConfigResolver;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
@@ -24,15 +25,34 @@ class PaystackService
      */
     public static function fromConfig(array $config): self
     {
-        $baseUrl = $config['paymentUrl']
-            ?? $config['payment_url']
-            ?? config('paystack.payment_url', 'https://api.paystack.co');
+        $baseUrl = PaystackConfigResolver::firstFilled(
+            $config['paymentUrl'] ?? null,
+            $config['payment_url'] ?? null,
+            config('paystack.payment_url'),
+            config('paystack.paymentUrl'),
+            'https://api.paystack.co',
+        ) ?? 'https://api.paystack.co';
 
         return new self(
-            publicKey: self::stringOrNull($config['publicKey'] ?? $config['public_key'] ?? config('paystack.public_key')),
-            secretKey: self::stringOrNull($config['secretKey'] ?? $config['secret_key'] ?? config('paystack.secret_key')),
+            publicKey: PaystackConfigResolver::firstFilled(
+                $config['publicKey'] ?? null,
+                $config['public_key'] ?? null,
+                config('paystack.public_key'),
+                config('paystack.publicKey'),
+            ),
+            secretKey: PaystackConfigResolver::firstFilled(
+                $config['secretKey'] ?? null,
+                $config['secret_key'] ?? null,
+                config('paystack.secret_key'),
+                config('paystack.secretKey'),
+            ),
             baseUrl: rtrim((string) $baseUrl, '/'),
-            merchantEmail: self::stringOrNull($config['merchantEmail'] ?? $config['merchant_email'] ?? config('paystack.merchant_email')),
+            merchantEmail: PaystackConfigResolver::firstFilled(
+                $config['merchantEmail'] ?? null,
+                $config['merchant_email'] ?? null,
+                config('paystack.merchant_email'),
+                config('paystack.merchantEmail'),
+            ),
         );
     }
 
@@ -293,18 +313,6 @@ class PaystackService
                 'details' => null,
             ];
         }
-    }
-
-    /**
-     * @param  mixed  $value
-     */
-    private static function stringOrNull($value): ?string
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return (string) $value;
     }
 
     /**

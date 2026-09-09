@@ -5,19 +5,19 @@ namespace App\Http\Controllers;
 use App\Exceptions\PaystackException;
 use App\Model\Order;
 use App\Models\PaymentRequest;
-use App\Models\User;
 use App\Services\Paystack\PaystackFulfillmentService;
 use App\Services\Paystack\PaystackFulfillmentSource;
 use App\Services\Paystack\PaystackGatewayStatus;
 use App\Services\PaystackService;
 use App\Traits\Processor;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
-use Unicodeveloper\Paystack\Facades\Paystack;
 
 class PaystackController extends Controller
 {
@@ -25,32 +25,11 @@ class PaystackController extends Controller
 
     private PaymentRequest $payment;
 
-    private $user;
-
     private PaystackService $paystack;
 
-    public function __construct(PaymentRequest $payment, User $user, PaystackService $paystack)
+    public function __construct(PaymentRequest $payment, PaystackService $paystack)
     {
-        $config = $this->payment_config('paystack', 'payment_config');
-        $values = false;
-        if (!is_null($config) && $config->mode == 'live') {
-            $values = json_decode($config->live_values);
-        } elseif (!is_null($config) && $config->mode == 'test') {
-            $values = json_decode($config->test_values);
-        }
-
-        if ($values) {
-            $config = array(
-                'publicKey' => env('PAYSTACK_PUBLIC_KEY', $values->public_key),
-                'secretKey' => env('PAYSTACK_SECRET_KEY', $values->secret_key),
-                'paymentUrl' => env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'),
-                'merchantEmail' => env('MERCHANT_EMAIL', $values->merchant_email),
-            );
-            Config::set('paystack', $config);
-        }
-
         $this->payment = $payment;
-        $this->user = $user;
         $this->paystack = $paystack;
     }
 
@@ -64,14 +43,21 @@ class PaystackController extends Controller
             return response()->json($this->response_formatter(GATEWAYS_DEFAULT_400, null, $this->error_processor($validator)), 400);
         }
 
-        $data = $this->payment::where(['id' => $request['payment_id']])->where(['is_paid' => 0])->first();
-        if (!isset($data)) {
+        if (! $this->paystack->isConfigured()) {
+            Log::warning('paystack.pay_unconfigured', ['payment_id' => $request->input('payment_id')]);
+
+            return response()->json($this->response_formatter(GATEWAYS_DEFAULT_400, null, [
+                ['error_code' => 'paystack', 'message' => 'Paystack is not configured.'],
+            ]), 503);
+        }
+
+        $data = $this->findUnpaidPaymentRequest($request->input('payment_id'));
+        if ($data === null) {
             return response()->json($this->response_formatter(GATEWAYS_DEFAULT_204), 200);
         }
 
         $payer = json_decode($data['payer_information']);
-
-        $reference = Paystack::genTranxRef();
+        $reference = $this->paystack->generateTransactionReference();
 
         return view('payment-gateway.paystack', compact('data', 'payer', 'reference'));
     }
@@ -240,9 +226,55 @@ class PaystackController extends Controller
         }
     }
 
-    public function redirectToGateway(Request $request)
+    public function redirectToGateway(Request $request): RedirectResponse|Redirector|Application
     {
-        return Paystack::getAuthorizationUrl()->redirectNow();
+        if (! $this->paystack->isConfigured()) {
+            Log::warning('paystack.initialize_unconfigured');
+
+            return redirect()->route('payment-fail');
+        }
+
+        $metadata = $this->normalizeMetadata($request->input('metadata'), $request->input('orderID'));
+        $paymentId = $request->query('token') ?? $request->input('token');
+        if (is_string($paymentId) && $paymentId !== '' && ! isset($metadata['payment_request_id'])) {
+            $metadata['payment_request_id'] = $paymentId;
+        }
+
+        $reference = (string) $request->input('reference', $this->paystack->generateTransactionReference());
+
+        try {
+            $result = $this->paystack->initializeTransaction([
+                'email' => $request->input('email', $this->paystack->getMerchantEmail() ?? 'customer@example.com'),
+                'amount' => (int) $request->input('amount'),
+                'reference' => $reference,
+                'callback_url' => route('paystack.callback'),
+                'currency' => $request->input('currency', 'NGN'),
+                'metadata' => $metadata,
+            ]);
+
+            $authorizationUrl = $result['data']['authorization_url'] ?? null;
+            if (! $authorizationUrl) {
+                throw new PaystackException('Paystack did not return an authorization URL.');
+            }
+
+            if (is_string($paymentId) && $paymentId !== '') {
+                $paymentRequest = $this->findUnpaidPaymentRequest($paymentId);
+                if ($paymentRequest !== null) {
+                    $paymentRequest->transaction_id = $reference;
+                    $paymentRequest->payment_method = 'paystack';
+                    $paymentRequest->save();
+                }
+            }
+
+            return redirect()->away($authorizationUrl);
+        } catch (PaystackException $exception) {
+            Log::error('paystack.initialize_error', [
+                'reference' => $reference,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return redirect()->route('payment-fail');
+        }
     }
 
     public function handleGatewayCallback(Request $request)
@@ -496,6 +528,25 @@ class PaystackController extends Controller
             'placement_status' => 'placed',
             'placement_error' => null,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalizeMetadata(mixed $metadata, mixed $orderId = null): array
+    {
+        if (is_string($metadata)) {
+            $metadata = json_decode($metadata, true) ?? [];
+        }
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        if (! isset($metadata['attribute_id']) && $orderId !== null && $orderId !== '') {
+            $metadata['attribute_id'] = $orderId;
+        }
+
+        return $metadata;
     }
 
     private function findUnpaidPaymentRequest(string $paymentId): ?PaymentRequest
