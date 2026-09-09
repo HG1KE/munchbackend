@@ -14,8 +14,6 @@ class OrderOperationsController extends Controller
 
     public function online(): Renderable
     {
-        $this->operations->acknowledgePendingQueue(null);
-
         $pending = $this->operations->mapExpressOrderCards(
             $this->operations->expressPendingQueue(null),
             'pending'

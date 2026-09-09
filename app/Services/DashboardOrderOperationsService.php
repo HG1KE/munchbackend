@@ -58,26 +58,15 @@ class DashboardOrderOperationsService
     }
 
     /**
-     * Unseen pending-queue orders that may ring the new-order alert.
+     * Alert payload for the Online Orders Pending queue (same scope as the board).
      *
-     * @return array{new_order: int, latest_pending_id: int}
+     * @return array{new_order: int}
      */
     public function pendingOrderAlertPayload(?int $branchId = null): array
     {
-        $ids = $this->pendingQueueQuery($branchId)
-            ->where('checked', 0)
-            ->orderBy('id')
-            ->pluck('id');
-
         return [
-            'new_order' => $ids->count(),
-            'latest_pending_id' => (int) ($ids->last() ?? 0),
+            'new_order' => $this->pendingQueueQuery($branchId)->count(),
         ];
-    }
-
-    public function acknowledgePendingQueue(?int $branchId = null): void
-    {
-        $this->pendingQueueQuery($branchId)->update(['checked' => 1]);
     }
 
     /**

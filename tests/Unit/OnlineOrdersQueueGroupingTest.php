@@ -204,25 +204,14 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $payload = $this->service()->pendingOrderAlertPayload(null);
 
         $this->assertSame(2, $payload['new_order']);
-        $this->assertSame(21, $payload['latest_pending_id']);
         $this->assertSame(
             $this->service()->expressPendingQueue(null)->pluck('id')->all(),
             [20, 21]
         );
-    }
 
-    public function test_acknowledging_pending_queue_stops_the_alert_without_removing_board_cards(): void
-    {
-        $this->insertOrder(31, ['order_status' => 'pending', 'checked' => 0]);
-        $this->insertOrder(32, ['order_status' => 'processing', 'checked' => 0]);
-
-        $this->service()->acknowledgePendingQueue(null);
-
-        $payload = $this->service()->pendingOrderAlertPayload(null);
-        $this->assertSame(0, $payload['new_order']);
-        $this->assertSame(0, $payload['latest_pending_id']);
-        $this->assertSame([31], $this->service()->expressPendingQueue(null)->pluck('id')->all());
-        $this->assertSame([32], $this->service()->expressPackingQueue(null)->pluck('id')->all());
+        $this->insertOrder(31, ['order_status' => 'pending', 'checked' => 1]);
+        $this->assertSame(3, $this->service()->pendingOrderAlertPayload(null)['new_order']);
+        $this->assertSame(3, $this->service()->expressPendingQueue(null)->count());
     }
 
     public function test_delivered_orders_are_not_in_the_live_count(): void

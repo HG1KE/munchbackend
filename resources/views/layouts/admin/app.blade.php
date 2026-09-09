@@ -661,26 +661,13 @@
 
         @if(\App\CentralLogics\Helpers::module_permission_check('order_management') && $admin_order_notification)
             var munchPendingAlertUrl = '{{ route('admin.get-restaurant-data') }}';
-            var munchPendingAlertStorageKey = 'munch_pending_order_alert_max_id_admin';
 
             function munchPlayPendingOrderAlert(data) {
                 var count = Number(data && data.new_order ? data.new_order : 0);
-                var maxId = Number(data && data.latest_pending_id ? data.latest_pending_id : 0);
-                if (!(count > 0 && maxId > 0)) {
-                    return;
+                if (count > 0) {
+                    playAudio();
+                    $('#popup-modal').appendTo("body").modal('show');
                 }
-                var lastAlertedId = 0;
-                try {
-                    lastAlertedId = Number(sessionStorage.getItem(munchPendingAlertStorageKey) || 0);
-                } catch (e) { /* ignore */ }
-                if (maxId <= lastAlertedId) {
-                    return;
-                }
-                try {
-                    sessionStorage.setItem(munchPendingAlertStorageKey, String(maxId));
-                } catch (e) { /* ignore */ }
-                playAudio();
-                $('#popup-modal').appendTo("body").modal('show');
             }
 
             function munchFetchPendingOrderAlert() {
