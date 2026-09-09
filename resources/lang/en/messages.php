@@ -1570,7 +1570,7 @@
   'Delivery-man added successfully!' => 'Delivery-man added successfully!',
   'walk_in_customer' => 'Walk in customer',
   'contact' => 'Contact',
-  'cart_empty_warning' => 'Cart empty warning',
+  'cart_empty_warning' => 'Cart empty',
   'please select a customer' => 'Please select a customer',
   'Order_Place_Mail' => 'Your Munch Order',
   'failed_to_place_order' => 'Failed to place order',
@@ -3058,4 +3058,5 @@
   'Page' => 'Page',
   'Paid' => 'Paid',
   'Unpaid' => 'Unpaid',
+  'Cart empty' => 'Cart empty',
 );

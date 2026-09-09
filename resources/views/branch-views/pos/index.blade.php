@@ -153,7 +153,7 @@
             add: @json(translate('Add To Cart')),
             required: @json(translate('Required')),
             optional: @json(translate('optional')),
-            emptyCart: @json(translate('cart_empty_warning')),
+            emptyCart: @json(translate('Cart empty')),
             table: @json(translate('please select a table number')),
             people: @json(translate('please enter people number')),
             address: @json(translate('please select a delivery address')),

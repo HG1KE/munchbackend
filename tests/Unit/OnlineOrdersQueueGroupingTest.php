@@ -329,6 +329,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('pos-orders-modal', $posPage);
         $this->assertStringContainsString('todayOrders:', $posPage);
         $this->assertStringContainsString("translate('View Orders')", $posPage);
+        $this->assertStringContainsString("translate('Cart empty')", $posPage);
         $this->assertStringContainsString('pos-del-fee', $posPage);
         $this->assertStringNotContainsString('pos-del-area', $posPage);
         $this->assertStringContainsString('delivery_charge: deliveryCharge()', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
