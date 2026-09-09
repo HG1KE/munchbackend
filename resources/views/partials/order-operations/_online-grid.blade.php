@@ -65,7 +65,7 @@
                     <span class="meatco-ops-badge {{ ($order['payment_status'] ?? '') === 'paid' ? 'meatco-ops-badge--paid' : 'meatco-ops-badge--unpaid' }}">
                         {{ translate($order['payment_status'] ?? 'unpaid') }}
                     </span>
-                    <span class="meatco-ops-badge">{{ $order['fulfillment_label'] ?? translate('Online Orders') }}</span>
+                    <span class="meatco-ops-badge">{{ $order['fulfillment_label'] ?? translate('DELIVERY') }}</span>
                 </div>
             </a>
         @endforeach

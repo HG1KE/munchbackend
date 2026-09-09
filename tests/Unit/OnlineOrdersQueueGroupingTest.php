@@ -226,6 +226,23 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertSame('Payment On Delivery', $card['payment_method_label']);
         $this->assertFalse($card['timer_frozen']);
         $this->assertSame('A10012', $card['order_display_id']);
+        $this->assertSame('DELIVERY', $card['fulfillment_label']);
+    }
+
+    public function test_takeaway_cards_show_pickup_badge_not_online_orders(): void
+    {
+        $this->insertOrder(13, [
+            'order_status' => 'pending',
+            'order_type' => 'take_away',
+        ]);
+
+        $card = $this->service()->mapExpressOrderCards(
+            $this->service()->expressPendingQueue(null),
+            'pending'
+        )->first();
+
+        $this->assertSame('PICKUP', $card['fulfillment_label']);
+        $this->assertNotSame('Online Orders', $card['fulfillment_label']);
     }
 
     public function test_online_orders_ui_uses_meatco_classes_and_munch_name(): void
@@ -236,9 +253,18 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('data-live-card="online"', $dashboard);
         $this->assertStringNotContainsString('Express Orders', $dashboard);
 
+        $sections = file_get_contents(resource_path('views/partials/order-operations/_online-sections.blade.php'));
+        $this->assertStringContainsString("translate('Pending')", $sections);
+        $this->assertStringContainsString("translate('Preparing')", $sections);
+        $this->assertStringContainsString("translate('Dispatched')", $sections);
+        $this->assertStringNotContainsString("translate('Packing')", $sections);
+        $this->assertStringContainsString("section' => 'packing'", $sections);
+
         $grid = file_get_contents(resource_path('views/partials/order-operations/_online-grid.blade.php'));
         $this->assertStringContainsString('data-meatco-order-timer', $grid);
         $this->assertStringContainsString('data-placed-at', $grid);
+        $this->assertStringContainsString("translate('DELIVERY')", $grid);
+        $this->assertStringNotContainsString("translate('Online Orders')", $grid);
 
         $js = file_get_contents(public_path('assets/admin/js/meatco-order-operations.js'));
         $this->assertStringContainsString('var SLA_DELAY_SEC = 30 * 60', $js);

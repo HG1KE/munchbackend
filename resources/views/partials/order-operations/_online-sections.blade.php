@@ -11,7 +11,7 @@
     <header class="meatco-express-section__header">
         <h2 class="meatco-express-section__title">{{ translate('Pending') }}</h2>
         <span class="meatco-express-section__count">({{ $pendingCount }})</span>
-        <p class="meatco-express-section__subtitle mb-0">{{ translate('Waiting to enter preparation') }}</p>
+        <p class="meatco-express-section__subtitle mb-0">{{ translate('Orders waiting to be accepted into the kitchen.') }}</p>
     </header>
     @include('partials.order-operations._online-grid', [
         'orders' => $pendingOrders,
@@ -24,16 +24,16 @@
 
 <section class="meatco-express-section meatco-express-section--packing" data-meatco-express-section="packing">
     <header class="meatco-express-section__header">
-        <h2 class="meatco-express-section__title">{{ translate('Packing') }}</h2>
+        <h2 class="meatco-express-section__title">{{ translate('Preparing') }}</h2>
         <span class="meatco-express-section__count">({{ $packingCount }})</span>
-        <p class="meatco-express-section__subtitle mb-0">{{ translate('Kitchen and preparation workflow') }}</p>
+        <p class="meatco-express-section__subtitle mb-0">{{ translate('Orders currently being prepared.') }}</p>
     </header>
     @include('partials.order-operations._online-grid', [
         'orders' => $packingOrders,
         'detailRoute' => $detailRoute,
         'showBranch' => $showBranch ?? true,
         'section' => 'packing',
-        'emptyMessage' => translate('No packing online orders.'),
+        'emptyMessage' => translate('No orders currently being prepared.'),
     ])
 </section>
 
@@ -41,7 +41,7 @@
     <header class="meatco-express-section__header">
         <h2 class="meatco-express-section__title">{{ translate('Dispatched') }}</h2>
         <span class="meatco-express-section__count">({{ $dispatchedCount }})</span>
-        <p class="meatco-express-section__subtitle mb-0">{{ translate('Rider and distribution tracking') }}</p>
+        <p class="meatco-express-section__subtitle mb-0">{{ translate('Orders that are out for delivery.') }}</p>
     </header>
     @include('partials.order-operations._online-grid', [
         'orders' => $dispatchedOrders,

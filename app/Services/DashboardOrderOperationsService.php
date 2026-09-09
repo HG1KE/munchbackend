@@ -154,7 +154,7 @@ class DashboardOrderOperationsService
             'payment_status' => $order->payment_status,
             'payment_method' => $order->payment_method,
             'payment_method_label' => PaymentMethodLabel::operationalTitle($order->payment_method),
-            'fulfillment_label' => $orderType === 'take_away' ? translate('pickup') : translate('Online Orders'),
+            'fulfillment_label' => $orderType === 'take_away' ? translate('PICKUP') : translate('DELIVERY'),
             'created_at_iso' => $timer['created_at_iso'],
             'placed_at_iso' => $timer['placed_at_iso'],
             'placed_at_unix' => $timer['placed_at_unix'],

@@ -6,7 +6,7 @@ namespace App\Support;
  * Operational queue mapping for Online Orders (Meatco Express board).
  *
  * Munch workflow: pending → processing → out_for_delivery → delivered
- * Meatco board sections: Pending / Packing / Dispatched
+ * Board sections: Pending / Preparing (`processing`) / Dispatched
  * confirmed is legacy/offline only and stays in Pending.
  */
 class OnlineOrderStatus
