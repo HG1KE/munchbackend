@@ -6,6 +6,7 @@ use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\Order;
 use App\Model\OrderDetail;
+use App\Support\AdminSaleReportSummary;
 use Barryvdh\DomPDF\Facade as PDF;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Contracts\Support\Renderable;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -260,14 +262,7 @@ class ReportController extends Controller
         $fromDate = Carbon::parse($request->from)->startOfDay();
         $toDate = Carbon::parse($request->to)->endOfDay();
 
-        $channel = (string) $request->input('sales_channel', 'all');
-        $orderQuery = $this->order->whereBetween('created_at', [$fromDate, $toDate])
-            ->when($request['branch_id'] !== 'all', function ($query) use ($request) {
-                $query->where('branch_id', $request['branch_id']);
-            })
-            ->when($channel !== '' && $channel !== 'all', function ($query) use ($channel) {
-                $query->where('sales_channel', $channel);
-            });
+        $orderQuery = $this->saleReportOrderQuery($request, $fromDate, $toDate);
 
         $orders = (clone $orderQuery)->pluck('id')->toArray();
         $paymentTotals = [
@@ -307,10 +302,17 @@ class ReportController extends Controller
             $totalQuantity += $detail['quantity'];
         }
 
+        $summary = $this->saleReportSummary($orders, (float) $totalSold);
+        $summaryDisplay = $this->formatSaleReportSummary($summary);
+
+        session()->put('export_sale_data', $data);
+        session()->put('export_sale_summary', $summaryDisplay);
+
         return response()->json([
             'order_count' => count($data),
             'item_qty' => $totalQuantity,
             'order_sum' => Helpers::set_symbol($totalSold),
+            'summary' => $summaryDisplay,
             'payment_totals' => [
                 'cash' => Helpers::set_symbol($paymentTotals['cash']),
                 'card' => Helpers::set_symbol($paymentTotals['card']),
@@ -319,7 +321,7 @@ class ReportController extends Controller
                 'uber' => Helpers::set_symbol($paymentTotals['uber']),
                 'bolt_food' => Helpers::set_symbol($paymentTotals['bolt_food']),
             ],
-            'view' => view('admin-views.report.partials._table', compact('data'))->render(),
+            'view' => view('admin-views.report.partials._table', ['data' => $data, 'summary' => $summaryDisplay])->render(),
         ]);
     }
 
@@ -329,8 +331,77 @@ class ReportController extends Controller
     public function exportSaleReport(): mixed
     {
         $data = session('export_sale_data');
-        $pdf = PDF::loadView('admin-views.report.partials._report', compact('data'));
+        $summary = session('export_sale_summary');
+        $pdf = PDF::loadView('admin-views.report.partials._report', compact('data', 'summary'));
 
         return $pdf->download('sale_report_' . rand(00001, 99999) . '.pdf');
+    }
+
+    private function saleReportOrderQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder
+    {
+        $channel = (string) $request->input('sales_channel', 'all');
+        $paymentMethod = (string) $request->input('payment_method', 'all');
+
+        return $this->order->whereBetween('created_at', [$fromDate, $toDate])
+            ->when($request['branch_id'] !== 'all', function ($query) use ($request) {
+                $query->where('branch_id', $request['branch_id']);
+            })
+            ->when($channel !== '' && $channel !== 'all', function ($query) use ($channel) {
+                $query->where('sales_channel', $channel);
+            })
+            ->when($paymentMethod !== '' && $paymentMethod !== 'all', function ($query) use ($paymentMethod) {
+                $query->where('payment_method', $paymentMethod);
+            });
+    }
+
+    /**
+     * @param  list<int|string>  $orderIds
+     * @return array{gross_sales: float, total_discounts: float, net_sales: float, tax: float, delivery_fees: float, total_sales: float}
+     */
+    private function saleReportSummary(array $orderIds, float $totalSold): array
+    {
+        if ($orderIds === []) {
+            return AdminSaleReportSummary::fromParts(['total_sales' => $totalSold]);
+        }
+
+        $orderSums = DB::table('orders')
+            ->whereIn('id', $orderIds)
+            ->selectRaw('COALESCE(SUM(extra_discount), 0) as extra_discount')
+            ->selectRaw('COALESCE(SUM(coupon_discount_amount), 0) as coupon_discount')
+            ->selectRaw('COALESCE(SUM(referral_discount), 0) as referral_discount')
+            ->selectRaw('COALESCE(SUM(total_tax_amount), 0) as tax')
+            ->selectRaw('COALESCE(SUM(delivery_charge), 0) as delivery_fees')
+            ->first();
+
+        $detailSums = $this->orderDetail->whereIn('order_id', $orderIds)
+            ->selectRaw('COALESCE(SUM(price * quantity), 0) as gross')
+            ->selectRaw('COALESCE(SUM(discount_on_product * quantity), 0) as item_discount')
+            ->selectRaw('COALESCE(SUM(add_on_tax_amount), 0) as addon_tax')
+            ->first();
+
+        return AdminSaleReportSummary::fromParts([
+            'gross' => $detailSums->gross ?? 0,
+            'item_discount' => $detailSums->item_discount ?? 0,
+            'extra_discount' => $orderSums->extra_discount ?? 0,
+            'coupon_discount' => $orderSums->coupon_discount ?? 0,
+            'referral_discount' => $orderSums->referral_discount ?? 0,
+            'tax' => ((float) ($orderSums->tax ?? 0)) + (float) ($detailSums->addon_tax ?? 0),
+            'delivery_fees' => $orderSums->delivery_fees ?? 0,
+            'total_sales' => $totalSold,
+        ]);
+    }
+
+    /**
+     * @param  array{gross_sales: float, total_discounts: float, net_sales: float, tax: float, delivery_fees: float, total_sales: float}  $summary
+     * @return array<string, string>
+     */
+    private function formatSaleReportSummary(array $summary): array
+    {
+        $formatted = [];
+        foreach ($summary as $key => $value) {
+            $formatted[$key] = Helpers::set_symbol($value);
+        }
+
+        return $formatted;
     }
 }

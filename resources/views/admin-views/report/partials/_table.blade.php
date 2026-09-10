@@ -25,6 +25,34 @@
         </tr>
     @endforeach
     </tbody>
+    @if(!empty($summary ?? null))
+        <tfoot>
+            <tr>
+                <th colspan="4">{{ translate('Gross Sales') }}</th>
+                <th>{{ $summary['gross_sales'] }}</th>
+            </tr>
+            <tr>
+                <th colspan="4">{{ translate('Total Discounts') }}</th>
+                <th>{{ $summary['total_discounts'] }}</th>
+            </tr>
+            <tr>
+                <th colspan="4">{{ translate('Net Sales') }}</th>
+                <th>{{ $summary['net_sales'] }}</th>
+            </tr>
+            <tr>
+                <th colspan="4">{{ translate('tax') }}</th>
+                <th>{{ $summary['tax'] }}</th>
+            </tr>
+            <tr>
+                <th colspan="4">{{ translate('Delivery Fees') }}</th>
+                <th>{{ $summary['delivery_fees'] }}</th>
+            </tr>
+            <tr>
+                <th colspan="4">{{ translate('Total Sales') }}</th>
+                <th>{{ $summary['total_sales'] }}</th>
+            </tr>
+        </tfoot>
+    @endif
 </table>
 
 <script type="text/javascript">
@@ -34,5 +62,14 @@
     var datatable = $.HSCore.components.HSDatatables.init($('#datatable'), {
         dom: 'Bfrtip',
         "iDisplayLength": 25,
+        @if(!empty($summary ?? null))
+        buttons: [
+            { extend: 'copy', footer: true },
+            { extend: 'excel', footer: true },
+            { extend: 'csv', footer: true },
+            { extend: 'pdf', footer: true },
+            { extend: 'print', footer: true }
+        ],
+        @endif
     });
 </script>

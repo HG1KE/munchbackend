@@ -31,5 +31,33 @@
             </tr>
         @endforeach
         </tbody>
+        @if(!empty($summary ?? null))
+            <tfoot>
+                <tr>
+                    <td colspan="5">{{ translate('Gross Sales') }}</td>
+                    <td>{{ $summary['gross_sales'] }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5">{{ translate('Total Discounts') }}</td>
+                    <td>{{ $summary['total_discounts'] }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5">{{ translate('Net Sales') }}</td>
+                    <td>{{ $summary['net_sales'] }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5">{{ translate('tax') }}</td>
+                    <td>{{ $summary['tax'] }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5">{{ translate('Delivery Fees') }}</td>
+                    <td>{{ $summary['delivery_fees'] }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5">{{ translate('Total Sales') }}</td>
+                    <td>{{ $summary['total_sales'] }}</td>
+                </tr>
+            </tfoot>
+        @endif
     </table>
 </div>

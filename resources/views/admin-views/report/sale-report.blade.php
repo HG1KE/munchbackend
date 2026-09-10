@@ -101,6 +101,17 @@
                                         id="order_amount"></span>
                                 </strong>
                             </div>
+                            <div class="d-flex flex-wrap gap-3 mt-3" id="sale-summary">
+                                <span>{{ translate('Gross Sales') }}: <strong id="sum-gross-sales"></strong></span>
+                                <span>{{ translate('Total Discounts') }}: <strong id="sum-total-discounts"></strong></span>
+                                <span>{{ translate('Net Sales') }}: <strong id="sum-net-sales"></strong></span>
+                                <span>{{ translate('tax') }}: <strong id="sum-tax"></strong></span>
+                                <span>{{ translate('Delivery Fees') }}: <strong id="sum-delivery-fees"></strong></span>
+                                <span>{{ translate('Total Sales') }}: <strong id="sum-total-sales"></strong></span>
+                            </div>
+                            <div class="mt-2">
+                                <strong>{{ translate('Total Discounts') }}: <span id="total-discounts-highlight"></span></strong>
+                            </div>
                             <div id="payment-totals" class="d-flex flex-wrap gap-3 mt-2 small">
                                 <span>{{ translate('Cash') }}: <strong id="pay-cash"></strong></span>
                                 <span>{{ translate('Card') }}: <strong id="pay-card"></strong></span>
@@ -137,6 +148,15 @@
                     $('#order_count').html(data.order_count);
                     $('#order_amount').html(data.order_sum);
                     $('#item_count').html(data.item_qty);
+                    if (data.summary) {
+                        $('#sum-gross-sales').html(data.summary.gross_sales);
+                        $('#sum-total-discounts').html(data.summary.total_discounts);
+                        $('#sum-net-sales').html(data.summary.net_sales);
+                        $('#sum-tax').html(data.summary.tax);
+                        $('#sum-delivery-fees').html(data.summary.delivery_fees);
+                        $('#sum-total-sales').html(data.summary.total_sales);
+                        $('#total-discounts-highlight').html(data.summary.total_discounts);
+                    }
                     if (data.payment_totals) {
                         $('#pay-cash').html(data.payment_totals.cash);
                         $('#pay-card').html(data.payment_totals.card);
