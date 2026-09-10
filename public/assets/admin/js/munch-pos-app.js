@@ -529,23 +529,11 @@
         if (els.discountType) els.discountType.value = state.cart.discountType;
         if (els.place) els.place.disabled = !state.cart.lines.length || state.placing || state.orderSubmitting || !!successJob;
         if (els.clear) els.clear.disabled = !!successJob;
-        if (els.paidWrap) els.paidWrap.hidden = hidesPaidAmount();
-        if (els.paid && document.activeElement !== els.paid) els.paid.value = state.cart.paid;
-        if (els.change && !hidesPaidAmount()) {
-            var paid = Number(state.cart.paid || 0);
-            els.change.textContent = paid > 0 ? money(Math.max(0, paid - grandTotal())) : '';
-        }
     }
 
     function isMarketplaceOrderType(type) {
         type = type || state.cart.orderType;
         return type === 'glovo' || type === 'uber' || type === 'bolt_food';
-    }
-
-    function hidesPaidAmount() {
-        return state.cart.payment === 'cash_on_delivery'
-            || state.cart.payment === 'pay_after_eating'
-            || isMarketplaceOrderType();
     }
 
     function renderPay() {
@@ -555,7 +543,6 @@
         if (isMarketplaceOrderType()) {
             els.pay.hidden = true;
             els.pay.innerHTML = '';
-            if (els.paidWrap) els.paidWrap.hidden = true;
             return;
         }
         els.pay.hidden = false;
@@ -722,7 +709,7 @@
             placed_at: placedAt,
             order_type: state.cart.orderType,
             type: state.cart.payment,
-            paid_amount: state.cart.paid || grandTotal(),
+            paid_amount: grandTotal(),
             extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
             extra_discount_type: state.cart.discountType,
             delivery_charge: deliveryCharge(),
@@ -1123,7 +1110,6 @@
     function snapshotPrintJob(body) {
         var now = new Date();
         var type = state.cart.orderType;
-        var paid = Number(state.cart.paid || 0);
         var total = grandTotal();
         return {
             orderId: body && body.order_id ? Number(body.order_id) : 0,
@@ -1156,8 +1142,8 @@
             grand_total: total,
             payment_method: state.cart.payment,
             payment_status: immediatePaymentStatus(state.cart.payment),
-            cash_received: paid,
-            change: Math.max(0, paid - total),
+            cash_received: 0,
+            change: 0,
             mpesa_till: branchMpesaTill(),
             cashier: CFG.cashierName || CFG.branchName || '',
             riderName: type === 'delivery' ? ((state.cart.rider && state.cart.rider.rider_name) || '') : '',
@@ -1196,8 +1182,8 @@
             grand_total: order.grand_total,
             payment_method: order.payment_method,
             payment_status: order.payment_status || immediatePaymentStatus(order.payment_method),
-            cash_received: order.cash_received,
-            change: order.change,
+            cash_received: 0,
+            change: 0,
             mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim(),
             cashier: order.cashier || CFG.cashierName || CFG.branchName || '',
             riderName: order.rider_name || '',
@@ -1922,10 +1908,6 @@
         html += '<dt>' + escapeHtml(L('grandTotal', 'Grand Total')) + '</dt><dd>' + money(order.grand_total) + '</dd>';
         html += '<dt>' + escapeHtml(L('paymentStatus', 'Payment Status')) + '</dt><dd>' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</dd>';
         html += '<dt>' + escapeHtml(L('paymentMethod', 'Payment Method')) + '</dt><dd>' + escapeHtml(paymentLabel(order.payment_method)) + '</dd>';
-        if (Number(order.cash_received) > 0) {
-            html += '<dt>' + escapeHtml(L('cashReceived', 'Paid Amount')) + '</dt><dd>' + money(order.cash_received) + '</dd>';
-            html += '<dt>' + escapeHtml(L('change', 'Change')) + '</dt><dd>' + money(order.change) + '</dd>';
-        }
         html += '<dt>' + escapeHtml(L('cashier', 'Cashier')) + '</dt><dd>' + escapeHtml(order.cashier) + '</dd>';
         html += '<dt>' + escapeHtml(L('createdTime', 'Created at')) + '</dt><dd>' + escapeHtml(order.created_at) + '</dd>';
         if (order.completed_at) html += '<dt>' + escapeHtml(L('completedTime', 'Delivered')) + '</dt><dd>' + escapeHtml(order.completed_at) + '</dd>';
@@ -2061,9 +2043,6 @@
         els.discountWrap = document.getElementById('pos-discount-wrap');
         els.discount = document.getElementById('pos-discount');
         els.discountType = document.getElementById('pos-discount-type');
-        els.paid = document.getElementById('pos-paid');
-        els.paidWrap = document.getElementById('pos-paid-wrap');
-        els.change = document.getElementById('pos-change');
         els.place = document.getElementById('pos-place');
         els.clear = document.getElementById('pos-clear');
         els.toast = document.getElementById('pos-toast');
@@ -2183,11 +2162,6 @@
         });
         els.discountType.addEventListener('change', function () {
             state.cart.discountType = els.discountType.value;
-            persistCart();
-            scheduleRender();
-        });
-        els.paid.addEventListener('input', function () {
-            state.cart.paid = els.paid.value;
             persistCart();
             scheduleRender();
         });

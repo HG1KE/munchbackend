@@ -22,7 +22,7 @@ class BranchPosTodayOrdersService
         $end = Carbon::now($tz)->endOfDay()->utc()->toDateTimeString();
 
         $query = Order::query()
-            ->with(['details', 'customer', 'delivery_address', 'order_change_amount', 'branch', 'cancelledByBranch', 'cancelledByAdmin'])
+            ->with(['details', 'customer', 'customer_delivery_address', 'order_change_amount', 'branch', 'cancelledByBranch', 'cancelledByAdmin'])
             ->where('branch_id', $branchId)
             ->whereIn('sales_channel', PosOrderTypes::salesChannels())
             ->whereBetween('created_at', [$start, $end])
@@ -112,14 +112,12 @@ class BranchPosTodayOrdersService
             ? TimezoneDisplay::parseStoredUtc($order->updated_at)?->timezone($tz)
             : null;
 
-        $address = $order->delivery_address;
         $customerName = trim((string) (($order->customer?->f_name.' '.$order->customer?->l_name) ?: ''));
         if ($customerName === '') {
-            $customerName = (string) ($address?->contact_person_name ?: '');
+            $customerName = $this->addressField($order, 'contact_person_name');
         }
-        $phone = (string) ($order->customer?->phone ?: $address?->contact_person_number ?: '');
+        $phone = (string) ($order->customer?->phone ?: $this->addressField($order, 'contact_person_number') ?: $this->addressField($order, 'phone'));
 
-        $paid = (float) ($order->order_change_amount?->paid_amount ?? 0);
         $grand = (float) $order->order_amount;
         $items = [];
         $subtotal = 0.0;
@@ -149,7 +147,7 @@ class BranchPosTodayOrdersService
             'cashier' => $cashierName !== '' ? $cashierName : $branchName,
             'customer' => $customerName !== '' ? $customerName : 'Walk-in',
             'phone' => $phone,
-            'address' => $order->sales_channel === 'delivery' ? (string) ($address?->address ?: '') : '',
+            'address' => $order->sales_channel === 'delivery' ? $this->addressField($order, 'address') : '',
             'notes' => trim((string) ($order->order_note ?: '')),
             'delivery_fee' => (float) $order->delivery_charge,
             'discount' => (float) $order->extra_discount + $itemDiscount,
@@ -159,8 +157,8 @@ class BranchPosTodayOrdersService
             'payment_status' => (string) $order->payment_status,
             'order_status' => $status,
             'order_status_label' => $this->statusLabel($status),
-            'cash_received' => $paid,
-            'change' => max(0, $paid - $grand),
+            'cash_received' => 0,
+            'change' => 0,
             'mpesa_till' => trim((string) ($order->branch?->mpesa_till ?? '')),
             'rider_name' => trim((string) ($order->rider_name ?? '')),
             'rider_phone' => trim((string) ($order->rider_phone ?? '')),
@@ -175,6 +173,40 @@ class BranchPosTodayOrdersService
             'items' => $items,
             'items_summary' => array_map(fn ($item) => $item['quantity'].'x '.$item['name'], $items),
         ];
+    }
+
+    /**
+     * `orders.delivery_address` is JSON (array cast) and also a relation name.
+     * Never read it with object `->` — Delivery POS rows crash the All tab if you do.
+     */
+    private function addressField(Order $order, string $key): string
+    {
+        if ($order->relationLoaded('customer_delivery_address')) {
+            $related = $order->getRelation('customer_delivery_address');
+            if (is_object($related)) {
+                $value = trim((string) ($related->{$key} ?? ''));
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+
+        $raw = $order->getAttributes()['delivery_address'] ?? null;
+        if ($raw === null) {
+            $raw = $order->getAttribute('delivery_address');
+        }
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+        if (is_array($raw)) {
+            return trim((string) ($raw[$key] ?? ''));
+        }
+        if (is_object($raw)) {
+            return trim((string) ($raw->{$key} ?? ''));
+        }
+
+        return '';
     }
 
     /**

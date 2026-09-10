@@ -57,10 +57,6 @@
                     </select>
                 </div>
                 <div class="munch-pos-pay" id="pos-pay"></div>
-                <div class="munch-pos-paid" id="pos-paid-wrap">
-                    <input type="number" id="pos-paid" min="0" step="1" placeholder="{{ translate('Paid Amount') }}">
-                    <span id="pos-change"></span>
-                </div>
                 <button type="button" class="munch-pos-place" id="pos-place" data-label="{{ translate('Place Order') }}">{{ translate('Place Order') }}</button>
                 <button type="button" class="munch-pos-clear" id="pos-clear">{{ translate('Clear Cart') }}</button>
             </div>
@@ -303,8 +299,8 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.3"></script>
+<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.4"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.4" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.5" defer></script>
 @endpush

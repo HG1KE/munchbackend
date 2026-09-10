@@ -526,12 +526,6 @@
                 html += '<div class="row"><span>Payment Status</span><span>' + escapeHtml(String(job.payment_status).toUpperCase()) + '</span></div>';
             }
         }
-        if (show(kind, template, 'summary', 'paid_amount') && method === 'cash') {
-            html += '<div class="row"><span>Cash Received</span><span>' + escapeHtml(money(job.cash_received, currency)) + '</span></div>';
-        }
-        if (show(kind, template, 'summary', 'change') && method === 'cash') {
-            html += '<div class="row"><span>Balance</span><span>' + escapeHtml(money(job.change, currency)) + '</span></div>';
-        }
         return html;
     }
 

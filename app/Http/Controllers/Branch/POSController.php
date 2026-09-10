@@ -662,7 +662,7 @@ class POSController extends Controller
                     $orderChangeAmount = new OrderChangeAmount();
                     $orderChangeAmount->order_id = $order->id;
                     $orderChangeAmount->order_amount = $order->order_amount;
-                    $orderChangeAmount->paid_amount = $request->paid_amount;
+                    $orderChangeAmount->paid_amount = $order->order_amount;
                     $orderChangeAmount->save();
                 }
             });

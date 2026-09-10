@@ -48,6 +48,17 @@ class PosDeliveryPaymentsTest extends TestCase
         $this->assertStringContainsString("payment_status: immediatePaymentStatus(state.cart.payment)", $app);
         $this->assertStringContainsString("isPaidImmediately(\$orderType, \$paymentMethod) ? 'paid' : 'unpaid'", $controller);
         $this->assertStringContainsString("in_array(\$paymentMethod, ['cash', 'card', 'mpesa'], true)", $controller);
+        $this->assertStringContainsString('$orderChangeAmount->paid_amount = $order->order_amount;', $controller);
+        $this->assertStringNotContainsString('$request->paid_amount', $controller);
+
+        $this->assertStringNotContainsString('id="pos-paid"', $page);
+        $this->assertStringNotContainsString('id="pos-paid-wrap"', $page);
+        $this->assertStringNotContainsString('id="pos-change"', $page);
+        $this->assertStringNotContainsString('hidesPaidAmount', $app);
+        $this->assertStringContainsString('paid_amount: grandTotal()', $app);
+        $this->assertStringNotContainsString('state.cart.paid || grandTotal()', $app);
+        $this->assertStringNotContainsString("L('cashReceived', 'Paid Amount')", $app);
+        $this->assertStringNotContainsString('Cash Received', $ticket);
 
         $this->assertStringContainsString('id="pos-delivery-modal"', $page);
         $this->assertStringContainsString('id="pos-del-name"', $page);
@@ -114,6 +125,8 @@ JS;
             $this->assertStringContainsString($label, $receipt, $method);
             $this->assertStringContainsString('Payment Status', $receipt, $method);
             $this->assertStringContainsString('PAID', $receipt, $method);
+            $this->assertStringNotContainsString('Cash Received', $receipt, $method);
+            $this->assertStringNotContainsString('Balance', $receipt, $method);
             $this->assertStringNotContainsString('Amount Due', $receipt, $method);
             $this->assertStringNotContainsString('Pending Balance', $receipt, $method);
             $this->assertStringNotContainsString('Remaining Balance', $receipt, $method);
