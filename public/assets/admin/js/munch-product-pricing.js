@@ -179,7 +179,8 @@
 
     function fetchDrawer() {
         var url = showUrl(drawer.productId) + '?branch_search=' + encodeURIComponent(drawer.branchSearch || '') +
-            '&channel=' + encodeURIComponent(drawer.channel || '');
+            '&channel=' + encodeURIComponent(drawer.channel || '') +
+            '&t=' + Date.now();
         json(url).then(function (payload) {
             drawer.payload = payload;
             drawer.originalDefault = payload.product.default_price;
@@ -387,10 +388,10 @@
             return '<option value="' + c.id + '"' + (String(bulk.categoryId) === String(c.id) ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
         }).join('');
         var selected = selectedChannels(bulk.channels);
-        var priceControls = '<label class="munch-pricing-field-label">Channels</label>' +
+        var priceControls = '<label class="munch-pricing-field-label">Channels — select one or more</label>' +
             channelChipRow('channels', bulk.channels) +
             '<label class="munch-pricing-advanced-toggle">' +
-            '<input type="checkbox" id="bulk-advanced"' + (bulk.advanced ? ' checked' : '') + '> Advanced</label>';
+            '<input type="checkbox" id="bulk-advanced"' + (bulk.advanced ? ' checked' : '') + '> Advanced adjustments</label>';
         if (!bulk.advanced) {
             priceControls += '<div class="mt-3"><label class="munch-pricing-field-label">Action</label>' +
                 '<p class="munch-pricing-simple-action">Set Exact Price</p>' +
@@ -465,12 +466,17 @@
 
     function rowsForCurrentSelection(rows) {
         var ids = {};
-        bulk.products.forEach(function (p) { ids[String(p.id)] = true; });
-        var selected = selectedChannels(bulk.channels);
+        var selected = selectedIds(bulk.selectedProducts);
+        if (selected.length) {
+            selected.forEach(function (id) { ids[String(id)] = true; });
+        } else {
+            bulk.products.forEach(function (p) { ids[String(p.id)] = true; });
+        }
+        var channels = selectedChannels(bulk.channels);
         return (rows || []).filter(function (row) {
             if (!ids[String(row.product_id)]) return false;
-            if (!selected.length) return row.channel === 'default' || !row.channel;
-            return selected.indexOf(row.channel) !== -1 || row.channel === 'default';
+            if (!channels.length) return row.channel === 'default' || !row.channel;
+            return channels.indexOf(row.channel) !== -1 || row.channel === 'default';
         });
     }
 
@@ -483,6 +489,9 @@
         }
         if (!rows && bulk.tab === 'price') {
             if (bulk.pricesLoading) return '<p class="text-muted mb-0">Loading current selling prices…</p>';
+            if (!selectedIds(bulk.selectedProducts).length) {
+                return '<p class="text-muted mb-0">Preview current vs new selling prices before saving.</p>';
+            }
             rows = rowsForCurrentSelection(bulk.currentRows);
             fromCurrent = !!rows.length;
         }
@@ -616,12 +625,46 @@
             url = CFG.applyAvail;
         }
         json(url, { method: 'POST', body: body }).then(function (data) {
-            showToast(true, data.message || 'Updated');
-            bulk.preview = null;
-            closeAll();
+            showToast(true, bulk.tab === 'price'
+                ? 'Changes applied successfully'
+                : (data.message || 'Updated'));
+            if (bulk.tab === 'price') resetAfterBulkPriceApply();
+            else resetAfterBulkAvailApply();
         }).catch(function (err) {
             showToast(false, (err && err.message) || 'Apply failed');
         });
+    }
+
+    function uncheckBulkProducts() {
+        bulk.selectedProducts = {};
+        if (!els.modalBody) return;
+        els.modalBody.querySelectorAll('[data-bulk-product]').forEach(function (el) {
+            el.checked = false;
+        });
+    }
+
+    function resetAfterBulkPriceApply() {
+        uncheckBulkProducts();
+        bulk.value = '';
+        bulk.preview = null;
+        CHANNELS.forEach(function (ch) {
+            if (bulk.channelOps[ch]) bulk.channelOps[ch].value = '';
+        });
+        var valueInput = document.getElementById('bulk-value');
+        if (valueInput) valueInput.value = '';
+        els.modalBody.querySelectorAll('[data-bulk-op-value]').forEach(function (el) {
+            el.value = '';
+        });
+        refreshBulkPrices({ keepCurrent: true, refetchCurrent: true });
+    }
+
+    function resetAfterBulkAvailApply() {
+        uncheckBulkProducts();
+        bulk.preview = null;
+        var panel = document.getElementById('bulk-preview-panel');
+        if (panel) panel.innerHTML = renderPreview(null);
+        var apply = document.getElementById('bulk-apply');
+        if (apply) apply.disabled = true;
     }
 
     function openCopy() {
@@ -865,7 +908,10 @@
         if (ev.target.id === 'bulk-action') {
             bulk.action = ev.target.value;
             bulk.preview = null;
-            renderBulk();
+            var valueWrap = document.getElementById('bulk-value');
+            if (valueWrap && valueWrap.parentElement) {
+                valueWrap.parentElement.hidden = !actionNeedsValue(bulk.action);
+            }
             refreshBulkPrices({ keepCurrent: true });
             return;
         }
@@ -902,7 +948,8 @@
         if (opAction) {
             ensureChannelOp(opAction).action = ev.target.value;
             bulk.preview = null;
-            renderBulk();
+            var opValue = els.modalBody.querySelector('[data-bulk-op-value="' + opAction + '"]');
+            if (opValue) opValue.hidden = !actionNeedsValue(ev.target.value);
             refreshBulkPrices({ keepCurrent: true });
             return;
         }
@@ -910,14 +957,20 @@
         if (channelMap && ev.target.getAttribute('data-channel')) {
             bulk[channelMap][ev.target.getAttribute('data-channel')] = ev.target.checked;
             bulk.preview = null;
-            if (channelMap === 'channels') invalidateBulkPrices();
-            renderBulk();
-            if (channelMap === 'channels') refreshBulkPrices();
+            var chip = ev.target.closest('.munch-pricing-chip');
+            if (chip) chip.classList.toggle('is-on', ev.target.checked);
+            if (channelMap === 'channels') {
+                if (bulk.advanced && bulk.perChannel) renderBulk();
+                refreshBulkPrices();
+            }
             return;
         }
         if (ev.target.matches('[data-bulk-product]')) {
             bulk.selectedProducts[ev.target.getAttribute('data-bulk-product')] = ev.target.checked;
-            refreshBulkPrices();
+            dropUnselectedCurrentRows();
+            bulk.preview = null;
+            patchBulkPriceUi();
+            refreshBulkPrices({ keepCurrent: true, refetchCurrent: true });
             return;
         }
         if (ev.target.matches('[data-bulk-branch]')) {
@@ -941,8 +994,11 @@
             var mapName = setBtn.getAttribute('data-bulk-channels');
             applyChannelSet(bulk[mapName], setBtn.getAttribute('data-set'));
             bulk.preview = null;
-            if (mapName === 'channels') invalidateBulkPrices();
-            renderBulk();
+            if (mapName === 'channels' && bulk.advanced && bulk.perChannel) {
+                renderBulk();
+            } else {
+                syncChannelChipDom(mapName);
+            }
             if (mapName === 'channels') refreshBulkPrices();
             return;
         }
@@ -950,12 +1006,12 @@
         if (ev.target.id === 'bulk-apply') runApply();
         if (ev.target.id === 'bulk-select-visible') {
             bulk.products.forEach(function (p) { bulk.selectedProducts[p.id] = true; });
-            renderBulk();
-            refreshBulkPrices();
+            els.modalBody.querySelectorAll('[data-bulk-product]').forEach(function (el) { el.checked = true; });
+            refreshBulkPrices({ keepCurrent: true, refetchCurrent: true });
         }
         if (ev.target.id === 'bulk-select-branches') {
             (metaCache.branches || []).forEach(function (b) { bulk.selectedBranches[b.id] = true; });
-            renderBulk();
+            els.modalBody.querySelectorAll('[data-bulk-branch]').forEach(function (el) { el.checked = true; });
             refreshBulkPrices();
         }
     });
@@ -1026,12 +1082,18 @@
     }, 250));
 
     function productCurrentPriceLabel(product) {
-        if (bulk.pricesLoading) return '…';
-        var rows = rowsForCurrentSelection((bulk.currentRows || []).filter(function (row) {
+        var rows = (bulk.currentRows || []).filter(function (row) {
             return Number(row.product_id) === Number(product.id);
-        }));
+        });
+        var channels = selectedChannels(bulk.channels);
+        if (channels.length) {
+            rows = rows.filter(function (row) {
+                return channels.indexOf(row.channel) !== -1 || row.channel === 'default';
+            });
+        }
         if (!rows.length) {
-            return money(product.selling_price != null ? product.selling_price : product.price);
+            if (bulk.pricesLoading) return '…';
+            return money(product.selling_price != null ? product.selling_price : 0);
         }
         var byChannel = {};
         rows.forEach(function (row) {
@@ -1064,6 +1126,35 @@
         return bulk.products.map(function (p) { return Number(p.id); });
     }
 
+    function dropUnselectedCurrentRows() {
+        var selected = selectedIds(bulk.selectedProducts);
+        if (!selected.length) return;
+        var keep = {};
+        selected.forEach(function (id) { keep[String(id)] = true; });
+        bulk.currentRows = (bulk.currentRows || []).filter(function (row) {
+            return keep[String(row.product_id)];
+        });
+    }
+
+    function mergeCurrentRows(rows) {
+        var fetched = {};
+        (rows || []).forEach(function (row) { fetched[String(row.product_id)] = true; });
+        var kept = (bulk.currentRows || []).filter(function (row) {
+            return !fetched[String(row.product_id)];
+        });
+        bulk.currentRows = kept.concat(rows || []);
+    }
+
+    function syncChannelChipDom(mapName) {
+        var selectedMap = bulk[mapName] || {};
+        els.modalBody.querySelectorAll('[data-bulk-channel-map="' + mapName + '"]').forEach(function (input) {
+            var ch = input.getAttribute('data-channel');
+            input.checked = !!selectedMap[ch];
+            var chip = input.closest('.munch-pricing-chip');
+            if (chip) chip.classList.toggle('is-on', !!selectedMap[ch]);
+        });
+    }
+
     function patchBulkPriceUi() {
         bulk.products.forEach(function (p) {
             var el = els.modalBody.querySelector('[data-bulk-product-price="' + p.id + '"]');
@@ -1090,18 +1181,19 @@
         var branchIds = selectedIds(bulk.selectedBranches);
         var channels = selectedChannels(bulk.channels);
         bulk.preview = null;
-        if (!options.keepCurrent) {
+        var fetchCurrent = !options.keepCurrent || options.refetchCurrent;
+        if (fetchCurrent && !options.keepCurrent) {
             bulk.pricesLoading = true;
             bulk.currentRows = [];
-            patchBulkPriceUi();
         }
+        patchBulkPriceUi();
         if (!productIds.length) {
             bulk.currentRows = [];
             bulk.pricesLoading = false;
             patchBulkPriceUi();
             return;
         }
-        if (!options.keepCurrent && CFG.currentPrice) {
+        if (fetchCurrent && CFG.currentPrice) {
             json(CFG.currentPrice, {
                 method: 'POST',
                 body: {
@@ -1112,12 +1204,13 @@
             }).then(function (data) {
                 if (seq !== bulkPriceSeq) return;
                 bulk.pricesLoading = false;
-                bulk.currentRows = data.rows || [];
+                if (options.keepCurrent && options.refetchCurrent) mergeCurrentRows(data.rows || []);
+                else bulk.currentRows = data.rows || [];
                 patchBulkPriceUi();
             }).catch(function () {
                 if (seq !== bulkPriceSeq) return;
                 bulk.pricesLoading = false;
-                bulk.currentRows = [];
+                if (!options.keepCurrent) bulk.currentRows = [];
                 patchBulkPriceUi();
             });
         }
@@ -1131,8 +1224,6 @@
                 bulk.preview = null;
                 patchBulkPriceUi();
             });
-        } else if (options.keepCurrent) {
-            patchBulkPriceUi();
         }
     }
 
@@ -1186,5 +1277,5 @@
 
     var schedulePriceRefresh = debounce(function () {
         refreshBulkPrices({ keepCurrent: true });
-    }, 250);
+    }, 150);
 })();

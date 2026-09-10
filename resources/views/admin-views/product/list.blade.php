@@ -307,5 +307,5 @@
             )
         }
     </script>
-    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.6"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.7"></script>
 @endpush

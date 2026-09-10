@@ -81,7 +81,7 @@ class AdminProductPricingUiTest extends TestCase
         $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
 
         $this->assertStringContainsString('data-current-price-url', $list);
-        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.6", $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.7", $list);
         $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.2", $list);
         $this->assertStringContainsString("cache: 'no-store'", $js);
         $this->assertStringContainsString('bulkProductSeq', $js);
@@ -90,10 +90,16 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('refreshBulkPrices', $js);
         $this->assertStringContainsString('schedulePriceRefresh', $js);
         $this->assertStringContainsString('rowsForCurrentSelection', $js);
+        $this->assertStringContainsString('dropUnselectedCurrentRows', $js);
+        $this->assertStringContainsString('resetAfterBulkPriceApply', $js);
+        $this->assertStringContainsString('Changes applied successfully', $js);
         $this->assertStringContainsString('Set Exact Price', $js);
+        $this->assertStringContainsString('Advanced adjustments', $js);
+        $this->assertStringContainsString('Channels — select one or more', $js);
         $this->assertStringContainsString("id=\"bulk-advanced\"", $js);
         $this->assertStringContainsString('New selling price', $js);
         $this->assertStringContainsString("money(row.current_price) + ' → ' + money(row.new_price)", $js);
+        $this->assertStringNotContainsString('product.price', $js);
         $this->assertStringContainsString('munch-pricing-simple-action', $css);
         $this->assertStringContainsString("input('action', 'set_exact')", $controller);
         $this->assertStringContainsString('no-store, no-cache, must-revalidate', $controller);
