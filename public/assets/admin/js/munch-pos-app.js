@@ -33,8 +33,6 @@
     var searchTimer = 0;
     var categoryScroll = {};
     var lastGridKey = '';
-    var gridPrimed = false;
-    var layoutPassQueued = false;
     var ordersUi = {
         open: false,
         search: '',
@@ -139,6 +137,7 @@
         state.catalog = catalog;
         state.productMap = {};
         (catalog.products || []).forEach(function (p) { state.productMap[p.id] = p; });
+        lastGridKey = '';
     }
 
     function productNeedsVariation(product) {
@@ -256,52 +255,24 @@
         });
     }
 
-    function invalidateGridLayout() {
-        lastGridKey = '';
-        updateTabArrows();
-        scheduleRender();
-    }
-
-    function scheduleLayoutPass() {
-        if (layoutPassQueued) return;
-        layoutPassQueued = true;
-        requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-                layoutPassQueued = false;
-                invalidateGridLayout();
-            });
-        });
-    }
-
-    function gridLayoutReady() {
-        return !!(els.grid && els.grid.clientWidth > 80 && els.grid.clientHeight > 80);
-    }
-
-    function observeGridLayout() {
-        if (!els.grid || typeof ResizeObserver === 'undefined') return;
-        var lastSize = '';
-        var observer = new ResizeObserver(function () {
-            var size = els.grid.clientWidth + 'x' + els.grid.clientHeight;
-            if (size === lastSize) return;
-            lastSize = size;
-            gridPrimed = false;
-            invalidateGridLayout();
-        });
-        observer.observe(els.grid);
-        if (els.grid.parentElement) observer.observe(els.grid.parentElement);
+    function catalogGridKey() {
+        return [
+            state.categoryId,
+            state.search,
+            state.cart.orderType,
+            (state.catalog && state.catalog.version) || '',
+            (state.catalog.products || []).length
+        ].join('|');
     }
 
     function renderAll() {
         renderStatus();
         renderTabs();
-        var gridW = els.grid ? els.grid.clientWidth : 0;
-        var gridH = els.grid ? els.grid.clientHeight : 0;
-        var cols = gridColumnCount();
         var listLen = (state.catalog.products || []).length;
         var cardCount = els.grid ? els.grid.querySelectorAll('.munch-pos-card').length : 0;
-        var gridKey = [state.categoryId, state.search, state.cart.orderType, (state.catalog && state.catalog.version) || '', listLen, gridW, gridH, cols, gridPrimed ? '1' : '0'].join('|');
+        var gridKey = catalogGridKey();
         if (gridKey !== lastGridKey || (listLen > 0 && cardCount === 0)) {
-            lastGridKey = gridLayoutReady() ? gridKey : '';
+            lastGridKey = gridKey;
             renderGrid();
         }
         renderTypes();
@@ -420,80 +391,32 @@
         els.tabs.scrollBy({ left: direction * distance, behavior: 'smooth' });
     }
 
-    function gridColumnCount() {
-        if (!els.grid) return 2;
-        var template = window.getComputedStyle(els.grid).gridTemplateColumns || '';
-        if (!template || template === 'none') {
-            return Math.max(2, Math.floor(els.grid.clientWidth / 160) || 2);
-        }
-        var tracks = template.split(/\s+(?![^(]*\))/).filter(Boolean);
-        if (tracks.length >= 2) return tracks.length;
-        return Math.max(2, Math.floor(els.grid.clientWidth / 160) || 2);
-    }
-
-    function gridRowHeight() {
-        if (!els.grid) return 200;
-        var card = els.grid.querySelector('.munch-pos-card');
-        var gap = parseFloat(window.getComputedStyle(els.grid).rowGap);
-        if (isNaN(gap)) gap = 16;
-        if (card) return Math.max(140, Math.round(card.getBoundingClientRect().height + gap));
-        return 200;
+    function measuredGridColumns(containerWidth, cardWidth, gap) {
+        var width = Number(containerWidth || 0);
+        var card = Number(cardWidth || 0);
+        var gutter = Number(gap || 0);
+        if (!(width > 80) || !(card > 80)) return 0;
+        return Math.max(1, Math.round((width + gutter) / (card + gutter)));
     }
 
     function renderGrid() {
         if (!els.grid) return;
         var list = filteredProducts();
         if (els.empty) els.empty.hidden = list.length > 0;
-        var html = '';
-        var i;
-        var start = 0;
-        var end = list.length;
         var savedTop = els.grid.scrollTop;
-        var cols = gridColumnCount();
-        var rowH = gridRowHeight();
-        var ready = gridLayoutReady();
-        var virtualize = list.length > 48 && ready && gridPrimed;
-        if (virtualize) {
-            var top = savedTop;
-            var vis = Math.ceil(els.grid.clientHeight / rowH) + 4;
-            var startRow = Math.max(0, Math.floor(top / rowH) - 1);
-            start = startRow * cols;
-            end = Math.min(list.length, start + vis * cols);
-            if (end <= start) {
-                virtualize = false;
-                start = 0;
-                end = list.length;
-            } else {
-                html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (startRow * rowH) + 'px"></div>';
-            }
-        }
-        for (i = start; i < end; i++) html += productCard(list[i]);
-        if (virtualize) {
-            var remain = Math.ceil((list.length - end) / cols);
-            html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (remain * rowH) + 'px"></div>';
-        }
-        els.grid.innerHTML = html;
+        els.grid.innerHTML = list.map(productCard).join('');
         els.grid.scrollTop = savedTop;
-        if (ready && list.length) {
-            void els.grid.offsetHeight;
-            els.grid.classList.add('is-laid-out');
-            if (!gridPrimed) {
-                gridPrimed = true;
-                scheduleLayoutPass();
-            }
-        } else {
-            gridPrimed = false;
-            els.grid.classList.remove('is-laid-out');
-        }
     }
 
     function productCard(product) {
         var img = product.image || state.catalog.placeholder_image || '';
         var qty = productQty(product.id);
+        var hasOptions = productNeedsVariation(product);
         return '<article class="munch-pos-card" data-id="' + product.id + '">' +
             '<img src="' + escapeAttr(img) + '" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'' + escapeAttr(state.catalog.placeholder_image || '') + '\'">' +
             '<div class="munch-pos-card__body">' +
             '<div class="munch-pos-card__name">' + escapeHtml(product.name) + '</div>' +
+            (hasOptions ? '<div class="munch-pos-card__opt">' + escapeHtml((CFG.labels && CFG.labels.options) || 'Options') + '</div>' : '') +
             '<div class="munch-pos-card__price">' + money(resolvedProductPrice(product) - productDiscountAmount(product)) + '</div>' +
             '</div>' +
             '<div class="munch-pos-card__actions" data-qty="' + qty + '">' + cardQtyHtml(product.id, qty) + '</div>' +
@@ -546,11 +469,9 @@
                 '<div class="munch-pos-line__main">' +
                 '<div class="munch-pos-line__name">' + escapeHtml(product.name) + '</div>' +
                 (mods ? '<div class="munch-pos-line__meta">' + escapeHtml(mods) + '</div>' : '') +
-                '<div class="munch-pos-line__details">' +
                 '<div class="munch-pos-line__price">' + money(lineUnit(line)) + ' × ' + qty + '</div>' +
+                '</div>' +
                 '<div class="munch-pos-line__sub">' + money(lineSubtotal(line)) + '</div>' +
-                '</div>' +
-                '</div>' +
                 '<div class="munch-pos-qty">' +
                 '<button type="button" data-qty="' + index + '" data-delta="-1" aria-label="−">−</button>' +
                 '<span>' + qty + '</span>' +
@@ -2184,28 +2105,15 @@
         if (els.tabs) {
             els.tabs.addEventListener('scroll', updateTabArrows, { passive: true });
         }
-        window.addEventListener('resize', function () {
-            gridPrimed = false;
-            invalidateGridLayout();
-        });
-        observeGridLayout();
+        window.addEventListener('resize', updateTabArrows);
         if (document.fonts && document.fonts.ready) {
-            document.fonts.ready.then(function () {
-                gridPrimed = false;
-                invalidateGridLayout();
-            });
+            document.fonts.ready.then(updateTabArrows);
         }
         els.grid.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-card-delta]');
             if (!btn || !els.grid.contains(btn)) return;
             adjustProductQty(Number(btn.getAttribute('data-product')), Number(btn.getAttribute('data-card-delta')));
         });
-        var gridTimer = 0;
-        els.grid.addEventListener('scroll', function () {
-            if ((state.catalog.products || []).length <= 80) return;
-            clearTimeout(gridTimer);
-            gridTimer = setTimeout(renderGrid, 16);
-        }, { passive: true });
         els.types.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-type]');
             if (!btn) return;
@@ -2470,12 +2378,10 @@
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();
-            scheduleLayoutPass();
             preloadCatalogMedia();
             if (navigator.onLine) refreshHeartbeat().then(function () { syncQueue(); });
         }).catch(function () {
             scheduleRender();
-            scheduleLayoutPass();
         });
     }
 

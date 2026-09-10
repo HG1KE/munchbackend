@@ -10,7 +10,7 @@
     @php($icon = \App\Model\BusinessSetting::where(['key' => 'fav_icon'])->first()->value ?? '')
     <link rel="icon" type="image/x-icon" href="{{ asset('storage/app/public/restaurant/' . $icon) }}">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-pos.css') }}?v=2.9">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-pos.css') }}?v=3.0">
     @stack('css_or_js')
 </head>
 <body class="munch-pos-body">

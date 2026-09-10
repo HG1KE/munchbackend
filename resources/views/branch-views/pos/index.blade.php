@@ -225,6 +225,7 @@
             confirmDelivery: @json(translate('Confirm Delivery')),
             whoDelivers: @json(translate('Who will deliver this order?')),
             add: @json(translate('Add To Cart')),
+            options: @json(translate('Options')),
             required: @json(translate('Required')),
             optional: @json(translate('optional')),
             placeOrder: @json(translate('Place Order')),
@@ -302,5 +303,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.4"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.9" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.0" defer></script>
 @endpush
