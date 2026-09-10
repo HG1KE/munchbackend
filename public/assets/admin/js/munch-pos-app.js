@@ -659,7 +659,7 @@
         var card = document.getElementById('pos-modal-card');
         var modal = document.getElementById('pos-modal');
         if (!card || !modal) return;
-        var html = '<h3>' + escapeHtml(product.name) + '</h3>';
+        var html = '<h3>' + escapeHtml(product.name) + '</h3><div class="munch-pos-dialog__body">';
         (product.variations || []).forEach(function (group, gi) {
             html += '<div><strong>' + escapeHtml(group.name) + '</strong> <small>' + escapeHtml(group.required === 'on' ? CFG.labels.required : CFG.labels.optional) + '</small>';
             (group.values || []).forEach(function (opt) {
@@ -668,9 +668,10 @@
             });
             html += '</div>';
         });
-        html += '<div class="munch-pos-qty" style="margin:1rem 0"><button type="button" id="pos-mod-minus">−</button><span id="pos-mod-qty">1</span><button type="button" id="pos-mod-plus">+</button></div>';
+        html += '</div><div class="munch-pos-dialog__actions">';
+        html += '<div class="munch-pos-qty munch-pos-dialog__qty"><button type="button" id="pos-mod-minus">−</button><span id="pos-mod-qty">1</span><button type="button" id="pos-mod-plus">+</button></div>';
         html += '<button type="button" class="munch-pos-place" id="pos-mod-add">' + escapeHtml(CFG.labels.add) + '</button>';
-        html += '<button type="button" class="munch-pos-clear" id="pos-mod-close">Close</button>';
+        html += '<button type="button" class="munch-pos-clear" id="pos-mod-close">Close</button></div>';
         card.innerHTML = html;
         modal.hidden = false;
         var qty = 1;

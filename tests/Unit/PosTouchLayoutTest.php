@@ -155,6 +155,34 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('state.searchDraft', $js);
     }
 
+    public function test_success_modal_keeps_both_print_actions_visible(): void
+    {
+        $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
+        $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+        $success = substr($page, strpos($page, 'id="pos-success-modal"'), 1600);
+
+        $this->assertStringContainsString('munch-pos-success__actions', $success);
+        $this->assertTrue(
+            strpos($success, 'pos-success-kitchen') < strpos($success, 'pos-success-receipt'),
+            'Kitchen print must stay beside Receipt'
+        );
+        $this->assertTrue(
+            strpos($success, 'munch-pos-success__body') < strpos($success, 'munch-pos-success__actions'),
+            'print actions stay pinned under the order summary'
+        );
+        $this->assertStringContainsString('.munch-pos-success__actions', $css);
+        $this->assertStringContainsString('grid-template-columns: 1fr 1fr', $css);
+        $this->assertStringContainsString('max-height: calc(100dvh - 1.2rem)', $css);
+        $this->assertStringContainsString('.munch-pos-dialog__actions', $css);
+        $this->assertStringContainsString('munch-pos-dialog__body', $js);
+        $this->assertStringContainsString('pos-mod-add', $js);
+        $this->assertStringContainsString('function printOneTicket', $js);
+        $this->assertStringContainsString('function enqueue', $js);
+        $this->assertStringContainsString('.munch-pos-footer .munch-pos-place { grid-area: place; }', $css);
+        $this->assertStringNotContainsString("\n    .munch-pos-place { grid-area: place; }", $css);
+    }
+
     public function test_catalog_render_scenarios(): void
     {
         $node = trim((string) shell_exec('command -v node'));

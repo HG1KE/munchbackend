@@ -71,37 +71,41 @@
 <div class="munch-pos-modal" id="pos-delivery-modal" hidden>
     <div class="munch-pos-modal__card munch-pos-delivery-modal" role="dialog" aria-modal="true" aria-labelledby="pos-delivery-title">
         <h2 id="pos-delivery-title">{{ translate('Delivery details') }}</h2>
-        <p class="munch-pos-delivery-modal__error" id="pos-delivery-error" hidden></p>
-        <label class="munch-pos-delivery-modal__field">
-            <span>{{ translate('Customer Name') }}</span>
-            <input type="text" id="pos-del-name" placeholder="{{ translate('Customer Name') }}" autocomplete="off" data-del-field>
-        </label>
-        <label class="munch-pos-delivery-modal__field">
-            <span>{{ translate('Customer Phone') }}</span>
-            <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
-        </label>
-        <label class="munch-pos-delivery-modal__field">
-            <span>{{ translate('Delivery Address') }}</span>
-            <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Delivery Address') }}" autocomplete="off" data-del-field></textarea>
-        </label>
-        <label class="munch-pos-delivery-modal__field">
-            <span>{{ translate('Delivery Fee') }}</span>
-            <span class="munch-pos-fee__field">
-                <span class="munch-pos-fee__currency" id="pos-del-fee-currency">Ksh</span>
-                <input type="number" id="pos-del-fee" min="0" step="1" inputmode="decimal" value="0" aria-label="{{ translate('Delivery Fee') }}" data-del-field>
-            </span>
-        </label>
-        <h3>{{ translate('Who will deliver this order?') }}</h3>
-        <label class="munch-pos-delivery-modal__field">
-            <span>{{ translate('Rider Name') }}</span>
-            <input type="text" id="pos-del-rider-name" placeholder="{{ translate('Rider Name') }}" autocomplete="off" data-del-field>
-        </label>
-        <label class="munch-pos-delivery-modal__field">
-            <span>{{ translate('Rider Phone') }}</span>
-            <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
-        </label>
-        <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
-        <button type="button" class="munch-pos-clear" id="pos-delivery-cancel">{{ translate('Close') }}</button>
+        <div class="munch-pos-dialog__body">
+            <p class="munch-pos-delivery-modal__error" id="pos-delivery-error" hidden></p>
+            <label class="munch-pos-delivery-modal__field">
+                <span>{{ translate('Customer Name') }}</span>
+                <input type="text" id="pos-del-name" placeholder="{{ translate('Customer Name') }}" autocomplete="off" data-del-field>
+            </label>
+            <label class="munch-pos-delivery-modal__field">
+                <span>{{ translate('Customer Phone') }}</span>
+                <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
+            </label>
+            <label class="munch-pos-delivery-modal__field">
+                <span>{{ translate('Delivery Address') }}</span>
+                <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Delivery Address') }}" autocomplete="off" data-del-field></textarea>
+            </label>
+            <label class="munch-pos-delivery-modal__field">
+                <span>{{ translate('Delivery Fee') }}</span>
+                <span class="munch-pos-fee__field">
+                    <span class="munch-pos-fee__currency" id="pos-del-fee-currency">Ksh</span>
+                    <input type="number" id="pos-del-fee" min="0" step="1" inputmode="decimal" value="0" aria-label="{{ translate('Delivery Fee') }}" data-del-field>
+                </span>
+            </label>
+            <h3>{{ translate('Who will deliver this order?') }}</h3>
+            <label class="munch-pos-delivery-modal__field">
+                <span>{{ translate('Rider Name') }}</span>
+                <input type="text" id="pos-del-rider-name" placeholder="{{ translate('Rider Name') }}" autocomplete="off" data-del-field>
+            </label>
+            <label class="munch-pos-delivery-modal__field">
+                <span>{{ translate('Rider Phone') }}</span>
+                <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
+            </label>
+        </div>
+        <div class="munch-pos-dialog__actions">
+            <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
+            <button type="button" class="munch-pos-clear" id="pos-delivery-cancel">{{ translate('Close') }}</button>
+        </div>
     </div>
 </div>
 
@@ -128,6 +132,7 @@
     <div class="munch-pos-orders__nested" id="pos-cancel-modal" hidden>
         <div class="munch-pos-modal__card munch-pos-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="pos-cancel-title">
             <h2 id="pos-cancel-title">{{ translate('Cancel Order') }}</h2>
+            <div class="munch-pos-dialog__body">
             <p class="munch-pos-cancel-modal__error" id="pos-cancel-error" hidden></p>
             <label class="munch-pos-cancel-modal__field">
                 <span>{{ translate('Cancellation Reason') }}</span>
@@ -135,6 +140,7 @@
             </label>
             <p class="munch-pos-cancel-modal__warn">⚠️ {{ translate('This cancellation will be visible to the Master Admin.') }}</p>
             <p class="munch-pos-cancel-modal__confirm">{{ translate('Are you sure you want to continue?') }}</p>
+            </div>
             <div class="munch-pos-cancel-modal__actions">
                 <button type="button" class="munch-pos-clear" id="pos-cancel-dismiss">{{ translate('Cancel') }}</button>
                 <button type="button" class="munch-pos-cancel-modal__submit" id="pos-cancel-confirm">{{ translate('Confirm Cancellation') }}</button>
@@ -145,26 +151,30 @@
 
 <div class="munch-pos-success" id="pos-success-modal" hidden>
     <div class="munch-pos-success__card" role="dialog" aria-modal="true" aria-labelledby="pos-success-title">
-        <p class="munch-pos-success__mark" aria-hidden="true">✅</p>
-        <h2 id="pos-success-title">{{ translate('Order Placed Successfully') }}</h2>
-        <dl class="munch-pos-success__meta">
-            <div>
-                <dt>{{ translate('Order') }} #</dt>
-                <dd id="pos-success-number"></dd>
-            </div>
-            <div>
-                <dt>{{ translate('Grand Total') }}</dt>
-                <dd id="pos-success-total"></dd>
-            </div>
-            <div>
-                <dt>{{ translate('Payment Method') }}</dt>
-                <dd id="pos-success-pay"></dd>
-            </div>
-        </dl>
-        <button type="button" class="munch-pos-place" id="pos-success-kitchen">{{ translate('Print Kitchen Order') }}</button>
-        <button type="button" class="munch-pos-success__receipt" id="pos-success-receipt">{{ translate('Print Receipt') }}</button>
-        <button type="button" class="munch-pos-place" id="pos-success-done">{{ translate('Done') }}</button>
-        <button type="button" class="munch-pos-clear" id="pos-success-close">{{ translate('Close') }}</button>
+        <div class="munch-pos-success__body">
+            <p class="munch-pos-success__mark" aria-hidden="true">✅</p>
+            <h2 id="pos-success-title">{{ translate('Order Placed Successfully') }}</h2>
+            <dl class="munch-pos-success__meta">
+                <div>
+                    <dt>{{ translate('Order') }} #</dt>
+                    <dd id="pos-success-number"></dd>
+                </div>
+                <div>
+                    <dt>{{ translate('Grand Total') }}</dt>
+                    <dd id="pos-success-total"></dd>
+                </div>
+                <div>
+                    <dt>{{ translate('Payment Method') }}</dt>
+                    <dd id="pos-success-pay"></dd>
+                </div>
+            </dl>
+        </div>
+        <div class="munch-pos-success__actions">
+            <button type="button" class="munch-pos-place" id="pos-success-kitchen">{{ translate('Print Kitchen Order') }}</button>
+            <button type="button" class="munch-pos-success__receipt" id="pos-success-receipt">{{ translate('Print Receipt') }}</button>
+            <button type="button" class="munch-pos-place" id="pos-success-done">{{ translate('Done') }}</button>
+            <button type="button" class="munch-pos-clear" id="pos-success-close">{{ translate('Close') }}</button>
+        </div>
     </div>
 </div>
 
@@ -303,5 +313,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.4"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.0" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.1" defer></script>
 @endpush
