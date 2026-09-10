@@ -21,7 +21,6 @@ use App\Support\OrderPlacementTime;
 use App\Support\PosOrderTypes;
 use App\Model\OrderDetail;
 use App\Model\ProductByBranch;
-use App\Model\Table;
 use App\Models\OrderChangeAmount;
 use App\User;
 use Brian2694\Toastr\Facades\Toastr;
@@ -479,20 +478,6 @@ class POSController extends Controller
             session()->has('order_type') ? (string) session()->get('order_type') : PosOrderTypes::TAKE_AWAY
         );
 
-        if (PosOrderTypes::isDineIn($orderType)) {
-            if (!session()->has('table_id')){
-                return $this->posFail($request, translate('please select a table number'));
-            }
-            if (!session()->has('people_number')){
-                return $this->posFail($request, translate('please enter people number'));
-            }
-
-            $table = Table::find(session('table_id'));
-            if (isset($table) && session('people_number') > $table->capacity  || session('people_number') < 1 ) {
-                return $this->posFail($request, translate('enter valid people number between 1 to '. $table->capacity));
-            }
-        }
-
         $deliveryCharge = 0;
         $distance = 0;
         $areaId = null;
@@ -661,13 +646,8 @@ class POSController extends Controller
             $order->order_amount = $totalPrice + $totalTaxAmount + $order->delivery_charge + $totalAddonTax;
             $order->coupon_discount_amount = 0.00;
             $order->branch_id = auth('branch')->id();
-            if (PosOrderTypes::isDineIn($orderType)) {
-                $order->table_id = session()->get('table_id');
-                $order->number_of_people = session()->get('people_number');
-            } else {
-                $order->table_id = null;
-                $order->number_of_people = null;
-            }
+            $order->table_id = null;
+            $order->number_of_people = null;
 
             OrderPlacementTime::applyToOrder($order, $placedAt);
 
@@ -1235,11 +1215,6 @@ class POSController extends Controller
             return $this->posFail($request, $deliveryError);
         }
 
-        $dineInError = $this->jsonPosDineInValidationError($request);
-        if ($dineInError !== null) {
-            return $this->posFail($request, $dineInError);
-        }
-
         $cart = collect([]);
         foreach ($items as $item) {
             if (! is_array($item)) {
@@ -1266,17 +1241,6 @@ class POSController extends Controller
         $request->session()->forget('customer_id');
         $request->session()->forget('table_id');
         $request->session()->forget('people_number');
-
-        if (PosOrderTypes::isDineIn($request->input('order_type'))) {
-            $tableId = PosOrderTypes::jsonDineInTableId($request->all());
-            $people = PosOrderTypes::jsonDineInPeople($request->all());
-            if ($tableId !== null) {
-                $request->session()->put('table_id', $tableId);
-            }
-            if ($people !== null) {
-                $request->session()->put('people_number', $people);
-            }
-        }
 
         $address = $request->input('address');
         if (is_array($address) && PosOrderTypes::isDelivery($request->input('order_type'))) {
@@ -1416,13 +1380,6 @@ class POSController extends Controller
             'rider_name' => $request->input('rider_name', $address['rider_name'] ?? ''),
             'rider_phone' => $request->input('rider_phone', $address['rider_phone'] ?? ''),
         ]);
-
-        return $error === null ? null : translate($error);
-    }
-
-    private function jsonPosDineInValidationError(Request $request): ?string
-    {
-        $error = PosOrderTypes::jsonDineInError($request->all());
 
         return $error === null ? null : translate($error);
     }

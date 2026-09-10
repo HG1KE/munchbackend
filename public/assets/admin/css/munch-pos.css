@@ -356,15 +356,6 @@
     color: #fff;
 }
 
-.munch-pos-extra {
-    display: grid;
-    gap: 0.55rem;
-    margin-bottom: 0.9rem;
-}
-
-.munch-pos-extra input,
-.munch-pos-extra select,
-.munch-pos-extra textarea,
 .munch-pos-discount input,
 .munch-pos-discount select,
 .munch-pos-paid input,

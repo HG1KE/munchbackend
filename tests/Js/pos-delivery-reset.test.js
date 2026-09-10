@@ -17,8 +17,7 @@ function dirtyCart(overrides) {
     return Object.assign({
         lines: [{ productId: 1, quantity: 1 }],
         orderType: 'delivery',
-        tableId: '7',
-        people: '2',
+        note: 'keep-me',
         discount: 10,
         discountType: 'amount',
         payment: 'cash',
@@ -63,7 +62,7 @@ test('applyEmptyDelivery clears every customer delivery field', function () {
     assertBlankDelivery(cart, 'reset');
     assert(cart.address !== previousAddress, 'reset must replace the address object');
     assert(cart.lines.length === 1, 'reset must not clear cart lines');
-    assert(cart.tableId === '7', 'reset must not clear dine-in table');
+    assert(cart.note === 'keep-me', 'reset must not clear unrelated cart fields');
     assert(cart.orderType === 'delivery', 'reset must keep the selected order type');
 });
 
@@ -72,7 +71,7 @@ test('persistableCart never writes delivery details and does not mutate live sta
     var stored = delivery.persistableCart(cart);
     assertBlankDelivery(stored, 'idb snapshot');
     assert(stored.lines.length === 1, 'idb snapshot should keep in-progress lines');
-    assert(stored.tableId === '7', 'idb snapshot should keep table');
+    assert(stored.note === 'keep-me', 'idb snapshot should keep unrelated cart fields');
     assert(cart.deliveryFee === 200, 'live cart fee was mutated');
     assert(cart.address.contact_person_name === 'Jane Doe', 'live cart name was mutated');
     assert(cart.rider.rider_name === 'Alex', 'live cart rider was mutated');
@@ -83,8 +82,6 @@ test('IndexedDB leftover delivery is not restored on a new sale', function () {
     var next = delivery.hydrateCart({
         lines: [],
         orderType: 'take_away',
-        tableId: '',
-        people: '',
         discount: 0,
         discountType: 'amount',
         payment: 'cash',
@@ -101,7 +98,7 @@ test('IndexedDB leftover delivery is not restored with in-progress lines', funct
     var stored = dirtyCart();
     var next = delivery.hydrateCart({ lines: [], deliveryFee: 0, address: {}, rider: {} }, stored);
     assert(next.lines.length === 1, 'in-progress lines should restore');
-    assert(next.tableId === '7', 'dine-in table should restore');
+    assert(next.note === 'keep-me', 'unrelated cart fields should restore');
     assertBlankDelivery(next, 'draft hydrate');
 });
 

@@ -7,7 +7,6 @@ use App\Model\Branch;
 use App\Model\Category;
 use App\Model\Product;
 use App\Model\ProductByBranch;
-use App\Model\Table;
 use App\Models\DeliveryChargeByArea;
 use App\Support\PosOrderTypes;
 use App\Support\ProductPricingChannels;
@@ -96,17 +95,6 @@ class BranchPosCatalogService
             ];
         }
 
-        $tables = Table::query()
-            ->where('branch_id', $branchId)
-            ->get(['id', 'number', 'capacity'])
-            ->map(fn ($table) => [
-                'id' => (int) $table->id,
-                'number' => (string) $table->number,
-                'capacity' => (int) $table->capacity,
-            ])
-            ->values()
-            ->all();
-
         $currencySymbol = 'Ksh';
         try {
             $currencySymbol = Helpers::currency_symbol();
@@ -130,7 +118,6 @@ class BranchPosCatalogService
             'receipt' => $this->receipts->forBranch($branch),
             'categories' => $categories,
             'products' => $mappedProducts,
-            'tables' => $tables,
             'delivery' => $this->deliverySetup($branchId),
         ];
     }
