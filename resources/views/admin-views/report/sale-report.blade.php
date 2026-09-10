@@ -2,9 +2,13 @@
 
 @section('title', translate('Sale Report'))
 
+@push('css_or_js')
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.0">
+@endpush
+
 @section('content')
-    <div class="content container-fluid">
-        <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
+    <div class="content container-fluid munch-sale-report">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
             <h2 class="h1 mb-0 d-flex align-items-center gap-2">
                 <img width="20" class="avatar-img" src="{{asset('public/assets/admin/img/icons/sales.png')}}" alt="">
                 <span class="page-header-title">
@@ -13,44 +17,13 @@
             </h2>
         </div>
 
-        <div class="card mt-3">
-            <div class="card-body">
-                <div class="media flex-column flex-sm-row flex-wrap align-items-sm-center gap-4">
-                    <div class="avatar avatar-xl">
-                        <img class="avatar-img" src="{{asset('public/assets/admin')}}/svg/illustrations/credit-card.svg"
-                            alt="{{ translate('sale_report') }}">
-                    </div>
-
-                    <div class="media-body">
-                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                            <div class="">
-                                <h2 class="page-header-title">{{translate('sale')}} {{translate('report')}} {{translate('overview')}}</h2>
-
-                                <div class="row align-items-center">
-                                    <div class="col-auto">
-                                        <span>{{translate('admin')}}:</span>
-                                        <a href="#">{{auth('admin')->user()->f_name.' '.auth('admin')->user()->l_name}}</a>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="d-flex">
-                                <a class="btn btn-icon btn-primary rounded-circle px-2" href="{{route('admin.dashboard')}}">
-                                    <i class="tio-home-outlined"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mt-3">
+        <div class="card mb-3 munch-sale-report__filters">
             <div class="card-body">
                 <form action="javascript:" id="search-form" method="POST">
                     @csrf
-                    <div class="row g-2">
-                        <div class="col-sm-6 col-md-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-sm-6 col-lg-3">
+                            <label class="input-label" for="branch_id">{{ translate('Select Branch') }}</label>
                             <select class="custom-select custom-select" name="branch_id" id="branch_id" required>
                                 <option  disabled>{{translate('Select Branch')}}</option>
                                 <option value="all">All</option>
@@ -60,7 +33,8 @@
                             </select>
                         </div>
 
-                        <div class="col-sm-6 col-md-2">
+                        <div class="col-sm-6 col-lg-2">
+                            <label class="input-label" for="sales_channel">{{ translate('Sales Channel') }}</label>
                             <select class="custom-select" name="sales_channel" id="sales_channel">
                                 <option value="all">{{ translate('All') }} {{ translate('Sales Channel') }}</option>
                                 <option value="delivery">{{ translate('Delivery') }}</option>
@@ -72,61 +46,108 @@
                                 <option value="pos">POS</option>
                             </select>
                         </div>
-                        <div class="col-sm-6 col-md-2">
+                        <div class="col-sm-6 col-lg-2">
+                            <label class="input-label" for="from_date">{{ translate('from') }}</label>
                             <input type="date" name="from" id="from_date" class="form-control" required>
                         </div>
-                        <div class="col-sm-6 col-md-3">
+                        <div class="col-sm-6 col-lg-3">
+                            <label class="input-label" for="to_date">{{ translate('to') }}</label>
                             <input type="date" name="to" id="to_date" class="form-control" required>
                         </div>
-                        <div class="col-sm-6 col-md-2">
+                        <div class="col-sm-6 col-lg-2">
                             <button type="submit" class="btn btn-primary btn-block">{{translate('show')}}</button>
-                        </div>
-
-                        <div class="col-md-6 d-flex flex-column gap-2">
-                            <div>
-                                <strong>
-                                    {{translate('total_Orders')}} :
-                                    <span id="order_count"> </span>
-                                </strong>
-                            </div>
-                            <div>
-                                <strong>
-                                    {{translate('total_Item_Qty')}}
-                                    : <span
-                                        id="item_count"> </span>
-                                </strong>
-                            </div>
-                            <div>
-                                <strong>{{translate('total')}}  {{translate('amount')}} : <span
-                                        id="order_amount"></span>
-                                </strong>
-                            </div>
-                            <div class="d-flex flex-wrap gap-3 mt-3" id="sale-summary">
-                                <span>{{ translate('Gross Sales') }}: <strong id="sum-gross-sales"></strong></span>
-                                <span>{{ translate('Total Discounts') }}: <strong id="sum-total-discounts"></strong></span>
-                                <span>{{ translate('Net Sales') }}: <strong id="sum-net-sales"></strong></span>
-                                <span>{{ translate('tax') }}: <strong id="sum-tax"></strong></span>
-                                <span>{{ translate('Delivery Fees') }}: <strong id="sum-delivery-fees"></strong></span>
-                                <span>{{ translate('Total Sales') }}: <strong id="sum-total-sales"></strong></span>
-                            </div>
-                            <div class="mt-2">
-                                <strong>{{ translate('Total Discounts') }}: <span id="total-discounts-highlight"></span></strong>
-                            </div>
-                            <div id="payment-totals" class="d-flex flex-wrap gap-3 mt-2 small">
-                                <span>{{ translate('Cash') }}: <strong id="pay-cash"></strong></span>
-                                <span>{{ translate('Card') }}: <strong id="pay-card"></strong></span>
-                                <span>{{ translate('M-PESA') }}: <strong id="pay-mpesa"></strong></span>
-                                <span>Glovo: <strong id="pay-glovo"></strong></span>
-                                <span>Uber: <strong id="pay-uber"></strong></span>
-                                <span>Bolt Food: <strong id="pay-bolt_food"></strong></span>
-                            </div>
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
 
-                <hr>
+        <div class="munch-sale-report__meta">
+            <span class="munch-sale-report__chip">
+                {{translate('total_Orders')}}
+                <strong id="order_count">—</strong>
+            </span>
+            <span class="munch-sale-report__chip">
+                {{translate('total_Item_Qty')}}
+                <strong id="item_count">—</strong>
+            </span>
+        </div>
 
-                <div class="table-responsive datatable_wrapper_row mt-5" id="set-rows">
+        <span class="munch-sale-report__visually-hidden" id="order_amount"></span>
+        <span class="munch-sale-report__visually-hidden" id="total-discounts-highlight"></span>
+
+        <div class="munch-sale-report__grid munch-sale-report__grid--kpis" id="sale-summary">
+            <article class="munch-sale-report__card">
+                <span class="munch-sale-report__label">{{ translate('Gross Sales') }}</span>
+                <p class="munch-sale-report__value" id="sum-gross-sales">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--discount">
+                <span class="munch-sale-report__label">{{ translate('Total Discounts') }}</span>
+                <p class="munch-sale-report__value" id="sum-total-discounts">—</p>
+            </article>
+            <article class="munch-sale-report__card">
+                <span class="munch-sale-report__label">{{ translate('Net Sales') }}</span>
+                <p class="munch-sale-report__value" id="sum-net-sales">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--munch">
+                <span class="munch-sale-report__label">{{ translate('Munch Sales') }}</span>
+                <p class="munch-sale-report__value" id="sum-munch-sales">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--market">
+                <span class="munch-sale-report__label">{{ translate('Marketplace Sales') }}</span>
+                <p class="munch-sale-report__value" id="sum-marketplace-sales">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--accent">
+                <span class="munch-sale-report__label">{{ translate('Total Sales') }}</span>
+                <p class="munch-sale-report__value" id="sum-total-sales">—</p>
+            </article>
+        </div>
+
+        <div class="munch-sale-report__grid munch-sale-report__grid--secondary">
+            <article class="munch-sale-report__card munch-sale-report__card--compact">
+                <span class="munch-sale-report__label">{{ translate('tax') }}</span>
+                <p class="munch-sale-report__value" id="sum-tax">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--compact">
+                <span class="munch-sale-report__label">{{ translate('Delivery Fees') }}</span>
+                <p class="munch-sale-report__value" id="sum-delivery-fees">—</p>
+            </article>
+        </div>
+
+        <h3 class="munch-sale-report__section">{{ translate('Payment methods') }}</h3>
+        <div class="munch-sale-report__grid munch-sale-report__grid--payments" id="payment-totals">
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">{{ translate('Cash') }}</span>
+                <p class="munch-sale-report__value" id="pay-cash">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">{{ translate('Card') }}</span>
+                <p class="munch-sale-report__value" id="pay-card">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">{{ translate('M-PESA') }}</span>
+                <p class="munch-sale-report__value" id="pay-mpesa">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">Glovo</span>
+                <p class="munch-sale-report__value" id="pay-glovo">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">Uber</span>
+                <p class="munch-sale-report__value" id="pay-uber">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">Bolt Food</span>
+                <p class="munch-sale-report__value" id="pay-bolt_food">—</p>
+            </article>
+        </div>
+
+        <div class="card munch-sale-report__table-card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">{{ translate('order') }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive datatable_wrapper_row" id="set-rows">
                     @include('admin-views.report.partials._table',['data'=>[]])
                 </div>
             </div>
@@ -152,6 +173,8 @@
                         $('#sum-gross-sales').html(data.summary.gross_sales);
                         $('#sum-total-discounts').html(data.summary.total_discounts);
                         $('#sum-net-sales').html(data.summary.net_sales);
+                        $('#sum-munch-sales').html(data.summary.munch_sales);
+                        $('#sum-marketplace-sales').html(data.summary.marketplace_sales);
                         $('#sum-tax').html(data.summary.tax);
                         $('#sum-delivery-fees').html(data.summary.delivery_fees);
                         $('#sum-total-sales').html(data.summary.total_sales);

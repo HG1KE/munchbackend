@@ -304,6 +304,9 @@ class ReportController extends Controller
 
         $summary = $this->saleReportSummary($orders, (float) $totalSold);
         $summaryDisplay = $this->formatSaleReportSummary($summary);
+        $paymentGroups = AdminSaleReportSummary::fromPaymentTotals($paymentTotals);
+        $summaryDisplay['munch_sales'] = Helpers::set_symbol($paymentGroups['munch_sales']);
+        $summaryDisplay['marketplace_sales'] = Helpers::set_symbol($paymentGroups['marketplace_sales']);
 
         session()->put('export_sale_data', $data);
         session()->put('export_sale_summary', $summaryDisplay);

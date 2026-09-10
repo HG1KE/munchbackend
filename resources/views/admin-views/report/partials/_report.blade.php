@@ -46,6 +46,14 @@
                     <td>{{ $summary['net_sales'] }}</td>
                 </tr>
                 <tr>
+                    <td colspan="5">{{ translate('Munch Sales') }}</td>
+                    <td>{{ $summary['munch_sales'] ?? '' }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5">{{ translate('Marketplace Sales') }}</td>
+                    <td>{{ $summary['marketplace_sales'] ?? '' }}</td>
+                </tr>
+                <tr>
                     <td colspan="5">{{ translate('tax') }}</td>
                     <td>{{ $summary['tax'] }}</td>
                 </tr>

@@ -1,0 +1,188 @@
+/**
+ * Admin Sale Report dashboard — scoped to .munch-sale-report.
+ * Uses munch-admin-shell tokens; does not restyle the rest of admin.
+ */
+
+.munch-sale-report {
+    --sale-kpi-label: var(--munch-shell-text-muted, #64748b);
+    --sale-kpi-value: var(--munch-shell-text, #0f172a);
+    --sale-kpi-surface: var(--munch-shell-surface, #fff);
+    --sale-kpi-border: var(--munch-shell-border, #e2e8f0);
+    --sale-kpi-radius: var(--munch-shell-radius, 12px);
+    --sale-kpi-shadow: var(--munch-shell-shadow, 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04));
+}
+
+.munch-sale-report__filters .form-control,
+.munch-sale-report__filters .custom-select {
+    min-height: 2.5rem;
+}
+
+.munch-sale-report__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.munch-sale-report__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    background: var(--sale-kpi-surface);
+    border: 1px solid var(--sale-kpi-border);
+    border-radius: 999px;
+    box-shadow: var(--sale-kpi-shadow);
+    font-size: 0.8125rem;
+    color: var(--sale-kpi-label);
+    font-weight: 600;
+}
+
+.munch-sale-report__chip strong {
+    color: var(--sale-kpi-value);
+    font-variant-numeric: tabular-nums;
+}
+
+.munch-sale-report__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.munch-sale-report__grid--secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 1.5rem;
+}
+
+.munch-sale-report__section {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sale-kpi-label);
+    margin: 0 0 0.75rem;
+}
+
+.munch-sale-report__card {
+    background: var(--sale-kpi-surface);
+    border: 1px solid var(--sale-kpi-border);
+    border-radius: var(--sale-kpi-radius);
+    box-shadow: var(--sale-kpi-shadow);
+    padding: 1rem 1.1rem 0.95rem;
+    min-height: 6.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.munch-sale-report__card:hover {
+    box-shadow: var(--munch-shell-shadow-hover, 0 4px 20px rgba(15, 23, 42, 0.08));
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.munch-sale-report__card--accent {
+    box-shadow: var(--sale-kpi-shadow), inset 3px 0 0 #111827;
+}
+
+.munch-sale-report__card--munch {
+    box-shadow: var(--sale-kpi-shadow), inset 3px 0 0 #16a34a;
+}
+
+.munch-sale-report__card--market {
+    box-shadow: var(--sale-kpi-shadow), inset 3px 0 0 #2563eb;
+}
+
+.munch-sale-report__card--discount {
+    box-shadow: var(--sale-kpi-shadow), inset 3px 0 0 #f59e0b;
+}
+
+.munch-sale-report__card--compact {
+    min-height: 4.75rem;
+    padding: 0.85rem 1rem;
+}
+
+.munch-sale-report__label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--sale-kpi-label);
+    margin-bottom: 0.45rem;
+    line-height: 1.3;
+}
+
+.munch-sale-report__value {
+    margin: 0;
+    font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--sale-kpi-value);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.munch-sale-report__card--compact .munch-sale-report__value {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+.munch-sale-report__card--pay .munch-sale-report__value {
+    font-size: clamp(1.05rem, 2.1vw, 1.4rem);
+}
+
+.munch-sale-report__visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.munch-sale-report__table-card .card-header {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+    .munch-sale-report__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .munch-sale-report__card {
+        padding: 1.15rem 1.25rem 1.05rem;
+        min-height: 6.75rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    .munch-sale-report__grid--kpis {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .munch-sale-report__grid--payments {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .munch-sale-report__value {
+        font-size: 1.35rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .munch-sale-report__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .munch-sale-report__grid--secondary {
+        grid-template-columns: 1fr;
+    }
+}
