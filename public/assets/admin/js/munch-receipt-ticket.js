@@ -535,16 +535,17 @@
         return html;
     }
 
+    function isMarketplaceJob(job) {
+        var channel = channelKey(job);
+        var method = String((job && job.payment_method) || '').toLowerCase();
+        return !!(MARKETPLACE[channel] || MARKETPLACE[method]);
+    }
+
     function mpesaTillHtml(kind, template, job) {
         if (kind === 'kitchen') return '';
-        var till = String(job.mpesa_till || '').trim();
-        var marketplacePay = String(job.payment_method || '') === 'glovo'
-            || String(job.payment_method || '') === 'uber'
-            || String(job.payment_method || '') === 'bolt_food';
-        var enabled = template.sections && template.sections.payment && Object.prototype.hasOwnProperty.call(template.sections.payment, 'mpesa_till')
-            ? !!template.sections.payment.mpesa_till
-            : true;
-        if (!enabled || !till || marketplacePay) return '';
+        if (isMarketplaceJob(job)) return '';
+        var till = String((job && job.mpesa_till) || '').trim();
+        if (!till) return '';
         return '<div class="meta"><p>M-PESA Till</p><p>' + escapeHtml(till) + '</p></div>';
     }
 

@@ -259,7 +259,7 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString('MunchReceiptTicket.renderDocument', $pos);
         $this->assertStringContainsString('kitchenTicketHtml', $pos);
         $this->assertStringContainsString('receiptTicketHtml', $pos);
-        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.2", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.3", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
     }
 
     public function test_renderer_honors_order_typography_qr_and_printer_mode(): void
@@ -334,6 +334,7 @@ JS;
         $this->assertStringContainsString('size:58mm', $receipt);
 
         $this->assertStringNotContainsString('Grand Total', $kitchen);
+        $this->assertStringNotContainsString('M-PESA Till', $receipt);
         $this->assertStringNotContainsString('M-PESA Till', $kitchen);
         $this->assertStringNotContainsString('ticket-block--qr_code', $kitchen);
         $this->assertStringNotContainsString('class="ticket-qr', $kitchen);
@@ -341,6 +342,68 @@ JS;
         $this->assertStringNotContainsString('Payment Status', $kitchen);
         $this->assertStringContainsString('Kitchen Order', $kitchen);
         $this->assertStringContainsString('1 x Burger', $kitchen);
+    }
+
+    public function test_owned_pos_receipts_show_branch_till_and_marketplace_receipts_do_not(): void
+    {
+        $node = trim((string) shell_exec('command -v node'));
+        if ($node === '') {
+            $this->markTestSkipped('node is required to render POS tickets');
+        }
+
+        $ticket = public_path('assets/admin/js/munch-receipt-ticket.js');
+        $script = <<<'JS'
+const fs = require('fs');
+const vm = require('vm');
+const sandbox = { window: {}, console };
+sandbox.window = sandbox;
+vm.runInNewContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
+const T = sandbox.window.MunchReceiptTicket;
+const template = T.defaults('customer');
+template.sections.payment.mpesa_till = false;
+const kitchenTemplate = T.defaults('kitchen');
+function job(channel, till) {
+  return {
+    number: '#M-3001',
+    orderType: channel,
+    salesChannel: channel,
+    payment_method: channel === 'glovo' || channel === 'uber' || channel === 'bolt_food' ? channel : 'cash',
+    payment_status: 'paid',
+    mpesa_till: till,
+    items: [{ name: 'Burger', quantity: 1, options: [], unit_price: 500, line_total: 500 }],
+    grand_total: 500
+  };
+}
+const out = {
+  dine_in: T.renderDocument('customer', template, job('dine_in', '554433')),
+  takeaway: T.renderDocument('customer', template, job('takeaway', '554433')),
+  delivery: T.renderDocument('customer', template, job('delivery', '554433')),
+  empty: T.renderDocument('customer', template, job('delivery', '')),
+  glovo: T.renderDocument('customer', template, job('glovo', '554433')),
+  uber: T.renderDocument('customer', template, job('uber', '554433')),
+  bolt_food: T.renderDocument('customer', template, job('bolt_food', '554433')),
+  kitchen: T.renderDocument('kitchen', kitchenTemplate, job('dine_in', '554433'))
+};
+process.stdout.write(JSON.stringify(out));
+JS;
+        $tmp = tempnam(sys_get_temp_dir(), 'till-js-');
+        file_put_contents($tmp, $script);
+        $json = shell_exec(escapeshellarg($node).' '.escapeshellarg($tmp).' '.escapeshellarg($ticket).' 2>/dev/null');
+        @unlink($tmp);
+        $this->assertNotEmpty($json);
+        $out = json_decode((string) $json, true);
+        $this->assertIsArray($out);
+
+        foreach (['dine_in', 'takeaway', 'delivery'] as $channel) {
+            $this->assertStringContainsString('M-PESA Till', $out[$channel], $channel);
+            $this->assertStringContainsString('554433', $out[$channel], $channel);
+        }
+        $this->assertStringNotContainsString('M-PESA Till', $out['empty']);
+        $this->assertStringNotContainsString('554433', $out['empty']);
+        foreach (['glovo', 'uber', 'bolt_food', 'kitchen'] as $hidden) {
+            $this->assertStringNotContainsString('M-PESA Till', $out[$hidden], $hidden);
+            $this->assertStringNotContainsString('554433', $out[$hidden], $hidden);
+        }
     }
 
     public function test_templates_are_versioned_json_not_html(): void
