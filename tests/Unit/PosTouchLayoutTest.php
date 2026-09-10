@@ -55,5 +55,22 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('gridRowHeight()', $js);
         $this->assertStringNotContainsString('clientWidth / 180', $js);
         $this->assertStringContainsString('gridW', $js);
+        $this->assertStringContainsString('gridH', $js);
+    }
+
+    public function test_product_grid_invalidates_layout_after_initial_paint(): void
+    {
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+
+        $this->assertStringContainsString('function invalidateGridLayout', $js);
+        $this->assertStringContainsString('function scheduleLayoutPass', $js);
+        $this->assertStringContainsString('function gridLayoutReady', $js);
+        $this->assertStringContainsString('function observeGridLayout', $js);
+        $this->assertStringContainsString('ResizeObserver', $js);
+        $this->assertStringContainsString('document.fonts.ready', $js);
+        $this->assertStringContainsString('list.length > 48 && gridLayoutReady()', $js);
+        $this->assertStringContainsString('scheduleLayoutPass()', $js);
+        $this->assertStringContainsString("window.addEventListener('resize', invalidateGridLayout)", $js);
+        $this->assertStringNotContainsString('setTimeout(invalidateGridLayout', $js);
     }
 }

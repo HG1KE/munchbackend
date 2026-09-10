@@ -254,13 +254,43 @@
         });
     }
 
+    function invalidateGridLayout() {
+        lastGridKey = '';
+        updateTabArrows();
+        scheduleRender();
+    }
+
+    function scheduleLayoutPass() {
+        requestAnimationFrame(function () {
+            requestAnimationFrame(invalidateGridLayout);
+        });
+    }
+
+    function gridLayoutReady() {
+        return !!(els.grid && els.grid.clientWidth > 0 && els.grid.clientHeight > 0);
+    }
+
+    function observeGridLayout() {
+        if (!els.grid || typeof ResizeObserver === 'undefined') return;
+        var lastSize = '';
+        var observer = new ResizeObserver(function () {
+            var size = els.grid.clientWidth + 'x' + els.grid.clientHeight;
+            if (size === lastSize) return;
+            lastSize = size;
+            invalidateGridLayout();
+        });
+        observer.observe(els.grid);
+        if (els.grid.parentElement) observer.observe(els.grid.parentElement);
+    }
+
     function renderAll() {
         renderStatus();
         renderTabs();
         var gridW = els.grid ? els.grid.clientWidth : 0;
-        var gridKey = [state.categoryId, state.search, state.cart.orderType, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length, gridW].join('|');
+        var gridH = els.grid ? els.grid.clientHeight : 0;
+        var gridKey = [state.categoryId, state.search, state.cart.orderType, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length, gridW, gridH].join('|');
         if (gridKey !== lastGridKey) {
-            lastGridKey = gridKey;
+            lastGridKey = gridLayoutReady() ? gridKey : '';
             renderGrid();
         }
         renderTypes();
@@ -407,7 +437,8 @@
         var savedTop = els.grid.scrollTop;
         var cols = gridColumnCount();
         var rowH = gridRowHeight();
-        if (list.length > 48) {
+        var virtualize = list.length > 48 && gridLayoutReady();
+        if (virtualize) {
             var top = savedTop;
             var vis = Math.ceil(els.grid.clientHeight / rowH) + 4;
             var startRow = Math.max(0, Math.floor(top / rowH) - 1);
@@ -416,7 +447,7 @@
             html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (startRow * rowH) + 'px"></div>';
         }
         for (i = start; i < end; i++) html += productCard(list[i]);
-        if (list.length > 48) {
+        if (virtualize) {
             var remain = Math.ceil((list.length - end) / cols);
             html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (remain * rowH) + 'px"></div>';
         }
@@ -2114,11 +2145,11 @@
         if (els.tabs) {
             els.tabs.addEventListener('scroll', updateTabArrows, { passive: true });
         }
-        window.addEventListener('resize', function () {
-            lastGridKey = '';
-            updateTabArrows();
-            scheduleRender();
-        });
+        window.addEventListener('resize', invalidateGridLayout);
+        observeGridLayout();
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(invalidateGridLayout);
+        }
         els.grid.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-card-delta]');
             if (!btn || !els.grid.contains(btn)) return;
@@ -2394,10 +2425,12 @@
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();
+            scheduleLayoutPass();
             preloadCatalogMedia();
             if (navigator.onLine) refreshHeartbeat().then(function () { syncQueue(); });
         }).catch(function () {
             scheduleRender();
+            scheduleLayoutPass();
         });
     }
 
