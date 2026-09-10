@@ -82,15 +82,15 @@
         <p class="munch-pos-delivery-modal__error" id="pos-delivery-error" hidden></p>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Customer Name') }}</span>
-            <input type="text" id="pos-del-name" placeholder="{{ translate('Customer Name') }}" autocomplete="name" data-del-field>
+            <input type="text" id="pos-del-name" placeholder="{{ translate('Customer Name') }}" autocomplete="off" data-del-field>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Customer Phone') }}</span>
-            <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="tel" inputmode="numeric" pattern="[0-9+]*" data-del-field>
+            <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Delivery Address') }}</span>
-            <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Delivery Address') }}" data-del-field></textarea>
+            <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Delivery Address') }}" autocomplete="off" data-del-field></textarea>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Delivery Fee') }}</span>
@@ -106,7 +106,7 @@
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Rider Phone') }}</span>
-            <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="tel" inputmode="numeric" pattern="[0-9+]*" data-del-field>
+            <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
         </label>
         <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
         <button type="button" class="munch-pos-clear" id="pos-delivery-cancel">{{ translate('Close') }}</button>
@@ -313,5 +313,6 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.1"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-dine-in.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.1" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.0"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.2" defer></script>
 @endpush

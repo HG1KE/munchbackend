@@ -3,6 +3,7 @@
 
     var CFG = window.MUNCH_POS || {};
     var DineIn = window.MunchPosDineIn;
+    var Delivery = window.MunchPosDelivery;
     var DB_NAME = 'munch_pos_v1';
     var DB_VERSION = 1;
     var CART_KEY = 'current';
@@ -620,7 +621,8 @@
     }
 
     function persistCart() {
-        return idbPut('cart', state.cart, CART_KEY);
+        var stored = Delivery ? Delivery.persistableCart(state.cart) : state.cart;
+        return idbPut('cart', stored, CART_KEY);
     }
 
     function toast(message) {
@@ -827,7 +829,19 @@
         if (riderPhone) state.cart.rider.rider_phone = riderPhone.value;
     }
 
+    function resetDelivery() {
+        if (Delivery) Delivery.applyEmptyDelivery(state.cart);
+        else {
+            state.cart.deliveryFee = 0;
+            state.cart.address = { contact_person_name: '', contact_person_number: '', address: '' };
+            state.cart.rider = { rider_name: '', rider_phone: '' };
+        }
+        fillDeliveryModal();
+    }
+
     function fillDeliveryModal() {
+        if (!state.cart.address) state.cart.address = {};
+        if (!state.cart.rider) state.cart.rider = {};
         var name = document.getElementById('pos-del-name');
         var phone = document.getElementById('pos-del-phone');
         var address = document.getElementById('pos-del-address');
@@ -837,7 +851,7 @@
         if (name) name.value = state.cart.address.contact_person_name || '';
         if (phone) phone.value = state.cart.address.contact_person_number || '';
         if (address) address.value = state.cart.address.address || '';
-        if (fee) fee.value = state.cart.deliveryFee || 0;
+        if (fee) fee.value = Number(state.cart.deliveryFee || 0);
         if (riderName) riderName.value = (state.cart.rider && state.cart.rider.rider_name) || '';
         if (riderPhone) riderPhone.value = (state.cart.rider && state.cart.rider.rider_phone) || '';
         var error = document.getElementById('pos-delivery-error');
@@ -981,6 +995,7 @@
         state.cart.lines = [];
         state.cart.discount = 0;
         state.cart.paid = '';
+        resetDelivery();
         persistCart();
         renderLines();
         renderTotals();
@@ -1779,6 +1794,7 @@
         postOrder(payload).then(function (body) {
             if (body && body.success === 1) {
                 openSuccessModal(snapshotPrintJob(body));
+                clearCart();
                 endOrderSubmit();
                 return;
             }
@@ -2415,10 +2431,14 @@
                 idbPut('catalog', CFG.catalog, 'latest');
             }
             if (results[1] && Array.isArray(results[1].lines)) {
-                state.cart = Object.assign(state.cart, results[1]);
+                state.cart = Delivery
+                    ? Delivery.hydrateCart(state.cart, results[1])
+                    : Object.assign(state.cart, results[1]);
                 if (!state.cart.address) state.cart.address = {};
                 if (!state.cart.rider) state.cart.rider = {};
             }
+            resetDelivery();
+            persistCart();
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();

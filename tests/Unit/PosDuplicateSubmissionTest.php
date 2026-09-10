@@ -51,7 +51,7 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('var syncRunning = false', $sw);
         $this->assertStringContainsString("if (event.tag !== 'munch-pos-sync') return", $sw);
         $this->assertStringContainsString('if (syncRunning) return', $sw);
-        $this->assertStringContainsString('munch-pos-shell-v11', $sw);
+        $this->assertStringContainsString('munch-pos-shell-v12', $sw);
     }
 
     public function test_validation_and_queue_failure_unlock(): void

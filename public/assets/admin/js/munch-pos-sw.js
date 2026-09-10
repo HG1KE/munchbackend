@@ -1,5 +1,5 @@
 /* Branch POS service worker — caches the POS shell/catalog and triggers queue sync. */
-var CACHE = 'munch-pos-shell-v11';
+var CACHE = 'munch-pos-shell-v12';
 var syncRunning = false;
 
 self.addEventListener('install', function (event) {
