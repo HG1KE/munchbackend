@@ -68,27 +68,28 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('function observeGridLayout', $js);
         $this->assertStringContainsString('ResizeObserver', $js);
         $this->assertStringContainsString('document.fonts.ready', $js);
-        $this->assertStringContainsString('list.length > 48 && gridLayoutReady()', $js);
+        $this->assertStringContainsString('list.length > 48 && ready && gridPrimed', $js);
         $this->assertStringContainsString('scheduleLayoutPass()', $js);
-        $this->assertStringContainsString("window.addEventListener('resize', invalidateGridLayout)", $js);
+        $this->assertStringContainsString('clientWidth > 80', $js);
+        $this->assertStringContainsString('split(/\\s+(?![^(]*\\))/)', $js);
+        $this->assertStringContainsString('is-laid-out', $js);
         $this->assertStringNotContainsString('setTimeout(invalidateGridLayout', $js);
     }
 
-    public function test_cart_rows_are_compact_with_touch_sized_quantity_controls(): void
+    public function test_cart_rows_are_balanced_for_fifteen_inch_touch(): void
     {
         $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
 
         $this->assertStringContainsString('munch-pos-line__main', $js);
         $this->assertStringContainsString('munch-pos-line__details', $js);
-        $this->assertStringContainsString('munch-pos-line__price', $js);
         $this->assertStringContainsString("money(lineUnit(line)) + ' × ' + qty", $js);
-        $this->assertStringContainsString('.munch-pos-line__name', $css);
-        $this->assertStringContainsString('font-weight: 600', $css);
-        $this->assertStringContainsString('font-weight: 500', $css);
+        $this->assertStringContainsString('min-height: 62px', $css);
+        $this->assertStringContainsString('gap: 0.45rem', $css);
         $this->assertStringContainsString('flex-wrap: nowrap', $css);
         $this->assertStringContainsString('min-width: 44px', $css);
         $this->assertStringContainsString('min-height: 44px', $css);
-        $this->assertStringNotContainsString('width: 48px;' . "\n" . '        height: 48px;' . "\n" . '        min-width: 48px;' . "\n" . '        min-height: 48px;', $css);
+        $this->assertStringContainsString('.munch-pos-grid.is-laid-out .munch-pos-card', $css);
+        $this->assertStringContainsString('content-visibility: visible', $css);
     }
 }
