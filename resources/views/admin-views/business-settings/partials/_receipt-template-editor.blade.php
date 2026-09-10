@@ -40,6 +40,7 @@
     <div class="munch-receipt-tabs mt-2">
         <button type="button" class="is-active" data-receipt-tab="customer">{{ translate('Customer Receipt') }}</button>
         <button type="button" data-receipt-tab="kitchen">{{ translate('Kitchen Ticket') }}</button>
+        <button type="button" data-receipt-tab="printer">{{ translate('Printer') }}</button>
     </div>
 
     <div class="munch-receipt-layout mt-3">
@@ -56,7 +57,7 @@
         </div>
         <div class="munch-receipt-preview-wrap">
             <div class="card">
-                <div class="card-header"><h5 class="mb-0">{{ translate('Live 80mm preview') }}</h5></div>
+                <div class="card-header"><h5 class="mb-0" id="receipt-preview-title">{{ translate('Live 80mm preview') }}</h5></div>
                 <div class="card-body">
                     <div class="munch-receipt-paper" id="receipt-paper">
                         <iframe id="receipt-preview-frame" title="Receipt preview"></iframe>

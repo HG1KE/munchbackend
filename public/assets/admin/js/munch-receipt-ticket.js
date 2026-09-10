@@ -26,19 +26,43 @@
         payment_status: true
     };
 
+    var CUSTOMER_BLOCKS = [
+        'logo', 'branch_name', 'receipt_title', 'branch_details', 'order_type',
+        'order_number', 'customer', 'items', 'totals', 'payment', 'mpesa_till',
+        'promotion', 'qr_code', 'barcode', 'footer'
+    ];
+
+    var KITCHEN_BLOCKS = [
+        'logo', 'branch_name', 'receipt_title', 'order_type',
+        'order_number', 'customer', 'items', 'footer'
+    ];
+
+    var DEFAULT_BLOCK_STYLE = {
+        font_size: 'normal',
+        bold: false,
+        align: 'left',
+        divider_before: false,
+        divider_after: false,
+        margin_top: false,
+        margin_bottom: false
+    };
+
     var DEFAULT_CUSTOMER = {
         sections: {
             header: { logo: false, branch_name: true, branch_address: false, branch_phone: false, tax_pin: false, receipt_title: false },
             order: { order_number: true, order_type: true, sales_channel: true, date: true, time: true, cashier: true, customer_name: true, customer_phone: true, delivery_address: true, rider_name: true, rider_phone: true },
             items: { product_name: true, variations: true, modifiers: true, notes: true, quantity: true, unit_price: false, line_total: true },
             summary: { subtotal: true, discount: true, tax: false, delivery_fee: true, total: true, paid_amount: true, change: true },
-            payment: { payment_method: true, payment_status: false },
+            payment: { payment_method: true, payment_status: false, mpesa_till: true },
             footer: { qr_code: false, barcode: false, thank_you_message: true, footer_text: false, return_policy: false, social_media: false },
             marketing: { promotion_banner: false }
         },
-        logo: { mode: 'none', path: null },
+        logo: { mode: 'none', path: null, thermal_path: null, size: 'medium', optimize_thermal: false },
         style: { font_size: 'medium', font_weight: 'bold', section_spacing: 'normal', divider: 'dashed' },
-        texts: { receipt_title: 'Receipt', thank_you_message: 'Thank you for choosing Munch', footer_text: '', return_policy: '', promotion_banner: '', tax_pin: '' }
+        texts: { receipt_title: 'Receipt', thank_you_message: 'Thank you for choosing Munch', footer_text: '', return_policy: '', promotion_banner: '', tax_pin: '' },
+        order: CUSTOMER_BLOCKS.slice(),
+        block_styles: {},
+        qr: { type: 'website', url: '', size: 'medium' }
     };
 
     var DEFAULT_KITCHEN = {
@@ -48,18 +72,62 @@
             items: { product_name: true, variations: true, modifiers: true, notes: true, quantity: true, special_instructions: true },
             footer: { footer_text: false }
         },
-        logo: { mode: 'none', path: null },
+        logo: { mode: 'none', path: null, thermal_path: null, size: 'medium', optimize_thermal: false },
         style: { font_size: 'large', font_weight: 'bold', section_spacing: 'normal', divider: 'dashed' },
-        texts: { receipt_title: 'Kitchen Order', footer_text: '' }
+        texts: { receipt_title: 'Kitchen Order', footer_text: '' },
+        order: KITCHEN_BLOCKS.slice(),
+        block_styles: {},
+        qr: null
     };
+
+    function clone(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
 
     function defaults(kind) {
         return kind === 'kitchen' ? DEFAULT_KITCHEN : DEFAULT_CUSTOMER;
     }
 
+    function allowedBlocks(kind) {
+        return kind === 'kitchen' ? KITCHEN_BLOCKS : CUSTOMER_BLOCKS;
+    }
+
+    function mergeOrder(kind, template) {
+        var allowed = allowedBlocks(kind);
+        var incoming = (template && Array.isArray(template.order) && template.order.length)
+            ? template.order
+            : allowed;
+        var seen = {};
+        var out = [];
+        incoming.forEach(function (id) {
+            if (allowed.indexOf(id) !== -1 && !seen[id]) {
+                seen[id] = true;
+                out.push(id);
+            }
+        });
+        allowed.forEach(function (id) {
+            if (!seen[id]) out.push(id);
+        });
+        return out;
+    }
+
     function normalizeTemplate(kind, template) {
-        if (template && template.sections) return template;
-        return defaults(kind);
+        var base = clone(defaults(kind));
+        if (!template || !template.sections) return base;
+        var out = Object.assign({}, base, template);
+        out.sections = template.sections;
+        out.logo = Object.assign({}, base.logo, template.logo || {});
+        if (!out.logo.size) out.logo.size = 'medium';
+        out.style = Object.assign({}, base.style, template.style || {});
+        out.texts = Object.assign({}, base.texts, template.texts || {});
+        out.order = mergeOrder(kind, template);
+        out.block_styles = Object.assign({}, template.block_styles || {});
+        if (kind === 'kitchen') {
+            out.qr = null;
+        } else {
+            out.qr = Object.assign({}, base.qr, template.qr || {});
+        }
+        return out;
     }
 
     function escapeHtml(value) {
@@ -141,6 +209,48 @@
         return '<hr class="rule rule--' + escapeAttr(kind) + '">';
     }
 
+    function blockStyle(template, id) {
+        var src = (template.block_styles && template.block_styles[id]) || {};
+        return Object.assign({}, DEFAULT_BLOCK_STYLE, src);
+    }
+
+    function wrapBlock(id, html, template) {
+        if (!html) return '';
+        var st = blockStyle(template, id);
+        var cls = ['ticket-block', 'ticket-block--' + id, 'fs-' + (st.font_size || 'normal')];
+        if (st.bold) cls.push('is-bold');
+        if (st.align === 'center') cls.push('is-center');
+        if (st.align === 'right') cls.push('is-right');
+        if (st.margin_top) cls.push('mt-extra');
+        if (st.margin_bottom) cls.push('mb-extra');
+        var out = '';
+        if (st.divider_before) out += dividerHtml(template.style);
+        out += '<div class="' + cls.join(' ') + '">' + html + '</div>';
+        if (st.divider_after) out += dividerHtml(template.style);
+        return out;
+    }
+
+    function printTune(print) {
+        var mode = (print && print.print_mode) || 'normal';
+        var save = (print && print.paper_saving) || 'off';
+        var weightBoost = mode === 'extra_dark' ? '900' : mode === 'dark' ? '800' : '';
+        var lineHeight = save === 'maximum' ? '1.05' : save === 'normal' ? '1.2' : '1.35';
+        var gapScale = save === 'maximum' ? 0.45 : save === 'normal' ? 0.7 : 1;
+        var imgFilter = mode === 'extra_dark'
+            ? 'contrast(1.45) brightness(0.88)'
+            : mode === 'dark' ? 'contrast(1.22) brightness(0.94)' : 'none';
+        var ruleWidth = mode === 'extra_dark' ? '2px' : mode === 'dark' ? '1.5px' : '1px';
+        return {
+            mode: mode,
+            save: save,
+            weightBoost: weightBoost,
+            lineHeight: lineHeight,
+            gapScale: gapScale,
+            imgFilter: imgFilter,
+            ruleWidth: ruleWidth
+        };
+    }
+
     function ticketCss(kind, template, print) {
         var kitchen = kind === 'kitchen';
         var paper = (print && print.paper) === '58mm' ? '58mm' : '80mm';
@@ -148,25 +258,32 @@
         var size = (template && template.style && template.style.font_size) || (kitchen ? 'large' : 'medium');
         var weight = (template && template.style && template.style.font_weight) === 'normal' ? '600' : '800';
         var spacing = (template && template.style && template.style.section_spacing) || 'normal';
-        var gap = spacing === 'compact' ? '1.5mm' : spacing === 'wide' ? '4.5mm' : '3mm';
+        var tune = printTune(print);
+        var baseGap = spacing === 'compact' ? 1.5 : spacing === 'wide' ? 4.5 : 3;
+        var gap = (baseGap * tune.gapScale) + 'mm';
+        if (tune.weightBoost) weight = tune.weightBoost;
         var meta = size === 'small' ? '11px' : size === 'large' ? '14px' : '12px';
         var item = kitchen
             ? (size === 'small' ? '15px' : size === 'large' ? '18px' : '16px')
             : (size === 'small' ? '12px' : size === 'large' ? '14px' : '13px');
         var brand = size === 'small' ? '18px' : size === 'large' ? '22px' : '20px';
+        var pad = tune.save === 'maximum' ? '0.5mm 0' : tune.save === 'normal' ? '1.2mm 0' : '2mm 0';
         return '@page{size:' + paper + ' auto;margin:0}' +
             'html,body{margin:0;padding:0;width:' + paper + ';background:#fff;color:#000;' +
             'font-family:"Courier New",Courier,ui-monospace,monospace}' +
             '*{box-sizing:border-box}' +
-            '.ticket{width:' + inner + ';margin:0 auto;padding:2mm 0;font-weight:' + weight + '}' +
+            '.ticket{width:' + inner + ';margin:0 auto;padding:' + pad + ';font-weight:' + weight + ';line-height:' + tune.lineHeight + '}' +
             '.brand{text-align:center;font-size:' + brand + ';font-weight:900;letter-spacing:.12em;margin:0}' +
-            '.logo{display:block;max-width:28mm;max-height:18mm;margin:0 auto 2mm}' +
+            '.logo{display:block;max-width:28mm;max-height:18mm;margin:0 auto 2mm;filter:' + tune.imgFilter + ';image-rendering:pixelated}' +
+            '.logo.logo-small{max-width:16mm;max-height:10mm}' +
+            '.logo.logo-medium{max-width:28mm;max-height:18mm}' +
+            '.logo.logo-large{max-width:42mm;max-height:28mm}' +
             '.title{text-align:center;font-size:' + (kitchen ? '20px' : '16px') + ';font-weight:900;margin:2mm 0 3mm}' +
-            '.meta{font-size:' + meta + ';font-weight:' + weight + ';line-height:1.35}' +
+            '.meta{font-size:' + meta + ';font-weight:' + weight + ';line-height:' + tune.lineHeight + '}' +
             '.meta p{margin:0 0 1mm}' +
             '.rule{border:0;margin:' + gap + ' 0}' +
-            '.rule--dashed{border-top:1px dashed #000}' +
-            '.rule--solid{border-top:1px solid #000}' +
+            '.rule--dashed{border-top:' + tune.ruleWidth + ' dashed #000}' +
+            '.rule--solid{border-top:' + tune.ruleWidth + ' solid #000}' +
             '.item{font-size:' + item + ';font-weight:900;margin:2.5mm 0 0}' +
             '.opt{padding-left:4mm;font-size:' + (kitchen ? '15px' : '12px') + ';font-weight:800}' +
             '.row{display:flex;justify-content:space-between;gap:2mm;font-weight:800;font-size:' + meta + '}' +
@@ -191,9 +308,32 @@
             '.ticket-channel--dine_in{background:#7c3aed;color:#fff}' +
             '.ticket-channel--pos{background:#334155;color:#fff}' +
             '.ticket-qr{text-align:center;margin:' + gap + ' 0}' +
-            '.ticket-qr img{width:28mm;height:28mm}' +
+            '.ticket-qr img{width:28mm;height:28mm;filter:' + tune.imgFilter + '}' +
+            '.ticket-qr.qr-small img{width:18mm;height:18mm}' +
+            '.ticket-qr.qr-medium img{width:28mm;height:28mm}' +
+            '.ticket-qr.qr-large img{width:38mm;height:38mm}' +
             '.ticket-barcode{text-align:center;margin:' + gap + ' 0}' +
             '.ticket-barcode p{margin:1mm 0 0;font-size:11px}' +
+            '.ticket-block.is-bold,.ticket-block.is-bold *{font-weight:900}' +
+            '.ticket-block.is-center{text-align:center}' +
+            '.ticket-block.is-center .brand,.ticket-block.is-center .title,.ticket-block.is-center .meta,.ticket-block.is-center .row{text-align:center}' +
+            '.ticket-block.is-right{text-align:right}' +
+            '.ticket-block.is-right .brand,.ticket-block.is-right .title,.ticket-block.is-right .meta,.ticket-block.is-right .row{text-align:right}' +
+            '.ticket-block.fs-small{font-size:11px}' +
+            '.ticket-block.fs-small .brand{font-size:16px}' +
+            '.ticket-block.fs-small .item,.ticket-block.fs-small table{font-size:12px}' +
+            '.ticket-block.fs-large{font-size:15px}' +
+            '.ticket-block.fs-large .brand{font-size:22px}' +
+            '.ticket-block.fs-large .item,.ticket-block.fs-large table{font-size:16px}' +
+            '.ticket-block.fs-extra_large{font-size:18px}' +
+            '.ticket-block.fs-extra_large .brand{font-size:26px}' +
+            '.ticket-block.fs-extra_large .item,.ticket-block.fs-extra_large table{font-size:18px}' +
+            '.ticket-block.mt-extra{margin-top:4mm}' +
+            '.ticket-block.mb-extra{margin-bottom:4mm}' +
+            '.ticket.is-dark,.ticket.is-extra_dark{-webkit-font-smoothing:none}' +
+            '.ticket.is-extra_dark .ticket-channel{box-shadow:inset 0 0 0 1px #000}' +
+            '.ticket.save-maximum .item{margin:1mm 0 0}' +
+            '.ticket.save-maximum .order-type{margin:1mm 0}' +
             '@media print{html,body{width:' + paper + ';margin:0;padding:0}}' +
             'html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}';
     }
@@ -203,6 +343,49 @@
         var label = channelLabel(job).toUpperCase();
         var cls = CHANNEL_LABELS[key] ? key : 'pos';
         return '<span class="ticket-channel ticket-channel--' + escapeAttr(cls) + '">' + escapeHtml(label) + '</span>';
+    }
+
+    function logoSrc(template) {
+        var logo = template.logo || {};
+        if (logo.optimize_thermal && (template.logo_thermal_url || template.print_logo_url)) {
+            return template.logo_thermal_url || template.print_logo_url;
+        }
+        return template.print_logo_url || template.logo_url || '';
+    }
+
+    function logoHtml(kind, template) {
+        var size = (template.logo && template.logo.size) || 'medium';
+        if (size === 'hide') return '';
+        if (!show(kind, template, 'header', 'logo')) return '';
+        var src = logoSrc(template);
+        if (!src) return '';
+        return '<img class="logo logo-' + escapeAttr(size) + '" src="' + escapeAttr(src) + '" alt="">';
+    }
+
+    function branchNameHtml(kind, template, job, ctx) {
+        if (!show(kind, template, 'header', 'branch_name')) return '';
+        return '<p class="brand">' + escapeHtml(job.branch || ctx.branch_name || ctx.restaurant_name || 'MUNCH') + '</p>';
+    }
+
+    function receiptTitleHtml(kind, template, ctx) {
+        if (!show(kind, template, 'header', 'receipt_title')) return '';
+        var title = (template.texts && template.texts.receipt_title) || (kind === 'kitchen' ? 'Kitchen Order' : 'Receipt');
+        return '<p class="title">' + escapeHtml(applyPlaceholders(title, ctx)) + '</p>';
+    }
+
+    function branchDetailsHtml(kind, template, job, ctx) {
+        var html = '';
+        if (show(kind, template, 'header', 'branch_address') && (job.branch_address || ctx.address)) {
+            html += '<p>' + escapeHtml(job.branch_address || ctx.address) + '</p>';
+        }
+        if (show(kind, template, 'header', 'branch_phone') && (job.branch_phone || ctx.phone)) {
+            html += '<p>' + escapeHtml(job.branch_phone || ctx.phone) + '</p>';
+        }
+        if (show(kind, template, 'header', 'tax_pin')) {
+            var pin = (template.texts && template.texts.tax_pin) || ctx.tax_pin;
+            if (pin) html += '<p>PIN ' + escapeHtml(applyPlaceholders(pin, ctx)) + '</p>';
+        }
+        return html ? '<div class="meta">' + html + '</div>' : '';
     }
 
     function orderTypeBannerHtml(kind, template, job) {
@@ -219,42 +402,22 @@
         return html;
     }
 
-    function headerHtml(kind, template, job, ctx) {
-        var html = '';
-        if (show(kind, template, 'header', 'logo') && template.logo_url) {
-            html += '<img class="logo" src="' + escapeAttr(template.logo_url) + '" alt="">';
-        }
-        if (show(kind, template, 'header', 'branch_name')) {
-            html += '<p class="brand">' + escapeHtml(job.branch || ctx.branch_name || ctx.restaurant_name || 'MUNCH') + '</p>';
-        }
-        if (show(kind, template, 'header', 'receipt_title')) {
-            var title = (template.texts && template.texts.receipt_title) || (kind === 'kitchen' ? 'Kitchen Order' : 'Receipt');
-            html += '<p class="title">' + escapeHtml(applyPlaceholders(title, ctx)) + '</p>';
-        }
-        if (show(kind, template, 'header', 'branch_address') && (job.branch_address || ctx.address)) {
-            html += '<div class="meta"><p>' + escapeHtml(job.branch_address || ctx.address) + '</p></div>';
-        }
-        if (show(kind, template, 'header', 'branch_phone') && (job.branch_phone || ctx.phone)) {
-            html += '<div class="meta"><p>' + escapeHtml(job.branch_phone || ctx.phone) + '</p></div>';
-        }
-        if (show(kind, template, 'header', 'tax_pin')) {
-            var pin = (template.texts && template.texts.tax_pin) || ctx.tax_pin;
-            if (pin) html += '<div class="meta"><p>PIN ' + escapeHtml(applyPlaceholders(pin, ctx)) + '</p></div>';
-        }
-        return html;
-    }
-
     function metaLine(label, value) {
         if (value == null || String(value).trim() === '') return '';
         return '<p>' + escapeHtml(label) + '</p><p>' + escapeHtml(value) + '</p>';
     }
 
-    function orderMetaHtml(kind, template, job) {
+    function orderNumberHtml(kind, template, job) {
         var bits = '';
         if (show(kind, template, 'order', 'order_number')) bits += '<p>Order # ' + escapeHtml(job.number || '') + '</p>';
         if (show(kind, template, 'order', 'date') && job.date) bits += '<p>Date ' + escapeHtml(job.date) + '</p>';
         if (show(kind, template, 'order', 'time') && job.time) bits += '<p>Time ' + escapeHtml(job.time) + '</p>';
         if (show(kind, template, 'order', 'cashier') && job.cashier) bits += metaLine('Cashier', job.cashier);
+        return bits ? '<div class="meta">' + bits + '</div>' : '';
+    }
+
+    function customerHtml(kind, template, job) {
+        var bits = '';
         var wantCustomer = job.isDelivery || job.customer;
         if (wantCustomer && show(kind, template, 'order', 'customer_name') && job.customer) bits += metaLine('Customer', job.customer);
         if (wantCustomer && show(kind, template, 'order', 'customer_phone') && job.phone) bits += metaLine('Phone', job.phone);
@@ -292,27 +455,33 @@
                 }
                 if (showNotes && item.notes) html += '<p class="opt">' + escapeHtml(item.notes) + '</p>';
             });
-            return html;
+        } else {
+            html += '<table>';
+            items.forEach(function (item) {
+                html += '<tr>';
+                html += '<td class="qty">' + (showQty ? escapeHtml(item.quantity) : '') + '</td>';
+                html += '<td>' + (showName ? escapeHtml(item.name) : '');
+                if (showUnit) html += '<div class="opt">' + escapeHtml(money(item.unit_price, currency)) + '</div>';
+                html += '</td>';
+                html += '<td class="price">' + (showTotal ? escapeHtml(money(item.line_total, currency)) : '') + '</td>';
+                html += '</tr>';
+                if (showVars) {
+                    itemOptions(item).forEach(function (opt) {
+                        html += '<tr><td></td><td class="opt">- ' + escapeHtml(opt) + '</td><td></td></tr>';
+                    });
+                }
+                if (showNotes && item.notes) {
+                    html += '<tr><td></td><td class="opt">' + escapeHtml(item.notes) + '</td><td></td></tr>';
+                }
+            });
+            html += '</table>';
         }
-        html += '<table>';
-        items.forEach(function (item) {
-            html += '<tr>';
-            html += '<td class="qty">' + (showQty ? escapeHtml(item.quantity) : '') + '</td>';
-            html += '<td>' + (showName ? escapeHtml(item.name) : '');
-            if (showUnit) html += '<div class="opt">' + escapeHtml(money(item.unit_price, currency)) + '</div>';
-            html += '</td>';
-            html += '<td class="price">' + (showTotal ? escapeHtml(money(item.line_total, currency)) : '') + '</td>';
-            html += '</tr>';
-            if (showVars) {
-                itemOptions(item).forEach(function (opt) {
-                    html += '<tr><td></td><td class="opt">- ' + escapeHtml(opt) + '</td><td></td></tr>';
-                });
-            }
-            if (showNotes && item.notes) {
-                html += '<tr><td></td><td class="opt">' + escapeHtml(item.notes) + '</td><td></td></tr>';
-            }
-        });
-        html += '</table>';
+        if (kind === 'kitchen' && job.notes && (show(kind, template, 'items', 'notes') || show(kind, template, 'items', 'special_instructions'))) {
+            html += '<div class="meta"><p>Notes</p><p>' + escapeHtml(job.notes) + '</p></div>';
+        }
+        if (kind !== 'kitchen' && job.notes && show(kind, template, 'items', 'notes') && job.isDelivery) {
+            html += '<div class="meta"><p>Delivery Notes</p><p>' + escapeHtml(job.notes) + '</p></div>';
+        }
         return html;
     }
 
@@ -352,32 +521,53 @@
         if (show(kind, template, 'summary', 'change') && job.payment_method === 'cash') {
             html += '<div class="row"><span>Balance</span><span>' + escapeHtml(money(job.change, currency)) + '</span></div>';
         }
+        return html;
+    }
+
+    function mpesaTillHtml(kind, template, job) {
+        if (kind === 'kitchen') return '';
         var till = String(job.mpesa_till || '').trim();
         var marketplacePay = String(job.payment_method || '') === 'glovo'
             || String(job.payment_method || '') === 'uber'
             || String(job.payment_method || '') === 'bolt_food';
-        if (kind !== 'kitchen' && till && !marketplacePay) {
-            html += dividerHtml(template.style) + '<div class="meta"><p>M-PESA Till</p><p>' + escapeHtml(till) + '</p></div>';
-        }
-        return html;
+        var enabled = template.sections && template.sections.payment && Object.prototype.hasOwnProperty.call(template.sections.payment, 'mpesa_till')
+            ? !!template.sections.payment.mpesa_till
+            : true;
+        if (!enabled || !till || marketplacePay) return '';
+        return '<div class="meta"><p>M-PESA Till</p><p>' + escapeHtml(till) + '</p></div>';
     }
 
-    function footerHtml(kind, template, job, ctx) {
+    function qrSizeClass(template) {
+        var size = (template.qr && template.qr.size) || 'medium';
+        if (size === 'small' || size === 'large') return size;
+        return 'medium';
+    }
+
+    function qrHtml(kind, template) {
+        if (kind === 'kitchen' || !show(kind, template, 'footer', 'qr_code')) return '';
+        if (template.qr_data_uri) {
+            return '<div class="ticket-qr qr-' + escapeAttr(qrSizeClass(template)) + '"><img src="' + escapeAttr(template.qr_data_uri) + '" alt="QR"></div>';
+        }
+        if (template.qr_payload) {
+            return '<div class="footer-block">' + escapeHtml(template.qr_payload) + '</div>';
+        }
+        return '';
+    }
+
+    function promotionHtml(kind, template, ctx) {
+        var texts = template.texts || {};
+        if (kind === 'kitchen' || !show(kind, template, 'marketing', 'promotion_banner') || !texts.promotion_banner) return '';
+        return '<div class="promo">' + nl2br(applyPlaceholders(texts.promotion_banner, ctx)) + '</div>';
+    }
+
+    function barcodeBlockHtml(kind, template, job) {
+        if (kind === 'kitchen' || !show(kind, template, 'footer', 'barcode')) return '';
+        return barcodeHtml(job.number || '');
+    }
+
+    function footerHtml(kind, template, ctx) {
         var html = '';
         var texts = template.texts || {};
-        if (kind !== 'kitchen' && show(kind, template, 'marketing', 'promotion_banner') && texts.promotion_banner) {
-            html += '<div class="promo">' + nl2br(applyPlaceholders(texts.promotion_banner, ctx)) + '</div>';
-        }
-        if (kind !== 'kitchen' && show(kind, template, 'footer', 'qr_code')) {
-            if (template.qr_data_uri) {
-                html += '<div class="ticket-qr"><img src="' + escapeAttr(template.qr_data_uri) + '" alt="QR"></div>';
-            } else if (template.qr_payload) {
-                html += '<div class="footer-block">' + escapeHtml(template.qr_payload) + '</div>';
-            }
-        }
-        if (kind !== 'kitchen' && show(kind, template, 'footer', 'barcode')) {
-            html += barcodeHtml(job.number || '');
-        }
         if (kind !== 'kitchen' && show(kind, template, 'footer', 'thank_you_message') && texts.thank_you_message) {
             html += '<p class="thanks">' + escapeHtml(applyPlaceholders(texts.thank_you_message, ctx)) + '</p>';
         }
@@ -402,37 +592,48 @@
             phone: job.branch_phone || (options.context && options.context.phone) || ''
         });
         var currency = options.currency || '';
-        var style = template.style || {};
-        var parts = [
-            headerHtml(kind, template, job, ctx),
-            orderTypeBannerHtml(kind, template, job),
-            orderMetaHtml(kind, template, job)
-        ];
-        var items = itemsHtml(kind, template, job, currency);
-        if (items) parts.push(dividerHtml(style), items);
-        if (kind !== 'kitchen') {
-            var summary = summaryHtml(kind, template, job, currency);
-            var payment = paymentHtml(kind, template, job, currency);
-            if (summary || payment) parts.push(dividerHtml(style), summary, payment);
-        } else if (job.notes && (show(kind, template, 'items', 'notes') || show(kind, template, 'items', 'special_instructions'))) {
-            parts.push(dividerHtml(style), '<div class="meta"><p>Notes</p><p>' + escapeHtml(job.notes) + '</p></div>');
-        }
-        if (kind !== 'kitchen' && job.notes && show(kind, template, 'items', 'notes') && job.isDelivery) {
-            parts.push(dividerHtml(style), '<div class="meta"><p>Delivery Notes</p><p>' + escapeHtml(job.notes) + '</p></div>');
-        }
-        parts.push(footerHtml(kind, template, job, ctx));
-        return parts.filter(Boolean).join('');
+        var blocks = {
+            logo: function () { return logoHtml(kind, template); },
+            branch_name: function () { return branchNameHtml(kind, template, job, ctx); },
+            receipt_title: function () { return receiptTitleHtml(kind, template, ctx); },
+            branch_details: function () { return branchDetailsHtml(kind, template, job, ctx); },
+            order_type: function () { return orderTypeBannerHtml(kind, template, job); },
+            order_number: function () { return orderNumberHtml(kind, template, job); },
+            customer: function () { return customerHtml(kind, template, job); },
+            items: function () { return itemsHtml(kind, template, job, currency); },
+            totals: function () { return summaryHtml(kind, template, job, currency); },
+            payment: function () { return paymentHtml(kind, template, job, currency); },
+            mpesa_till: function () { return mpesaTillHtml(kind, template, job); },
+            promotion: function () { return promotionHtml(kind, template, ctx); },
+            qr_code: function () { return qrHtml(kind, template); },
+            barcode: function () { return barcodeBlockHtml(kind, template, job); },
+            footer: function () { return footerHtml(kind, template, ctx); }
+        };
+        var html = '';
+        template.order.forEach(function (id) {
+            var render = blocks[id];
+            if (!render) return;
+            html += wrapBlock(id, render(), template);
+        });
+        return html;
     }
 
     function renderDocument(kind, template, job, options) {
         options = options || {};
         template = normalizeTemplate(kind, template);
         var print = options.print || { paper: '80mm' };
+        var tune = printTune(print);
         var title = kind === 'kitchen' ? 'Kitchen Order' : 'Receipt';
+        var cls = [kind];
+        if (tune.mode === 'dark') cls.push('is-dark');
+        if (tune.mode === 'extra_dark') cls.push('is-extra_dark');
+        if (tune.save === 'normal') cls.push('save-normal');
+        if (tune.save === 'maximum') cls.push('save-maximum');
         return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) +
             '</title><style>' + ticketCss(kind, template, print) + '</style></head><body class="' + escapeAttr(kind) +
-            '" data-auto-cut="' + (print.auto_cut ? '1' : '0') + '" data-drawer-kick="' + (print.drawer_kick ? '1' : '0') + '">' +
-            '<div class="ticket">' + bodyHtml(kind, template, job, options) + '</div></body></html>';
+            '" data-auto-cut="' + (print.auto_cut ? '1' : '0') + '" data-drawer-kick="' + (print.drawer_kick ? '1' : '0') +
+            '" data-print-mode="' + escapeAttr(tune.mode) + '" data-paper-saving="' + escapeAttr(tune.save) + '">' +
+            '<div class="ticket ' + cls.join(' ') + '">' + bodyHtml(kind, template, job, options) + '</div></body></html>';
     }
 
     function copies(kind, print) {
@@ -445,12 +646,16 @@
     root.MunchReceiptTicket = {
         VERSION: 1,
         CHANNEL_LABELS: CHANNEL_LABELS,
+        CUSTOMER_BLOCKS: CUSTOMER_BLOCKS,
+        KITCHEN_BLOCKS: KITCHEN_BLOCKS,
         renderDocument: renderDocument,
         renderBody: bodyHtml,
         css: ticketCss,
         copies: copies,
         applyPlaceholders: applyPlaceholders,
         channelBadgeHtml: channelBadgeHtml,
-        defaults: defaults
+        defaults: defaults,
+        normalizeTemplate: normalizeTemplate,
+        wrapBlock: wrapBlock
     };
 })(typeof window !== 'undefined' ? window : this);

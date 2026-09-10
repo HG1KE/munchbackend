@@ -109,11 +109,37 @@
     font-size: 0.85rem;
 }
 
-.munch-receipt-logo-preview {
-    max-width: 120px;
-    max-height: 72px;
-    display: block;
-    margin-top: 0.5rem;
+.munch-receipt-handle {
+    font-size: 1.1rem;
+    color: #64748b;
+    cursor: grab;
+    user-select: none;
+    line-height: 1;
+}
+
+.munch-receipt-block__head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+}
+
+.munch-receipt-block__head h3 {
+    margin: 0;
+}
+
+.munch-receipt-block.is-dragging {
+    opacity: 0.45;
+}
+
+.munch-receipt-type {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #e5e7eb;
+}
+
+.munch-receipt-app[data-locked="1"] .munch-receipt-handle {
+    cursor: not-allowed;
 }
 
 .munch-receipt-app[data-locked="1"] .munch-receipt-editor .munch-receipt-card:not([data-section="print"]) input,

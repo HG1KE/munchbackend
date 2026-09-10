@@ -40,6 +40,10 @@
         <aside class="munch-pos-cart" aria-label="{{ translate('Billing_Section') }}">
             <div class="munch-pos-cart__scroll">
                 <div class="munch-pos-types" id="pos-types"></div>
+                <div class="munch-pos-extra" id="pos-dine-in" hidden>
+                    <select id="pos-table" aria-label="{{ translate('Select Table') }}"></select>
+                    <input type="number" id="pos-people" min="1" max="99" placeholder="{{ translate('Number Of People') }}">
+                </div>
                 <ul class="munch-pos-lines" id="pos-lines"></ul>
                 <div class="munch-pos-auth" id="pos-auth" hidden>
                     <p>{{ translate('Session expired. Please sign in again.') }}</p>
@@ -239,6 +243,7 @@
             emptyCart: @json(translate('Cart empty')),
             table: @json(translate('please select a table number')),
             people: @json(translate('please enter people number')),
+            selectTable: @json(translate('Select Table')),
             address: @json(translate('please select a delivery address')),
             placed: @json(translate('order_placed_successfully')),
             queuedSaved: @json(translate('Order saved offline')),
@@ -306,7 +311,8 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.0"></script>
+<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.1"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.8" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-dine-in.js') }}?v=1.0"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.0" defer></script>
 @endpush

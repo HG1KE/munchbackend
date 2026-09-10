@@ -3,7 +3,7 @@
 @section('title', translate('Receipt Templates'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-receipt-templates.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-receipt-templates.css') }}?v=1.1">
 @endpush
 
 @section('content')
@@ -24,7 +24,7 @@
 @endsection
 
 @push('script_2')
-    <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.1"></script>
     <script>
         window.MUNCH_RECEIPT_EDITOR = {
             payload: @json($payload),
@@ -36,8 +36,9 @@
                 save: @json(route('branch.business-settings.receipt-templates.save')),
                 reset: @json(route('branch.business-settings.receipt-templates.reset')),
                 logo: @json(route('branch.business-settings.receipt-templates.logo')),
+                qr: @json(route('branch.business-settings.receipt-templates.qr')),
             }
         };
     </script>
-    <script src="{{ asset('public/assets/admin/js/munch-receipt-templates.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-receipt-templates.js') }}?v=1.1"></script>
 @endpush

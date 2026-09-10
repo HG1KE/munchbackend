@@ -387,6 +387,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('receipt-templates/save', [ReceiptTemplateController::class, 'save'])->name('receipt-templates.save');
                 Route::post('receipt-templates/reset', [ReceiptTemplateController::class, 'reset'])->name('receipt-templates.reset');
                 Route::post('receipt-templates/logo', [ReceiptTemplateController::class, 'uploadLogo'])->name('receipt-templates.logo');
+                Route::get('receipt-templates/qr', [ReceiptTemplateController::class, 'qr'])->name('receipt-templates.qr');
 
                 Route::get('qrcode-index', [QRCodeController::class, 'index'])->name('qrcode-index');
                 Route::post('qrcode/store', [QRCodeController::class, 'store'])->name('qrcode.store');

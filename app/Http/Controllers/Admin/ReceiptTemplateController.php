@@ -125,12 +125,31 @@ class ReceiptTemplateController extends Controller
             return response()->json(['success' => 0, 'message' => 'Only Master Admin can upload a company receipt logo'], 403);
         }
 
-        $path = $this->templates->storeLogo($request->file('logo'));
+        $stored = $this->templates->storeLogo($request->file('logo'));
 
         return response()->json([
             'success' => 1,
-            'path' => $path,
-            'url' => $this->templates->logoUrl($path),
+            'path' => $stored['path'],
+            'thermal_path' => $stored['thermal_path'],
+            'url' => $this->templates->logoUrl($stored['path']),
+            'thermal_url' => $this->templates->logoUrl($stored['thermal_path']),
+        ]);
+    }
+
+    public function qr(Request $request): JsonResponse
+    {
+        $url = (string) $request->input('url', '');
+        $size = (string) $request->input('size', 'medium');
+        $px = match ($size) {
+            'small' => 96,
+            'large' => 200,
+            default => 140,
+        };
+
+        return response()->json([
+            'success' => 1,
+            'url' => $url,
+            'data_uri' => $this->templates->qrDataUri($url, $px),
         ]);
     }
 

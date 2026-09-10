@@ -142,6 +142,7 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
             Route::post('receipt-templates/save', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'save'])->name('receipt-templates.save');
             Route::post('receipt-templates/reset', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'reset'])->name('receipt-templates.reset');
             Route::post('receipt-templates/logo', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'uploadLogo'])->name('receipt-templates.logo');
+            Route::get('receipt-templates/qr', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'qr'])->name('receipt-templates.qr');
 
         });
 

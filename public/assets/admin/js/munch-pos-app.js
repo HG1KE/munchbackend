@@ -2,6 +2,7 @@
     'use strict';
 
     var CFG = window.MUNCH_POS || {};
+    var DineIn = window.MunchPosDineIn;
     var DB_NAME = 'munch_pos_v1';
     var DB_VERSION = 1;
     var CART_KEY = 'current';
@@ -433,6 +434,27 @@
     }
 
     function renderExtras() {
+        if (els.dineIn) els.dineIn.hidden = state.cart.orderType !== 'dine_in';
+        if (els.table) {
+            var tables = state.catalog.tables || [];
+            var key = tables.map(function (table) { return String(table.id); }).join(',');
+            var selected = DineIn ? DineIn.selectedTableId(state.cart) : String(state.cart.tableId || '').trim();
+            if (els.table.dataset.key !== key) {
+                var opts = '<option value="">' + escapeHtml(L('selectTable', 'Select Table')) + '</option>';
+                tables.forEach(function (table) {
+                    opts += '<option value="' + escapeAttr(String(table.id)) + '">#' + escapeHtml(table.number) + '</option>';
+                });
+                if (selected && !tables.some(function (table) { return String(table.id) === selected; })) {
+                    opts += '<option value="' + escapeAttr(selected) + '">#' + escapeHtml(selected) + '</option>';
+                }
+                els.table.innerHTML = opts;
+                els.table.dataset.key = key;
+            }
+            els.table.value = selected;
+        }
+        if (els.people && document.activeElement !== els.people) {
+            els.people.value = state.cart.people || '';
+        }
         if (els.delivery) els.delivery.hidden = true;
         if (els.discountWrap) els.discountWrap.hidden = !allowsDiscount();
         if (!allowsDiscount() && Number(state.cart.discount || 0) !== 0) {
@@ -715,6 +737,7 @@
     }
 
     function buildPayload(clientUuid, placedAt) {
+        var dineIn = DineIn ? DineIn.payloadFields(state.cart) : { table_id: null, people_number: null };
         return {
             client_uuid: clientUuid,
             placed_at: placedAt,
@@ -724,6 +747,8 @@
             extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
             extra_discount_type: state.cart.discountType,
             delivery_charge: deliveryCharge(),
+            table_id: dineIn.table_id,
+            people_number: dineIn.people_number,
             rider_name: state.cart.orderType === 'delivery' ? (state.cart.rider.rider_name || '') : '',
             rider_phone: state.cart.orderType === 'delivery' ? (state.cart.rider.rider_phone || '') : '',
             address: state.cart.orderType === 'delivery' ? {
@@ -746,8 +771,17 @@
         };
     }
 
+    function readDineInFields() {
+        if (els.table) state.cart.tableId = els.table.value;
+        if (els.people) state.cart.people = els.people.value;
+    }
+
     function validateCart() {
         if (!state.cart.lines.length) return CFG.labels.emptyCart;
+        readDineInFields();
+        if (DineIn) return DineIn.validate(state.cart, CFG.labels);
+        if (state.cart.orderType === 'dine_in' && !String(state.cart.tableId || '').trim()) return CFG.labels.table;
+        if (state.cart.orderType === 'dine_in' && !String(state.cart.people || '').trim()) return CFG.labels.people;
         return null;
     }
 
@@ -1963,6 +1997,9 @@
         els.grid = document.getElementById('pos-grid');
         els.empty = document.getElementById('pos-empty');
         els.types = document.getElementById('pos-types');
+        els.dineIn = document.getElementById('pos-dine-in');
+        els.table = document.getElementById('pos-table');
+        els.people = document.getElementById('pos-people');
         els.delivery = document.getElementById('pos-delivery');
         els.deliveryModal = document.getElementById('pos-delivery-modal');
         els.deliveryConfirm = document.getElementById('pos-delivery-confirm');
@@ -2054,6 +2091,18 @@
             persistCart();
             scheduleRender();
         });
+        if (els.table) {
+            els.table.addEventListener('change', function () {
+                state.cart.tableId = els.table.value;
+                persistCart();
+            });
+        }
+        if (els.people) {
+            els.people.addEventListener('input', function () {
+                state.cart.people = els.people.value;
+                persistCart();
+            });
+        }
         els.lines.addEventListener('click', function (ev) {
             var qtyBtn = ev.target.closest('[data-qty]');
             if (qtyBtn) {

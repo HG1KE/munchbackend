@@ -130,4 +130,26 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertFalse(PosOrderTypes::allowsManualDiscount('uber'));
         $this->assertFalse(PosOrderTypes::allowsManualDiscount('bolt_food'));
     }
+
+    public function test_dine_in_json_payload_requires_table_and_hydrates_ids(): void
+    {
+        $valid = ['order_type' => 'dine_in', 'table_id' => '12', 'people_number' => '3'];
+        $this->assertSame(12, PosOrderTypes::jsonDineInTableId($valid));
+        $this->assertSame(3, PosOrderTypes::jsonDineInPeople($valid));
+        $this->assertNull(PosOrderTypes::jsonDineInError($valid));
+        $this->assertSame('please select a table number', PosOrderTypes::jsonDineInError([
+            'order_type' => 'dine_in',
+            'table_id' => '',
+            'people_number' => 2,
+        ]));
+        $this->assertSame('please enter people number', PosOrderTypes::jsonDineInError([
+            'order_type' => 'dine_in',
+            'table_id' => 12,
+            'people_number' => 0,
+        ]));
+        $this->assertNull(PosOrderTypes::jsonDineInError(['order_type' => 'take_away']));
+        $this->assertNull(PosOrderTypes::jsonDineInTableId(['order_type' => 'delivery', 'table_id' => 12]));
+        $this->assertNull(PosOrderTypes::jsonDineInTableId(['order_type' => 'glovo', 'table_id' => 12]));
+        $this->assertNull(PosOrderTypes::jsonDineInPeople(['order_type' => 'uber', 'people_number' => 4]));
+    }
 }

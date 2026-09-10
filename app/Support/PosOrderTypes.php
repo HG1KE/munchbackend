@@ -307,6 +307,50 @@ class PosOrderTypes
         return null;
     }
 
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public static function jsonDineInTableId(array $input): ?int
+    {
+        if (! self::isDineIn($input['order_type'] ?? null)) {
+            return null;
+        }
+        $id = (int) ($input['table_id'] ?? 0);
+
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public static function jsonDineInPeople(array $input): ?int
+    {
+        if (! self::isDineIn($input['order_type'] ?? null)) {
+            return null;
+        }
+        $people = (int) ($input['people_number'] ?? 0);
+
+        return $people > 0 ? $people : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public static function jsonDineInError(array $input): ?string
+    {
+        if (! self::isDineIn($input['order_type'] ?? null)) {
+            return null;
+        }
+        if (self::jsonDineInTableId($input) === null) {
+            return 'please select a table number';
+        }
+        if (self::jsonDineInPeople($input) === null) {
+            return 'please enter people number';
+        }
+
+        return null;
+    }
+
     public static function isPaidImmediately(?string $type, ?string $paymentMethod): bool
     {
         $type = self::normalize($type);
