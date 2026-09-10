@@ -259,7 +259,7 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString('MunchReceiptTicket.renderDocument', $pos);
         $this->assertStringContainsString('kitchenTicketHtml', $pos);
         $this->assertStringContainsString('receiptTicketHtml', $pos);
-        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.1", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.2", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
     }
 
     public function test_renderer_honors_order_typography_qr_and_printer_mode(): void
@@ -338,6 +338,7 @@ JS;
         $this->assertStringNotContainsString('ticket-block--qr_code', $kitchen);
         $this->assertStringNotContainsString('class="ticket-qr', $kitchen);
         $this->assertStringNotContainsString('Payment Method', $kitchen);
+        $this->assertStringNotContainsString('Payment Status', $kitchen);
         $this->assertStringContainsString('Kitchen Order', $kitchen);
         $this->assertStringContainsString('1 x Burger', $kitchen);
     }

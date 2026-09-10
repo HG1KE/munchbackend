@@ -856,7 +856,7 @@ class ReceiptTemplateService
                 ],
                 'payment' => [
                     'payment_method' => true,
-                    'payment_status' => false,
+                    'payment_status' => true,
                     'mpesa_till' => true,
                 ],
                 'footer' => [

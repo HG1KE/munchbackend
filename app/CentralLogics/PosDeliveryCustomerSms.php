@@ -85,7 +85,7 @@ class PosDeliveryCustomerSms
             }
         }
 
-        $mpesaInfo = $till !== ''
+        $mpesaInfo = $till !== '' && ($order->payment_method ?? '') === 'mpesa'
             ? "\n\nPlease pay to M-PESA Till ".$till." if you haven't already."
             : '';
 
@@ -109,7 +109,7 @@ class PosDeliveryCustomerSms
 
     public static function omitEmptySections(string $message, array $vars): string
     {
-        if (trim((string) ($vars['mpesa_till'] ?? '')) === '') {
+        if (trim((string) ($vars['mpesa_info'] ?? $vars['mpesa_till'] ?? '')) === '') {
             $message = preg_replace('/\R*Please pay to M-PESA Till[^\n]*/i', '', $message) ?? $message;
             $message = str_replace('{mpesa_info}', '', $message);
         }

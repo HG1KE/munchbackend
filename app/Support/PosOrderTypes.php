@@ -184,8 +184,7 @@ class PosOrderTypes
     public static function paymentMethods(?string $type, bool $posMpesaEnabled = true): array
     {
         return match (self::normalize($type)) {
-            self::DELIVERY => ['cash_on_delivery'],
-            self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
+            self::DELIVERY, self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
                 ? ['cash', 'card', 'mpesa']
                 : ['cash', 'card'],
             self::GLOVO => [self::GLOVO],
@@ -316,8 +315,17 @@ class PosOrderTypes
         return null;
     }
 
+    public static function isImmediatePosPayment(?string $method): bool
+    {
+        return in_array((string) $method, ['cash', 'card', 'mpesa'], true);
+    }
+
     public static function isPaidImmediately(?string $type, ?string $paymentMethod): bool
     {
+        if (self::isImmediatePosPayment($paymentMethod)) {
+            return true;
+        }
+
         $type = self::normalize($type);
         if ($type === self::DELIVERY) {
             return false;

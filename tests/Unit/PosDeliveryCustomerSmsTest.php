@@ -51,6 +51,7 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $order->delivery_charge = 150;
         $order->rider_name = 'Jane Rider';
         $order->rider_phone = '0711111111';
+        $order->payment_method = 'mpesa';
 
         $address = new CustomerAddress();
         $address->contact_person_name = 'John Customer';
@@ -88,6 +89,10 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertSame('554433', $vars['mpesa_till']);
         $this->assertSame("2 x Chicken Burger\n1 x Fries\n1 x Soda", $vars['items']);
         $this->assertArrayHasKey('order_id', $vars);
+
+        $order->payment_method = 'cash';
+        $cashVars = PosDeliveryCustomerSms::buildVariables($order);
+        $this->assertSame('', $cashVars['mpesa_info']);
     }
 
     public function test_empty_till_and_rider_omit_those_sentences(): void

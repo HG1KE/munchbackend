@@ -24,7 +24,7 @@
 @endsection
 
 @push('script_2')
-    <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.1"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.2"></script>
     <script>
         window.MUNCH_RECEIPT_EDITOR = {
             payload: @json($payload),

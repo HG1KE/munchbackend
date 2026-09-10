@@ -72,13 +72,16 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertTrue(PosOrderTypes::isPaidImmediately('dine_in', 'card'));
         $this->assertTrue(PosOrderTypes::isPaidImmediately('dine_in', 'mpesa'));
         $this->assertFalse(PosOrderTypes::isPaidImmediately('dine_in', 'pay_after_eating'));
+        $this->assertTrue(PosOrderTypes::isPaidImmediately('delivery', 'cash'));
+        $this->assertTrue(PosOrderTypes::isPaidImmediately('delivery', 'card'));
+        $this->assertTrue(PosOrderTypes::isPaidImmediately('delivery', 'mpesa'));
         $this->assertFalse(PosOrderTypes::isPaidImmediately('delivery', 'cash_on_delivery'));
         $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('take_away'));
         $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('dine_in'));
+        $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
         $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('take_away', false));
         $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('dine_in', false));
-        $this->assertSame(['cash_on_delivery'], PosOrderTypes::paymentMethods('delivery'));
-        $this->assertSame(['cash_on_delivery'], PosOrderTypes::paymentMethods('delivery', false));
+        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('delivery', false));
         $this->assertSame(['glovo'], PosOrderTypes::paymentMethods('glovo'));
         $this->assertSame(['uber'], PosOrderTypes::paymentMethods('uber'));
         $this->assertSame(['bolt_food'], PosOrderTypes::paymentMethods('bolt_food'));

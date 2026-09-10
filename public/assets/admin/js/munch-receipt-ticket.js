@@ -53,7 +53,7 @@
             order: { order_number: true, order_type: true, sales_channel: true, date: true, time: true, cashier: true, customer_name: true, customer_phone: true, delivery_address: true, rider_name: true, rider_phone: true },
             items: { product_name: true, variations: true, modifiers: true, notes: true, quantity: true, unit_price: false, line_total: true },
             summary: { subtotal: true, discount: true, tax: false, delivery_fee: true, total: true, paid_amount: true, change: true },
-            payment: { payment_method: true, payment_status: false, mpesa_till: true },
+            payment: { payment_method: true, payment_status: true, mpesa_till: true },
             footer: { qr_code: false, barcode: false, thank_you_message: true, footer_text: false, return_policy: false, social_media: false },
             marketing: { promotion_banner: false }
         },
@@ -506,19 +506,30 @@
         return html;
     }
 
+    function isImmediatePosPayment(method) {
+        return method === 'cash' || method === 'card' || method === 'mpesa';
+    }
+
     function paymentHtml(kind, template, job, currency) {
         if (kind === 'kitchen') return '';
+        var method = String(job.payment_method || '');
         var html = '';
         if (show(kind, template, 'payment', 'payment_method')) {
-            html += '<div class="row"><span>Payment Method</span><span>' + escapeHtml(paymentLabel(job.payment_method)) + '</span></div>';
+            html += '<div class="row"><span>Payment Method</span><span>' + escapeHtml(paymentLabel(method)) + '</span></div>';
         }
-        if (show(kind, template, 'payment', 'payment_status') && job.payment_status) {
-            html += '<div class="row"><span>Payment Status</span><span>' + escapeHtml(String(job.payment_status).toUpperCase()) + '</span></div>';
+        var paidNow = isImmediatePosPayment(method) || String(job.payment_status || '').toLowerCase() === 'paid';
+        if (paidNow) {
+            html += '<div class="row"><span>Payment Status</span><span>PAID</span></div>';
+        } else if (show(kind, template, 'payment', 'payment_status') && job.payment_status) {
+            var status = String(job.payment_status).toLowerCase();
+            if (status !== 'unpaid' && status !== 'pending' && status.indexOf('due') === -1 && status.indexOf('remaining') === -1) {
+                html += '<div class="row"><span>Payment Status</span><span>' + escapeHtml(String(job.payment_status).toUpperCase()) + '</span></div>';
+            }
         }
-        if (show(kind, template, 'summary', 'paid_amount') && job.payment_method === 'cash') {
+        if (show(kind, template, 'summary', 'paid_amount') && method === 'cash') {
             html += '<div class="row"><span>Cash Received</span><span>' + escapeHtml(money(job.cash_received, currency)) + '</span></div>';
         }
-        if (show(kind, template, 'summary', 'change') && job.payment_method === 'cash') {
+        if (show(kind, template, 'summary', 'change') && method === 'cash') {
             html += '<div class="row"><span>Balance</span><span>' + escapeHtml(money(job.change, currency)) + '</span></div>';
         }
         return html;

@@ -578,8 +578,7 @@
     }
 
     function paymentMethods() {
-        if (state.cart.orderType === 'delivery') return ['cash_on_delivery'];
-        if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
+        if (state.cart.orderType === 'delivery' || state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
             return posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
         }
         if (state.cart.orderType === 'glovo') return ['glovo'];
@@ -1156,6 +1155,7 @@
             discount: extraDiscount(cartSubtotal()),
             grand_total: total,
             payment_method: state.cart.payment,
+            payment_status: immediatePaymentStatus(state.cart.payment),
             cash_received: paid,
             change: Math.max(0, paid - total),
             mpesa_till: branchMpesaTill(),
@@ -1195,6 +1195,7 @@
             discount: order.discount,
             grand_total: order.grand_total,
             payment_method: order.payment_method,
+            payment_status: order.payment_status || immediatePaymentStatus(order.payment_method),
             cash_received: order.cash_received,
             change: order.change,
             mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim(),
@@ -1825,6 +1826,10 @@
 
     function isMarketplacePayment(method) {
         return method === 'glovo' || method === 'uber' || method === 'bolt_food';
+    }
+
+    function immediatePaymentStatus(method) {
+        return (method === 'cash' || method === 'card' || method === 'mpesa') ? 'paid' : '';
     }
 
     function paymentLabel(method) {
