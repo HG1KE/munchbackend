@@ -29,6 +29,7 @@ class AdminProductPricingUiTest extends TestCase
         $routes = file_get_contents(base_path('routes/admin.php'));
         $this->assertStringContainsString("pricing/{id}", $routes);
         $this->assertStringContainsString('bulk-price/preview', $routes);
+        $this->assertStringContainsString('bulk-price/current', $routes);
         $this->assertStringContainsString('bulk-availability/preview', $routes);
         $this->assertStringContainsString('pricing/copy/preview', $routes);
         $this->assertStringContainsString('pricing/copy/apply', $routes);
@@ -52,7 +53,7 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('operations', $js);
         $this->assertStringContainsString('copy-marketplace', $js);
         $this->assertStringContainsString('selling_price', $js);
-        $this->assertStringContainsString('p.selling_price', $js);
+        $this->assertStringContainsString('product.selling_price', $js);
         $controller = file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php'));
         $this->assertStringContainsString('boolean(\'confirmed\')', $controller);
         $js = file_get_contents(public_path('assets/admin/js/munch-product-pricing.js'));
@@ -69,6 +70,36 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('normalizePriceOperations', file_get_contents(app_path('Services/ProductBulkPricingService.php')));
         $this->assertStringContainsString('selling_price', $controller);
         $this->assertStringContainsString('filterOverrideChannels', file_get_contents(app_path('Support/ProductPricingChannels.php')));
+    }
+
+    public function test_bulk_price_edit_reloads_selling_prices_and_defaults_to_set_exact(): void
+    {
+        $list = file_get_contents(resource_path('views/admin-views/product/list.blade.php'));
+        $js = file_get_contents(public_path('assets/admin/js/munch-product-pricing.js'));
+        $css = file_get_contents(public_path('assets/admin/css/munch-product-pricing.css'));
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php'));
+        $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
+
+        $this->assertStringContainsString('data-current-price-url', $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.6", $list);
+        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.2", $list);
+        $this->assertStringContainsString("cache: 'no-store'", $js);
+        $this->assertStringContainsString('bulkProductSeq', $js);
+        $this->assertStringContainsString('bulkPriceSeq', $js);
+        $this->assertStringContainsString('invalidateBulkPrices', $js);
+        $this->assertStringContainsString('refreshBulkPrices', $js);
+        $this->assertStringContainsString('schedulePriceRefresh', $js);
+        $this->assertStringContainsString('rowsForCurrentSelection', $js);
+        $this->assertStringContainsString('Set Exact Price', $js);
+        $this->assertStringContainsString("id=\"bulk-advanced\"", $js);
+        $this->assertStringContainsString('New selling price', $js);
+        $this->assertStringContainsString("money(row.current_price) + ' → ' + money(row.new_price)", $js);
+        $this->assertStringContainsString('munch-pricing-simple-action', $css);
+        $this->assertStringContainsString("input('action', 'set_exact')", $controller);
+        $this->assertStringContainsString('no-store, no-cache, must-revalidate', $controller);
+        $this->assertStringContainsString('function currentPrices', $bulk);
+        $this->assertStringContainsString('defaultSellingPrice', $bulk);
+        $this->assertStringContainsString('effectiveSellingPrice', $bulk);
     }
 
     public function test_pos_catalog_and_checkout_use_channel_hierarchy(): void

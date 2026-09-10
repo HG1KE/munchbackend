@@ -150,4 +150,14 @@ class ProductChannelPricingTest extends TestCase
         $this->assertSame(50.0, $ops[2]['value']);
         $this->assertSame(['uber', 'glovo', 'bolt_food'], ProductPricingChannels::filterOverrideChannels(['uber', 'glovo', 'bolt_food', 'default', 'uber']));
     }
+
+    public function test_bulk_current_prices_read_effective_selling_space(): void
+    {
+        $src = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
+        $this->assertStringContainsString('function currentPrices', $src);
+        $this->assertMatchesRegularExpression('/function currentPrices[\s\S]*defaultSellingPrice[\s\S]*resolvedPairsByChannels/', $src);
+        $this->assertStringContainsString("'current_price' => \$pair['price']", $src);
+        $this->assertStringContainsString('effectiveSellingPrice($unit, $payload)', $src);
+        $this->assertStringContainsString("input('action', 'set_exact')", file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php')));
+    }
 }

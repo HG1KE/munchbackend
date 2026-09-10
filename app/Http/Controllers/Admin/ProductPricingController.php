@@ -82,7 +82,7 @@ class ProductPricingController extends Controller
 
         $products = $query->paginate(40);
 
-        return response()->json([
+        return $this->noStoreJson([
             'data' => $products->getCollection()->map(function (Product $product) {
                 $category = $product->category;
 
@@ -96,6 +96,22 @@ class ProductPricingController extends Controller
             })->values(),
             'next_page' => $products->hasMorePages() ? $products->currentPage() + 1 : null,
         ]);
+    }
+
+    public function currentBulkPrices(Request $request): JsonResponse
+    {
+        $channels = $request->input('channels', $request->input('channel'));
+        if (! is_array($channels)) {
+            $channels = $channels !== null && $channels !== '' ? [$channels] : [];
+        }
+
+        $result = $this->bulk->currentPrices(
+            $request->input('product_ids', []),
+            $request->input('branch_ids', []),
+            $channels
+        );
+
+        return $this->noStoreJson(['success' => 1] + $result);
     }
 
     public function previewBulkPrice(Request $request): JsonResponse
@@ -235,7 +251,7 @@ class ProductPricingController extends Controller
             return $this->bulk->normalizePriceOperations($operations);
         }
 
-        $action = (string) $request->input('action', 'increase_percent');
+        $action = (string) $request->input('action', 'set_exact');
         $value = (float) $request->input('value', 0);
         $channels = $request->input('channels', $request->input('channel'));
         if (! is_array($channels)) {
@@ -274,5 +290,11 @@ class ProductPricingController extends Controller
         }
 
         return [[$parsed[0]], $parsed[1]];
+    }
+
+    private function noStoreJson(array $data, int $status = 200): JsonResponse
+    {
+        return response()->json($data, $status)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 }

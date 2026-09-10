@@ -38,6 +38,59 @@ class ProductBulkPricingService
     }
 
     /**
+     * Effective selling prices for the current bulk selection. Always returned,
+     * even when the price is not changing, so the modal never shows a stale figure.
+     *
+     * @param  list<int>  $productIds
+     * @param  list<int>  $branchIds
+     * @param  list<string>  $channels
+     * @return array{rows: list<array<string, mixed>>, count: int, truncated: bool}
+     */
+    public function currentPrices(array $productIds, array $branchIds, array $channels): array
+    {
+        $productIds = array_values(array_unique(array_filter(array_map('intval', $productIds))));
+        $branchIds = array_values(array_unique(array_filter(array_map('intval', $branchIds))));
+        $channels = ProductPricingChannels::filterOverrideChannels($channels);
+        if ($productIds === []) {
+            return ['rows' => [], 'count' => 0, 'truncated' => false];
+        }
+
+        if ($channels === [] || $branchIds === []) {
+            $rows = [];
+            $products = Product::query()->whereIn('id', $productIds)->orderBy('name')->get();
+            foreach ($products as $product) {
+                $rows[] = [
+                    'product_id' => (int) $product->id,
+                    'product_name' => (string) $product->name,
+                    'branch_id' => 0,
+                    'branch_name' => '',
+                    'channel' => $channels[0] ?? 'default',
+                    'current_price' => $this->pricing->defaultSellingPrice($product),
+                ];
+            }
+
+            return $this->truncate($rows);
+        }
+
+        $pairsByChannel = $this->resolvedPairsByChannels($productIds, $branchIds, $channels);
+        $rows = [];
+        foreach ($channels as $channel) {
+            foreach ($pairsByChannel[$channel] ?? [] as $pair) {
+                $rows[] = [
+                    'product_id' => $pair['product_id'],
+                    'product_name' => $pair['product_name'],
+                    'branch_id' => $pair['branch_id'],
+                    'branch_name' => $pair['branch_name'],
+                    'channel' => $channel,
+                    'current_price' => $pair['price'],
+                ];
+            }
+        }
+
+        return $this->truncate($rows);
+    }
+
+    /**
      * @param  list<int>  $productIds
      * @param  list<int>  $branchIds
      * @param  list<array<string, mixed>>  $operations

@@ -446,6 +446,18 @@
     margin-bottom: 0.45rem;
 }
 
+.munch-pricing-simple-action {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.munch-pricing-simple-hint {
+    margin: 0.4rem 0 0;
+    font-size: 0.8rem;
+    color: var(--mp-muted);
+}
+
 .munch-pricing-advanced-toggle {
     display: flex;
     align-items: center;

@@ -11,6 +11,7 @@
         meta: root.getAttribute('data-meta-url'),
         products: root.getAttribute('data-products-url'),
         previewPrice: root.getAttribute('data-preview-price-url'),
+        currentPrice: root.getAttribute('data-current-price-url'),
         applyPrice: root.getAttribute('data-apply-price-url'),
         previewAvail: root.getAttribute('data-preview-avail-url'),
         applyAvail: root.getAttribute('data-apply-avail-url'),
@@ -42,18 +43,23 @@
         selectedBranches: {},
         channels: { pos: false, uber: true, glovo: true, bolt_food: true },
         advanced: false,
-        action: 'increase_percent',
-        value: 10,
+        action: 'set_exact',
+        value: '',
         channelOps: {
-            pos: { action: 'increase_percent', value: 10 },
-            uber: { action: 'increase_percent', value: 10 },
-            glovo: { action: 'increase_percent', value: 10 },
-            bolt_food: { action: 'increase_percent', value: 10 }
+            pos: { action: 'set_exact', value: '' },
+            uber: { action: 'set_exact', value: '' },
+            glovo: { action: 'set_exact', value: '' },
+            bolt_food: { action: 'set_exact', value: '' }
         },
         availChannels: { pos: false, uber: true, glovo: true, bolt_food: true },
         availEnabled: false,
-        preview: null
+        preview: null,
+        currentRows: [],
+        perChannel: false,
+        pricesLoading: false
     };
+    var bulkProductSeq = 0;
+    var bulkPriceSeq = 0;
     var copy = {
         sourceId: '',
         dest: {},
@@ -92,7 +98,7 @@
             headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(options.body);
         }
-        return fetch(url, Object.assign({ credentials: 'same-origin', headers: headers }, options))
+        return fetch(url, Object.assign({ credentials: 'same-origin', cache: 'no-store', headers: headers }, options))
             .then(function (res) {
                 return res.json().then(function (data) {
                     if (!res.ok) throw data;
@@ -308,6 +314,18 @@
 
     function openBulk() {
         bulk.preview = null;
+        bulk.currentRows = [];
+        bulk.products = [];
+        bulk.selectedProducts = {};
+        bulk.productQuery = '';
+        bulk.categoryId = '';
+        bulk.advanced = false;
+        bulk.perChannel = false;
+        bulk.action = 'set_exact';
+        bulk.value = '';
+        bulk.pricesLoading = false;
+        bulkProductSeq += 1;
+        bulkPriceSeq += 1;
         openOverlay(els.modal);
         loadMeta().then(function () {
             loadBulkProducts();
@@ -336,13 +354,11 @@
     }
 
     function actionOptions(selected) {
-        return option('increase_percent', 'Increase %', selected) +
+        return option('set_exact', 'Set Exact Price', selected) +
+            option('increase_percent', 'Increase %', selected) +
             option('decrease_percent', 'Decrease %', selected) +
-            option('increase_amount', 'Increase amount', selected) +
-            option('decrease_amount', 'Decrease amount', selected) +
-            option('set_exact', 'Set exact price', selected) +
-            option('round_5', 'Round to nearest 5', selected) +
-            option('round_10', 'Round to nearest 10', selected);
+            option('increase_amount', 'Increase Amount', selected) +
+            option('decrease_amount', 'Decrease Amount', selected);
     }
 
     function actionNeedsValue(action) {
@@ -360,7 +376,8 @@
         var meta = metaCache || { branches: [], categories: [] };
         var productChecks = bulk.products.map(function (p) {
             return '<label><input type="checkbox" data-bulk-product="' + p.id + '"' + (bulk.selectedProducts[p.id] ? ' checked' : '') + '> ' +
-                escapeHtml(p.name) + ' <span class="text-muted">' + money(p.selling_price != null ? p.selling_price : p.price) + '</span></label>';
+                escapeHtml(p.name) + ' <span class="text-muted" data-bulk-product-price="' + p.id + '">' +
+                escapeHtml(productCurrentPriceLabel(p)) + '</span></label>';
         }).join('');
         var branchChecks = (meta.branches || []).map(function (b) {
             return '<label><input type="checkbox" data-bulk-branch="' + b.id + '"' + (bulk.selectedBranches[b.id] ? ' checked' : '') + '> ' +
@@ -369,14 +386,21 @@
         var categoryOptions = '<option value="">All categories</option>' + (meta.categories || []).map(function (c) {
             return '<option value="' + c.id + '"' + (String(bulk.categoryId) === String(c.id) ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
         }).join('');
-        var needsValue = actionNeedsValue(bulk.action);
-        var previewHtml = renderPreview(bulk.preview);
         var selected = selectedChannels(bulk.channels);
         var priceControls = '<label class="munch-pricing-field-label">Channels</label>' +
             channelChipRow('channels', bulk.channels) +
             '<label class="munch-pricing-advanced-toggle">' +
-            '<input type="checkbox" id="bulk-advanced"' + (bulk.advanced ? ' checked' : '') + '> Advanced: different action per channel</label>';
-        if (bulk.advanced) {
+            '<input type="checkbox" id="bulk-advanced"' + (bulk.advanced ? ' checked' : '') + '> Advanced</label>';
+        if (!bulk.advanced) {
+            priceControls += '<div class="mt-3"><label class="munch-pricing-field-label">Action</label>' +
+                '<p class="munch-pricing-simple-action">Set Exact Price</p>' +
+                '<label>New selling price</label>' +
+                '<input class="form-control" id="bulk-value" type="number" min="0" step="0.01" value="' +
+                escapeAttr(bulk.value) + '" placeholder="e.g. 900">' +
+                '<p class="munch-pricing-simple-hint">Enter the price customers will see. Preview always compares current selling price → new selling price.</p></div>';
+        } else if (bulk.perChannel) {
+            priceControls += '<label class="munch-pricing-advanced-toggle">' +
+                '<input type="checkbox" id="bulk-per-channel" checked> Different action per channel</label>';
             priceControls += selected.length
                 ? selected.map(function (ch) {
                     var op = ensureChannelOp(ch);
@@ -390,7 +414,10 @@
                 }).join('')
                 : '<p class="text-muted mb-0 mt-2">Select at least one channel.</p>';
         } else {
-            priceControls += '<div class="row g-2 mt-2"><div class="col-md-6"><label>Action</label>' +
+            var needsValue = actionNeedsValue(bulk.action);
+            priceControls += '<label class="munch-pricing-advanced-toggle">' +
+                '<input type="checkbox" id="bulk-per-channel"> Different action per channel</label>' +
+                '<div class="row g-2 mt-2"><div class="col-md-6"><label>Action</label>' +
                 '<select class="custom-select" id="bulk-action">' + actionOptions(bulk.action) + '</select></div>' +
                 '<div class="col-md-6"' + (needsValue ? '' : ' hidden') + '><label>Value</label>' +
                 '<input class="form-control" id="bulk-value" type="number" step="0.01" value="' + escapeAttr(bulk.value) + '"></div></div>';
@@ -423,7 +450,7 @@
             '<div class="munch-pricing-card mt-3">' +
             (bulk.tab === 'price' ? priceControls : availControls) +
             '</div>' +
-            '<div class="munch-pricing-card mt-3"><h3>Preview Changes</h3>' + previewHtml + '</div>' +
+            '<div class="munch-pricing-card mt-3"><h3>Preview Changes</h3><div id="bulk-preview-panel">' + renderPreview(bulk.preview) + '</div></div>' +
             '<div class="munch-pricing-modal__footer px-0">' +
             '<span class="text-muted">Nothing is saved until you apply the preview.</span>' +
             '<div class="d-flex gap-2">' +
@@ -436,13 +463,39 @@
         return '<option value="' + value + '"' + (selected === value ? ' selected' : '') + '>' + label + '</option>';
     }
 
+    function rowsForCurrentSelection(rows) {
+        var ids = {};
+        bulk.products.forEach(function (p) { ids[String(p.id)] = true; });
+        var selected = selectedChannels(bulk.channels);
+        return (rows || []).filter(function (row) {
+            if (!ids[String(row.product_id)]) return false;
+            if (!selected.length) return row.channel === 'default' || !row.channel;
+            return selected.indexOf(row.channel) !== -1 || row.channel === 'default';
+        });
+    }
+
     function renderPreview(preview) {
-        if (!preview) return '<p class="text-muted mb-0">Preview current vs new values before saving.</p>';
-        if (!preview.rows || !preview.rows.length) return '<p class="text-muted mb-0">No changes for this selection.</p>';
-        var isPrice = preview.rows[0].current_price !== undefined;
+        var rows = preview && preview.rows && preview.rows.length ? preview.rows : null;
+        var fromCurrent = false;
+        if (rows && bulk.tab === 'price') {
+            rows = rowsForCurrentSelection(rows);
+            if (!rows.length) rows = null;
+        }
+        if (!rows && bulk.tab === 'price') {
+            if (bulk.pricesLoading) return '<p class="text-muted mb-0">Loading current selling prices…</p>';
+            rows = rowsForCurrentSelection(bulk.currentRows);
+            fromCurrent = !!rows.length;
+        }
+        if (!rows || !rows.length) {
+            if (bulk.tab === 'price' && bulk.pricesLoading) {
+                return '<p class="text-muted mb-0">Loading current selling prices…</p>';
+            }
+            return '<p class="text-muted mb-0">Preview current vs new selling prices before saving.</p>';
+        }
+        var isPrice = rows[0].current_price !== undefined;
         var groups = [];
         var index = {};
-        preview.rows.forEach(function (row) {
+        rows.forEach(function (row) {
             var key = row.product_id + ':' + (row.branch_id || 0);
             if (index[key] === undefined) {
                 index[key] = groups.length;
@@ -461,10 +514,13 @@
                     : '');
             var lines = group.rows.map(function (row) {
                 if (isPrice) {
-                    var cls = row.difference > 0 ? 'is-up' : (row.difference < 0 ? 'is-down' : '');
+                    var cls = !fromCurrent && row.difference > 0 ? 'is-up' : (!fromCurrent && row.difference < 0 ? 'is-down' : '');
+                    var amount = fromCurrent || row.new_price == null
+                        ? money(row.current_price)
+                        : money(row.current_price) + ' → ' + money(row.new_price);
                     return '<div class="munch-pricing-preview-line">' +
                         '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) + '</span>' +
-                        '<span class="' + cls + '">' + money(row.current_price) + ' → ' + money(row.new_price) + '</span></div>';
+                        '<span class="' + cls + '">' + amount + '</span></div>';
                 }
                 return '<div class="munch-pricing-preview-line">' +
                     '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) + '</span>' +
@@ -472,8 +528,10 @@
             }).join('');
             return '<article class="munch-pricing-preview-group"><header>' + title + '</header>' + lines + '</article>';
         }).join('');
-        return '<p class="mb-2">' + preview.count + ' change' + (preview.count === 1 ? '' : 's') +
-            (preview.truncated ? ' (showing first ' + preview.rows.length + ')' : '') + '</p>' +
+        var count = preview && preview.count != null ? preview.count : rows.length;
+        var truncated = preview && preview.truncated;
+        return '<p class="mb-2">' + count + (fromCurrent ? ' current selling price' : ' change') + (count === 1 ? '' : 's') +
+            (truncated ? ' (showing first ' + rows.length + ')' : '') + '</p>' +
             '<div class="munch-pricing-preview-groups">' + body + '</div>';
     }
 
@@ -487,14 +545,14 @@
             product_ids: selectedIds(bulk.selectedProducts),
             branch_ids: selectedIds(bulk.selectedBranches)
         };
-        if (bulk.advanced) {
+        if (bulk.advanced && bulk.perChannel) {
             body.operations = channels.map(function (ch) {
                 var op = ensureChannelOp(ch);
                 return { channel: ch, action: op.action, value: Number(op.value || 0) };
             });
         } else {
             body.channels = channels;
-            body.action = bulk.action;
+            body.action = bulk.advanced ? bulk.action : 'set_exact';
             body.value = Number(bulk.value || 0);
         }
         return body;
@@ -529,9 +587,12 @@
             if (!body.branch_ids.length) return showToast(false, 'Choose branches first');
             url = CFG.previewAvail;
         }
+        var seq = bulkPriceSeq;
         json(url, { method: 'POST', body: body }).then(function (data) {
+            if (seq !== bulkPriceSeq) return;
             bulk.preview = data;
-            renderBulk();
+            if (bulk.tab === 'price') patchBulkPriceUi();
+            else renderBulk();
         }).catch(function (err) {
             showToast(false, (err && err.message) || 'Preview failed');
         });
@@ -790,11 +851,14 @@
         if (ev.target.id === 'bulk-value') bulk.value = ev.target.value;
         var opValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-op-value');
         if (opValue) ensureChannelOp(opValue).value = ev.target.value;
+        if (ev.target.id === 'bulk-value' || opValue) {
+            bulk.preview = null;
+            schedulePriceRefresh();
+        }
     });
     els.modal.addEventListener('change', function (ev) {
         if (ev.target.id === 'bulk-category') {
             bulk.categoryId = ev.target.value;
-            bulk.preview = null;
             loadBulkProducts();
             return;
         }
@@ -802,17 +866,30 @@
             bulk.action = ev.target.value;
             bulk.preview = null;
             renderBulk();
+            refreshBulkPrices({ keepCurrent: true });
             return;
         }
         if (ev.target.id === 'bulk-advanced') {
             bulk.advanced = ev.target.checked;
-            if (bulk.advanced) {
+            if (!bulk.advanced) {
+                bulk.action = 'set_exact';
+                bulk.perChannel = false;
+            }
+            bulk.preview = null;
+            renderBulk();
+            refreshBulkPrices({ keepCurrent: true });
+            return;
+        }
+        if (ev.target.id === 'bulk-per-channel') {
+            bulk.perChannel = ev.target.checked;
+            if (bulk.perChannel) {
                 selectedChannels(bulk.channels).forEach(function (ch) {
                     bulk.channelOps[ch] = { action: bulk.action, value: bulk.value };
                 });
             }
             bulk.preview = null;
             renderBulk();
+            refreshBulkPrices({ keepCurrent: true });
             return;
         }
         if (ev.target.name === 'bulk-avail-enabled') {
@@ -826,17 +903,28 @@
             ensureChannelOp(opAction).action = ev.target.value;
             bulk.preview = null;
             renderBulk();
+            refreshBulkPrices({ keepCurrent: true });
             return;
         }
         var channelMap = ev.target.getAttribute && ev.target.getAttribute('data-bulk-channel-map');
         if (channelMap && ev.target.getAttribute('data-channel')) {
             bulk[channelMap][ev.target.getAttribute('data-channel')] = ev.target.checked;
             bulk.preview = null;
+            if (channelMap === 'channels') invalidateBulkPrices();
             renderBulk();
+            if (channelMap === 'channels') refreshBulkPrices();
             return;
         }
-        if (ev.target.matches('[data-bulk-product]')) bulk.selectedProducts[ev.target.getAttribute('data-bulk-product')] = ev.target.checked;
-        if (ev.target.matches('[data-bulk-branch]')) bulk.selectedBranches[ev.target.getAttribute('data-bulk-branch')] = ev.target.checked;
+        if (ev.target.matches('[data-bulk-product]')) {
+            bulk.selectedProducts[ev.target.getAttribute('data-bulk-product')] = ev.target.checked;
+            refreshBulkPrices();
+            return;
+        }
+        if (ev.target.matches('[data-bulk-branch]')) {
+            bulk.selectedBranches[ev.target.getAttribute('data-bulk-branch')] = ev.target.checked;
+            refreshBulkPrices();
+            return;
+        }
         bulk.preview = null;
     });
     els.modal.addEventListener('click', function (ev) {
@@ -845,6 +933,7 @@
             bulk.tab = tab.getAttribute('data-tab');
             bulk.preview = null;
             renderBulk();
+            if (bulk.tab === 'price') refreshBulkPrices();
             return;
         }
         var setBtn = ev.target.closest('[data-bulk-channels]');
@@ -852,7 +941,9 @@
             var mapName = setBtn.getAttribute('data-bulk-channels');
             applyChannelSet(bulk[mapName], setBtn.getAttribute('data-set'));
             bulk.preview = null;
+            if (mapName === 'channels') invalidateBulkPrices();
             renderBulk();
+            if (mapName === 'channels') refreshBulkPrices();
             return;
         }
         if (ev.target.id === 'bulk-preview') runPreview();
@@ -860,10 +951,12 @@
         if (ev.target.id === 'bulk-select-visible') {
             bulk.products.forEach(function (p) { bulk.selectedProducts[p.id] = true; });
             renderBulk();
+            refreshBulkPrices();
         }
         if (ev.target.id === 'bulk-select-branches') {
             (metaCache.branches || []).forEach(function (b) { bulk.selectedBranches[b.id] = true; });
             renderBulk();
+            refreshBulkPrices();
         }
     });
     if (els.copyModal) {
@@ -932,10 +1025,151 @@
         if (ev.target.id === 'bulk-product-search') loadBulkProducts();
     }, 250));
 
+    function productCurrentPriceLabel(product) {
+        if (bulk.pricesLoading) return '…';
+        var rows = rowsForCurrentSelection((bulk.currentRows || []).filter(function (row) {
+            return Number(row.product_id) === Number(product.id);
+        }));
+        if (!rows.length) {
+            return money(product.selling_price != null ? product.selling_price : product.price);
+        }
+        var byChannel = {};
+        rows.forEach(function (row) {
+            var ch = row.channel || 'default';
+            var price = Number(row.current_price);
+            if (!byChannel[ch]) byChannel[ch] = { min: price, max: price };
+            else {
+                byChannel[ch].min = Math.min(byChannel[ch].min, price);
+                byChannel[ch].max = Math.max(byChannel[ch].max, price);
+            }
+        });
+        return Object.keys(byChannel).map(function (ch) {
+            var range = byChannel[ch];
+            var amount = range.min === range.max ? money(range.min) : money(range.min) + '–' + money(range.max);
+            return (CHANNEL_LABELS[ch] ? CHANNEL_LABELS[ch] + ' ' : '') + amount;
+        }).join(' · ');
+    }
+
+    function pruneInvisibleProductSelections() {
+        var visible = {};
+        bulk.products.forEach(function (p) { visible[String(p.id)] = true; });
+        Object.keys(bulk.selectedProducts).forEach(function (id) {
+            if (!visible[id]) delete bulk.selectedProducts[id];
+        });
+    }
+
+    function priceProductIds() {
+        var selected = selectedIds(bulk.selectedProducts);
+        if (selected.length) return selected;
+        return bulk.products.map(function (p) { return Number(p.id); });
+    }
+
+    function patchBulkPriceUi() {
+        bulk.products.forEach(function (p) {
+            var el = els.modalBody.querySelector('[data-bulk-product-price="' + p.id + '"]');
+            if (el) el.textContent = productCurrentPriceLabel(p);
+        });
+        var panel = document.getElementById('bulk-preview-panel');
+        if (panel) panel.innerHTML = renderPreview(bulk.preview);
+        var apply = document.getElementById('bulk-apply');
+        if (apply) apply.disabled = !(bulk.preview && bulk.preview.count);
+    }
+
+    function invalidateBulkPrices() {
+        bulkPriceSeq += 1;
+        bulk.preview = null;
+        bulk.currentRows = [];
+        bulk.pricesLoading = true;
+    }
+
+    function refreshBulkPrices(options) {
+        options = options || {};
+        if (bulk.tab !== 'price') return;
+        var seq = ++bulkPriceSeq;
+        var productIds = priceProductIds();
+        var branchIds = selectedIds(bulk.selectedBranches);
+        var channels = selectedChannels(bulk.channels);
+        bulk.preview = null;
+        if (!options.keepCurrent) {
+            bulk.pricesLoading = true;
+            bulk.currentRows = [];
+            patchBulkPriceUi();
+        }
+        if (!productIds.length) {
+            bulk.currentRows = [];
+            bulk.pricesLoading = false;
+            patchBulkPriceUi();
+            return;
+        }
+        if (!options.keepCurrent && CFG.currentPrice) {
+            json(CFG.currentPrice, {
+                method: 'POST',
+                body: {
+                    product_ids: productIds,
+                    branch_ids: branchIds,
+                    channels: channels
+                }
+            }).then(function (data) {
+                if (seq !== bulkPriceSeq) return;
+                bulk.pricesLoading = false;
+                bulk.currentRows = data.rows || [];
+                patchBulkPriceUi();
+            }).catch(function () {
+                if (seq !== bulkPriceSeq) return;
+                bulk.pricesLoading = false;
+                bulk.currentRows = [];
+                patchBulkPriceUi();
+            });
+        }
+        if (canAutoPreview()) {
+            json(CFG.previewPrice, { method: 'POST', body: bulkPricePayload() }).then(function (data) {
+                if (seq !== bulkPriceSeq) return;
+                bulk.preview = data;
+                patchBulkPriceUi();
+            }).catch(function () {
+                if (seq !== bulkPriceSeq) return;
+                bulk.preview = null;
+                patchBulkPriceUi();
+            });
+        } else if (options.keepCurrent) {
+            patchBulkPriceUi();
+        }
+    }
+
+    function canAutoPreview() {
+        if (!selectedIds(bulk.selectedProducts).length) return false;
+        if (!selectedIds(bulk.selectedBranches).length) return false;
+        if (!selectedChannels(bulk.channels).length) return false;
+        if (bulk.advanced && bulk.perChannel) {
+            return selectedChannels(bulk.channels).some(function (ch) {
+                var op = ensureChannelOp(ch);
+                return op.action === 'set_exact' ? Number(op.value) > 0 : actionNeedsValue(op.action) ? String(op.value) !== '' : true;
+            });
+        }
+        if (bulk.action === 'set_exact' || !bulk.advanced) return Number(bulk.value) > 0;
+        return actionNeedsValue(bulk.action) ? String(bulk.value) !== '' : true;
+    }
+
     function loadBulkProducts() {
-        var url = CFG.products + '?search=' + encodeURIComponent(bulk.productQuery || '') + '&category_id=' + encodeURIComponent(bulk.categoryId || '');
+        var seq = ++bulkProductSeq;
+        invalidateBulkPrices();
+        var list = document.getElementById('bulk-product-list');
+        if (list) list.innerHTML = '<div class="text-muted">Loading products…</div>';
+        var panel = document.getElementById('bulk-preview-panel');
+        if (panel) panel.innerHTML = '<p class="text-muted mb-0">Loading current selling prices…</p>';
+        var url = CFG.products + '?search=' + encodeURIComponent(bulk.productQuery || '') +
+            '&category_id=' + encodeURIComponent(bulk.categoryId || '') +
+            '&t=' + Date.now();
         json(url).then(function (data) {
+            if (seq !== bulkProductSeq) return;
             bulk.products = data.data || [];
+            pruneInvisibleProductSelections();
+            renderBulk();
+            refreshBulkPrices();
+        }).catch(function () {
+            if (seq !== bulkProductSeq) return;
+            bulk.products = [];
+            bulk.pricesLoading = false;
             renderBulk();
         });
     }
@@ -949,4 +1183,8 @@
             t = setTimeout(function () { fn.apply(ctx, args); }, wait);
         };
     }
+
+    var schedulePriceRefresh = debounce(function () {
+        refreshBulkPrices({ keepCurrent: true });
+    }, 250);
 })();

@@ -4,7 +4,7 @@
 
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-pricing.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-pricing.css') }}?v=1.2">
 @endpush
 
 @section('content')
@@ -165,6 +165,7 @@
          data-update-url="{{ route('admin.product.pricing.update', ['id' => '__ID__']) }}"
          data-meta-url="{{ route('admin.product.pricing.meta') }}"
          data-products-url="{{ route('admin.product.pricing.products') }}"
+         data-current-price-url="{{ route('admin.product.pricing.bulk-price.current') }}"
          data-preview-price-url="{{ route('admin.product.pricing.bulk-price.preview') }}"
          data-apply-price-url="{{ route('admin.product.pricing.bulk-price.apply') }}"
          data-preview-avail-url="{{ route('admin.product.pricing.bulk-availability.preview') }}"
@@ -306,5 +307,5 @@
             )
         }
     </script>
-    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.4"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.6"></script>
 @endpush

@@ -217,6 +217,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('list', [ProductController::class, 'list'])->name('list');
             Route::get('pricing/meta', [ProductPricingController::class, 'meta'])->name('pricing.meta');
             Route::get('pricing/products', [ProductPricingController::class, 'searchProducts'])->name('pricing.products');
+            Route::post('pricing/bulk-price/current', [ProductPricingController::class, 'currentBulkPrices'])->name('pricing.bulk-price.current');
             Route::post('pricing/bulk-price/preview', [ProductPricingController::class, 'previewBulkPrice'])->name('pricing.bulk-price.preview');
             Route::post('pricing/bulk-price/apply', [ProductPricingController::class, 'applyBulkPrice'])->name('pricing.bulk-price.apply');
             Route::post('pricing/bulk-availability/preview', [ProductPricingController::class, 'previewBulkAvailability'])->name('pricing.bulk-availability.preview');
