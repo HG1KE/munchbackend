@@ -90,6 +90,7 @@ class ProductPricingController extends Controller
                     'id' => (int) $product->id,
                     'name' => (string) $product->name,
                     'price' => $this->pricing->defaultPrice($product),
+                    'selling_price' => $this->pricing->defaultSellingPrice($product),
                     'category' => is_array($category) ? (string) ($category['name'] ?? '') : '',
                 ];
             })->values(),
@@ -102,9 +103,7 @@ class ProductPricingController extends Controller
         $result = $this->bulk->previewPrices(
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
-            (string) $request->input('channel', ProductPricingChannels::POS),
-            (string) $request->input('action', 'increase_percent'),
-            (float) $request->input('value', 0)
+            $this->bulkPriceOperations($request)
         );
 
         if (! empty($result['error'])) {
@@ -126,9 +125,7 @@ class ProductPricingController extends Controller
         $result = $this->bulk->applyPrices(
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
-            (string) $request->input('channel', ProductPricingChannels::POS),
-            (string) $request->input('action', 'increase_percent'),
-            (float) $request->input('value', 0)
+            $this->bulkPriceOperations($request)
         );
 
         if (! empty($result['error'])) {
@@ -144,10 +141,12 @@ class ProductPricingController extends Controller
 
     public function previewBulkAvailability(Request $request): JsonResponse
     {
+        [$channels, $enabled] = $this->bulkAvailabilitySelection($request);
         $result = $this->bulk->previewAvailability(
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
-            (string) $request->input('action', '')
+            $channels,
+            $enabled
         );
 
         if (! empty($result['error'])) {
@@ -166,10 +165,12 @@ class ProductPricingController extends Controller
             ], 422);
         }
 
+        [$channels, $enabled] = $this->bulkAvailabilitySelection($request);
         $result = $this->bulk->applyAvailability(
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
-            (string) $request->input('action', '')
+            $channels,
+            $enabled
         );
 
         if (! empty($result['error'])) {
@@ -222,5 +223,56 @@ class ProductPricingController extends Controller
         }
 
         return response()->json(['success' => 1] + $result);
+    }
+
+    /**
+     * @return list<array{channel: string, action: string, value: float}>
+     */
+    private function bulkPriceOperations(Request $request): array
+    {
+        $operations = $request->input('operations');
+        if (is_array($operations) && $operations !== []) {
+            return $this->bulk->normalizePriceOperations($operations);
+        }
+
+        $action = (string) $request->input('action', 'increase_percent');
+        $value = (float) $request->input('value', 0);
+        $channels = $request->input('channels', $request->input('channel'));
+        if (! is_array($channels)) {
+            $channels = $channels !== null && $channels !== '' ? [$channels] : [];
+        }
+
+        $ops = [];
+        foreach ($channels as $channel) {
+            $ops[] = [
+                'channel' => (string) $channel,
+                'action' => $action,
+                'value' => $value,
+            ];
+        }
+
+        return $this->bulk->normalizePriceOperations($ops);
+    }
+
+    /**
+     * @return array{0: list<string>, 1: bool}
+     */
+    private function bulkAvailabilitySelection(Request $request): array
+    {
+        $channels = $request->input('channels');
+        if (is_array($channels) && $channels !== []) {
+            $enabled = $request->has('enabled')
+                ? $request->boolean('enabled')
+                : ! str_starts_with((string) $request->input('action', 'enable'), 'disable');
+
+            return [ProductPricingChannels::filterOverrideChannels($channels), $enabled];
+        }
+
+        $parsed = $this->bulk->parseAvailabilityAction((string) $request->input('action', ''));
+        if ($parsed === null) {
+            return [[], $request->boolean('enabled', true)];
+        }
+
+        return [[$parsed[0]], $parsed[1]];
     }
 }

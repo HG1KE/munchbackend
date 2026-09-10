@@ -55,19 +55,30 @@ class ProductChannelPricingService
      */
     public function discountPayload(Product $product, ?ProductByBranch $branchProduct = null): array
     {
-        if ($branchProduct !== null) {
-            return $this->normalizeDiscountPayload([
-                'discount_type' => $branchProduct->discount_type,
-                'discount' => $branchProduct->discount,
-            ]);
+        $fromProduct = $this->normalizeDiscountPayload([
+            'discount_type' => $product->discount_type ?? 'amount',
+            'discount' => $product->getRawOriginal('discount') ?? $product->discount,
+        ]);
+
+        if ($branchProduct === null) {
+            return $fromProduct;
         }
 
-        $discount = $product->getRawOriginal('discount');
-
-        return $this->normalizeDiscountPayload([
-            'discount_type' => $product->discount_type ?? 'amount',
-            'discount' => $discount !== null ? $discount : $product->discount,
+        $fromBranch = $this->normalizeDiscountPayload([
+            'discount_type' => $branchProduct->discount_type,
+            'discount' => $branchProduct->discount,
         ]);
+
+        return $fromBranch['discount'] > 0 ? $fromBranch : $fromProduct;
+    }
+
+    public function defaultSellingPrice(Product $product, ?ProductByBranch $branchProduct = null): float
+    {
+        $unit = $branchProduct !== null
+            ? $this->money((float) $branchProduct->price)
+            : $this->defaultPrice($product);
+
+        return $this->effectiveSellingPrice($unit, $this->discountPayload($product, $branchProduct));
     }
 
     /**
@@ -236,7 +247,7 @@ class ProductChannelPricingService
     public function drawerPayload(Product $product, ?string $branchSearch = null, ?string $channelFilter = null): array
     {
         $defaultPrice = $this->defaultPrice($product);
-        $defaultSellingPrice = $this->effectiveSellingPrice($defaultPrice, $this->discountPayload($product));
+        $defaultSellingPrice = $this->defaultSellingPrice($product);
         $branches = Branch::query()
             ->orderBy('id')
             ->get(['id', 'name', 'status']);
@@ -599,7 +610,7 @@ class ProductChannelPricingService
             $row->price = null;
         } elseif ($hasPrice && $change['price'] !== null && $change['price'] !== '') {
             $price = $this->money($change['price']);
-            if (ProductPricingChannels::isMarketplace($channel)) {
+            if (ProductPricingChannels::isMarketplace($channel) || ! empty($change['price_is_selling'])) {
                 $price = $this->sellingToUnit($price, $discountPayload);
             }
             $row->price = $price;
@@ -633,6 +644,10 @@ class ProductChannelPricingService
         $after = $this->resolveMatrix($defaultPrice, $branchProduct, $afterRows, $discountPayload);
         $beforeDisplay = $before['display_prices'][$channel] ?? $before['prices'][$channel];
         $afterDisplay = $after['display_prices'][$channel] ?? $after['prices'][$channel];
+        if (! empty($change['price_is_selling']) && $channel === ProductPricingChannels::POS) {
+            $beforeDisplay = $this->effectiveSellingPrice($before['prices'][$channel] ?? $defaultPrice, $discountPayload);
+            $afterDisplay = $this->effectiveSellingPrice($after['prices'][$channel] ?? $defaultPrice, $discountPayload);
+        }
 
         if (abs($beforeDisplay - $afterDisplay) > 0.009 || ($before['overrides'][$channel] !== $after['overrides'][$channel])) {
             $audits[] = [

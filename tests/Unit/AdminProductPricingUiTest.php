@@ -46,9 +46,13 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('default_selling_price', $js);
         $this->assertStringContainsString('inherited_price', $js);
         $this->assertStringContainsString('default selling price', $js);
-        $this->assertStringContainsString('Current Price', $js);
-        $this->assertStringContainsString('New Price', $js);
-        $this->assertStringContainsString('Difference', $js);
+        $this->assertStringContainsString('munch-pricing-preview-group', $js);
+        $this->assertStringContainsString('data-bulk-channel-map', $js);
+        $this->assertStringContainsString('bulk-advanced', $js);
+        $this->assertStringContainsString('operations', $js);
+        $this->assertStringContainsString('copy-marketplace', $js);
+        $this->assertStringContainsString('selling_price', $js);
+        $this->assertStringContainsString('p.selling_price', $js);
         $controller = file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php'));
         $this->assertStringContainsString('boolean(\'confirmed\')', $controller);
         $js = file_get_contents(public_path('assets/admin/js/munch-product-pricing.js'));
@@ -61,7 +65,10 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('saveDrawer($product, null, $changes, \'drawer\')', $controller);
         $this->assertStringContainsString('effectiveSellingPrice', file_get_contents(app_path('Services/ProductChannelPricingService.php')));
         $this->assertStringContainsString('sellingToUnit', file_get_contents(app_path('Services/ProductChannelPricingService.php')));
-        $this->assertStringContainsString('displayPrice', file_get_contents(app_path('Services/ProductBulkPricingService.php')));
+        $this->assertStringContainsString('effectiveSellingPrice', file_get_contents(app_path('Services/ProductBulkPricingService.php')));
+        $this->assertStringContainsString('normalizePriceOperations', file_get_contents(app_path('Services/ProductBulkPricingService.php')));
+        $this->assertStringContainsString('selling_price', $controller);
+        $this->assertStringContainsString('filterOverrideChannels', file_get_contents(app_path('Support/ProductPricingChannels.php')));
     }
 
     public function test_pos_catalog_and_checkout_use_channel_hierarchy(): void

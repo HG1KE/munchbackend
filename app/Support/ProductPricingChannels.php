@@ -58,6 +58,23 @@ class ProductPricingChannels
         return in_array((string) $channel, self::marketplaceChannels(), true);
     }
 
+    /**
+     * @param  list<mixed>  $channels
+     * @return list<string>
+     */
+    public static function filterOverrideChannels(array $channels): array
+    {
+        $out = [];
+        foreach ($channels as $channel) {
+            $channel = (string) $channel;
+            if (self::isOverrideChannel($channel)) {
+                $out[] = $channel;
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+
     public static function isSelectable(?string $channel): bool
     {
         return in_array((string) $channel, self::selectableChannels(), true);

@@ -40,10 +40,18 @@
         products: [],
         selectedProducts: {},
         selectedBranches: {},
-        channel: 'pos',
+        channels: { pos: false, uber: true, glovo: true, bolt_food: true },
+        advanced: false,
         action: 'increase_percent',
-        availAction: 'enable_pos',
-        value: 0,
+        value: 10,
+        channelOps: {
+            pos: { action: 'increase_percent', value: 10 },
+            uber: { action: 'increase_percent', value: 10 },
+            glovo: { action: 'increase_percent', value: 10 },
+            bolt_food: { action: 'increase_percent', value: 10 }
+        },
+        availChannels: { pos: false, uber: true, glovo: true, bolt_food: true },
+        availEnabled: false,
         preview: null
     };
     var copy = {
@@ -306,11 +314,53 @@
         });
     }
 
+    function selectedChannels(map) {
+        return CHANNELS.filter(function (ch) { return !!map[ch]; });
+    }
+
+    function channelChip(mapAttr, channel, selected) {
+        return '<label class="munch-pricing-chip' + (selected ? ' is-on' : '') + '">' +
+            '<input type="checkbox" data-bulk-channel-map="' + mapAttr + '" data-channel="' + channel + '"' +
+            (selected ? ' checked' : '') + '> ' + escapeHtml(CHANNEL_LABELS[channel] || channel) + '</label>';
+    }
+
+    function channelChipRow(mapAttr, selectedMap) {
+        return '<div class="munch-pricing-chips">' +
+            CHANNELS.map(function (ch) { return channelChip(mapAttr, ch, !!selectedMap[ch]); }).join('') +
+            '</div>' +
+            '<div class="munch-pricing-chip-shortcuts">' +
+            '<button type="button" class="btn btn-sm btn-outline-primary" data-bulk-channels="' + mapAttr + '" data-set="marketplace">Marketplace</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-primary" data-bulk-channels="' + mapAttr + '" data-set="all">All</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary" data-bulk-channels="' + mapAttr + '" data-set="none">Clear</button>' +
+            '</div>';
+    }
+
+    function actionOptions(selected) {
+        return option('increase_percent', 'Increase %', selected) +
+            option('decrease_percent', 'Decrease %', selected) +
+            option('increase_amount', 'Increase amount', selected) +
+            option('decrease_amount', 'Decrease amount', selected) +
+            option('set_exact', 'Set exact price', selected) +
+            option('round_5', 'Round to nearest 5', selected) +
+            option('round_10', 'Round to nearest 10', selected);
+    }
+
+    function actionNeedsValue(action) {
+        return action !== 'round_5' && action !== 'round_10';
+    }
+
+    function ensureChannelOp(channel) {
+        if (!bulk.channelOps[channel]) {
+            bulk.channelOps[channel] = { action: bulk.action, value: bulk.value };
+        }
+        return bulk.channelOps[channel];
+    }
+
     function renderBulk() {
         var meta = metaCache || { branches: [], categories: [] };
         var productChecks = bulk.products.map(function (p) {
             return '<label><input type="checkbox" data-bulk-product="' + p.id + '"' + (bulk.selectedProducts[p.id] ? ' checked' : '') + '> ' +
-                escapeHtml(p.name) + ' <span class="text-muted">' + money(p.price) + '</span></label>';
+                escapeHtml(p.name) + ' <span class="text-muted">' + money(p.selling_price != null ? p.selling_price : p.price) + '</span></label>';
         }).join('');
         var branchChecks = (meta.branches || []).map(function (b) {
             return '<label><input type="checkbox" data-bulk-branch="' + b.id + '"' + (bulk.selectedBranches[b.id] ? ' checked' : '') + '> ' +
@@ -319,8 +369,41 @@
         var categoryOptions = '<option value="">All categories</option>' + (meta.categories || []).map(function (c) {
             return '<option value="' + c.id + '"' + (String(bulk.categoryId) === String(c.id) ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
         }).join('');
-        var needsValue = bulk.action !== 'round_5' && bulk.action !== 'round_10';
+        var needsValue = actionNeedsValue(bulk.action);
         var previewHtml = renderPreview(bulk.preview);
+        var selected = selectedChannels(bulk.channels);
+        var priceControls = '<label class="munch-pricing-field-label">Channels</label>' +
+            channelChipRow('channels', bulk.channels) +
+            '<label class="munch-pricing-advanced-toggle">' +
+            '<input type="checkbox" id="bulk-advanced"' + (bulk.advanced ? ' checked' : '') + '> Advanced: different action per channel</label>';
+        if (bulk.advanced) {
+            priceControls += selected.length
+                ? selected.map(function (ch) {
+                    var op = ensureChannelOp(ch);
+                    var showValue = actionNeedsValue(op.action);
+                    return '<div class="munch-pricing-advanced-row">' +
+                        '<strong>' + escapeHtml(CHANNEL_LABELS[ch] || ch) + '</strong>' +
+                        '<select class="custom-select" data-bulk-op-action="' + ch + '">' + actionOptions(op.action) + '</select>' +
+                        '<input class="form-control" data-bulk-op-value="' + ch + '" type="number" step="0.01" value="' +
+                        escapeAttr(op.value) + '"' + (showValue ? '' : ' hidden') + '>' +
+                        '</div>';
+                }).join('')
+                : '<p class="text-muted mb-0 mt-2">Select at least one channel.</p>';
+        } else {
+            priceControls += '<div class="row g-2 mt-2"><div class="col-md-6"><label>Action</label>' +
+                '<select class="custom-select" id="bulk-action">' + actionOptions(bulk.action) + '</select></div>' +
+                '<div class="col-md-6"' + (needsValue ? '' : ' hidden') + '><label>Value</label>' +
+                '<input class="form-control" id="bulk-value" type="number" step="0.01" value="' + escapeAttr(bulk.value) + '"></div></div>';
+        }
+
+        var availControls = '<label class="munch-pricing-field-label">Channels</label>' +
+            channelChipRow('availChannels', bulk.availChannels) +
+            '<div class="munch-pricing-avail-action mt-3">' +
+            '<label class="munch-pricing-chip' + (bulk.availEnabled ? ' is-on' : '') + '"><input type="radio" name="bulk-avail-enabled" value="1"' +
+            (bulk.availEnabled ? ' checked' : '') + '> Enable</label>' +
+            '<label class="munch-pricing-chip' + (!bulk.availEnabled ? ' is-on' : '') + '"><input type="radio" name="bulk-avail-enabled" value="0"' +
+            (!bulk.availEnabled ? ' checked' : '') + '> Disable</label>' +
+            '</div>';
 
         els.modalBody.innerHTML =
             '<div class="munch-pricing-modal__tabs">' +
@@ -338,30 +421,7 @@
             '<div class="munch-pricing-checklist">' + branchChecks + '</div></div>' +
             '</div>' +
             '<div class="munch-pricing-card mt-3">' +
-            (bulk.tab === 'price'
-                ? '<div class="row g-2"><div class="col-md-4"><label>Channel</label><select class="custom-select" id="bulk-channel">' +
-                    option('default', 'Default', bulk.channel) + option('pos', 'POS', bulk.channel) + option('uber', 'Uber', bulk.channel) +
-                    option('glovo', 'Glovo', bulk.channel) + option('bolt_food', 'Bolt Food', bulk.channel) +
-                    '</select></div><div class="col-md-4"><label>Action</label><select class="custom-select" id="bulk-action">' +
-                    option('increase_percent', 'Increase %', bulk.action) +
-                    option('decrease_percent', 'Decrease %', bulk.action) +
-                    option('increase_amount', 'Increase amount', bulk.action) +
-                    option('decrease_amount', 'Decrease amount', bulk.action) +
-                    option('set_exact', 'Set exact price', bulk.action) +
-                    option('round_5', 'Round to nearest 5', bulk.action) +
-                    option('round_10', 'Round to nearest 10', bulk.action) +
-                    '</select></div><div class="col-md-4"' + (needsValue ? '' : ' hidden') + '><label>Value</label>' +
-                    '<input class="form-control" id="bulk-value" type="number" step="0.01" value="' + escapeAttr(bulk.value) + '"></div></div>'
-                : '<label>Action</label><select class="custom-select" id="bulk-avail-action">' +
-                    option('enable_pos', 'Enable POS', bulk.availAction) +
-                    option('disable_pos', 'Disable POS', bulk.availAction) +
-                    option('enable_uber', 'Enable Uber', bulk.availAction) +
-                    option('disable_uber', 'Disable Uber', bulk.availAction) +
-                    option('enable_glovo', 'Enable Glovo', bulk.availAction) +
-                    option('disable_glovo', 'Disable Glovo', bulk.availAction) +
-                    option('enable_bolt_food', 'Enable Bolt Food', bulk.availAction) +
-                    option('disable_bolt_food', 'Disable Bolt Food', bulk.availAction) +
-                    '</select>') +
+            (bulk.tab === 'price' ? priceControls : availControls) +
             '</div>' +
             '<div class="munch-pricing-card mt-3"><h3>Preview Changes</h3>' + previewHtml + '</div>' +
             '<div class="munch-pricing-modal__footer px-0">' +
@@ -380,43 +440,94 @@
         if (!preview) return '<p class="text-muted mb-0">Preview current vs new values before saving.</p>';
         if (!preview.rows || !preview.rows.length) return '<p class="text-muted mb-0">No changes for this selection.</p>';
         var isPrice = preview.rows[0].current_price !== undefined;
-        var head = isPrice
-            ? '<tr><th>Product</th><th>Branch</th><th>Current Price</th><th>New Price</th><th>Difference</th></tr>'
-            : '<tr><th>Product</th><th>Branch</th><th>Channel</th><th>Current</th><th>New</th></tr>';
-        var body = preview.rows.slice(0, 200).map(function (row) {
-            if (isPrice) {
-                var cls = row.difference > 0 ? 'is-up' : (row.difference < 0 ? 'is-down' : '');
-                return '<tr><td>' + escapeHtml(row.product_name) + '</td><td>' + escapeHtml(row.branch_name) + '</td><td>' +
-                    money(row.current_price) + '</td><td>' + money(row.new_price) + '</td><td class="' + cls + '">' +
-                    (row.difference > 0 ? '+' : '') + money(row.difference) + '</td></tr>';
+        var groups = [];
+        var index = {};
+        preview.rows.forEach(function (row) {
+            var key = row.product_id + ':' + (row.branch_id || 0);
+            if (index[key] === undefined) {
+                index[key] = groups.length;
+                groups.push({
+                    product_name: row.product_name,
+                    branch_name: row.branch_name,
+                    rows: []
+                });
             }
-            return '<tr><td>' + escapeHtml(row.product_name) + '</td><td>' + escapeHtml(row.branch_name) + '</td><td>' +
-                escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) + '</td><td>' + (row.current_available ? 'On' : 'Off') +
-                '</td><td>' + (row.new_available ? 'On' : 'Off') + '</td></tr>';
+            groups[index[key]].rows.push(row);
+        });
+        var body = groups.slice(0, 80).map(function (group) {
+            var title = escapeHtml(group.product_name) +
+                (group.branch_name && group.branch_name !== 'All branches'
+                    ? ' <span class="text-muted">· ' + escapeHtml(group.branch_name) + '</span>'
+                    : '');
+            var lines = group.rows.map(function (row) {
+                if (isPrice) {
+                    var cls = row.difference > 0 ? 'is-up' : (row.difference < 0 ? 'is-down' : '');
+                    return '<div class="munch-pricing-preview-line">' +
+                        '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) + '</span>' +
+                        '<span class="' + cls + '">' + money(row.current_price) + ' → ' + money(row.new_price) + '</span></div>';
+                }
+                return '<div class="munch-pricing-preview-line">' +
+                    '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) + '</span>' +
+                    '<span>' + (row.current_available ? 'On' : 'Off') + ' → ' + (row.new_available ? 'On' : 'Off') + '</span></div>';
+            }).join('');
+            return '<article class="munch-pricing-preview-group"><header>' + title + '</header>' + lines + '</article>';
         }).join('');
         return '<p class="mb-2">' + preview.count + ' change' + (preview.count === 1 ? '' : 's') +
             (preview.truncated ? ' (showing first ' + preview.rows.length + ')' : '') + '</p>' +
-            '<div class="table-responsive"><table class="munch-pricing-preview"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+            '<div class="munch-pricing-preview-groups">' + body + '</div>';
     }
 
     function selectedIds(map) {
         return Object.keys(map).filter(function (id) { return map[id]; }).map(Number);
     }
 
-    function runPreview() {
+    function bulkPricePayload() {
+        var channels = selectedChannels(bulk.channels);
         var body = {
             product_ids: selectedIds(bulk.selectedProducts),
             branch_ids: selectedIds(bulk.selectedBranches)
         };
-        if (!body.product_ids.length) return showToast(false, 'Choose products first');
-        if (bulk.tab === 'price' && bulk.channel !== 'default' && !body.branch_ids.length) return showToast(false, 'Choose branches first');
-        var url = bulk.tab === 'price' ? CFG.previewPrice : CFG.previewAvail;
-        if (bulk.tab === 'price') {
-            body.channel = bulk.channel;
+        if (bulk.advanced) {
+            body.operations = channels.map(function (ch) {
+                var op = ensureChannelOp(ch);
+                return { channel: ch, action: op.action, value: Number(op.value || 0) };
+            });
+        } else {
+            body.channels = channels;
             body.action = bulk.action;
             body.value = Number(bulk.value || 0);
+        }
+        return body;
+    }
+
+    function applyChannelSet(target, set) {
+        CHANNELS.forEach(function (ch) {
+            if (set === 'all') target[ch] = true;
+            else if (set === 'none') target[ch] = false;
+            else target[ch] = ch !== 'pos';
+        });
+    }
+
+    function runPreview() {
+        var body;
+        var url;
+        if (bulk.tab === 'price') {
+            body = bulkPricePayload();
+            if (!body.product_ids.length) return showToast(false, 'Choose products first');
+            if (!(body.channels || []).length && !(body.operations || []).length) return showToast(false, 'Choose at least one channel');
+            if (!body.branch_ids.length) return showToast(false, 'Choose branches first');
+            url = CFG.previewPrice;
         } else {
-            body.action = bulk.availAction;
+            body = {
+                product_ids: selectedIds(bulk.selectedProducts),
+                branch_ids: selectedIds(bulk.selectedBranches),
+                channels: selectedChannels(bulk.availChannels),
+                enabled: !!bulk.availEnabled
+            };
+            if (!body.product_ids.length) return showToast(false, 'Choose products first');
+            if (!body.channels.length) return showToast(false, 'Choose at least one channel');
+            if (!body.branch_ids.length) return showToast(false, 'Choose branches first');
+            url = CFG.previewAvail;
         }
         json(url, { method: 'POST', body: body }).then(function (data) {
             bulk.preview = data;
@@ -428,18 +539,20 @@
 
     function runApply() {
         if (!bulk.preview || !bulk.preview.count) return;
-        var body = {
-            product_ids: selectedIds(bulk.selectedProducts),
-            branch_ids: selectedIds(bulk.selectedBranches),
-            confirmed: true
-        };
-        var url = bulk.tab === 'price' ? CFG.applyPrice : CFG.applyAvail;
+        var body;
+        var url;
         if (bulk.tab === 'price') {
-            body.channel = bulk.channel;
-            body.action = bulk.action;
-            body.value = Number(bulk.value || 0);
+            body = Object.assign({ confirmed: true }, bulkPricePayload());
+            url = CFG.applyPrice;
         } else {
-            body.action = bulk.availAction;
+            body = {
+                product_ids: selectedIds(bulk.selectedProducts),
+                branch_ids: selectedIds(bulk.selectedBranches),
+                channels: selectedChannels(bulk.availChannels),
+                enabled: !!bulk.availEnabled,
+                confirmed: true
+            };
+            url = CFG.applyAvail;
         }
         json(url, { method: 'POST', body: body }).then(function (data) {
             showToast(true, data.message || 'Updated');
@@ -492,7 +605,8 @@
                 (copy.dest[b.id] && !disabled ? ' checked' : '') + (disabled ? ' disabled' : '') + '> ' + escapeHtml(b.name) + '</label>';
         }).join('');
         var field = function (group, ch, label) {
-            return '<label><input type="checkbox" data-copy-field="' + group + '" data-channel="' + ch + '"' +
+            return '<label class="munch-pricing-chip' + (copy[group][ch] ? ' is-on' : '') + '">' +
+                '<input type="checkbox" data-copy-field="' + group + '" data-channel="' + ch + '"' +
                 (copy[group][ch] ? ' checked' : '') + '> ' + label + '</label>';
         };
         var previewHtml = '<p class="text-muted mb-0">Nothing is written yet. Preview first.</p>';
@@ -506,23 +620,27 @@
                 }).join('') + '</tbody></table></div>';
         }
         els.copyBody.innerHTML =
-            '<p class="text-muted">Copies POS, Uber, Glovo, and Bolt Food values for all products. Inheritance is left in place unless you overwrite it.</p>' +
+            '<p class="text-muted">Copy only the channels you select. Inheritance is left in place unless you overwrite it.</p>' +
             '<div class="munch-pricing-card"><h3>1. Source Branch</h3><select class="custom-select" id="copy-source">' + sourceOptions + '</select></div>' +
             '<div class="munch-pricing-card mt-3"><h3>2. Destination Branch(es)</h3>' +
             '<div class="munch-pricing-checklist">' + destChecks + '</div></div>' +
             '<div class="munch-pricing-card mt-3"><h3>3. Choose what to copy</h3>' +
-            '<div class="d-flex gap-2 mb-2"><button type="button" class="btn btn-sm btn-outline-primary" id="copy-select-all">Select All</button>' +
+            '<div class="munch-pricing-chip-shortcuts mb-2">' +
+            '<button type="button" class="btn btn-sm btn-outline-primary" id="copy-select-all">Select All</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-primary" id="copy-marketplace">Marketplace</button>' +
             '<button type="button" class="btn btn-sm btn-outline-secondary" id="copy-clear-all">Clear All</button></div>' +
-            '<div class="munch-pricing-copy-fields">' +
-            field('prices', 'pos', 'POS Prices') +
-            field('prices', 'uber', 'Uber Prices') +
-            field('prices', 'glovo', 'Glovo Prices') +
-            field('prices', 'bolt_food', 'Bolt Food Prices') +
-            field('availability', 'pos', 'POS Availability') +
-            field('availability', 'uber', 'Uber Availability') +
-            field('availability', 'glovo', 'Glovo Availability') +
-            field('availability', 'bolt_food', 'Bolt Food Availability') +
+            '<div class="munch-pricing-copy-section"><span>Prices</span><div class="munch-pricing-chips">' +
+            field('prices', 'pos', 'POS') +
+            field('prices', 'uber', 'Uber') +
+            field('prices', 'glovo', 'Glovo') +
+            field('prices', 'bolt_food', 'Bolt Food') +
             '</div></div>' +
+            '<div class="munch-pricing-copy-section mt-3"><span>Availability</span><div class="munch-pricing-chips">' +
+            field('availability', 'pos', 'POS') +
+            field('availability', 'uber', 'Uber') +
+            field('availability', 'glovo', 'Glovo') +
+            field('availability', 'bolt_food', 'Bolt Food') +
+            '</div></div></div>' +
             '<div class="munch-pricing-card mt-3"><h3>4. Conflict handling</h3>' +
             '<label><input type="radio" name="copy-mode" value="overwrite"' + (copy.mode === 'overwrite' ? ' checked' : '') + '> Overwrite everything</label>' +
             '<label><input type="radio" name="copy-mode" value="fill_missing"' + (copy.mode === 'fill_missing' ? ' checked' : '') + '> Only fill missing overrides</label>' +
@@ -670,18 +788,53 @@
     els.modal.addEventListener('input', function (ev) {
         if (ev.target.id === 'bulk-product-search') bulk.productQuery = ev.target.value;
         if (ev.target.id === 'bulk-value') bulk.value = ev.target.value;
+        var opValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-op-value');
+        if (opValue) ensureChannelOp(opValue).value = ev.target.value;
     });
     els.modal.addEventListener('change', function (ev) {
         if (ev.target.id === 'bulk-category') {
             bulk.categoryId = ev.target.value;
+            bulk.preview = null;
             loadBulkProducts();
+            return;
         }
-        if (ev.target.id === 'bulk-channel') bulk.channel = ev.target.value;
         if (ev.target.id === 'bulk-action') {
             bulk.action = ev.target.value;
+            bulk.preview = null;
             renderBulk();
+            return;
         }
-        if (ev.target.id === 'bulk-avail-action') bulk.availAction = ev.target.value;
+        if (ev.target.id === 'bulk-advanced') {
+            bulk.advanced = ev.target.checked;
+            if (bulk.advanced) {
+                selectedChannels(bulk.channels).forEach(function (ch) {
+                    bulk.channelOps[ch] = { action: bulk.action, value: bulk.value };
+                });
+            }
+            bulk.preview = null;
+            renderBulk();
+            return;
+        }
+        if (ev.target.name === 'bulk-avail-enabled') {
+            bulk.availEnabled = ev.target.value === '1';
+            bulk.preview = null;
+            renderBulk();
+            return;
+        }
+        var opAction = ev.target.getAttribute && ev.target.getAttribute('data-bulk-op-action');
+        if (opAction) {
+            ensureChannelOp(opAction).action = ev.target.value;
+            bulk.preview = null;
+            renderBulk();
+            return;
+        }
+        var channelMap = ev.target.getAttribute && ev.target.getAttribute('data-bulk-channel-map');
+        if (channelMap && ev.target.getAttribute('data-channel')) {
+            bulk[channelMap][ev.target.getAttribute('data-channel')] = ev.target.checked;
+            bulk.preview = null;
+            renderBulk();
+            return;
+        }
         if (ev.target.matches('[data-bulk-product]')) bulk.selectedProducts[ev.target.getAttribute('data-bulk-product')] = ev.target.checked;
         if (ev.target.matches('[data-bulk-branch]')) bulk.selectedBranches[ev.target.getAttribute('data-bulk-branch')] = ev.target.checked;
         bulk.preview = null;
@@ -690,6 +843,14 @@
         var tab = ev.target.closest('[data-tab]');
         if (tab) {
             bulk.tab = tab.getAttribute('data-tab');
+            bulk.preview = null;
+            renderBulk();
+            return;
+        }
+        var setBtn = ev.target.closest('[data-bulk-channels]');
+        if (setBtn) {
+            var mapName = setBtn.getAttribute('data-bulk-channels');
+            applyChannelSet(bulk[mapName], setBtn.getAttribute('data-set'));
             bulk.preview = null;
             renderBulk();
             return;
@@ -722,6 +883,7 @@
             if (ev.target.matches('[data-copy-field]')) {
                 copy[ev.target.getAttribute('data-copy-field')][ev.target.getAttribute('data-channel')] = ev.target.checked;
                 copy.preview = null;
+                renderCopy();
                 return;
             }
             if (ev.target.name === 'copy-mode') {
@@ -738,6 +900,16 @@
                 CHANNELS.forEach(function (ch) {
                     copy.prices[ch] = true;
                     copy.availability[ch] = true;
+                });
+                copy.preview = null;
+                renderCopy();
+                return;
+            }
+            if (ev.target.id === 'copy-marketplace') {
+                CHANNELS.forEach(function (ch) {
+                    var on = ch !== 'pos';
+                    copy.prices[ch] = on;
+                    copy.availability[ch] = false;
                 });
                 copy.preview = null;
                 renderCopy();

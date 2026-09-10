@@ -398,6 +398,125 @@
     font-size: 1.15rem;
 }
 
+.munch-pricing-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.munch-pricing-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    border: 1px solid var(--mp-border);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: #fff;
+    color: var(--mp-text);
+}
+
+.munch-pricing-chip input {
+    margin: 0;
+}
+
+.munch-pricing-chip.is-on {
+    border-color: #0f172a;
+    background: #0f172a;
+    color: #fff;
+}
+
+.munch-pricing-chip-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+}
+
+.munch-pricing-field-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mp-muted);
+    margin-bottom: 0.45rem;
+}
+
+.munch-pricing-advanced-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.85rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.munch-pricing-advanced-row {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr) 120px;
+    gap: 0.55rem;
+    align-items: center;
+    margin-top: 0.65rem;
+}
+
+.munch-pricing-avail-action {
+    display: flex;
+    gap: 0.45rem;
+}
+
+.munch-pricing-preview-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.munch-pricing-preview-group {
+    border: 1px solid var(--mp-border);
+    border-radius: 10px;
+    background: #f8fafc;
+    overflow: hidden;
+}
+
+.munch-pricing-preview-group header {
+    padding: 0.55rem 0.75rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--mp-border);
+    background: #fff;
+}
+
+.munch-pricing-preview-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.munch-pricing-preview-channel {
+    font-weight: 700;
+    min-width: 72px;
+}
+
+.munch-pricing-copy-section > span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mp-muted);
+    margin-bottom: 0.4rem;
+}
+
+@media (max-width: 700px) {
+    .munch-pricing-advanced-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 body.munch-pricing-open {
     overflow: hidden;
 }

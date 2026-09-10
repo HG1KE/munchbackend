@@ -116,4 +116,38 @@ class ProductChannelPricingTest extends TestCase
         $this->assertTrue(ProductPricingChannels::isMarketplace('uber'));
         $this->assertFalse(ProductPricingChannels::isMarketplace('pos'));
     }
+
+    public function test_bulk_price_edit_starts_from_effective_selling_price(): void
+    {
+        $pricing = $this->pricing();
+        $discount = ['discount_type' => 'amount', 'discount' => 100];
+        $bulk = new ProductBulkPricingService($pricing);
+
+        $this->assertSame(590.0, $pricing->effectiveSellingPrice(690, $discount));
+        $this->assertSame(649.0, $bulk->applyAction(590, 'increase_percent', 10));
+        $this->assertSame(690.0, $pricing->sellingToUnit(590, $discount));
+        $this->assertSame(749.0, $pricing->sellingToUnit(649, $discount));
+        $this->assertSame(640.0, $bulk->applyAction(590, 'increase_amount', 50));
+        $this->assertSame(900.0, $bulk->applyAction(590, 'set_exact', 900));
+        $this->assertSame(590.0, $bulk->applyAction(588, 'round_5', 0));
+    }
+
+    public function test_bulk_operations_normalize_multiple_channel_actions(): void
+    {
+        $bulk = new ProductBulkPricingService($this->pricing());
+        $ops = $bulk->normalizePriceOperations([
+            ['channel' => 'uber', 'action' => 'increase_percent', 'value' => 10],
+            ['channel' => 'glovo', 'action' => 'set_exact', 'value' => 900],
+            ['channel' => 'bolt_food', 'action' => 'increase_amount', 'value' => 50],
+            ['channel' => 'invalid', 'action' => 'increase_percent', 'value' => 10],
+            ['channel' => 'pos', 'action' => 'not_real', 'value' => 1],
+        ]);
+
+        $this->assertCount(3, $ops);
+        $this->assertSame('uber', $ops[0]['channel']);
+        $this->assertSame(10.0, $ops[0]['value']);
+        $this->assertSame('set_exact', $ops[1]['action']);
+        $this->assertSame(50.0, $ops[2]['value']);
+        $this->assertSame(['uber', 'glovo', 'bolt_food'], ProductPricingChannels::filterOverrideChannels(['uber', 'glovo', 'bolt_food', 'default', 'uber']));
+    }
 }
