@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Branch;
 
 use App\CentralLogics\CustomerOrderStatusSms;
+use App\CentralLogics\PosDeliveryCustomerSms;
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\AddOn;
@@ -31,6 +32,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use App\Models\DeliveryChargeByArea;
@@ -495,6 +497,22 @@ class POSController extends Controller
         $order->client_uuid = $this->posClientUuid($request);
         $order->sales_channel = PosOrderTypes::salesChannel($orderType);
         $order->delivery_address_id = PosOrderTypes::isDelivery($orderType) && $customerAddress ? $customerAddress->id : null;
+        if (PosOrderTypes::isDelivery($orderType) && $customerAddress) {
+            $order->forceFill([
+                'delivery_address' => [
+                    'contact_person_name' => $customerAddress->contact_person_name,
+                    'contact_person_number' => $customerAddress->contact_person_number,
+                    'address' => $customerAddress->address,
+                    'phone' => $customerAddress->contact_person_number,
+                ],
+            ]);
+        }
+        if (Schema::hasColumn('orders', 'rider_name')) {
+            $order->rider_name = $this->posRiderName($request, $orderType);
+        }
+        if (Schema::hasColumn('orders', 'rider_phone')) {
+            $order->rider_phone = $this->posRiderPhone($request, $orderType);
+        }
         $order->delivery_date = $placedAt->format('Y-m-d');
         $order->delivery_time = $placedAt->format('H:i:s');
         $order->order_note = $request->filled('order_note') ? $request->input('order_note') : null;
@@ -607,7 +625,9 @@ class POSController extends Controller
                 CustomerOrderStatusSms::dispatchPlacement($order->fresh(['customer', 'branch']));
             }
 
-            if ($request->type == 'cash' || $request->type == 'card'){
+            PosDeliveryCustomerSms::dispatch($order->fresh(['customer', 'branch', 'details', 'customer_delivery_address']));
+
+            if (in_array($request->type, ['cash', 'card', 'mpesa'], true)) {
                 $orderChangeAmount = new OrderChangeAmount();
                 $orderChangeAmount->order_id = $order->id;
                 $orderChangeAmount->order_amount = $order->order_amount;
@@ -1175,6 +1195,8 @@ class POSController extends Controller
 
         $address = $request->input('address');
         if (is_array($address) && PosOrderTypes::isDelivery($request->input('order_type'))) {
+            $address['rider_name'] = trim((string) ($request->input('rider_name', $address['rider_name'] ?? '')));
+            $address['rider_phone'] = trim((string) ($request->input('rider_phone', $address['rider_phone'] ?? '')));
             $request->session()->put('address', $address);
         } else {
             $request->session()->forget('address');
@@ -1292,5 +1314,39 @@ class POSController extends Controller
         $data['discount_data'] = $discountData;
 
         return ['ok' => true, 'data' => $data];
+    }
+
+    private function posRiderName(Request $request, string $orderType): ?string
+    {
+        if (! PosOrderTypes::isDelivery($orderType)) {
+            return null;
+        }
+
+        $fromRequest = trim((string) $request->input('rider_name', ''));
+        if ($fromRequest !== '') {
+            return $fromRequest;
+        }
+
+        $address = session()->get('address');
+        $fromAddress = is_array($address) ? trim((string) ($address['rider_name'] ?? '')) : '';
+
+        return $fromAddress !== '' ? $fromAddress : null;
+    }
+
+    private function posRiderPhone(Request $request, string $orderType): ?string
+    {
+        if (! PosOrderTypes::isDelivery($orderType)) {
+            return null;
+        }
+
+        $fromRequest = trim((string) $request->input('rider_phone', ''));
+        if ($fromRequest !== '') {
+            return $fromRequest;
+        }
+
+        $address = session()->get('address');
+        $fromAddress = is_array($address) ? trim((string) ($address['rider_phone'] ?? '')) : '';
+
+        return $fromAddress !== '' ? $fromAddress : null;
     }
 }

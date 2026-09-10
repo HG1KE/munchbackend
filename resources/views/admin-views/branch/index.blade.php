@@ -51,6 +51,12 @@
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group">
+                                                <label class="input-label" for="mpesa_till">{{ translate('M-PESA Till Number') }}</label>
+                                                <input value="{{ old('mpesa_till') }}" type="text" name="mpesa_till" id="mpesa_till" class="form-control" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="{{ translate('Ex: 123456') }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
                                                 <label class="input-label">{{translate('email')}}<span class="text-danger ml-1">*</span></label>
                                                 <input value="{{old('email')}}" type="email" name="email" class="form-control" maxlength="255"
                                                        placeholder="{{translate('EX : example@example.com')}}" required>

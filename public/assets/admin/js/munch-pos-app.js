@@ -7,7 +7,7 @@
     var CART_KEY = 'current';
     var state = {
         catalog: CFG.catalog || { products: [], categories: [], tables: [], delivery: {} },
-        cart: { lines: [], orderType: 'take_away', tableId: '', people: '', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {} },
+        cart: { lines: [], orderType: 'take_away', tableId: '', people: '', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {}, rider: {} },
         categoryId: 0,
         search: '',
         online: navigator.onLine,
@@ -377,7 +377,7 @@
     }
 
     function renderExtras() {
-        if (els.delivery) els.delivery.hidden = state.cart.orderType !== 'delivery';
+        if (els.delivery) els.delivery.hidden = true;
         if (els.discountWrap) els.discountWrap.hidden = !allowsDiscount();
         if (!allowsDiscount() && Number(state.cart.discount || 0) !== 0) {
             state.cart.discount = 0;
@@ -484,14 +484,14 @@
         var methods = paymentMethods();
         if (methods.indexOf(state.cart.payment) === -1) state.cart.payment = methods[0];
         els.pay.innerHTML = methods.map(function (method) {
-            var label = method === 'cash' ? CFG.labels.cash : method === 'card' ? CFG.labels.card : method === 'pay_after_eating' ? CFG.labels.payAfter : CFG.labels.cod;
+            var label = paymentLabel(method);
             return '<button type="button" class="' + (state.cart.payment === method ? 'is-active' : '') + '" data-pay="' + method + '">' + escapeHtml(label) + '</button>';
         }).join('');
     }
 
     function paymentMethods() {
         if (state.cart.orderType === 'delivery') return ['cash_on_delivery'];
-        if (state.cart.orderType === 'dine_in') return ['cash', 'card', 'pay_after_eating'];
+        if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') return ['cash', 'card', 'mpesa'];
         return ['cash', 'card'];
     }
 
@@ -633,10 +633,14 @@
             extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
             extra_discount_type: state.cart.discountType,
             delivery_charge: deliveryCharge(),
+            rider_name: state.cart.orderType === 'delivery' ? (state.cart.rider.rider_name || '') : '',
+            rider_phone: state.cart.orderType === 'delivery' ? (state.cart.rider.rider_phone || '') : '',
             address: state.cart.orderType === 'delivery' ? {
                 contact_person_name: state.cart.address.contact_person_name || '',
                 contact_person_number: state.cart.address.contact_person_number || '',
                 address: state.cart.address.address || '',
+                rider_name: state.cart.rider.rider_name || '',
+                rider_phone: state.cart.rider.rider_phone || '',
                 distance: 0
             } : null,
             items: state.cart.lines.map(function (line) {
@@ -653,8 +657,75 @@
 
     function validateCart() {
         if (!state.cart.lines.length) return CFG.labels.emptyCart;
-        if (state.cart.orderType === 'delivery' && !String(state.cart.address.address || '').trim()) return CFG.labels.address;
         return null;
+    }
+
+    function validateDeliveryDetails() {
+        if (!String(state.cart.address.contact_person_name || '').trim()) return CFG.labels.customerName || 'Customer Name';
+        if (!String(state.cart.address.contact_person_number || '').trim()) return CFG.labels.customerPhone || 'Customer Phone';
+        if (!String(state.cart.address.address || '').trim()) return CFG.labels.deliveryAddress || CFG.labels.address;
+        if (!String((state.cart.rider && state.cart.rider.rider_name) || '').trim()) return CFG.labels.riderName || 'Rider Name';
+        if (!String((state.cart.rider && state.cart.rider.rider_phone) || '').trim()) return CFG.labels.riderPhone || 'Rider Phone';
+        return null;
+    }
+
+    function readDeliveryModal() {
+        if (!state.cart.address) state.cart.address = {};
+        if (!state.cart.rider) state.cart.rider = {};
+        var name = document.getElementById('pos-del-name');
+        var phone = document.getElementById('pos-del-phone');
+        var address = document.getElementById('pos-del-address');
+        var fee = document.getElementById('pos-del-fee');
+        var riderName = document.getElementById('pos-del-rider-name');
+        var riderPhone = document.getElementById('pos-del-rider-phone');
+        if (name) state.cart.address.contact_person_name = name.value;
+        if (phone) state.cart.address.contact_person_number = phone.value;
+        if (address) state.cart.address.address = address.value;
+        if (fee) {
+            var amount = Number(fee.value);
+            state.cart.deliveryFee = isFinite(amount) && amount >= 0 ? amount : 0;
+        }
+        if (riderName) state.cart.rider.rider_name = riderName.value;
+        if (riderPhone) state.cart.rider.rider_phone = riderPhone.value;
+    }
+
+    function fillDeliveryModal() {
+        var name = document.getElementById('pos-del-name');
+        var phone = document.getElementById('pos-del-phone');
+        var address = document.getElementById('pos-del-address');
+        var fee = document.getElementById('pos-del-fee');
+        var riderName = document.getElementById('pos-del-rider-name');
+        var riderPhone = document.getElementById('pos-del-rider-phone');
+        if (name) name.value = state.cart.address.contact_person_name || '';
+        if (phone) phone.value = state.cart.address.contact_person_number || '';
+        if (address) address.value = state.cart.address.address || '';
+        if (fee) fee.value = state.cart.deliveryFee || 0;
+        if (riderName) riderName.value = (state.cart.rider && state.cart.rider.rider_name) || '';
+        if (riderPhone) riderPhone.value = (state.cart.rider && state.cart.rider.rider_phone) || '';
+        var error = document.getElementById('pos-delivery-error');
+        if (error) {
+            error.hidden = true;
+            error.textContent = '';
+        }
+    }
+
+    function showDeliveryError(message) {
+        var error = document.getElementById('pos-delivery-error');
+        if (!error) {
+            toast(message);
+            return;
+        }
+        error.hidden = false;
+        error.textContent = message;
+    }
+
+    function openDeliveryModal() {
+        fillDeliveryModal();
+        if (els.deliveryModal) els.deliveryModal.hidden = false;
+    }
+
+    function closeDeliveryModal() {
+        if (els.deliveryModal) els.deliveryModal.hidden = true;
     }
 
     function csrfToken() {
@@ -1197,6 +1268,27 @@
             toast(error);
             return;
         }
+        if (state.cart.orderType === 'delivery') {
+            openDeliveryModal();
+            return;
+        }
+        submitPlacedOrder();
+    }
+
+    function confirmDeliveryAndPlace() {
+        readDeliveryModal();
+        var error = validateDeliveryDetails();
+        if (error) {
+            showDeliveryError(error);
+            return;
+        }
+        persistCart();
+        closeDeliveryModal();
+        renderTotals();
+        submitPlacedOrder();
+    }
+
+    function submitPlacedOrder() {
         var payload = buildPayload(uuid(), new Date().toISOString());
         if (!navigator.onLine) {
             enqueue(payload).then(function () {
@@ -1278,6 +1370,7 @@
     function paymentLabel(method) {
         if (method === 'cash') return L('cash', 'Cash');
         if (method === 'card') return L('card', 'Card');
+        if (method === 'mpesa') return L('mpesa', 'M-PESA');
         if (method === 'pay_after_eating') return L('payAfter', 'Pay after eating');
         if (method === 'cash_on_delivery') return L('cod', 'Cash On Delivery');
         return method || '';
@@ -1466,6 +1559,9 @@
         els.empty = document.getElementById('pos-empty');
         els.types = document.getElementById('pos-types');
         els.delivery = document.getElementById('pos-delivery');
+        els.deliveryModal = document.getElementById('pos-delivery-modal');
+        els.deliveryConfirm = document.getElementById('pos-delivery-confirm');
+        els.deliveryCancel = document.getElementById('pos-delivery-cancel');
         els.fee = document.getElementById('pos-del-fee');
         els.feeCurrency = document.getElementById('pos-del-fee-currency');
         els.lines = document.getElementById('pos-lines');
@@ -1562,23 +1658,11 @@
             persistCart();
             scheduleRender();
         });
-        ['pos-del-name', 'pos-del-phone', 'pos-del-address'].forEach(function (id) {
-            var node = document.getElementById(id);
-            if (!node) return;
-            node.addEventListener('input', function () {
-                state.cart.address.contact_person_name = document.getElementById('pos-del-name').value;
-                state.cart.address.contact_person_number = document.getElementById('pos-del-phone').value;
-                state.cart.address.address = document.getElementById('pos-del-address').value;
-                persistCart();
-            });
-        });
-        if (els.fee) {
-            els.fee.addEventListener('input', function () {
-                var fee = Number(els.fee.value);
-                if (!isFinite(fee) || fee < 0) fee = 0;
-                state.cart.deliveryFee = fee;
-                persistCart();
-                scheduleRender();
+        if (els.deliveryConfirm) els.deliveryConfirm.addEventListener('click', confirmDeliveryAndPlace);
+        if (els.deliveryCancel) els.deliveryCancel.addEventListener('click', closeDeliveryModal);
+        if (els.deliveryModal) {
+            els.deliveryModal.addEventListener('click', function (ev) {
+                if (ev.target.id === 'pos-delivery-modal') closeDeliveryModal();
             });
         }
         els.discount.addEventListener('input', function () {
@@ -1719,7 +1803,11 @@
             } else if (CFG.catalog) {
                 idbPut('catalog', CFG.catalog, 'latest');
             }
-            if (results[1] && Array.isArray(results[1].lines)) state.cart = Object.assign(state.cart, results[1]);
+            if (results[1] && Array.isArray(results[1].lines)) {
+                state.cart = Object.assign(state.cart, results[1]);
+                if (!state.cart.address) state.cart.address = {};
+                if (!state.cart.rider) state.cart.rider = {};
+            }
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();

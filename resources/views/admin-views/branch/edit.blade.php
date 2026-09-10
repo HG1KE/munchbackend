@@ -48,6 +48,12 @@
                                                        placeholder="{{translate('Ex: +098538534')}}" required>
                                             </div>
                                         </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="input-label" for="mpesa_till">{{ translate('M-PESA Till Number') }}</label>
+                                                <input value="{{ old('mpesa_till', $branch['mpesa_till'] ?? '') }}" type="text" name="mpesa_till" id="mpesa_till" class="form-control" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="{{ translate('Ex: 123456') }}">
+                                            </div>
+                                        </div>
 
                                         <div class="col-md-6">
                                             <div class="form-group">

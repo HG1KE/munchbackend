@@ -41,8 +41,10 @@ class BranchController extends Controller
             'password' => 'required|min:8|max:255',
             'preparation_time' => 'required',
             'image' => 'required|max:2048',
+            'mpesa_till' => 'nullable|regex:/^\d{1,12}$/',
         ], [
             'name.required' => translate('Name is required!'),
+            'mpesa_till.regex' => translate('M-PESA Till Number must be numeric and up to 12 digits.'),
         ]);
 
         if (!empty($request->file('image'))) {
@@ -69,6 +71,7 @@ class BranchController extends Controller
         $branch->coverage = $request->coverage ?? $defaultCoverage;
         $branch->address = $request->address;
         $branch->phone = $request->phone ?? null;
+        $branch->mpesa_till = $this->normalizedMpesaTill($request->mpesa_till);
         $branch->password = bcrypt($request->password);
         $branch->preparation_time = $request->preparation_time;
         $branch->image = $imageName;
@@ -107,8 +110,10 @@ class BranchController extends Controller
             'email' => ['required', 'unique:branches,email,' . $id . ',id'],
             'image' => 'max:2048',
             'password' => 'nullable|min:8|max:255',
+            'mpesa_till' => 'nullable|regex:/^\d{1,12}$/',
         ], [
             'name.required' => translate('Name is required!'),
+            'mpesa_till.regex' => translate('M-PESA Till Number must be numeric and up to 12 digits.'),
         ]);
 
         $request->validate([
@@ -131,6 +136,7 @@ class BranchController extends Controller
             $branch->password = bcrypt($request->password);
         }
         $branch->phone = $request->phone ?? '';
+        $branch->mpesa_till = $this->normalizedMpesaTill($request->mpesa_till);
         $branch->preparation_time = $request->preparation_time;
         $branch->save();
 
@@ -192,5 +198,12 @@ class BranchController extends Controller
         $branches = $query->orderBy('id', 'DESC')->paginate(Helpers::getPagination())->appends($queryParam);
 
         return view('admin-views.branch.list', compact('branches', 'search'));
+    }
+
+    private function normalizedMpesaTill(mixed $value): ?string
+    {
+        $till = preg_replace('/\D+/', '', (string) $value);
+
+        return $till === '' ? null : $till;
     }
 }

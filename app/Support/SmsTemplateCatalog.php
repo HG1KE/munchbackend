@@ -30,6 +30,8 @@ class SmsTemplateCatalog
 
     public const WALLET_CREDIT = 'wallet_credit';
 
+    public const POS_DELIVERY_CUSTOMER = 'pos_delivery_customer';
+
     /**
      * Config field on the old customer-confirm gateway → catalog key.
      *
@@ -60,6 +62,7 @@ class SmsTemplateCatalog
             self::BRANCH_NEW_ORDER,
             self::ORDER_PLACED,
             self::PROCESSING,
+            self::POS_DELIVERY_CUSTOMER,
         ];
     }
 
@@ -167,6 +170,28 @@ class SmsTemplateCatalog
                 'default_message' => 'Hi {customer_name}, your wallet has been credited.',
                 'default_status' => 0,
                 'wired' => false,
+            ],
+            self::POS_DELIVERY_CUSTOMER => [
+                'label' => 'POS Delivery Customer SMS',
+                'help' => 'Sent to the customer after a successful Branch POS Delivery order. Not sent for Take Away, Dine In, Glovo, Uber, or Bolt Food.',
+                'placeholders' => [
+                    '{order_id}',
+                    '{branch_name}',
+                    '{customer_name}',
+                    '{customer_phone}',
+                    '{delivery_address}',
+                    '{delivery_fee}',
+                    '{subtotal}',
+                    '{total}',
+                    '{rider_name}',
+                    '{rider_phone}',
+                    '{mpesa_till}',
+                    '{items}',
+                ],
+                'channel' => 'sendsms',
+                'default_message' => "Your order #{order_id} has been received at {branch_name} and will be delivered by {rider_name} ({rider_phone}).\n\nOrder:\n{items}\n\nDelivery Fee:\nKES {delivery_fee}\n\nTotal:\nKES {total}\n\nPlease pay to M-PESA Till {mpesa_till} if you haven't already.\n\nThank you!",
+                'default_status' => 1,
+                'wired' => true,
             ],
         ];
     }

@@ -136,6 +136,20 @@ class PosOrderTypes
         };
     }
 
+    /**
+     * Cashier-facing POS payment methods for a UI order type.
+     *
+     * @return list<string>
+     */
+    public static function paymentMethods(?string $type): array
+    {
+        return match (self::normalize($type)) {
+            self::DELIVERY => ['cash_on_delivery'],
+            self::TAKE_AWAY, self::DINE_IN => ['cash', 'card', 'mpesa'],
+            default => ['cash', 'card'],
+        };
+    }
+
     public static function isPaidImmediately(?string $type, ?string $paymentMethod): bool
     {
         $type = self::normalize($type);

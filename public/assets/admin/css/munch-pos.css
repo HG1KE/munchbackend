@@ -590,6 +590,47 @@
     padding: 1.1rem;
 }
 
+.munch-pos-delivery-modal h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.15rem;
+}
+
+.munch-pos-delivery-modal h3 {
+    margin: 1rem 0 0.55rem;
+    font-size: 1rem;
+}
+
+.munch-pos-delivery-modal__field {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 0.7rem;
+    font-weight: 600;
+    font-size: 0.86rem;
+}
+
+.munch-pos-delivery-modal__field input,
+.munch-pos-delivery-modal__field textarea {
+    width: 100%;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 12px;
+    padding: 0.75rem 0.85rem;
+    font: inherit;
+    font-weight: 500;
+    min-height: 46px;
+}
+
+.munch-pos-delivery-modal__error {
+    margin: 0 0 0.75rem;
+    color: #b42318;
+    font-weight: 600;
+}
+
+.munch-pos-delivery-modal .munch-pos-place,
+.munch-pos-delivery-modal .munch-pos-clear {
+    width: 100%;
+    margin-top: 0.35rem;
+}
+
 .munch-pos-choice {
     display: flex;
     justify-content: space-between;

@@ -122,5 +122,9 @@ class SmsTemplateRoutingTest extends TestCase
         $this->assertStringContainsString('js-tx-sms-var-chip', $js);
         $this->assertContains('#OTP#', SmsTemplateCatalog::variableChips());
         $this->assertContains('{customer_name}', SmsTemplateCatalog::variableChips());
+        $this->assertContains('{mpesa_till}', SmsTemplateCatalog::variableChips());
+        $this->assertContains('{items}', SmsTemplateCatalog::variableChips());
+        $this->assertContains(SmsTemplateCatalog::POS_DELIVERY_CUSTOMER, SmsTemplateCatalog::wiredKeys());
+        $this->assertSame('POS Delivery Customer SMS', SmsTemplateCatalog::definition(SmsTemplateCatalog::POS_DELIVERY_CUSTOMER)['label']);
     }
 }
