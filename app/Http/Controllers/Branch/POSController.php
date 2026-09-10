@@ -488,11 +488,13 @@ class POSController extends Controller
 
         $order->user_id = session()->get('customer_id') ?? null;
         $order->coupon_discount_title = $request->coupon_discount_title == 0 ? null : $request->coupon_discount_title;
-        $order->payment_status = PosOrderTypes::isPaidImmediately($orderType, $request->type) ? 'paid' : 'unpaid';
+        $paymentMethod = PosOrderTypes::resolvedPaymentMethod($orderType, $request->type);
+
+        $order->payment_status = PosOrderTypes::isPaidImmediately($orderType, $paymentMethod) ? 'paid' : 'unpaid';
         $order->order_status = PosOrderTypes::defaultStatus($orderType);
         $order->order_type = PosOrderTypes::databaseType($orderType);
         $order->coupon_code = $request->coupon_code ?? null;
-        $order->payment_method = $request->type;
+        $order->payment_method = $paymentMethod;
         $order->transaction_reference = $request->input('transaction_reference');
         $order->client_uuid = $this->posClientUuid($request);
         $order->sales_channel = PosOrderTypes::salesChannel($orderType);
@@ -615,7 +617,7 @@ class POSController extends Controller
 
             OrderPlacementTime::applyToOrder($order, $placedAt);
 
-            DB::transaction(function () use ($order, &$orderDetails, $request) {
+            DB::transaction(function () use ($order, &$orderDetails, $request, $paymentMethod) {
                 $order->save();
 
                 foreach ($orderDetails as $key => $item) {
@@ -623,7 +625,7 @@ class POSController extends Controller
                 }
                 OrderDetail::insert($orderDetails);
 
-                if (in_array($request->type, ['cash', 'card', 'mpesa'], true)) {
+                if (in_array($paymentMethod, ['cash', 'card', 'mpesa'], true)) {
                     $orderChangeAmount = new OrderChangeAmount();
                     $orderChangeAmount->order_id = $order->id;
                     $orderChangeAmount->order_amount = $order->order_amount;

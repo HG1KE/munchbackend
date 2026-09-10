@@ -471,18 +471,36 @@
         if (els.discountType) els.discountType.value = state.cart.discountType;
         if (els.place) els.place.disabled = !state.cart.lines.length || state.placing || !!successJob;
         if (els.clear) els.clear.disabled = !!successJob;
-        if (els.paidWrap) els.paidWrap.hidden = state.cart.payment === 'cash_on_delivery' || state.cart.payment === 'pay_after_eating';
+        if (els.paidWrap) els.paidWrap.hidden = hidesPaidAmount();
         if (els.paid && document.activeElement !== els.paid) els.paid.value = state.cart.paid;
-        if (els.change && state.cart.payment !== 'cash_on_delivery' && state.cart.payment !== 'pay_after_eating') {
+        if (els.change && !hidesPaidAmount()) {
             var paid = Number(state.cart.paid || 0);
             els.change.textContent = paid > 0 ? money(Math.max(0, paid - grandTotal())) : '';
         }
     }
 
+    function isMarketplaceOrderType(type) {
+        type = type || state.cart.orderType;
+        return type === 'glovo' || type === 'uber' || type === 'bolt_food';
+    }
+
+    function hidesPaidAmount() {
+        return state.cart.payment === 'cash_on_delivery'
+            || state.cart.payment === 'pay_after_eating'
+            || isMarketplaceOrderType();
+    }
+
     function renderPay() {
         if (!els.pay) return;
         var methods = paymentMethods();
-        if (methods.indexOf(state.cart.payment) === -1) state.cart.payment = methods[0];
+        if (methods.indexOf(state.cart.payment) === -1) state.cart.payment = methods[0] || '';
+        if (isMarketplaceOrderType()) {
+            els.pay.hidden = true;
+            els.pay.innerHTML = '';
+            if (els.paidWrap) els.paidWrap.hidden = true;
+            return;
+        }
+        els.pay.hidden = false;
         els.pay.innerHTML = methods.map(function (method) {
             var label = paymentLabel(method);
             return '<button type="button" class="' + (state.cart.payment === method ? 'is-active' : '') + '" data-pay="' + method + '">' + escapeHtml(label) + '</button>';
@@ -506,6 +524,9 @@
         if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
             return posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
         }
+        if (state.cart.orderType === 'glovo') return ['glovo'];
+        if (state.cart.orderType === 'uber') return ['uber'];
+        if (state.cart.orderType === 'bolt_food') return ['bolt_food'];
         return ['cash', 'card'];
     }
 
@@ -1205,13 +1226,13 @@
             html += '<div class="row"><span>' + escapeHtml(L('discount', 'Discount')) + '</span><span>−' + escapeHtml(money(job.discount)) + '</span></div>';
         }
         html += '<div class="row is-grand"><span>' + escapeHtml(L('grandTotal', 'Grand Total')) + '</span><span>' + escapeHtml(money(job.grand_total)) + '</span></div>';
-        html += '<div class="row"><span>' + escapeHtml(L('paymentMethod', 'Payment Method')) + '</span><span>' + escapeHtml(paymentLabel(job.payment_method)) + '</span></div>';
+        html += '<div class="row"><span>' + escapeHtml(isMarketplacePayment(job.payment_method) ? L('payment', 'Payment') : L('paymentMethod', 'Payment Method')) + '</span><span>' + escapeHtml(paymentLabel(job.payment_method)) + '</span></div>';
         if (job.payment_method === 'cash') {
             html += '<div class="row"><span>' + escapeHtml(L('cashReceivedPrint', 'Cash Received')) + '</span><span>' + escapeHtml(money(job.cash_received)) + '</span></div>';
             html += '<div class="row"><span>' + escapeHtml(L('balance', 'Balance')) + '</span><span>' + escapeHtml(money(job.change)) + '</span></div>';
         }
         var till = String(job.mpesa_till || '').trim();
-        if (till) {
+        if (till && !isMarketplacePayment(job.payment_method)) {
             html += '<hr class="rule"><div class="meta"><p>' + escapeHtml(L('mpesaTill', 'M-PESA Till')) + '</p><p>' + escapeHtml(till) + '</p></div>';
         }
         html += '<hr class="rule"><p class="thanks">' + escapeHtml(L('thanks', 'Thank you for choosing Munch')) + '</p>';
@@ -1395,12 +1416,19 @@
         return (CFG.labels && CFG.labels[key]) || fallback || key;
     }
 
+    function isMarketplacePayment(method) {
+        return method === 'glovo' || method === 'uber' || method === 'bolt_food';
+    }
+
     function paymentLabel(method) {
         if (method === 'cash') return L('cash', 'Cash');
         if (method === 'card') return L('card', 'Card');
         if (method === 'mpesa') return L('mpesa', 'M-PESA');
         if (method === 'pay_after_eating') return L('payAfter', 'Pay after eating');
         if (method === 'cash_on_delivery') return L('cod', 'Cash On Delivery');
+        if (method === 'glovo') return L('paidViaGlovo', 'PAID VIA GLOVO');
+        if (method === 'uber') return L('paidViaUber', 'PAID VIA UBER');
+        if (method === 'bolt_food') return L('paidViaBoltFood', 'PAID VIA BOLT FOOD');
         return method || '';
     }
 

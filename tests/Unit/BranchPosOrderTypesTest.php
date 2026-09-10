@@ -73,10 +73,19 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('dine_in', false));
         $this->assertSame(['cash_on_delivery'], PosOrderTypes::paymentMethods('delivery'));
         $this->assertSame(['cash_on_delivery'], PosOrderTypes::paymentMethods('delivery', false));
-        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('glovo'));
-        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('uber'));
-        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('bolt_food'));
-        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('glovo', false));
+        $this->assertSame(['glovo'], PosOrderTypes::paymentMethods('glovo'));
+        $this->assertSame(['uber'], PosOrderTypes::paymentMethods('uber'));
+        $this->assertSame(['bolt_food'], PosOrderTypes::paymentMethods('bolt_food'));
+        $this->assertSame(['glovo'], PosOrderTypes::paymentMethods('glovo', false));
+        $this->assertSame('glovo', PosOrderTypes::resolvedPaymentMethod('glovo', 'cash'));
+        $this->assertSame('uber', PosOrderTypes::resolvedPaymentMethod('uber', 'card'));
+        $this->assertSame('bolt_food', PosOrderTypes::resolvedPaymentMethod('bolt_food', 'mpesa'));
+        $this->assertSame('cash', PosOrderTypes::resolvedPaymentMethod('take_away', 'cash'));
+        $this->assertTrue(PosOrderTypes::isMarketplacePayment('glovo'));
+        $this->assertFalse(PosOrderTypes::isMarketplacePayment('cash'));
+        $this->assertSame('PAID VIA GLOVO', PosOrderTypes::paymentReceiptLabel('glovo'));
+        $this->assertSame('PAID VIA UBER', PosOrderTypes::paymentReceiptLabel('uber'));
+        $this->assertSame('PAID VIA BOLT FOOD', PosOrderTypes::paymentReceiptLabel('bolt_food'));
     }
 
     public function test_rider_fields_are_required_only_for_delivery(): void

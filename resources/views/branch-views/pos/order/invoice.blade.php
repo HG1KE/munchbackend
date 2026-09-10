@@ -200,7 +200,7 @@
         </div>
     </div>
     <div class="d-flex flex-row justify-content-between border-top mt-2">
-        <span>{{translate('Paid_by')}}: {{translate($order->payment_method)}}</span>
+        <span>{{translate('Paid_by')}}: {{ \App\Support\PosOrderTypes::isMarketplacePayment($order->payment_method) ? \App\Support\PosOrderTypes::paymentReceiptLabel($order->payment_method) : translate($order->payment_method) }}</span>
     </div>
     <span>--------------------------------------------</span>
     <h5 class="text-center pt-3">

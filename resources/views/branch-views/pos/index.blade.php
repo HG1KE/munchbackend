@@ -247,6 +247,10 @@
             noOrders: @json(translate('No Data Found')),
             page: @json(translate('Page')),
             paymentMethod: @json(translate('Payment Method')),
+            payment: @json(translate('Payment')),
+            paidViaGlovo: @json(translate('PAID VIA GLOVO')),
+            paidViaUber: @json(translate('PAID VIA UBER')),
+            paidViaBoltFood: @json(translate('PAID VIA BOLT FOOD')),
             order: @json(translate('Order')),
             placedSuccess: @json(translate('Order Placed Successfully')),
             printKitchen: @json(translate('Print Kitchen Order')),
@@ -267,5 +271,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.2" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.3" defer></script>
 @endpush

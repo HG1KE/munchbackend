@@ -19,6 +19,10 @@ class PaymentMethodLabel
             return '';
         }
 
+        if (PosOrderTypes::isMarketplacePayment($method)) {
+            return PosOrderTypes::paymentReceiptLabel($method);
+        }
+
         if (self::isCashOnDelivery($method)) {
             return translate('Payment On Delivery');
         }

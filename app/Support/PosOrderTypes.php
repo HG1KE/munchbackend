@@ -139,6 +139,9 @@ class PosOrderTypes
     /**
      * Cashier-facing POS payment methods for a UI order type.
      *
+     * Marketplace channels are already paid on the platform. The cashier never
+     * chooses Cash / Card / M-PESA; the stored value is the channel itself.
+     *
      * @return list<string>
      */
     public static function paymentMethods(?string $type, bool $posMpesaEnabled = true): array
@@ -148,7 +151,42 @@ class PosOrderTypes
             self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
                 ? ['cash', 'card', 'mpesa']
                 : ['cash', 'card'],
+            self::GLOVO => [self::GLOVO],
+            self::UBER => [self::UBER],
+            self::BOLT_FOOD => [self::BOLT_FOOD],
             default => ['cash', 'card'],
+        };
+    }
+
+    public static function marketplacePaymentMethod(?string $type): ?string
+    {
+        $type = self::normalize($type);
+
+        return self::isMarketplace($type) ? $type : null;
+    }
+
+    public static function resolvedPaymentMethod(?string $type, ?string $requested): string
+    {
+        $marketplace = self::marketplacePaymentMethod($type);
+        if ($marketplace !== null) {
+            return $marketplace;
+        }
+
+        return (string) $requested;
+    }
+
+    public static function isMarketplacePayment(?string $method): bool
+    {
+        return in_array((string) $method, [self::GLOVO, self::UBER, self::BOLT_FOOD], true);
+    }
+
+    public static function paymentReceiptLabel(?string $method): string
+    {
+        return match ((string) $method) {
+            self::GLOVO => translate('PAID VIA GLOVO'),
+            self::UBER => translate('PAID VIA UBER'),
+            self::BOLT_FOOD => translate('PAID VIA BOLT FOOD'),
+            default => (string) $method,
         };
     }
 
