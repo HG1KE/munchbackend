@@ -15,6 +15,7 @@ use App\Model\Product;
 use App\Model\Order;
 use App\Services\BranchPosCatalogService;
 use App\Services\BranchPosTodayOrdersService;
+use App\Services\PosOrderCancellationService;
 use App\Services\OrderReadableIdService;
 use App\Support\OrderPlacementTime;
 use App\Support\PosOrderTypes;
@@ -51,6 +52,7 @@ class POSController extends Controller
         private ProductByBranch $product_by_Branch,
         private BranchPosCatalogService $posCatalog,
         private BranchPosTodayOrdersService $posTodayOrders,
+        private PosOrderCancellationService $posCancellation,
     )
     {}
 
@@ -107,6 +109,54 @@ class POSController extends Controller
         ]);
     }
 
+    public function cancelOrder(Request $request): JsonResponse
+    {
+        $order = $this->order
+            ->where('id', (int) $request->input('order_id'))
+            ->where('branch_id', auth('branch')->id())
+            ->whereIn('sales_channel', PosOrderTypes::salesChannels())
+            ->first();
+
+        if (! $order) {
+            return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
+        }
+
+        $result = $this->posCancellation->cancel(
+            $order,
+            (string) $request->input('cancellation_reason', ''),
+            'branch',
+            (int) auth('branch')->id(),
+            $this->posClientUuid($request),
+            $request->input('offline') ? 'pos_offline' : 'pos'
+        );
+
+        if (! $result['success']) {
+            $status = ($result['code'] ?? '') === 'reason' ? 422 : 422;
+
+            return response()->json([
+                'success' => 0,
+                'message' => $result['message'],
+                'code' => $result['code'] ?? 'cancel_failed',
+            ], $status);
+        }
+
+        $fresh = $result['order'];
+        if (! $result['duplicate']) {
+            $this->posCancellation->dispatchSms($fresh);
+            $fresh->refresh();
+        }
+
+        $fresh->loadMissing(['branch', 'cancelledByBranch', 'cancelledByAdmin']);
+        $cashierName = (string) (auth('branch')->user()->name ?? '');
+
+        return response()->json([
+            'success' => 1,
+            'duplicate' => (bool) $result['duplicate'],
+            'message' => $result['message'],
+            'order' => $this->posTodayOrders->serializeOrder($fresh, $cashierName),
+        ]);
+    }
+
     public function markTicketPrinted(Request $request): JsonResponse
     {
         $ticket = (string) $request->input('ticket');
@@ -122,6 +172,10 @@ class POSController extends Controller
 
         if (! $order) {
             return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
+        }
+
+        if ($ticket === 'kitchen' && PosOrderCancellationService::isCancelledStatus($order->order_status)) {
+            return response()->json(['success' => 0, 'message' => 'Cancelled orders cannot print kitchen tickets'], 422);
         }
 
         $column = $ticket === 'kitchen' ? 'kitchen_printed_at' : 'receipt_printed_at';

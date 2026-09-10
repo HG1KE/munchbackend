@@ -358,7 +358,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('mpesa_till', $kitchenFn);
         $this->assertStringContainsString('Enable M-PESA Payments on POS', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
         $this->assertStringContainsString('pos_mpesa_enabled', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
-        $this->assertStringContainsString("munch-pos-app.js') }}?v=2.6", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=2.7", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('munch-pos-submit-guard.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('isMarketplaceOrderType', $posJs);
         $this->assertStringContainsString('els.pay.hidden = true', $posJs);
@@ -392,7 +392,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('[hidden]', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
-        $this->assertStringContainsString('munch-pos-shell-v8', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
+        $this->assertStringContainsString('munch-pos-shell-v9', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('fetchTodayOrders', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));

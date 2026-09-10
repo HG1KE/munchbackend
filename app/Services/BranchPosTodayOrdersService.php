@@ -22,7 +22,7 @@ class BranchPosTodayOrdersService
         $end = Carbon::now($tz)->endOfDay()->utc()->toDateTimeString();
 
         $query = Order::query()
-            ->with(['details', 'customer', 'delivery_address', 'order_change_amount', 'branch'])
+            ->with(['details', 'customer', 'delivery_address', 'order_change_amount', 'branch', 'cancelledByBranch', 'cancelledByAdmin'])
             ->where('branch_id', $branchId)
             ->whereIn('sales_channel', PosOrderTypes::salesChannels())
             ->whereBetween('created_at', [$start, $end])
@@ -95,6 +95,14 @@ class BranchPosTodayOrdersService
     /**
      * @return array<string, mixed>
      */
+    public function serializeOrder(Order $order, string $cashierName): array
+    {
+        return $this->serialize($order, $cashierName);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function serialize(Order $order, string $cashierName): array
     {
         $tz = TimezoneDisplay::businessTimezone();
@@ -157,6 +165,12 @@ class BranchPosTodayOrdersService
             'rider_name' => trim((string) ($order->rider_name ?? '')),
             'kitchen_printed' => $order->kitchen_printed_at !== null,
             'receipt_printed' => $order->receipt_printed_at !== null,
+            'cancellable' => \App\Services\PosOrderCancellationService::isCancellable($order),
+            'cancellation_reason' => trim((string) ($order->cancellation_reason ?? '')),
+            'cancelled_by' => \App\Services\PosOrderCancellationService::isCancelledStatus($status)
+                ? \App\Services\PosOrderCancellationService::actorDisplayName($order)
+                : '',
+            'cancelled_at' => $this->cancelledAtLabel($order),
             'items' => $items,
             'items_summary' => array_map(fn ($item) => $item['quantity'].'x '.$item['name'], $items),
         ];
@@ -254,5 +268,17 @@ class BranchPosTodayOrdersService
             'picked_up', 'out_for_delivery' => 'Out for delivery',
             default => ucfirst(str_replace('_', ' ', $status)),
         };
+    }
+
+    private function cancelledAtLabel(Order $order): ?string
+    {
+        if (! \App\Services\PosOrderCancellationService::isCancelledStatus((string) $order->order_status)) {
+            return null;
+        }
+
+        $tz = TimezoneDisplay::businessTimezone();
+        $at = TimezoneDisplay::parseStoredUtc($order->cancelled_at ?? $order->updated_at)?->timezone($tz);
+
+        return $at?->format('d M Y H:i');
     }
 }

@@ -51,7 +51,7 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('var syncRunning = false', $sw);
         $this->assertStringContainsString("if (event.tag !== 'munch-pos-sync') return", $sw);
         $this->assertStringContainsString('if (syncRunning) return', $sw);
-        $this->assertStringContainsString('munch-pos-shell-v8', $sw);
+        $this->assertStringContainsString('munch-pos-shell-v9', $sw);
     }
 
     public function test_validation_and_queue_failure_unlock(): void
@@ -80,6 +80,21 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString("ev.key !== 'Enter'", $js);
         $this->assertStringContainsString('bindSubmitControl(els.place, placeOrder)', $js);
         $this->assertStringContainsString('bindSubmitControl(els.deliveryConfirm, confirmDeliveryAndPlace)', $js);
+    }
+
+    public function test_offline_cancel_queue_uses_the_same_uuid_dedupe(): void
+    {
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+        $enqueue = $this->functionBody($js, 'function enqueue');
+        $syncOne = $this->functionBody($js, 'function syncOne');
+        $submit = $this->functionBody($js, 'function submitCancel');
+
+        $this->assertStringContainsString("payload.action === 'cancel'", $js);
+        $this->assertStringContainsString('postCancel(payload)', $syncOne);
+        $this->assertStringContainsString('enqueueUnique', $enqueue);
+        $this->assertStringContainsString('cancelUi.clientUuid', $submit);
+        $this->assertStringContainsString('if (cancelUi.submitting || !cancelUi.order) return', $js);
+        $this->assertStringContainsString('applyQueuedCancels', $js);
     }
 
     public function test_node_duplicate_submission_scenarios(): void

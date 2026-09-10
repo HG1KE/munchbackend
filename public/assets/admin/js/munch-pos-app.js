@@ -47,6 +47,13 @@
     };
     var successJob = null;
     var printBusy = false;
+    var cancelUi = {
+        open: false,
+        submitting: false,
+        order: null,
+        clientUuid: ''
+    };
+    var cancelQueuedIds = {};
 
     function uuid() {
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -901,6 +908,34 @@
         });
     }
 
+    function postCancel(payload, retried) {
+        if (!CFG.urls.cancelOrder) {
+            return Promise.resolve({ success: 0, message: 'Cancel is unavailable' });
+        }
+        return fetch(CFG.urls.cancelOrder, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Munch-POS': '1'
+            },
+            body: JSON.stringify(payload)
+        }).then(function (res) {
+            if (res.status === 419 && !retried) {
+                return refreshHeartbeat().then(function (ok) {
+                    if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
+                    if (!ok) return { success: 0, _http: 419, _ok: false };
+                    return postCancel(payload, true);
+                });
+            }
+            return res.json().catch(function () { return {}; }).then(function (body) {
+                return parsePosResponse(res, body);
+            });
+        });
+    }
+
     function clearCart() {
         var ids = [];
         (state.cart.lines || []).forEach(function (line) {
@@ -989,10 +1024,17 @@
         row.status = 'syncing';
         row.attempts = (row.attempts || 0) + 1;
         return idbPut('queue', row).then(function () {
-            return postOrder(row.payload);
+            var payload = row.payload || {};
+            var post = payload.action === 'cancel' ? postCancel(payload) : postOrder(payload);
+            return post;
         }).then(function (body) {
             if (body && (body.success === 1 || body.duplicate)) {
-                return idbDelete('queue', row.id).then(refreshQueueCount);
+                return idbDelete('queue', row.id).then(refreshQueueCount).then(function () {
+                    if ((row.payload || {}).action === 'cancel') {
+                        applyCancelledOrder(body && body.order, row.payload);
+                        if (ordersUi.open) fetchTodayOrders();
+                    }
+                });
             }
             if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
                 row.status = 'auth';
@@ -1138,7 +1180,9 @@
             change: order.change,
             mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim(),
             cashier: order.cashier || CFG.cashierName || CFG.branchName || '',
-            riderName: order.rider_name || ''
+            riderName: order.rider_name || '',
+            order_status: order.order_status || '',
+            cancel_queued: !!order.cancel_queued
         };
     }
 
@@ -1171,6 +1215,181 @@
         }
         return done ? ('✓ ' + L('receiptPrinted', 'Receipt Printed')) : L('printReceipt', 'Print Receipt');
     }
+
+    function isCancelledStatus(status) {
+        return status === 'canceled' || status === 'cancelled';
+    }
+
+    function isCancelledOrder(order) {
+        return !!(order && (isCancelledStatus(order.order_status) || order.cancel_queued));
+    }
+
+    function isCancelledJob(job) {
+        return !!(job && (isCancelledStatus(job.orderStatus) || isCancelledOrder(job)));
+    }
+
+    function applyCancelledOrder(serverOrder, payload) {
+        var orderId = Number((serverOrder && serverOrder.id) || (payload && payload.order_id) || 0);
+        if (!orderId) return;
+        ordersUi.orders.forEach(function (order, index) {
+            if (Number(order.id) !== orderId) return;
+            if (serverOrder && typeof serverOrder === 'object') {
+                ordersUi.orders[index] = serverOrder;
+                delete cancelQueuedIds[orderId];
+                return;
+            }
+            order.order_status = 'canceled';
+            order.order_status_label = L('cancelled', 'Cancelled');
+            order.cancellable = false;
+            order.cancel_queued = false;
+            order.cancellation_reason = (payload && payload.cancellation_reason) || order.cancellation_reason || '';
+            delete cancelQueuedIds[orderId];
+        });
+        if (ordersUi.open) renderOrdersList();
+    }
+
+    function setCancelError(message) {
+        if (!els.cancelError) return;
+        if (!message) {
+            els.cancelError.hidden = true;
+            els.cancelError.textContent = '';
+            return;
+        }
+        els.cancelError.hidden = false;
+        els.cancelError.textContent = message;
+    }
+
+    function setCancelSubmitting(on) {
+        cancelUi.submitting = !!on;
+        if (els.cancelReason) els.cancelReason.disabled = !!on;
+        if (els.cancelDismiss) els.cancelDismiss.disabled = !!on;
+        if (els.cancelConfirm) {
+            els.cancelConfirm.disabled = !!on;
+            els.cancelConfirm.innerHTML = on
+                ? ('<span class="munch-pos-place__spin" aria-hidden="true"></span>' + escapeHtml(L('cancelling', 'Cancelling...')))
+                : escapeHtml(L('confirmCancellation', 'Confirm Cancellation'));
+        }
+    }
+
+    function openCancelModal(order) {
+        if (!order || !order.cancellable || !els.cancelModal) return;
+        cancelUi.open = true;
+        cancelUi.order = order;
+        cancelUi.clientUuid = uuid();
+        cancelUi.submitting = false;
+        if (els.cancelReason) {
+            els.cancelReason.value = '';
+            els.cancelReason.disabled = false;
+        }
+        setCancelError('');
+        setCancelSubmitting(false);
+        els.cancelModal.hidden = false;
+        if (els.cancelReason) els.cancelReason.focus();
+    }
+
+    function closeCancelModal() {
+        if (cancelUi.submitting) return;
+        cancelUi.open = false;
+        cancelUi.order = null;
+        cancelUi.clientUuid = '';
+        if (els.cancelModal) els.cancelModal.hidden = true;
+        setCancelError('');
+        setCancelSubmitting(false);
+    }
+
+    function cancelReasonError(reason) {
+        var text = String(reason || '').replace(/\s+/g, ' ').trim();
+        if (text.length < 5) return L('cancellationReason', 'Cancellation Reason') + ' (min 5)';
+        if (text.length > 500) return L('cancellationReason', 'Cancellation Reason') + ' (max 500)';
+        return '';
+    }
+
+    function buildCancelPayload(order, reason, clientUuid) {
+        return {
+            action: 'cancel',
+            client_uuid: clientUuid,
+            order_id: Number(order.id),
+            cancellation_reason: reason,
+            placed_at: new Date().toISOString(),
+            offline: !navigator.onLine
+        };
+    }
+
+    function markOrderCancelQueued(order, reason) {
+        cancelQueuedIds[Number(order.id)] = reason;
+        order.cancellable = false;
+        order.cancel_queued = true;
+        order.cancellation_reason = reason;
+        if (ordersUi.open) renderOrdersList();
+    }
+
+    function applyQueuedCancels(orders) {
+        (orders || []).forEach(function (order) {
+            var queued = cancelQueuedIds[Number(order.id)];
+            if (!queued) return;
+            if (isCancelledOrder(order)) {
+                delete cancelQueuedIds[Number(order.id)];
+                return;
+            }
+            order.cancellable = false;
+            order.cancel_queued = true;
+            if (!order.cancellation_reason) order.cancellation_reason = queued;
+        });
+        return orders;
+    }
+
+    function submitCancel() {
+        if (cancelUi.submitting || !cancelUi.order) return;
+        var reason = els.cancelReason ? String(els.cancelReason.value || '').replace(/\s+/g, ' ').trim() : '';
+        var error = cancelReasonError(reason);
+        if (error) {
+            setCancelError(error);
+            return;
+        }
+        setCancelError('');
+        setCancelSubmitting(true);
+        var order = cancelUi.order;
+        var payload = buildCancelPayload(order, reason, cancelUi.clientUuid || uuid());
+        if (!navigator.onLine) {
+            return enqueue(payload).then(function () {
+                markOrderCancelQueued(order, reason);
+                cancelUi.submitting = false;
+                closeCancelModal();
+                toast(L('cancelQueued', 'Cancellation saved offline'));
+            }).catch(function () {
+                setCancelSubmitting(false);
+                setCancelError(CFG.labels.queueFailed || 'Could not save offline. Please try again.');
+            });
+        }
+        return postCancel(payload).then(function (body) {
+            if (body && (body.success === 1 || body.duplicate)) {
+                applyCancelledOrder(body.order, payload);
+                cancelUi.submitting = false;
+                closeCancelModal();
+                if (ordersUi.open) fetchTodayOrders();
+                return;
+            }
+            if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
+                state.authRequired = true;
+                setCancelSubmitting(false);
+                setCancelError(CFG.labels.sessionExpired || 'Session expired');
+                return;
+            }
+            setCancelSubmitting(false);
+            setCancelError((body && body.message) || CFG.labels.syncFailed || 'Failed to sync');
+        }).catch(function () {
+            return enqueue(payload).then(function () {
+                markOrderCancelQueued(order, reason);
+                cancelUi.submitting = false;
+                closeCancelModal();
+                toast(L('cancelQueued', 'Cancellation saved offline'));
+            }).catch(function () {
+                setCancelSubmitting(false);
+                setCancelError(CFG.labels.queueFailed || 'Could not save offline. Please try again.');
+            });
+        });
+    }
+
 
     function applyPrintButtonState(job) {
         if (!job || !successJob || Number(successJob.orderId) !== Number(job.orderId)) return;
@@ -1381,7 +1600,7 @@
 
     function printOneTicket(job, kind) {
         if (!job || printBusy) return Promise.resolve();
-        if (kind === 'kitchen' && job.kitchenPrinted) return Promise.resolve();
+        if (kind === 'kitchen' && (job.kitchenPrinted || isCancelledJob(job))) return Promise.resolve();
         if (kind === 'receipt' && job.receiptPrinted) return Promise.resolve();
         printBusy = true;
         var html = kind === 'kitchen' ? kitchenTicketHtml(job) : receiptTicketHtml(job);
@@ -1697,6 +1916,11 @@
         html += '<dt>' + escapeHtml(L('cashier', 'Cashier')) + '</dt><dd>' + escapeHtml(order.cashier) + '</dd>';
         html += '<dt>' + escapeHtml(L('createdTime', 'Created at')) + '</dt><dd>' + escapeHtml(order.created_at) + '</dd>';
         if (order.completed_at) html += '<dt>' + escapeHtml(L('completedTime', 'Delivered')) + '</dt><dd>' + escapeHtml(order.completed_at) + '</dd>';
+        if (isCancelledOrder(order)) {
+            html += '<dt>' + escapeHtml(L('cancellationReason', 'Cancellation Reason')) + '</dt><dd>' + escapeHtml(order.cancellation_reason || '') + '</dd>';
+            html += '<dt>' + escapeHtml(L('cancelledBy', 'Cancelled by')) + '</dt><dd>' + escapeHtml(order.cancelled_by || '') + '</dd>';
+            if (order.cancelled_at) html += '<dt>' + escapeHtml(L('cancelledAt', 'Cancelled at')) + '</dt><dd>' + escapeHtml(order.cancelled_at) + '</dd>';
+        }
         html += '</dl>';
         return html;
     }
@@ -1716,8 +1940,9 @@
                     '<p class="munch-pos-order__meta"><span>' + escapeHtml(order.time) + '</span><span>' + channelBadgeHtml(order.sales_channel, order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
                     '<div class="munch-pos-order__side"><div class="munch-pos-order__total">' + money(order.grand_total) + '</div>' +
                     '<div class="munch-pos-order__prints">' +
-                    '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +
+                    '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed || isCancelledOrder(order) ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +
                     '<button type="button" class="munch-pos-order__print munch-pos-order__print--receipt" data-print-receipt="' + order.id + '"' + (order.receipt_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('receipt', order.receipt_printed)) + '</button>' +
+                    (order.cancellable ? '<button type="button" class="munch-pos-order__cancel" data-cancel-order="' + order.id + '">' + escapeHtml(L('cancelOrder', 'Cancel Order')) + '</button>' : '') +
                     '</div></div></div>' +
                     '<div class="munch-pos-order__pills">' +
                     (isMarketplaceChannel(order.sales_channel) ? channelBadgeHtml(order.sales_channel, order.sales_channel_label) : '') +
@@ -1757,7 +1982,7 @@
         }).then(function (json) {
             ordersUi.loading = false;
             if (!json || !json.data) return;
-            ordersUi.orders = json.data.orders || [];
+            ordersUi.orders = applyQueuedCancels(json.data.orders || []);
             ordersUi.page = Number(json.data.page || 1);
             ordersUi.lastPage = Number(json.data.last_page || 1);
             ordersUi.total = Number(json.data.total || 0);
@@ -1844,6 +2069,11 @@
         els.ordersPager = document.getElementById('pos-orders-pager');
         els.ordersMeta = document.getElementById('pos-orders-meta');
         els.ordersSearch = document.getElementById('pos-orders-search');
+        els.cancelModal = document.getElementById('pos-cancel-modal');
+        els.cancelReason = document.getElementById('pos-cancel-reason');
+        els.cancelError = document.getElementById('pos-cancel-error');
+        els.cancelDismiss = document.getElementById('pos-cancel-dismiss');
+        els.cancelConfirm = document.getElementById('pos-cancel-confirm');
 
         document.getElementById('pos-search').addEventListener('input', function (ev) {
             state.searchDraft = ev.target.value;
@@ -2008,6 +2238,15 @@
         }
         if (els.ordersList) {
             els.ordersList.addEventListener('click', function (ev) {
+                var cancelBtn = ev.target.closest('[data-cancel-order]');
+                if (cancelBtn) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    var cancelId = Number(cancelBtn.getAttribute('data-cancel-order'));
+                    var cancelOrder = ordersUi.orders.find(function (row) { return Number(row.id) === cancelId; });
+                    if (cancelOrder) openCancelModal(cancelOrder);
+                    return;
+                }
                 var kitchenBtn = ev.target.closest('[data-print-kitchen]');
                 var receiptBtn = ev.target.closest('[data-print-receipt]');
                 if (kitchenBtn || receiptBtn) {
@@ -2033,8 +2272,23 @@
                 fetchTodayOrders();
             });
         }
+        if (els.cancelDismiss) {
+            els.cancelDismiss.addEventListener('click', function () { closeCancelModal(); });
+        }
+        if (els.cancelConfirm) {
+            els.cancelConfirm.addEventListener('click', function () { submitCancel(); });
+        }
+        if (els.cancelModal) {
+            els.cancelModal.addEventListener('click', function (ev) {
+                if (ev.target.id === 'pos-cancel-modal' && !cancelUi.submitting) closeCancelModal();
+            });
+        }
         document.addEventListener('keydown', function (ev) {
             if (ev.key === 'Escape') {
+                if (cancelUi.open) {
+                    if (!cancelUi.submitting) closeCancelModal();
+                    return;
+                }
                 if (successJob && els.successModal && !els.successModal.hidden) {
                     dismissPlacedOrder();
                     return;
@@ -2048,6 +2302,7 @@
                 return;
             }
             if (els.deliveryModal && !els.deliveryModal.hidden) return;
+            if (els.cancelModal && !els.cancelModal.hidden) return;
             if (els.ordersModal && !els.ordersModal.hidden) return;
             if (els.successModal && !els.successModal.hidden) return;
             var tag = ev.target && ev.target.tagName;

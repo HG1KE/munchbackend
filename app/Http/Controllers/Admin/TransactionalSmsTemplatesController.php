@@ -17,8 +17,13 @@ class TransactionalSmsTemplatesController extends Controller
     {
         $templates = SMS_module::getSmsTemplates();
         $variables = SmsTemplateCatalog::variableChips();
+        $posCancellationPhone = \App\Support\PosCancellationNotificationSettings::phone();
 
-        return view('admin-views.business-settings.sms-templates', compact('templates', 'variables'));
+        return view('admin-views.business-settings.sms-templates', compact(
+            'templates',
+            'variables',
+            'posCancellationPhone'
+        ));
     }
 
     public function update(Request $request): RedirectResponse
@@ -52,8 +57,18 @@ class TransactionalSmsTemplatesController extends Controller
             ];
         }
 
+        $phone = trim((string) $request->input('pos_cancellation_notification_phone', ''));
+        $templateEnabled = (int) ($saved[SmsTemplateCatalog::POS_ORDER_CANCELLED]['status'] ?? 0) === 1;
+        $phoneError = \App\Support\PosCancellationNotificationSettings::validationError($phone, $templateEnabled);
+        if ($phoneError !== null) {
+            Toastr::error(translate($phoneError));
+
+            return back()->withInput();
+        }
+
         try {
             SMS_module::saveSmsTemplates($saved);
+            \App\Support\PosCancellationNotificationSettings::save($phone);
             Toastr::success(translate('Successfully updated!'));
         } catch (\Throwable $e) {
             Toastr::error(translate('Something went wrong'));

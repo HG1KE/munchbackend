@@ -79,6 +79,9 @@ class Order extends Model
         'customer_processing_sms_sent_at' => 'datetime',
         'kitchen_printed_at' => 'datetime',
         'receipt_printed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'cancelled_by' => 'integer',
+        'pos_cancelled_sms_sent_at' => 'datetime',
     ];
 
     public function details(): HasMany
@@ -227,5 +230,20 @@ class Order extends Model
     public function order_change_amount()
     {
         return $this->hasOne(OrderChangeAmount::class, 'order_id');
+    }
+
+    public function cancelledByBranch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'cancelled_by');
+    }
+
+    public function cancelledByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'cancelled_by');
+    }
+
+    public function cancellationAuditLogs(): HasMany
+    {
+        return $this->hasMany(OrderCancellationAuditLog::class);
     }
 }

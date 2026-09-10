@@ -91,6 +91,8 @@
                                             <span class="badge-soft-warning px-2 rounded text-capitalize">{{translate('out_for_delivery')}}</span>
                                         @elseif($order['order_status']=='delivered')
                                             <span class="badge-soft-success px-2 rounded text-capitalize">{{translate('delivered')}}</span>
+                                        @elseif(in_array($order['order_status'], ['canceled', 'cancelled'], true))
+                                            <span class="badge-soft-danger px-2 rounded">{{translate('Cancelled')}}</span>
                                         @elseif($order['order_status']=='failed')
                                             <span class="badge-soft-danger px-2 rounded text-capitalize">{{translate('failed_to_deliver')}}</span>
                                         @else
@@ -397,6 +399,7 @@
             </div>
 
             <div class="col-lg-4">
+                @include('partials.order-cancellation-details', ['order' => $order])
                 @if($order['order_type'] != 'pos')
                     <div class="card mb-3">
                         <div class="card-body text-capitalize d-flex flex-column gap-4">

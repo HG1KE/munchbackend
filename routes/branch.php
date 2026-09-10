@@ -53,6 +53,7 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
             Route::get('customers', [POSController::class, 'getCustomers'])->name('customers');
             Route::post('order', [POSController::class, 'placeOrder'])->name('order');
             Route::post('print-ticket', [POSController::class, 'markTicketPrinted'])->name('print-ticket');
+            Route::post('cancel-order', [POSController::class, 'cancelOrder'])->name('cancel-order');
             Route::get('orders', [POSController::class, 'orderList'])->name('orders');
             Route::get('order-details/{id}', [POSController::class, 'orderDetails'])->name('order-details');
             Route::get('invoice/{id}', [POSController::class, 'generateInvoice']);

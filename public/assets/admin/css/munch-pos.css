@@ -969,6 +969,86 @@
     cursor: default;
 }
 
+.munch-pos-order__cancel {
+    border: 1px solid #b42318;
+    background: #b42318;
+    color: #fff;
+    min-height: 36px;
+    border-radius: 999px;
+    padding: 0.2rem 0.8rem;
+    font-weight: 700;
+    font-size: 0.75rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    text-align: center;
+}
+
+.munch-pos-order__cancel:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.munch-pos-cancel-modal h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.15rem;
+}
+
+.munch-pos-cancel-modal__field {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 0.7rem;
+    font-weight: 600;
+    font-size: 0.86rem;
+}
+
+.munch-pos-cancel-modal__field textarea {
+    width: 100%;
+    border: 1px solid var(--munch-pos-line);
+    border-radius: 12px;
+    padding: 0.75rem 0.85rem;
+    font: inherit;
+    font-weight: 500;
+    min-height: 92px;
+    resize: vertical;
+}
+
+.munch-pos-cancel-modal__error {
+    margin: 0 0 0.75rem;
+    color: #b42318;
+    font-weight: 600;
+}
+
+.munch-pos-cancel-modal__warn,
+.munch-pos-cancel-modal__confirm {
+    margin: 0 0 0.55rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.munch-pos-cancel-modal__actions {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.85rem;
+}
+
+.munch-pos-cancel-modal__submit {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 14px;
+    border: 1px solid #b42318;
+    background: #b42318;
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-cancel-modal__submit:disabled,
+.munch-pos-cancel-modal .munch-pos-clear:disabled {
+    opacity: 0.65;
+    cursor: default;
+}
+
 .munch-pos-success {
     position: fixed;
     inset: 0;

@@ -32,6 +32,8 @@ class SmsTemplateCatalog
 
     public const POS_DELIVERY_CUSTOMER = 'pos_delivery_customer';
 
+    public const POS_ORDER_CANCELLED = 'pos_order_cancelled';
+
     /**
      * Config field on the old customer-confirm gateway → catalog key.
      *
@@ -63,6 +65,7 @@ class SmsTemplateCatalog
             self::ORDER_PLACED,
             self::PROCESSING,
             self::POS_DELIVERY_CUSTOMER,
+            self::POS_ORDER_CANCELLED,
         ];
     }
 
@@ -170,6 +173,20 @@ class SmsTemplateCatalog
                 'default_message' => 'Hi {customer_name}, your wallet has been credited.',
                 'default_status' => 0,
                 'wired' => false,
+            ],
+            self::POS_ORDER_CANCELLED => [
+                'label' => 'POS Order Cancelled SMS',
+                'help' => 'Sent only to the POS Cancellation Notification Number when a Branch POS order is cancelled. Not sent to the customer, rider, or cashier.',
+                'placeholders' => [
+                    '{order_number}',
+                    '{total_amount}',
+                    '{branch_name}',
+                    '{cancellation_reason}',
+                ],
+                'channel' => 'sendsms',
+                'default_message' => "Order #{order_number} worth {total_amount} has been cancelled by {branch_name}.\n\nReason:\n{cancellation_reason}",
+                'default_status' => 0,
+                'wired' => true,
             ],
             self::POS_DELIVERY_CUSTOMER => [
                 'label' => 'POS Delivery Customer SMS',

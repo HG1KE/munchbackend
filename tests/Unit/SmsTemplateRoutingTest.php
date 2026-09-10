@@ -124,7 +124,13 @@ class SmsTemplateRoutingTest extends TestCase
         $this->assertContains('{customer_name}', SmsTemplateCatalog::variableChips());
         $this->assertContains('{mpesa_till}', SmsTemplateCatalog::variableChips());
         $this->assertContains('{items}', SmsTemplateCatalog::variableChips());
+        $this->assertContains('{order_number}', SmsTemplateCatalog::variableChips());
+        $this->assertContains('{cancellation_reason}', SmsTemplateCatalog::variableChips());
         $this->assertContains(SmsTemplateCatalog::POS_DELIVERY_CUSTOMER, SmsTemplateCatalog::wiredKeys());
+        $this->assertContains(SmsTemplateCatalog::POS_ORDER_CANCELLED, SmsTemplateCatalog::wiredKeys());
         $this->assertSame('POS Delivery Customer SMS', SmsTemplateCatalog::definition(SmsTemplateCatalog::POS_DELIVERY_CUSTOMER)['label']);
+        $this->assertSame('POS Order Cancelled SMS', SmsTemplateCatalog::definition(SmsTemplateCatalog::POS_ORDER_CANCELLED)['label']);
+        $this->assertStringContainsString('POS Cancellation Notification Number', $view);
+        $this->assertStringContainsString('name="pos_cancellation_notification_phone"', $view);
     }
 }

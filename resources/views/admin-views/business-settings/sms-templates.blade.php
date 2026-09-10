@@ -34,6 +34,21 @@
             @csrf
             <div class="row">
                 <div class="col-lg-8">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">{{ translate('POS Cancellation Notification Number') }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted fz-12 mb-2">{{ translate('Single phone number that receives POS Order Cancelled SMS. Not sent to customers, riders, or cashiers. Required only when that template is enabled.') }}</p>
+                            <label class="input-label" for="pos_cancellation_notification_phone">{{ translate('Phone') }}</label>
+                            <input type="text"
+                                   id="pos_cancellation_notification_phone"
+                                   name="pos_cancellation_notification_phone"
+                                   class="form-control"
+                                   value="{{ old('pos_cancellation_notification_phone', $posCancellationPhone ?? '') }}"
+                                   placeholder="0712345678">
+                        </div>
+                    </div>
                     @foreach($templates as $type => $row)
                         <div class="card mb-3 js-tx-sms-template-card" data-template-type="{{ $type }}">
                             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -109,5 +124,5 @@
 @endsection
 
 @push('script_2')
-    <script src="{{ asset('public/assets/admin/js/transactional-sms.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/transactional-sms.js') }}?v=1.1"></script>
 @endpush

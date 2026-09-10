@@ -18,6 +18,9 @@
             branch_phone: '0712345678',
             order_status: 'Pending',
             OTP: '482916',
+            order_number: '12345',
+            total_amount: 'Ksh 2,450.00',
+            cancellation_reason: 'Customer changed mind',
         },
     };
 

@@ -158,6 +158,23 @@
 
 <iframe id="pos-print-frame" class="munch-pos-print-frame" title="{{ translate('Print') }}"></iframe>
 
+<div class="munch-pos-modal" id="pos-cancel-modal" hidden>
+    <div class="munch-pos-modal__card munch-pos-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="pos-cancel-title">
+        <h2 id="pos-cancel-title">{{ translate('Cancel Order') }}</h2>
+        <p class="munch-pos-cancel-modal__error" id="pos-cancel-error" hidden></p>
+        <label class="munch-pos-cancel-modal__field">
+            <span>{{ translate('Cancellation Reason') }}</span>
+            <textarea id="pos-cancel-reason" rows="4" minlength="5" maxlength="500" required></textarea>
+        </label>
+        <p class="munch-pos-cancel-modal__warn">⚠️ {{ translate('This cancellation will be visible to the Master Admin.') }}</p>
+        <p class="munch-pos-cancel-modal__confirm">{{ translate('Are you sure you want to continue?') }}</p>
+        <div class="munch-pos-cancel-modal__actions">
+            <button type="button" class="munch-pos-clear" id="pos-cancel-dismiss">{{ translate('Cancel') }}</button>
+            <button type="button" class="munch-pos-cancel-modal__submit" id="pos-cancel-confirm">{{ translate('Confirm Cancellation') }}</button>
+        </div>
+    </div>
+</div>
+
 <div class="munch-pos-toast" id="pos-toast" hidden></div>
 @endsection
 
@@ -174,6 +191,7 @@
             heartbeat: @json(route('branch.pos.heartbeat')),
             todayOrders: @json(route('branch.pos.today-orders')),
             printTicket: @json(route('branch.pos.print-ticket')),
+            cancelOrder: @json(route('branch.pos.cancel-order')),
             order: @json(route('branch.pos.order')),
             invoice: @json(url('branch/pos/invoice')),
             sw: @json(route('branch.pos.service-worker')),
@@ -276,9 +294,18 @@
             balance: @json(translate('Balance')),
             thanks: @json(translate('Thank you for choosing Munch')),
             mpesaTill: @json(translate('M-PESA Till')),
+            cancelOrder: @json(translate('Cancel Order')),
+            cancellationReason: @json(translate('Cancellation Reason')),
+            cancelWarning: @json(translate('This cancellation will be visible to the Master Admin.')),
+            cancelConfirmQuestion: @json(translate('Are you sure you want to continue?')),
+            confirmCancellation: @json(translate('Confirm Cancellation')),
+            cancelling: @json(translate('Cancelling...')),
+            cancelledBy: @json(translate('Cancelled by')),
+            cancelledAt: @json(translate('Cancelled at')),
+            cancelQueued: @json(translate('Cancellation saved offline')),
         }
     };
 </script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.6" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.7" defer></script>
 @endpush
