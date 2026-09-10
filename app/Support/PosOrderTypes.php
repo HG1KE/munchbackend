@@ -141,13 +141,45 @@ class PosOrderTypes
      *
      * @return list<string>
      */
-    public static function paymentMethods(?string $type): array
+    public static function paymentMethods(?string $type, bool $posMpesaEnabled = true): array
     {
         return match (self::normalize($type)) {
             self::DELIVERY => ['cash_on_delivery'],
-            self::TAKE_AWAY, self::DINE_IN => ['cash', 'card', 'mpesa'],
+            self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
+                ? ['cash', 'card', 'mpesa']
+                : ['cash', 'card'],
             default => ['cash', 'card'],
         };
+    }
+
+    /**
+     * Required POS Delivery fields. Other order types skip this validation.
+     *
+     * @param  array{customer_name?: mixed, customer_phone?: mixed, address?: mixed, rider_name?: mixed, rider_phone?: mixed}  $fields
+     */
+    public static function posDeliveryFieldError(?string $type, array $fields): ?string
+    {
+        if (! self::isDelivery($type)) {
+            return null;
+        }
+
+        if (trim((string) ($fields['customer_name'] ?? '')) === '') {
+            return 'Customer Name';
+        }
+        if (trim((string) ($fields['customer_phone'] ?? '')) === '') {
+            return 'Customer Phone';
+        }
+        if (trim((string) ($fields['address'] ?? '')) === '') {
+            return 'Delivery Address';
+        }
+        if (trim((string) ($fields['rider_name'] ?? '')) === '') {
+            return 'Rider Name';
+        }
+        if (trim((string) ($fields['rider_phone'] ?? '')) === '') {
+            return 'Rider Phone';
+        }
+
+        return null;
     }
 
     public static function isPaidImmediately(?string $type, ?string $paymentMethod): bool

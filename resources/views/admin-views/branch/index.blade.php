@@ -57,6 +57,18 @@
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group">
+                                                <div class="d-flex align-items-center justify-content-between gap-3">
+                                                    <label class="input-label mb-0" for="pos_mpesa_enabled">{{ translate('Enable M-PESA Payments on POS') }}</label>
+                                                    <input type="hidden" name="pos_mpesa_enabled" value="0">
+                                                    <label class="switcher mb-0">
+                                                        <input class="switcher_input" type="checkbox" name="pos_mpesa_enabled" id="pos_mpesa_enabled" value="1" {{ (int) old('pos_mpesa_enabled', 1) === 1 ? 'checked' : '' }}>
+                                                        <span class="switcher_control"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
                                                 <label class="input-label">{{translate('email')}}<span class="text-danger ml-1">*</span></label>
                                                 <input value="{{old('email')}}" type="email" name="email" class="form-control" maxlength="255"
                                                        placeholder="{{translate('EX : example@example.com')}}" required>

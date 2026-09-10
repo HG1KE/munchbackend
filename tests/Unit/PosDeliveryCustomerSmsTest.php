@@ -77,4 +77,24 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertSame("2 x Chicken Burger\n1 x Fries\n1 x Soda", $vars['items']);
         $this->assertArrayHasKey('order_id', $vars);
     }
+
+    public function test_sms_is_dispatched_only_after_server_order_create_and_never_from_the_pos_client(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+
+        $transaction = strpos($controller, 'DB::transaction');
+        $sms = strpos($controller, '$this->dispatchPosDeliveryCustomerSms($order)');
+        $this->assertNotFalse($transaction);
+        $this->assertNotFalse($sms);
+        $this->assertGreaterThan($transaction, $sms);
+        $this->assertStringContainsString('dispatchPosDeliveryCustomerSms($existing)', $controller);
+        $this->assertStringContainsString('customer_pos_delivery_sms_sent_at', file_get_contents(app_path('CentralLogics/PosDeliveryCustomerSms.php')));
+
+        $this->assertStringNotContainsString('SMS', $js);
+        $this->assertStringNotContainsString('sms', $js);
+        $this->assertStringContainsString('function enqueue(payload)', $js);
+        $this->assertStringContainsString('if (state.cart.orderType === \'delivery\')', $js);
+        $this->assertStringContainsString('validateDeliveryDetails()', $js);
+    }
 }

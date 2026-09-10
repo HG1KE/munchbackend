@@ -489,9 +489,23 @@
         }).join('');
     }
 
+    function posMpesaEnabled() {
+        var flag = state.catalog && state.catalog.pos_mpesa_enabled;
+        if (flag === undefined && CFG.catalog) flag = CFG.catalog.pos_mpesa_enabled;
+        return flag !== false && flag !== 0 && flag !== '0';
+    }
+
+    function branchMpesaTill() {
+        var till = state.catalog && state.catalog.mpesa_till;
+        if ((till === undefined || till === null || till === '') && CFG.catalog) till = CFG.catalog.mpesa_till;
+        return String(till || '').trim();
+    }
+
     function paymentMethods() {
         if (state.cart.orderType === 'delivery') return ['cash_on_delivery'];
-        if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') return ['cash', 'card', 'mpesa'];
+        if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
+            return posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
+        }
         return ['cash', 'card'];
     }
 
@@ -980,7 +994,8 @@
             grand_total: total,
             payment_method: state.cart.payment,
             cash_received: paid,
-            change: Math.max(0, paid - total)
+            change: Math.max(0, paid - total),
+            mpesa_till: branchMpesaTill()
         };
     }
 
@@ -1015,7 +1030,8 @@
             grand_total: order.grand_total,
             payment_method: order.payment_method,
             cash_received: order.cash_received,
-            change: order.change
+            change: order.change,
+            mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim()
         };
     }
 
@@ -1194,6 +1210,10 @@
             html += '<div class="row"><span>' + escapeHtml(L('cashReceivedPrint', 'Cash Received')) + '</span><span>' + escapeHtml(money(job.cash_received)) + '</span></div>';
             html += '<div class="row"><span>' + escapeHtml(L('balance', 'Balance')) + '</span><span>' + escapeHtml(money(job.change)) + '</span></div>';
         }
+        var till = String(job.mpesa_till || '').trim();
+        if (till) {
+            html += '<hr class="rule"><div class="meta"><p>' + escapeHtml(L('mpesaTill', 'M-PESA Till')) + '</p><p>' + escapeHtml(till) + '</p></div>';
+        }
         html += '<hr class="rule"><p class="thanks">' + escapeHtml(L('thanks', 'Thank you for choosing Munch')) + '</p>';
         return ticketDocument('receipt', html);
     }
@@ -1289,6 +1309,14 @@
     }
 
     function submitPlacedOrder() {
+        if (state.cart.orderType === 'delivery') {
+            var deliveryError = validateDeliveryDetails();
+            if (deliveryError) {
+                showDeliveryError(deliveryError);
+                openDeliveryModal();
+                return;
+            }
+        }
         var payload = buildPayload(uuid(), new Date().toISOString());
         if (!navigator.onLine) {
             enqueue(payload).then(function () {

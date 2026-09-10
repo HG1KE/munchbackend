@@ -69,10 +69,39 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertFalse(PosOrderTypes::isPaidImmediately('delivery', 'cash_on_delivery'));
         $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('take_away'));
         $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('dine_in'));
+        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('take_away', false));
+        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('dine_in', false));
         $this->assertSame(['cash_on_delivery'], PosOrderTypes::paymentMethods('delivery'));
+        $this->assertSame(['cash_on_delivery'], PosOrderTypes::paymentMethods('delivery', false));
         $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('glovo'));
         $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('uber'));
         $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('bolt_food'));
+        $this->assertSame(['cash', 'card'], PosOrderTypes::paymentMethods('glovo', false));
+    }
+
+    public function test_rider_fields_are_required_only_for_delivery(): void
+    {
+        $complete = [
+            'customer_name' => 'Jane',
+            'customer_phone' => '0712345678',
+            'address' => 'Ngong Road',
+            'rider_name' => 'John Rider',
+            'rider_phone' => '0799999999',
+        ];
+        $missingRider = $complete;
+        $missingRider['rider_name'] = '';
+        $missingPhone = $complete;
+        $missingPhone['rider_phone'] = '  ';
+
+        $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $complete));
+        $this->assertSame('Rider Name', PosOrderTypes::posDeliveryFieldError('delivery', $missingRider));
+        $this->assertSame('Rider Phone', PosOrderTypes::posDeliveryFieldError('delivery', $missingPhone));
+        $this->assertSame('Customer Name', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_name' => ''])));
+
+        foreach (['take_away', 'dine_in', 'glovo', 'uber', 'bolt_food'] as $type) {
+            $this->assertNull(PosOrderTypes::posDeliveryFieldError($type, $missingRider), $type);
+            $this->assertNull(PosOrderTypes::posDeliveryFieldError($type, []), $type);
+        }
     }
 
     public function test_manual_discount_is_only_allowed_for_delivery_takeaway_and_dine_in(): void

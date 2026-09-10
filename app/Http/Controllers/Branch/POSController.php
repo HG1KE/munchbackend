@@ -614,26 +614,29 @@ class POSController extends Controller
             }
 
             OrderPlacementTime::applyToOrder($order, $placedAt);
-            $order->save();
 
-            foreach ($orderDetails as $key => $item) {
-                $orderDetails[$key]['order_id'] = $order->id;
-            }
-            OrderDetail::insert($orderDetails);
+            DB::transaction(function () use ($order, &$orderDetails, $request) {
+                $order->save();
+
+                foreach ($orderDetails as $key => $item) {
+                    $orderDetails[$key]['order_id'] = $order->id;
+                }
+                OrderDetail::insert($orderDetails);
+
+                if (in_array($request->type, ['cash', 'card', 'mpesa'], true)) {
+                    $orderChangeAmount = new OrderChangeAmount();
+                    $orderChangeAmount->order_id = $order->id;
+                    $orderChangeAmount->order_amount = $order->order_amount;
+                    $orderChangeAmount->paid_amount = $request->paid_amount;
+                    $orderChangeAmount->save();
+                }
+            });
 
             if (in_array($order->order_status, ['pending', 'confirmed'], true)) {
                 CustomerOrderStatusSms::dispatchPlacement($order->fresh(['customer', 'branch']));
             }
 
-            PosDeliveryCustomerSms::dispatch($order->fresh(['customer', 'branch', 'details', 'customer_delivery_address']));
-
-            if (in_array($request->type, ['cash', 'card', 'mpesa'], true)) {
-                $orderChangeAmount = new OrderChangeAmount();
-                $orderChangeAmount->order_id = $order->id;
-                $orderChangeAmount->order_amount = $order->order_amount;
-                $orderChangeAmount->paid_amount = $request->paid_amount;
-                $orderChangeAmount->save();
-            }
+            $this->dispatchPosDeliveryCustomerSms($order);
 
             session()->forget('cart');
             session(['last_order' => $order->id]);
@@ -731,6 +734,8 @@ class POSController extends Controller
                     ->where('client_uuid', $clientUuid)
                     ->first();
                 if ($existing) {
+                    $this->dispatchPosDeliveryCustomerSms($existing);
+
                     return response()->json(array_merge([
                         'success' => 1,
                         'duplicate' => true,
@@ -1151,6 +1156,8 @@ class POSController extends Controller
                 ->where('client_uuid', $clientUuid)
                 ->first();
             if ($existing) {
+                $this->dispatchPosDeliveryCustomerSms($existing);
+
                 return response()->json(array_merge([
                     'success' => 1,
                     'duplicate' => true,
@@ -1164,6 +1171,11 @@ class POSController extends Controller
         $items = $request->input('items', []);
         if (! is_array($items) || $items === []) {
             return $this->posFail($request, translate('cart_empty_warning'));
+        }
+
+        $deliveryError = $this->jsonPosDeliveryValidationError($request);
+        if ($deliveryError !== null) {
+            return $this->posFail($request, $deliveryError);
         }
 
         $cart = collect([]);
@@ -1314,6 +1326,27 @@ class POSController extends Controller
         $data['discount_data'] = $discountData;
 
         return ['ok' => true, 'data' => $data];
+    }
+
+    private function jsonPosDeliveryValidationError(Request $request): ?string
+    {
+        $address = $request->input('address');
+        $address = is_array($address) ? $address : [];
+        $error = PosOrderTypes::posDeliveryFieldError($request->input('order_type'), [
+            'customer_name' => $address['contact_person_name'] ?? '',
+            'customer_phone' => $address['contact_person_number'] ?? '',
+            'address' => $address['address'] ?? '',
+            'rider_name' => $request->input('rider_name', $address['rider_name'] ?? ''),
+            'rider_phone' => $request->input('rider_phone', $address['rider_phone'] ?? ''),
+        ]);
+
+        return $error === null ? null : translate($error);
+    }
+
+    private function dispatchPosDeliveryCustomerSms(Order $order): void
+    {
+        $fresh = $order->fresh(['customer', 'branch', 'details', 'customer_delivery_address']);
+        PosDeliveryCustomerSms::dispatch($fresh ?: $order);
     }
 
     private function posRiderName(Request $request, string $orderType): ?string

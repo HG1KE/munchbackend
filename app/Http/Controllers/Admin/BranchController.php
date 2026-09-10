@@ -72,6 +72,7 @@ class BranchController extends Controller
         $branch->address = $request->address;
         $branch->phone = $request->phone ?? null;
         $branch->mpesa_till = $this->normalizedMpesaTill($request->mpesa_till);
+        $branch->pos_mpesa_enabled = $request->boolean('pos_mpesa_enabled') ? 1 : 0;
         $branch->password = bcrypt($request->password);
         $branch->preparation_time = $request->preparation_time;
         $branch->image = $imageName;
@@ -137,6 +138,7 @@ class BranchController extends Controller
         }
         $branch->phone = $request->phone ?? '';
         $branch->mpesa_till = $this->normalizedMpesaTill($request->mpesa_till);
+        $branch->pos_mpesa_enabled = $request->boolean('pos_mpesa_enabled') ? 1 : 0;
         $branch->preparation_time = $request->preparation_time;
         $branch->save();
 

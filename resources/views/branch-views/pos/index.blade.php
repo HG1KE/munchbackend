@@ -263,8 +263,9 @@
             cashReceivedPrint: @json(translate('Cash Received')),
             balance: @json(translate('Balance')),
             thanks: @json(translate('Thank you for choosing Munch')),
+            mpesaTill: @json(translate('M-PESA Till')),
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.1" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.2" defer></script>
 @endpush

@@ -11,6 +11,7 @@ use App\Model\Table;
 use App\Models\DeliveryChargeByArea;
 use App\Support\PosOrderTypes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BranchPosCatalogService
 {
@@ -93,6 +94,8 @@ class BranchPosCatalogService
             // Keep a visible fallback so POS still renders if currency settings are incomplete.
         }
 
+        $branch = Branch::query()->find($branchId);
+
         return [
             'generated_at' => now()->toIso8601String(),
             'version' => $this->versionForBranch($branchId),
@@ -101,6 +104,8 @@ class BranchPosCatalogService
             'currency_position' => Helpers::get_business_settings('currency_symbol_position') ?: 'left',
             'decimal' => (int) (Helpers::get_business_settings('decimal_point_settings') ?? 0),
             'placeholder_image' => asset('public/assets/admin/img/160x160/img2.jpg'),
+            'pos_mpesa_enabled' => $this->branchPosMpesaEnabled($branch),
+            'mpesa_till' => trim((string) ($branch?->mpesa_till ?? '')),
             'categories' => $categories,
             'products' => $mappedProducts,
             'tables' => $tables,
@@ -120,10 +125,12 @@ class BranchPosCatalogService
         $productMax = Product::query()->max('updated_at');
         $categoryMax = Category::query()->max('updated_at');
         $categoryCount = Category::query()->where(['position' => 0])->count();
+        $branchSettings = Branch::query()->find($branchId);
 
         return hash('sha256', implode('|', [
             $branchId,
             'pos-catalog-popularity-1',
+            'pos-mpesa-settings-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
             (string) ($branch->a ?? 0),
@@ -133,7 +140,18 @@ class BranchPosCatalogService
             (string) $categoryMax,
             (string) $categoryCount,
             (string) $this->posSoldStamp($branchId),
+            $this->branchPosMpesaEnabled($branchSettings) ? '1' : '0',
+            trim((string) ($branchSettings?->mpesa_till ?? '')),
         ]));
+    }
+
+    private function branchPosMpesaEnabled(?Branch $branch): bool
+    {
+        if (! $branch || ! Schema::hasColumn('branches', 'pos_mpesa_enabled')) {
+            return true;
+        }
+
+        return (int) $branch->pos_mpesa_enabled === 1;
     }
 
     /**

@@ -343,6 +343,17 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('orderTypeBannerHtml', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('kitchenTicketHtml', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('receiptTicketHtml', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $posJs = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+        $this->assertStringContainsString("L('mpesaTill', 'M-PESA Till')", $posJs);
+        $this->assertStringContainsString('job.mpesa_till', $posJs);
+        $this->assertStringContainsString('posMpesaEnabled', $posJs);
+        $receiptFn = substr($posJs, strpos($posJs, 'function receiptTicketHtml'), strpos($posJs, 'function printTicket') - strpos($posJs, 'function receiptTicketHtml'));
+        $kitchenFn = substr($posJs, strpos($posJs, 'function kitchenTicketHtml'), strpos($posJs, 'function receiptTicketHtml') - strpos($posJs, 'function kitchenTicketHtml'));
+        $this->assertStringContainsString('mpesa_till', $receiptFn);
+        $this->assertStringNotContainsString('mpesa_till', $kitchenFn);
+        $this->assertStringContainsString('Enable M-PESA Payments on POS', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
+        $this->assertStringContainsString('pos_mpesa_enabled', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=2.2", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('data-print-kitchen', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('data-print-receipt', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('markTicketPrinted', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
@@ -367,7 +378,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('[hidden]', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
-        $this->assertStringContainsString('munch-pos-shell-v2', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
+        $this->assertStringContainsString('munch-pos-shell-v4', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('fetchTodayOrders', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
@@ -394,6 +405,9 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('addon_ids', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringNotContainsString('AddOn::', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('pos-catalog-popularity-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString('pos-mpesa-settings-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString("'pos_mpesa_enabled'", file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString("'mpesa_till'", file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('client_uuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString("order_note = PosOrderTypes", file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));
         $this->assertStringNotContainsString('pos:\'.$clientUuid', file_get_contents(app_path('Http/Controllers/Branch/POSController.php')));

@@ -1628,6 +1628,8 @@
   'Delivery Fee' => 'Delivery Fee',
   'M-PESA Till Number' => 'M-PESA Till Number',
   'M-PESA Till Number must be numeric and up to 12 digits.' => 'M-PESA Till Number must be numeric and up to 12 digits.',
+  'Enable M-PESA Payments on POS' => 'Enable M-PESA Payments on POS',
+  'M-PESA Till' => 'M-PESA Till',
   'M-PESA' => 'M-PESA',
   'mpesa' => 'M-PESA',
   'Who will deliver this order?' => 'Who will deliver this order?',

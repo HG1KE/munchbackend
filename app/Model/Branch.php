@@ -20,6 +20,7 @@ class Branch extends Authenticatable
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'preparation_time' => 'integer',
+        'pos_mpesa_enabled' => 'integer',
     ];
 
     public function branch_promotion(): HasMany
