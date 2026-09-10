@@ -38,8 +38,8 @@
         </section>
 
         <aside class="munch-pos-cart" aria-label="{{ translate('Billing_Section') }}">
+            <div class="munch-pos-types" id="pos-types"></div>
             <div class="munch-pos-cart__scroll">
-                <div class="munch-pos-types" id="pos-types"></div>
                 <ul class="munch-pos-lines" id="pos-lines"></ul>
                 <div class="munch-pos-auth" id="pos-auth" hidden>
                     <p>{{ translate('Session expired. Please sign in again.') }}</p>
@@ -302,5 +302,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.4"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.5" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.6" defer></script>
 @endpush

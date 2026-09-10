@@ -257,7 +257,8 @@
     function renderAll() {
         renderStatus();
         renderTabs();
-        var gridKey = [state.categoryId, state.search, state.cart.orderType, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length].join('|');
+        var gridW = els.grid ? els.grid.clientWidth : 0;
+        var gridKey = [state.categoryId, state.search, state.cart.orderType, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length, gridW].join('|');
         if (gridKey !== lastGridKey) {
             lastGridKey = gridKey;
             renderGrid();
@@ -378,6 +379,23 @@
         els.tabs.scrollBy({ left: direction * distance, behavior: 'smooth' });
     }
 
+    function gridColumnCount() {
+        if (!els.grid) return 2;
+        var template = window.getComputedStyle(els.grid).gridTemplateColumns || '';
+        var count = template.split(' ').filter(Boolean).length;
+        if (count >= 2) return count;
+        return Math.max(2, Math.floor(els.grid.clientWidth / 160) || 2);
+    }
+
+    function gridRowHeight() {
+        if (!els.grid) return 200;
+        var card = els.grid.querySelector('.munch-pos-card');
+        var gap = parseFloat(window.getComputedStyle(els.grid).rowGap);
+        if (isNaN(gap)) gap = 16;
+        if (card) return Math.max(140, Math.round(card.getBoundingClientRect().height + gap));
+        return 200;
+    }
+
     function renderGrid() {
         if (!els.grid) return;
         var list = filteredProducts();
@@ -387,8 +405,8 @@
         var start = 0;
         var end = list.length;
         var savedTop = els.grid.scrollTop;
-        var cols = Math.max(2, Math.floor(els.grid.clientWidth / 180) || 2);
-        var rowH = 220;
+        var cols = gridColumnCount();
+        var rowH = gridRowHeight();
         if (list.length > 48) {
             var top = savedTop;
             var vis = Math.ceil(els.grid.clientHeight / rowH) + 4;
@@ -2096,7 +2114,11 @@
         if (els.tabs) {
             els.tabs.addEventListener('scroll', updateTabArrows, { passive: true });
         }
-        window.addEventListener('resize', updateTabArrows);
+        window.addEventListener('resize', function () {
+            lastGridKey = '';
+            updateTabArrows();
+            scheduleRender();
+        });
         els.grid.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-card-delta]');
             if (!btn || !els.grid.contains(btn)) return;
