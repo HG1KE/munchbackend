@@ -2,6 +2,7 @@
 
 namespace App\CentralLogics;
 
+use App\Model\AddOn;
 use App\Model\Order;
 use App\Support\SmsTemplateCatalog;
 use Illuminate\Support\Facades\Schema;
@@ -215,15 +216,206 @@ class PosDeliveryCustomerSms
     {
         $lines = [];
         foreach ($order->details ?? [] as $detail) {
-            $name = self::detailName($detail);
-            $qty = (int) ($detail->quantity ?? 0);
-            if ($name === '' || $qty < 1) {
-                continue;
+            $block = self::formatItemBlock($detail);
+            if ($block !== '') {
+                $lines[] = $block;
             }
-            $lines[] = $qty.' x '.$name;
         }
 
         return implode("\n", $lines);
+    }
+
+    private static function formatItemBlock(mixed $detail): string
+    {
+        $name = self::detailName($detail);
+        $qty = (int) ($detail->quantity ?? 0);
+        if ($name === '' || $qty < 1) {
+            return '';
+        }
+
+        $options = self::detailOptions($detail);
+        $addons = self::detailAddons($detail);
+        $labels = array_values(array_filter(array_merge(
+            array_column($options, 'label'),
+            array_column($addons, 'label'),
+        ), fn ($label) => trim((string) $label) !== ''));
+
+        $title = $qty.' x '.$name;
+        if ($labels !== []) {
+            $title .= ' ('.implode(', ', $labels).')';
+        }
+
+        $unitPrice = round((float) ($detail->price ?? 0), 2);
+        $variationSurcharge = round(array_sum(array_column($options, 'price')), 2);
+        $addonTotal = round(array_sum(array_column($addons, 'price')), 2);
+        $addonPerUnit = $qty > 0 ? round($addonTotal / $qty, 2) : $addonTotal;
+        $surcharge = round($variationSurcharge + $addonPerUnit, 2);
+        $base = self::detailBasePrice($unitPrice, $variationSurcharge);
+        $finalUnit = round($unitPrice + $addonPerUnit, 2);
+
+        if ($finalUnit <= 0 && $surcharge <= 0) {
+            return $title;
+        }
+
+        $priceLine = self::formatMoney($finalUnit);
+        if ($base > 0 && $surcharge > 0) {
+            $priceLine = self::formatMoney($base).' + '.self::formatMoney($surcharge).' = '.self::formatMoney($finalUnit);
+        }
+        if ($qty > 1) {
+            $priceLine .= ' each';
+        }
+
+        return $title."\n".$priceLine;
+    }
+
+    /**
+     * @return list<array{label: string, price: float}>
+     */
+    private static function detailOptions(mixed $detail): array
+    {
+        $raw = self::decodeList($detail->variation ?? $detail->variations ?? []);
+        $out = [];
+
+        foreach ($raw as $group) {
+            if (! is_array($group)) {
+                if (is_string($group) && trim($group) !== '') {
+                    $out[] = ['label' => trim($group), 'price' => 0.0];
+                }
+                continue;
+            }
+
+            if (isset($group['values'])) {
+                $values = $group['values'];
+                if (isset($values['label']) && is_array($values['label'])) {
+                    foreach ($values['label'] as $label) {
+                        $text = trim((string) $label);
+                        if ($text !== '') {
+                            $out[] = ['label' => $text, 'price' => 0.0];
+                        }
+                    }
+                    continue;
+                }
+
+                if (is_array($values)) {
+                    foreach ($values as $value) {
+                        if (is_string($value) && trim($value) !== '') {
+                            $out[] = ['label' => trim($value), 'price' => 0.0];
+                            continue;
+                        }
+                        if (! is_array($value)) {
+                            continue;
+                        }
+                        $text = trim((string) ($value['label'] ?? $value['name'] ?? ''));
+                        if ($text === '') {
+                            continue;
+                        }
+                        $out[] = [
+                            'label' => $text,
+                            'price' => (float) ($value['optionPrice'] ?? $value['price'] ?? 0),
+                        ];
+                    }
+                }
+                continue;
+            }
+
+            if (isset($group['type'])) {
+                $text = trim((string) $group['type']);
+                if ($text !== '') {
+                    $out[] = ['label' => $text, 'price' => (float) ($group['price'] ?? 0)];
+                }
+                continue;
+            }
+
+            foreach ($group as $key => $value) {
+                if (in_array($key, ['name', 'required', 'min', 'max'], true)) {
+                    continue;
+                }
+                if (is_string($value) && trim($value) !== '') {
+                    $out[] = ['label' => trim($value), 'price' => 0.0];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return list<array{label: string, price: float}>
+     */
+    private static function detailAddons(mixed $detail): array
+    {
+        $ids = self::decodeList($detail->add_on_ids ?? []);
+        $qtys = self::decodeList($detail->add_on_qtys ?? []);
+        $prices = self::decodeList($detail->add_on_prices ?? []);
+        $out = [];
+
+        foreach ($ids as $index => $id) {
+            $name = '';
+            $unitPrice = (float) ($prices[$index] ?? 0);
+            $addonQty = (int) ($qtys[$index] ?? 1);
+
+            if (is_array($id)) {
+                $name = trim((string) ($id['name'] ?? ''));
+                if (isset($id['price'])) {
+                    $unitPrice = (float) $id['price'];
+                }
+                $id = $id['id'] ?? null;
+            }
+
+            if ($name === '' && $id) {
+                try {
+                    $addon = AddOn::query()->find($id);
+                    $name = $addon ? trim((string) $addon->name) : '';
+                } catch (\Throwable) {
+                    $name = '';
+                }
+            }
+
+            if ($name === '') {
+                $name = 'Add-on';
+            }
+            if ($addonQty < 1) {
+                $addonQty = 1;
+            }
+
+            $out[] = [
+                'label' => $name,
+                'price' => round($unitPrice * $addonQty, 2),
+            ];
+        }
+
+        return $out;
+    }
+
+    private static function detailBasePrice(float $unitPrice, float $variationSurcharge): float
+    {
+        if ($variationSurcharge > 0 && $unitPrice >= $variationSurcharge) {
+            return round($unitPrice - $variationSurcharge, 2);
+        }
+
+        return round($unitPrice, 2);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private static function decodeList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_object($value)) {
+            $encoded = json_decode(json_encode($value), true);
+
+            return is_array($encoded) ? $encoded : [];
+        }
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 
     private static function detailName(mixed $detail): string
