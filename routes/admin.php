@@ -75,6 +75,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::post('order-stats', [DashboardController::class, 'orderStats'])->name('order-stats');
         Route::get('dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live-stats');
         Route::get('dashboard/live-cards', DashboardLiveCardsController::class)->name('dashboard.live-cards');
+        Route::get('dashboard/sales-kpis', [DashboardController::class, 'salesKpis'])->name('dashboard.sales-kpis');
         Route::get('settings', [SystemController::class, 'settings'])->name('settings');
         Route::post('settings', [SystemController::class, 'settingsUpdate']);
         Route::post('settings-password', [SystemController::class, 'settingsPasswordUpdate'])->name('settings-password');

@@ -12,6 +12,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
 use App\Model\Review;
+use App\Services\AdminDashboardSalesKpiService;
 use App\Services\DashboardOrderOperationsService;
 use App\User;
 use Carbon\CarbonPeriod;
@@ -33,6 +34,7 @@ class DashboardController extends Controller
         private Category    $category,
         private Branch      $branch,
         private DashboardOrderOperationsService $orderOperations,
+        private AdminDashboardSalesKpiService $salesKpis,
     )
     {}
 
@@ -153,8 +155,10 @@ class DashboardController extends Controller
 
         $data['recent_orders'] = $this->order->latest()->take(5)->get();
         $operations = $this->orderOperations->dashboardCounts(null);
+        $salesKpis = $this->salesKpis->summarize(null, 'today');
+        $kpiBranches = $this->branch->orderBy('name')->get(['id', 'name']);
 
-        return view('admin-views.dashboard', compact('data', 'earning', 'order_statistics_chart', 'donut', 'operations'));
+        return view('admin-views.dashboard', compact('data', 'earning', 'order_statistics_chart', 'donut', 'operations', 'salesKpis', 'kpiBranches'));
     }
 
     /**
@@ -177,6 +181,11 @@ class DashboardController extends Controller
     public function liveStats(): JsonResponse
     {
         return response()->json(LivePresenceService::adminStats(), 200);
+    }
+
+    public function salesKpis(Request $request): JsonResponse
+    {
+        return response()->json($this->salesKpis->forRequest($request));
     }
 
     /**

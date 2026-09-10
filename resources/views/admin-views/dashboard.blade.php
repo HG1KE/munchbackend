@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" src="{{asset('public/assets/admin')}}/vendor/apex/apexcharts.css"></link>
     <link rel="stylesheet" href="{{ asset('public/assets/admin/css/meatco-order-operations.css') }}?v=1.12">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-dashboard-kpis.css') }}?v=1.0">
 @endpush
 
 @section('content')
@@ -19,6 +20,8 @@
                 </div>
             </div>
             @if(Helpers::module_permission_check(MANAGEMENT_SECTION['dashboard_management']))
+
+            @include('admin-views.partials._dashboard-sales-kpis')
 
             <div class="card card-body mb-3">
                 @include('partials._dashboard-online-orders', [
@@ -585,5 +588,6 @@
                 }
             </script>
             <script src="{{ asset('public/assets/admin/js/dashboard-online-orders.js') }}?v=1.1"></script>
+            <script src="{{ asset('public/assets/admin/js/munch-dashboard-kpis.js') }}?v=1.0"></script>
 
         @endpush
