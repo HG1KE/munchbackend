@@ -45,6 +45,8 @@
         advanced: false,
         action: 'set_exact',
         value: '',
+        fillAll: '',
+        productValues: {},
         channelOps: {
             pos: { action: 'set_exact', value: '' },
             uber: { action: 'set_exact', value: '' },
@@ -324,6 +326,8 @@
         bulk.perChannel = false;
         bulk.action = 'set_exact';
         bulk.value = '';
+        bulk.fillAll = '';
+        bulk.productValues = {};
         bulk.pricesLoading = false;
         bulkProductSeq += 1;
         bulkPriceSeq += 1;
@@ -395,10 +399,15 @@
         if (!bulk.advanced) {
             priceControls += '<div class="mt-3"><label class="munch-pricing-field-label">Action</label>' +
                 '<p class="munch-pricing-simple-action">Set Exact Price</p>' +
-                '<label>New selling price</label>' +
-                '<input class="form-control" id="bulk-value" type="number" min="0" step="0.01" value="' +
-                escapeAttr(bulk.value) + '" placeholder="e.g. 900">' +
-                '<p class="munch-pricing-simple-hint">Enter the price customers will see. Preview always compares current selling price → new selling price.</p></div>';
+                '<div class="munch-pricing-fill-all">' +
+                '<label class="munch-pricing-field-label">Fill All</label>' +
+                '<div class="d-flex gap-2">' +
+                '<input class="form-control" id="bulk-fill-all" type="number" min="0" step="0.01" value="' +
+                escapeAttr(bulk.fillAll) + '" placeholder="e.g. 850">' +
+                '<button type="button" class="btn btn-outline-primary" id="bulk-fill-all-apply">Fill</button>' +
+                '</div>' +
+                '<p class="munch-pricing-simple-hint">Fills every selected product. Change any row afterwards.</p></div>' +
+                '<div id="bulk-product-editors" class="munch-pricing-product-editors"></div></div>';
         } else if (bulk.perChannel) {
             priceControls += '<label class="munch-pricing-advanced-toggle">' +
                 '<input type="checkbox" id="bulk-per-channel" checked> Different action per channel</label>';
@@ -458,6 +467,7 @@
             '<button type="button" class="btn btn-outline-primary" id="bulk-preview">Preview Changes</button>' +
             '<button type="button" class="btn btn-primary" id="bulk-apply" ' + (bulk.preview && bulk.preview.count ? '' : 'disabled') + '>Apply</button>' +
             '</div></div>';
+        if (bulk.tab === 'price') renderProductEditors();
     }
 
     function option(value, label, selected) {
@@ -548,12 +558,70 @@
         return Object.keys(map).filter(function (id) { return map[id]; }).map(Number);
     }
 
+    function usesPerProductPrices() {
+        if (bulk.tab !== 'price') return false;
+        if (!bulk.advanced) return true;
+        return !bulk.perChannel && bulk.action === 'set_exact';
+    }
+
+    function productValuesPayload() {
+        var out = {};
+        selectedIds(bulk.selectedProducts).forEach(function (id) {
+            var value = Number(bulk.productValues[id] || 0);
+            if (value > 0) out[id] = value;
+        });
+        return out;
+    }
+
+    function selectedProductModels() {
+        return bulk.products.filter(function (p) { return !!bulk.selectedProducts[p.id]; });
+    }
+
+    function renderProductEditors() {
+        var mount = document.getElementById('bulk-product-editors');
+        if (!mount) return;
+        if (!usesPerProductPrices()) {
+            mount.innerHTML = '';
+            return;
+        }
+        var selected = selectedProductModels();
+        if (!selected.length) {
+            mount.innerHTML = '<p class="text-muted mb-0">Select products to set a selling price for each one.</p>';
+            return;
+        }
+        mount.innerHTML = selected.map(function (p) {
+            var current = productCurrentPriceLabel(p);
+            return '<article class="munch-pricing-product-editor">' +
+                '<h4>' + escapeHtml(p.name) + '</h4>' +
+                '<div class="munch-pricing-current-selling"><span>Current Selling Price</span>' +
+                '<strong data-bulk-editor-price="' + p.id + '">' + escapeHtml(current) + '</strong></div>' +
+                '<label>New Price</label>' +
+                '<input class="form-control" data-bulk-product-value="' + p.id + '" type="number" min="0" step="0.01" value="' +
+                escapeAttr(bulk.productValues[p.id] != null ? bulk.productValues[p.id] : '') + '" placeholder="e.g. 900">' +
+                '</article>';
+        }).join('');
+    }
+
+    function fillAllSelectedProductValues() {
+        selectedIds(bulk.selectedProducts).forEach(function (id) {
+            bulk.productValues[id] = bulk.fillAll;
+        });
+        renderProductEditors();
+        bulk.preview = null;
+        schedulePriceRefresh();
+    }
+
     function bulkPricePayload() {
         var channels = selectedChannels(bulk.channels);
+        var values = usesPerProductPrices() ? productValuesPayload() : {};
+        var productIds = Object.keys(values).length
+            ? Object.keys(values).map(Number)
+            : selectedIds(bulk.selectedProducts);
         var body = {
-            product_ids: selectedIds(bulk.selectedProducts),
+            product_ids: productIds,
             branch_ids: selectedIds(bulk.selectedBranches)
         };
+        if (Object.keys(values).length) body.product_values = values;
         if (bulk.advanced && bulk.perChannel) {
             body.operations = channels.map(function (ch) {
                 var op = ensureChannelOp(ch);
@@ -580,6 +648,9 @@
         var url;
         if (bulk.tab === 'price') {
             body = bulkPricePayload();
+            if (usesPerProductPrices() && !Object.keys(productValuesPayload()).length) {
+                return showToast(false, 'Enter a new price for at least one product');
+            }
             if (!body.product_ids.length) return showToast(false, 'Choose products first');
             if (!(body.channels || []).length && !(body.operations || []).length) return showToast(false, 'Choose at least one channel');
             if (!body.branch_ids.length) return showToast(false, 'Choose branches first');
@@ -646,15 +717,20 @@
     function resetAfterBulkPriceApply() {
         uncheckBulkProducts();
         bulk.value = '';
+        bulk.fillAll = '';
+        bulk.productValues = {};
         bulk.preview = null;
         CHANNELS.forEach(function (ch) {
             if (bulk.channelOps[ch]) bulk.channelOps[ch].value = '';
         });
         var valueInput = document.getElementById('bulk-value');
         if (valueInput) valueInput.value = '';
+        var fillInput = document.getElementById('bulk-fill-all');
+        if (fillInput) fillInput.value = '';
         els.modalBody.querySelectorAll('[data-bulk-op-value]').forEach(function (el) {
             el.value = '';
         });
+        renderProductEditors();
         refreshBulkPrices({ keepCurrent: true, refetchCurrent: true });
     }
 
@@ -892,9 +968,12 @@
     els.modal.addEventListener('input', function (ev) {
         if (ev.target.id === 'bulk-product-search') bulk.productQuery = ev.target.value;
         if (ev.target.id === 'bulk-value') bulk.value = ev.target.value;
+        if (ev.target.id === 'bulk-fill-all') bulk.fillAll = ev.target.value;
         var opValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-op-value');
         if (opValue) ensureChannelOp(opValue).value = ev.target.value;
-        if (ev.target.id === 'bulk-value' || opValue) {
+        var productValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-product-value');
+        if (productValue) bulk.productValues[productValue] = ev.target.value;
+        if (ev.target.id === 'bulk-value' || opValue || productValue) {
             bulk.preview = null;
             schedulePriceRefresh();
         }
@@ -966,9 +1045,18 @@
             return;
         }
         if (ev.target.matches('[data-bulk-product]')) {
-            bulk.selectedProducts[ev.target.getAttribute('data-bulk-product')] = ev.target.checked;
+            var productId = ev.target.getAttribute('data-bulk-product');
+            bulk.selectedProducts[productId] = ev.target.checked;
+            if (ev.target.checked) {
+                if (bulk.productValues[productId] == null || bulk.productValues[productId] === '') {
+                    bulk.productValues[productId] = bulk.fillAll || '';
+                }
+            } else {
+                delete bulk.productValues[productId];
+            }
             dropUnselectedCurrentRows();
             bulk.preview = null;
+            renderProductEditors();
             patchBulkPriceUi();
             refreshBulkPrices({ keepCurrent: true, refetchCurrent: true });
             return;
@@ -1004,9 +1092,16 @@
         }
         if (ev.target.id === 'bulk-preview') runPreview();
         if (ev.target.id === 'bulk-apply') runApply();
+        if (ev.target.id === 'bulk-fill-all-apply') fillAllSelectedProductValues();
         if (ev.target.id === 'bulk-select-visible') {
-            bulk.products.forEach(function (p) { bulk.selectedProducts[p.id] = true; });
+            bulk.products.forEach(function (p) {
+                bulk.selectedProducts[p.id] = true;
+                if (bulk.productValues[p.id] == null || bulk.productValues[p.id] === '') {
+                    bulk.productValues[p.id] = bulk.fillAll || '';
+                }
+            });
             els.modalBody.querySelectorAll('[data-bulk-product]').forEach(function (el) { el.checked = true; });
+            renderProductEditors();
             refreshBulkPrices({ keepCurrent: true, refetchCurrent: true });
         }
         if (ev.target.id === 'bulk-select-branches') {
@@ -1077,6 +1172,12 @@
             if (ev.target.id === 'copy-apply') runCopyApply();
         });
     }
+    els.modal.addEventListener('keydown', function (ev) {
+        if (ev.target.id === 'bulk-fill-all' && ev.key === 'Enter') {
+            ev.preventDefault();
+            fillAllSelectedProductValues();
+        }
+    });
     els.modal.addEventListener('keyup', debounce(function (ev) {
         if (ev.target.id === 'bulk-product-search') loadBulkProducts();
     }, 250));
@@ -1118,6 +1219,9 @@
         Object.keys(bulk.selectedProducts).forEach(function (id) {
             if (!visible[id]) delete bulk.selectedProducts[id];
         });
+        Object.keys(bulk.productValues).forEach(function (id) {
+            if (!visible[id] || !bulk.selectedProducts[id]) delete bulk.productValues[id];
+        });
     }
 
     function priceProductIds() {
@@ -1157,8 +1261,10 @@
 
     function patchBulkPriceUi() {
         bulk.products.forEach(function (p) {
-            var el = els.modalBody.querySelector('[data-bulk-product-price="' + p.id + '"]');
-            if (el) el.textContent = productCurrentPriceLabel(p);
+            var label = productCurrentPriceLabel(p);
+            els.modalBody.querySelectorAll('[data-bulk-product-price="' + p.id + '"], [data-bulk-editor-price="' + p.id + '"]').forEach(function (el) {
+                el.textContent = label;
+            });
         });
         var panel = document.getElementById('bulk-preview-panel');
         if (panel) panel.innerHTML = renderPreview(bulk.preview);
@@ -1231,6 +1337,7 @@
         if (!selectedIds(bulk.selectedProducts).length) return false;
         if (!selectedIds(bulk.selectedBranches).length) return false;
         if (!selectedChannels(bulk.channels).length) return false;
+        if (usesPerProductPrices()) return Object.keys(productValuesPayload()).length > 0;
         if (bulk.advanced && bulk.perChannel) {
             return selectedChannels(bulk.channels).some(function (ch) {
                 var op = ensureChannelOp(ch);

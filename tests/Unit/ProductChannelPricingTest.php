@@ -160,4 +160,22 @@ class ProductChannelPricingTest extends TestCase
         $this->assertStringContainsString('effectiveSellingPrice($unit, $payload)', $src);
         $this->assertStringContainsString("input('action', 'set_exact')", file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php')));
     }
+
+    public function test_bulk_set_exact_accepts_a_different_price_per_product(): void
+    {
+        $bulk = new ProductBulkPricingService($this->pricing());
+        $values = $bulk->normalizeProductValues([
+            '12' => '900',
+            15 => 650,
+            ['product_id' => 20, 'value' => 780],
+            9 => 0,
+        ]);
+
+        $this->assertSame(900.0, $values[12]);
+        $this->assertSame(650.0, $values[15]);
+        $this->assertSame(780.0, $values[20]);
+        $this->assertArrayNotHasKey(9, $values);
+        $this->assertSame(900.0, $bulk->applyAction(790, 'set_exact', $values[12]));
+        $this->assertSame(650.0, $bulk->applyAction(590, 'set_exact', $values[15]));
+    }
 }

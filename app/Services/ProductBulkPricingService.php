@@ -94,11 +94,13 @@ class ProductBulkPricingService
      * @param  list<int>  $productIds
      * @param  list<int>  $branchIds
      * @param  list<array<string, mixed>>  $operations
+     * @param  array<int|string, mixed>  $productValues
      * @return array{rows: list<array<string, mixed>>, count: int, truncated: bool, error?: string}
      */
-    public function previewPrices(array $productIds, array $branchIds, array $operations): array
+    public function previewPrices(array $productIds, array $branchIds, array $operations, array $productValues = []): array
     {
         $operations = $this->normalizePriceOperations($operations);
+        $productValues = $this->normalizeProductValues($productValues);
         if ($operations === []) {
             return ['rows' => [], 'count' => 0, 'truncated' => false, 'error' => 'Select at least one channel'];
         }
@@ -113,8 +115,16 @@ class ProductBulkPricingService
         $rows = [];
         foreach ($operations as $op) {
             foreach ($pairsByChannel[$op['channel']] ?? [] as $pair) {
+                $productId = (int) $pair['product_id'];
+                if ($productValues !== [] && ! array_key_exists($productId, $productValues)) {
+                    continue;
+                }
                 $current = $pair['price'];
-                $next = $this->applyAction($current, $op['action'], $op['value']);
+                $next = $this->applyAction(
+                    $current,
+                    $op['action'],
+                    $productValues[$productId] ?? $op['value']
+                );
                 if (abs($next - $current) <= 0.009) {
                     continue;
                 }
@@ -138,11 +148,12 @@ class ProductBulkPricingService
      * @param  list<int>  $productIds
      * @param  list<int>  $branchIds
      * @param  list<array<string, mixed>>  $operations
+     * @param  array<int|string, mixed>  $productValues
      * @return array{saved: int, error?: string}
      */
-    public function applyPrices(array $productIds, array $branchIds, array $operations): array
+    public function applyPrices(array $productIds, array $branchIds, array $operations, array $productValues = []): array
     {
-        $preview = $this->previewPrices($productIds, $branchIds, $operations);
+        $preview = $this->previewPrices($productIds, $branchIds, $operations, $productValues);
         if (! empty($preview['error'])) {
             return ['saved' => 0, 'error' => $preview['error']];
         }
@@ -309,6 +320,32 @@ class ProductBulkPricingService
                 'action' => $action,
                 'value' => (float) ($op['value'] ?? 0),
             ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Per-product selling prices for Set Exact Price. Empty means every selected
+     * product uses the operation value, matching the original bulk behaviour.
+     *
+     * @param  array<int|string, mixed>  $raw
+     * @return array<int, float>
+     */
+    public function normalizeProductValues(array $raw): array
+    {
+        $out = [];
+        foreach ($raw as $key => $value) {
+            if (is_array($value)) {
+                $id = (int) ($value['product_id'] ?? $value['id'] ?? 0);
+                $amount = (float) ($value['value'] ?? $value['price'] ?? 0);
+            } else {
+                $id = (int) $key;
+                $amount = (float) $value;
+            }
+            if ($id > 0 && $amount > 0) {
+                $out[$id] = $this->pricing->money($amount);
+            }
         }
 
         return $out;

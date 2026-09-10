@@ -119,7 +119,8 @@ class ProductPricingController extends Controller
         $result = $this->bulk->previewPrices(
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
-            $this->bulkPriceOperations($request)
+            $this->bulkPriceOperations($request),
+            $this->bulkProductValues($request)
         );
 
         if (! empty($result['error'])) {
@@ -141,7 +142,8 @@ class ProductPricingController extends Controller
         $result = $this->bulk->applyPrices(
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
-            $this->bulkPriceOperations($request)
+            $this->bulkPriceOperations($request),
+            $this->bulkProductValues($request)
         );
 
         if (! empty($result['error'])) {
@@ -268,6 +270,19 @@ class ProductPricingController extends Controller
         }
 
         return $this->bulk->normalizePriceOperations($ops);
+    }
+
+    /**
+     * @return array<int, float>
+     */
+    private function bulkProductValues(Request $request): array
+    {
+        $raw = $request->input('product_values', []);
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return $this->bulk->normalizeProductValues($raw);
     }
 
     /**

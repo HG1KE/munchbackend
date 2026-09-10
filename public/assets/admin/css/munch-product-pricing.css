@@ -529,6 +529,54 @@
     }
 }
 
+.munch-pricing-fill-all {
+    margin-bottom: 1rem;
+}
+
+.munch-pricing-product-editors {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.munch-pricing-product-editor {
+    border: 1px solid var(--mp-border);
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 0.85rem 1rem;
+}
+
+.munch-pricing-product-editor h4 {
+    margin: 0 0 0.65rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.munch-pricing-current-selling {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 0.65rem;
+}
+
+.munch-pricing-current-selling span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mp-muted);
+}
+
+.munch-pricing-current-selling strong {
+    font-size: 1.05rem;
+}
+
+.munch-pricing-product-editor label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
+
 body.munch-pricing-open {
     overflow: hidden;
 }

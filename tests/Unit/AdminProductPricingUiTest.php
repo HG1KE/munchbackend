@@ -81,8 +81,8 @@ class AdminProductPricingUiTest extends TestCase
         $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
 
         $this->assertStringContainsString('data-current-price-url', $list);
-        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.7", $list);
-        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.2", $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.8", $list);
+        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.3", $list);
         $this->assertStringContainsString("cache: 'no-store'", $js);
         $this->assertStringContainsString('bulkProductSeq', $js);
         $this->assertStringContainsString('bulkPriceSeq', $js);
@@ -96,12 +96,19 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('Set Exact Price', $js);
         $this->assertStringContainsString('Advanced adjustments', $js);
         $this->assertStringContainsString('Channels — select one or more', $js);
+        $this->assertStringContainsString('Fill All', $js);
+        $this->assertStringContainsString('data-bulk-product-value', $js);
+        $this->assertStringContainsString('product_values', $js);
+        $this->assertStringContainsString('renderProductEditors', $js);
+        $this->assertStringContainsString('Current Selling Price', $js);
+        $this->assertStringContainsString('New Price', $js);
         $this->assertStringContainsString("id=\"bulk-advanced\"", $js);
-        $this->assertStringContainsString('New selling price', $js);
         $this->assertStringContainsString("money(row.current_price) + ' → ' + money(row.new_price)", $js);
         $this->assertStringNotContainsString('product.price', $js);
-        $this->assertStringContainsString('munch-pricing-simple-action', $css);
+        $this->assertStringContainsString('munch-pricing-product-editor', $css);
         $this->assertStringContainsString("input('action', 'set_exact')", $controller);
+        $this->assertStringContainsString('bulkProductValues', $controller);
+        $this->assertStringContainsString('normalizeProductValues', $bulk);
         $this->assertStringContainsString('no-store, no-cache, must-revalidate', $controller);
         $this->assertStringContainsString('function currentPrices', $bulk);
         $this->assertStringContainsString('defaultSellingPrice', $bulk);
