@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\OrderAutomationController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductPricingController;
+use App\Http\Controllers\Admin\ReceiptTemplateController;
 use App\Http\Controllers\Admin\QRCodeController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewsController;
@@ -380,6 +381,12 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
                 Route::get('order-index', [BusinessSettingsController::class, 'orderIndex'])->name('order-index');
                 Route::post('order-update', [BusinessSettingsController::class, 'orderUpdate'])->name('order-update');
+
+                Route::get('receipt-templates', [ReceiptTemplateController::class, 'index'])->name('receipt-templates');
+                Route::get('receipt-templates/payload', [ReceiptTemplateController::class, 'payload'])->name('receipt-templates.payload');
+                Route::post('receipt-templates/save', [ReceiptTemplateController::class, 'save'])->name('receipt-templates.save');
+                Route::post('receipt-templates/reset', [ReceiptTemplateController::class, 'reset'])->name('receipt-templates.reset');
+                Route::post('receipt-templates/logo', [ReceiptTemplateController::class, 'uploadLogo'])->name('receipt-templates.logo');
 
                 Route::get('qrcode-index', [QRCodeController::class, 'index'])->name('qrcode-index');
                 Route::post('qrcode/store', [QRCodeController::class, 'store'])->name('qrcode.store');

@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Schema;
 
 class BranchPosCatalogService
 {
+    public function __construct(
+        private ReceiptTemplateService $receipts,
+    ) {
+    }
     /**
      * Compact catalog for the offline-first Branch POS. Cached in IndexedDB on the client.
      *
@@ -122,6 +126,8 @@ class BranchPosCatalogService
             'placeholder_image' => asset('public/assets/admin/img/160x160/img2.jpg'),
             'pos_mpesa_enabled' => $this->branchPosMpesaEnabled($branch),
             'mpesa_till' => trim((string) ($branch?->mpesa_till ?? '')),
+            'restaurant_name' => (string) (Helpers::get_business_settings('restaurant_name') ?: 'MUNCH'),
+            'receipt' => $this->receipts->forBranch($branch),
             'categories' => $categories,
             'products' => $mappedProducts,
             'tables' => $tables,
@@ -160,6 +166,10 @@ class BranchPosCatalogService
             (string) $this->channelPriceStamp($branchId),
             $this->branchPosMpesaEnabled($branchSettings) ? '1' : '0',
             trim((string) ($branchSettings?->mpesa_till ?? '')),
+            'pos-receipt-templates-1',
+            (string) ($branchSettings?->updated_at ?? ''),
+            md5((string) ($branchSettings?->receipt_settings ?? '')),
+            md5((string) json_encode(Helpers::get_business_settings(ReceiptTemplateService::SETTINGS_KEY) ?: [])),
         ]));
     }
 

@@ -163,6 +163,7 @@ class BranchPosTodayOrdersService
             'change' => max(0, $paid - $grand),
             'mpesa_till' => trim((string) ($order->branch?->mpesa_till ?? '')),
             'rider_name' => trim((string) ($order->rider_name ?? '')),
+            'rider_phone' => trim((string) ($order->rider_phone ?? '')),
             'kitchen_printed' => $order->kitchen_printed_at !== null,
             'receipt_printed' => $order->receipt_printed_at !== null,
             'cancellable' => \App\Services\PosOrderCancellationService::isCancellable($order),

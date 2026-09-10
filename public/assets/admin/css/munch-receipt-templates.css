@@ -1,0 +1,125 @@
+.munch-receipt-app {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.munch-receipt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: end;
+}
+
+.munch-receipt-toolbar label {
+    font-weight: 700;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.munch-receipt-tabs {
+    display: flex;
+    gap: 0.4rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.munch-receipt-tabs button {
+    border: 0;
+    background: transparent;
+    font-weight: 800;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    color: #64748b;
+}
+
+.munch-receipt-tabs button.is-active {
+    background: #111827;
+    color: #fff;
+}
+
+.munch-receipt-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+@media (max-width: 991px) {
+    .munch-receipt-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.munch-receipt-card h3 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    margin: 0 0 0.85rem;
+}
+
+.munch-receipt-checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.35rem 0.75rem;
+}
+
+.munch-receipt-checks label {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.munch-receipt-preview-wrap {
+    position: sticky;
+    top: 1rem;
+}
+
+.munch-receipt-paper {
+    width: 80mm;
+    min-height: 120mm;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.munch-receipt-paper.is-58 {
+    width: 58mm;
+}
+
+.munch-receipt-paper iframe {
+    display: block;
+    width: 100%;
+    min-height: 420px;
+    border: 0;
+    background: #fff;
+}
+
+.munch-receipt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.munch-receipt-hint {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.munch-receipt-logo-preview {
+    max-width: 120px;
+    max-height: 72px;
+    display: block;
+    margin-top: 0.5rem;
+}
+
+.munch-receipt-app[data-locked="1"] .munch-receipt-editor .munch-receipt-card:not([data-section="print"]) input,
+.munch-receipt-app[data-locked="1"] .munch-receipt-editor .munch-receipt-card:not([data-section="print"]) select,
+.munch-receipt-app[data-locked="1"] .munch-receipt-editor .munch-receipt-card:not([data-section="print"]) textarea,
+.munch-receipt-app[data-locked="1"] .munch-receipt-editor .munch-receipt-card:not([data-section="print"]) button[data-needs-edit] {
+    pointer-events: none;
+    opacity: 0.65;
+}

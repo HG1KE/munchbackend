@@ -138,6 +138,10 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
             Route::post('update', [BusinessSettingsController::class, 'settingsUpdate'])->name('update');
             Route::post('add-schedule', [BusinessSettingsController::class, 'addBranchSchedule'])->name('add-schedule');
             Route::get('remove-schedule', [BusinessSettingsController::class, 'removeBranchSchedule'])->name('remove-schedule');
+            Route::get('receipt-templates', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'index'])->name('receipt-templates');
+            Route::post('receipt-templates/save', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'save'])->name('receipt-templates.save');
+            Route::post('receipt-templates/reset', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'reset'])->name('receipt-templates.reset');
+            Route::post('receipt-templates/logo', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'uploadLogo'])->name('receipt-templates.logo');
 
         });
 

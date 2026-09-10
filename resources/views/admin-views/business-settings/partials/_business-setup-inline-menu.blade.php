@@ -11,6 +11,7 @@
             <li class="{{Request::is('admin/business-settings/restaurant/otp-setup')? 'active' : ''}}"><a href="{{route('admin.business-settings.restaurant.otp-setup')}}">{{translate('OTP Setup')}}</a></li>
             <li class="{{Request::is('admin/business-settings/restaurant/customer-settings')? 'active' : ''}}"><a href="{{route('admin.business-settings.restaurant.customer.settings')}}">{{translate('Customers')}}</a></li>
             <li class="{{Request::is('admin/business-settings/restaurant/order-index')? 'active' : ''}}"><a href="{{route('admin.business-settings.restaurant.order-index')}}">{{translate('Orders')}}</a></li>
+            <li class="{{Request::is('admin/business-settings/restaurant/receipt-templates*')? 'active' : ''}}"><a href="{{route('admin.business-settings.restaurant.receipt-templates')}}">{{translate('Receipt Templates')}}</a></li>
             <li class="{{Request::is('admin/business-settings/restaurant/qrcode-index')? 'active' : ''}}"><a href="{{route('admin.business-settings.restaurant.qrcode-index')}}">{{translate('QR Code')}}</a></li>
         </ul>
     </div>

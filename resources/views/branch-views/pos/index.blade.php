@@ -184,7 +184,7 @@
         catalog: @json($catalog),
         branchName: @json($branchName),
         cashierName: @json($branchName),
-        restaurantName: 'MUNCH',
+        restaurantName: @json(\App\CentralLogics\Helpers::get_business_settings('restaurant_name') ?: 'MUNCH'),
         csrf: @json(csrf_token()),
         urls: {
             catalog: @json(route('branch.pos.catalog')),
@@ -306,6 +306,7 @@
         }
     };
 </script>
+<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.7" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.8" defer></script>
 @endpush

@@ -413,10 +413,24 @@
                             <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                         </li>
                         <li class="navbar-vertical-aside-has-menu {{Request::is('branch/business-settings*')?'active':''}}">
-                            <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('branch.business-settings.index')}}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:">
                                 <i class="tio-settings nav-icon"></i>
                                 <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{translate('Business_Setup')}}</span>
                             </a>
+                            <ul class="js-navbar-vertical-aside-submenu nav nav-sub" style="display: {{Request::is('branch/business-settings*')?'block':'none'}}">
+                                <li class="nav-item {{Request::is('branch/business-settings/index')?'active':''}}">
+                                    <a class="nav-link" href="{{route('branch.business-settings.index')}}">
+                                        <span class="tio-circle nav-indicator-icon"></span>
+                                        <span class="text-truncate">{{translate('Branch')}}</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {{Request::is('branch/business-settings/receipt-templates*')?'active':''}}">
+                                    <a class="nav-link" href="{{route('branch.business-settings.receipt-templates')}}">
+                                        <span class="tio-circle nav-indicator-icon"></span>
+                                        <span class="text-truncate">{{translate('Receipt Templates')}}</span>
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
 
                         <li class="nav-item pt-10"></li>
