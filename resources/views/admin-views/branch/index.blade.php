@@ -52,7 +52,8 @@
                                         <div class="col-md-6">
                                             <div class="form-group">
                                                 <label class="input-label" for="mpesa_till">{{ translate('M-PESA Till Number') }}</label>
-                                                <input value="{{ old('mpesa_till') }}" type="text" name="mpesa_till" id="mpesa_till" class="form-control" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="{{ translate('Ex: 123456') }}">
+                                                <input value="{{ old('mpesa_till') }}" type="text" name="mpesa_till" id="mpesa_till" class="form-control" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="{{ translate('Ex: 123456') }}" autocomplete="off">
+                                                <small class="text-muted">{{ translate('Shown to customers in POS Delivery SMS.') }}</small>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -236,6 +237,13 @@
 
     <script>
         "use strict";
+        (function () {
+            var till = document.getElementById('mpesa_till');
+            if (!till) return;
+            till.addEventListener('input', function () {
+                till.value = String(till.value || '').replace(/\D+/g, '').slice(0, 12);
+            });
+        })();
 
         $( document ).ready(function() {
             function initAutocomplete() {

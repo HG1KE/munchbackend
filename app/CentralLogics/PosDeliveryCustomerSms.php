@@ -34,11 +34,13 @@ class PosDeliveryCustomerSms
                 return;
             }
 
+            $vars = self::buildVariables($order);
             $result = SMS_module::sendViaTemplate(
                 SmsTemplateCatalog::POS_DELIVERY_CUSTOMER,
                 $phone,
-                self::buildVariables($order),
-                'pos_delivery_customer'
+                $vars,
+                'pos_delivery_customer',
+                fn (string $message) => self::omitEmptySections($message, $vars)
             );
 
             if ($result === 'success' && Schema::hasColumn('orders', 'customer_pos_delivery_sms_sent_at')) {
@@ -66,9 +68,24 @@ class PosDeliveryCustomerSms
         $order->loadMissing(['customer', 'branch', 'details', 'customer_delivery_address']);
 
         $customerPhone = (string) (self::resolveCustomerPhone($order) ?? '');
-        $deliveryFee = number_format((float) $order->delivery_charge, 2, '.', '');
-        $total = number_format((float) $order->order_amount, 2, '.', '');
-        $subtotal = number_format(max(0, (float) $order->order_amount - (float) $order->delivery_charge), 2, '.', '');
+        $riderName = trim((string) ($order->rider_name ?? ''));
+        $riderPhone = trim((string) ($order->rider_phone ?? ''));
+        $till = $order->branch ? trim((string) ($order->branch->mpesa_till ?? '')) : '';
+        $deliveryFee = self::formatMoney((float) $order->delivery_charge);
+        $total = self::formatMoney((float) $order->order_amount);
+        $subtotal = self::formatMoney(max(0, (float) $order->order_amount - (float) $order->delivery_charge));
+
+        $riderInfo = '';
+        if ($riderName !== '') {
+            $riderInfo = ' and will be delivered by '.$riderName;
+            if ($riderPhone !== '') {
+                $riderInfo .= ' ('.$riderPhone.')';
+            }
+        }
+
+        $mpesaInfo = $till !== ''
+            ? "\n\nPlease pay to M-PESA Till ".$till." if you haven't already."
+            : '';
 
         return [
             'order_id' => Helpers::order_display_id($order),
@@ -79,11 +96,39 @@ class PosDeliveryCustomerSms
             'delivery_fee' => $deliveryFee,
             'subtotal' => $subtotal,
             'total' => $total,
-            'rider_name' => trim((string) ($order->rider_name ?? '')),
-            'rider_phone' => trim((string) ($order->rider_phone ?? '')),
-            'mpesa_till' => $order->branch ? trim((string) ($order->branch->mpesa_till ?? '')) : '',
+            'rider_name' => $riderName,
+            'rider_phone' => $riderPhone,
+            'rider_info' => $riderInfo,
+            'mpesa_till' => $till,
+            'mpesa_info' => $mpesaInfo,
             'items' => self::formatItems($order),
         ];
+    }
+
+    public static function omitEmptySections(string $message, array $vars): string
+    {
+        if (trim((string) ($vars['mpesa_till'] ?? '')) === '') {
+            $message = preg_replace('/\R*Please pay to M-PESA Till[^\n]*/i', '', $message) ?? $message;
+            $message = str_replace('{mpesa_info}', '', $message);
+        }
+        if (trim((string) ($vars['rider_name'] ?? '')) === '') {
+            $message = preg_replace('/\s+and will be delivered by[^.]*\./i', '.', $message) ?? $message;
+            $message = preg_replace('/\s+will be delivered by\s*(?:\([^)]*\))?/i', '', $message) ?? $message;
+            $message = str_replace('{rider_info}', '', $message);
+        }
+
+        $message = preg_replace("/\n{3,}/", "\n\n", $message) ?? $message;
+
+        return trim($message);
+    }
+
+    private static function formatMoney(float $amount): string
+    {
+        try {
+            return Helpers::set_symbol($amount);
+        } catch (\Throwable) {
+            return 'KES '.number_format($amount, 2, '.', '');
+        }
     }
 
     private static function resolveCustomerName(Order $order): string

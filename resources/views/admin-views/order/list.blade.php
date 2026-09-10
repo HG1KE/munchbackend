@@ -271,6 +271,7 @@
                                     @else
                                         <span class="text-danger">{{translate('unpaid')}}</span>
                                     @endif
+                                    <div class="small text-muted">{{ translate('Payment Method') }}: {{ \App\Support\PosOrderTypes::paymentDisplayLabel($order->payment_method) }}</div>
                                 </td>
                                 <td class="text-capitalize">
                                     @if($order['order_status']=='pending')
@@ -290,7 +291,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge-soft-success px-2 py-1 rounded">{{translate($order['order_type'])}}</span>
+                                    @include('partials.sales-channel-badge', ['channel' => $order->sales_channel, 'fallbackType' => $order->order_type])
                                 </td>
                                 <td>
                                     <div class="d-flex justify-content-center gap-2">

@@ -175,8 +175,9 @@
             </dl>
         </div>
     </div>
-    <div class="d-flex flex-row justify-content-between border-top">
-        <span>{{translate('Paid_by')}}: {{ translate($order->payment_method)}}</span>
+    <div class="d-flex flex-column gap-1 border-top">
+        <span>{{translate('Payment Status')}}: {{ translate($order->payment_status == 'paid' ? 'Paid' : 'Unpaid') }}</span>
+        <span>{{translate('Payment Method')}}: {{ \App\Support\PosOrderTypes::paymentDisplayLabel($order->payment_method) }}</span>
     </div>
     <span>--------------------------------------------</span>
     <h5 class="text-center pt-3">

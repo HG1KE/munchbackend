@@ -101,10 +101,10 @@
 
                                     <div class="text-capitalize d-flex gap-3 justify-content-sm-end mb-3">
                                         <span>{{translate('payment')}} {{translate('method')}} :</span>
-                                        <span class="text-dark">{{str_replace('_',' ',$order['payment_method'])}}</span>
+                                        <span class="text-dark">{{ \App\Support\PosOrderTypes::paymentDisplayLabel($order['payment_method']) }}</span>
                                     </div>
 
-                                    @if(!in_array($order['payment_method'], ['cash_on_delivery', 'wallet_payment', 'offline_payment']))
+                                    @if(!in_array($order['payment_method'], ['cash_on_delivery', 'wallet_payment', 'offline_payment']) && ! \App\Support\PosOrderTypes::isMarketplacePayment($order['payment_method']) && ! \App\Support\PosOrderTypes::isMarketplaceChannel($order->sales_channel ?? null))
                                         @if($order['transaction_reference']==null && $order['order_type']!='pos' && $order['order_type'] != 'dine_in')
                                             <div class="d-flex gap-3 justify-content-sm-end align-items-center mb-3">
                                                 {{translate('reference')}} {{translate('code')}} :
@@ -134,9 +134,7 @@
 
                                     <div class="d-flex gap-3 justify-content-sm-end mb-3 text-capitalize">
                                         {{translate('order')}} {{translate('type')}}
-                                        : <label class="badge-soft-info px-2 rounded">
-                                            {{str_replace('_',' ',$order['order_type'])}}
-                                        </label>
+                                        : @include('partials.sales-channel-badge', ['channel' => $order->sales_channel, 'fallbackType' => $order->order_type])
                                     </div>
                                 </div>
                             </div>

@@ -58,7 +58,9 @@
         $showFoodPreparationControls = ($order->order_type ?? '') != 'pos'
             && ($order->order_type ?? '') != 'take_away'
             && ! in_array($order->order_status ?? '', [DELIVERED, RETURNED, CANCELED, FAILED, COMPLETED], true);
-        $showPaymentReferenceFields = ! in_array($order->payment_method ?? '', ['cash_on_delivery', 'wallet_payment', 'offline_payment'], true);
+        $showPaymentReferenceFields = ! in_array($order->payment_method ?? '', ['cash_on_delivery', 'wallet_payment', 'offline_payment'], true)
+            && ! \App\Support\PosOrderTypes::isMarketplacePayment($order->payment_method ?? null)
+            && ! \App\Support\PosOrderTypes::isMarketplaceChannel($order->sales_channel ?? null);
         $hasOfflinePayment = ! empty($order->offline_payment);
         $showOfflinePaymentCard = $hasOfflinePayment && ! empty($offlinePaymentData);
         $hasBranch = ! empty($order->branch);
@@ -204,7 +206,7 @@
 
                                     <div class="text-capitalize d-flex gap-3 justify-content-sm-end mb-3">
                                         <span>{{translate('payment')}} {{translate('method')}} :</span>
-                                        <span class="text-dark">{{str_replace('_',' ',$order['payment_method'])}}</span>
+                                        <span class="text-dark">{{ \App\Support\PosOrderTypes::paymentDisplayLabel($order['payment_method']) }}</span>
                                     </div>
 
                                     @if($showPaymentReferenceFields)
@@ -241,9 +243,7 @@
 
                                     <div class="d-flex gap-3 justify-content-sm-end mb-3 text-capitalize">
                                         {{translate('order')}} {{translate('type')}}
-                                        : <label class="badge-soft-info px-2 rounded">
-                                            {{str_replace('_',' ',$order['order_type'])}}
-                                        </label>
+                                        : @include('partials.sales-channel-badge', ['channel' => $order->sales_channel, 'fallbackType' => $order->order_type])
                                     </div>
                                 </div>
                             </div>

@@ -260,15 +260,30 @@ class ReportController extends Controller
         $fromDate = Carbon::parse($request->from)->startOfDay();
         $toDate = Carbon::parse($request->to)->endOfDay();
 
-        if ($request['branch_id'] == 'all') {
-            $orders = $this->order->whereBetween('created_at', [$fromDate, $toDate])->pluck('id')->toArray();
+        $channel = (string) $request->input('sales_channel', 'all');
+        $orderQuery = $this->order->whereBetween('created_at', [$fromDate, $toDate])
+            ->when($request['branch_id'] !== 'all', function ($query) use ($request) {
+                $query->where('branch_id', $request['branch_id']);
+            })
+            ->when($channel !== '' && $channel !== 'all', function ($query) use ($channel) {
+                $query->where('sales_channel', $channel);
+            });
 
-        } else {
-            $orders = $this->order
-                ->where(['branch_id' => $request['branch_id']])
-                ->whereBetween('created_at', [$fromDate, $toDate])
-                ->pluck('id')
-                ->toArray();
+        $orders = (clone $orderQuery)->pluck('id')->toArray();
+        $paymentTotals = [
+            'cash' => 0.0,
+            'card' => 0.0,
+            'mpesa' => 0.0,
+            'glovo' => 0.0,
+            'uber' => 0.0,
+            'bolt_food' => 0.0,
+        ];
+        foreach ((clone $orderQuery)->get(['payment_method', 'order_amount']) as $order) {
+            $method = (string) $order->payment_method;
+            $amount = (float) $order->order_amount;
+            if (array_key_exists($method, $paymentTotals)) {
+                $paymentTotals[$method] += $amount;
+            }
         }
 
         $data = [];
@@ -296,6 +311,14 @@ class ReportController extends Controller
             'order_count' => count($data),
             'item_qty' => $totalQuantity,
             'order_sum' => Helpers::set_symbol($totalSold),
+            'payment_totals' => [
+                'cash' => Helpers::set_symbol($paymentTotals['cash']),
+                'card' => Helpers::set_symbol($paymentTotals['card']),
+                'mpesa' => Helpers::set_symbol($paymentTotals['mpesa']),
+                'glovo' => Helpers::set_symbol($paymentTotals['glovo']),
+                'uber' => Helpers::set_symbol($paymentTotals['uber']),
+                'bolt_food' => Helpers::set_symbol($paymentTotals['bolt_food']),
+            ],
             'view' => view('admin-views.report.partials._table', compact('data'))->render(),
         ]);
     }

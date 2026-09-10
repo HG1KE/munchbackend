@@ -50,7 +50,7 @@
                 <form action="javascript:" id="search-form" method="POST">
                     @csrf
                     <div class="row g-2">
-                        <div class="col-sm-6 col-md-4">
+                        <div class="col-sm-6 col-md-3">
                             <select class="custom-select custom-select" name="branch_id" id="branch_id" required>
                                 <option  disabled>{{translate('Select Branch')}}</option>
                                 <option value="all">All</option>
@@ -60,7 +60,19 @@
                             </select>
                         </div>
 
-                        <div class="col-sm-6 col-md-3">
+                        <div class="col-sm-6 col-md-2">
+                            <select class="custom-select" name="sales_channel" id="sales_channel">
+                                <option value="all">{{ translate('All') }} {{ translate('Sales Channel') }}</option>
+                                <option value="delivery">{{ translate('Delivery') }}</option>
+                                <option value="takeaway">{{ translate('Take Away') }}</option>
+                                <option value="dine_in">{{ translate('Dine In') }}</option>
+                                <option value="glovo">Glovo</option>
+                                <option value="uber">Uber</option>
+                                <option value="bolt_food">Bolt Food</option>
+                                <option value="pos">POS</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 col-md-2">
                             <input type="date" name="from" id="from_date" class="form-control" required>
                         </div>
                         <div class="col-sm-6 col-md-3">
@@ -88,6 +100,14 @@
                                 <strong>{{translate('total')}}  {{translate('amount')}} : <span
                                         id="order_amount"></span>
                                 </strong>
+                            </div>
+                            <div id="payment-totals" class="d-flex flex-wrap gap-3 mt-2 small">
+                                <span>{{ translate('Cash') }}: <strong id="pay-cash"></strong></span>
+                                <span>{{ translate('Card') }}: <strong id="pay-card"></strong></span>
+                                <span>{{ translate('M-PESA') }}: <strong id="pay-mpesa"></strong></span>
+                                <span>Glovo: <strong id="pay-glovo"></strong></span>
+                                <span>Uber: <strong id="pay-uber"></strong></span>
+                                <span>Bolt Food: <strong id="pay-bolt_food"></strong></span>
                             </div>
                         </div>
                     </div>
@@ -117,6 +137,14 @@
                     $('#order_count').html(data.order_count);
                     $('#order_amount').html(data.order_sum);
                     $('#item_count').html(data.item_qty);
+                    if (data.payment_totals) {
+                        $('#pay-cash').html(data.payment_totals.cash);
+                        $('#pay-card').html(data.payment_totals.card);
+                        $('#pay-mpesa').html(data.payment_totals.mpesa);
+                        $('#pay-glovo').html(data.payment_totals.glovo);
+                        $('#pay-uber').html(data.payment_totals.uber);
+                        $('#pay-bolt_food').html(data.payment_totals.bolt_food);
+                    }
                     $('#set-rows').html(data.view);
                     $('.card-footer').hide();
                 },

@@ -10,6 +10,7 @@
         cart: { lines: [], orderType: 'take_away', tableId: '', people: '', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {}, rider: {} },
         categoryId: 0,
         search: '',
+        searchDraft: '',
         online: navigator.onLine,
         queueCount: 0,
         queueItems: [],
@@ -22,6 +23,9 @@
     var els = {};
     var renderScheduled = false;
     var toastTimer = 0;
+    var searchTimer = 0;
+    var categoryScroll = {};
+    var lastGridKey = '';
     var ordersUi = {
         open: false,
         search: '',
@@ -205,7 +209,11 @@
     function renderAll() {
         renderStatus();
         renderTabs();
-        renderGrid();
+        var gridKey = [state.categoryId, state.search, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length].join('|');
+        if (gridKey !== lastGridKey) {
+            lastGridKey = gridKey;
+            renderGrid();
+        }
         renderTypes();
         renderExtras();
         renderLines();
@@ -330,22 +338,24 @@
         var i;
         var start = 0;
         var end = list.length;
-        if (list.length > 80) {
-            var rowH = 300;
-            var cols = Math.max(2, Math.floor(els.grid.clientWidth / 220) || 2);
-            var top = els.grid.scrollTop;
-            var vis = Math.ceil(els.grid.clientHeight / rowH) + 3;
+        var savedTop = els.grid.scrollTop;
+        var cols = Math.max(2, Math.floor(els.grid.clientWidth / 180) || 2);
+        var rowH = 220;
+        if (list.length > 48) {
+            var top = savedTop;
+            var vis = Math.ceil(els.grid.clientHeight / rowH) + 4;
             var startRow = Math.max(0, Math.floor(top / rowH) - 1);
             start = startRow * cols;
             end = Math.min(list.length, start + vis * cols);
             html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (startRow * rowH) + 'px"></div>';
         }
         for (i = start; i < end; i++) html += productCard(list[i]);
-        if (list.length > 80) {
+        if (list.length > 48) {
             var remain = Math.ceil((list.length - end) / cols);
-            html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (remain * 300) + 'px"></div>';
+            html += '<div class="munch-pos-virt" style="grid-column:1/-1;height:' + (remain * rowH) + 'px"></div>';
         }
         els.grid.innerHTML = html;
+        els.grid.scrollTop = savedTop;
     }
 
     function productCard(product) {
@@ -695,12 +705,24 @@
         return null;
     }
 
+    function phoneDigits(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
+
+    function invalidPhone(value) {
+        var digits = phoneDigits(value);
+        return digits.length < 9 || digits.length > 12;
+    }
+
     function validateDeliveryDetails() {
         if (!String(state.cart.address.contact_person_name || '').trim()) return CFG.labels.customerName || 'Customer Name';
         if (!String(state.cart.address.contact_person_number || '').trim()) return CFG.labels.customerPhone || 'Customer Phone';
+        if (invalidPhone(state.cart.address.contact_person_number)) return CFG.labels.invalidPhone || 'Invalid phone number';
         if (!String(state.cart.address.address || '').trim()) return CFG.labels.deliveryAddress || CFG.labels.address;
-        if (!String((state.cart.rider && state.cart.rider.rider_name) || '').trim()) return CFG.labels.riderName || 'Rider Name';
-        if (!String((state.cart.rider && state.cart.rider.rider_phone) || '').trim()) return CFG.labels.riderPhone || 'Rider Phone';
+        var riderName = String((state.cart.rider && state.cart.rider.rider_name) || '').trim();
+        var riderPhone = String((state.cart.rider && state.cart.rider.rider_phone) || '').trim();
+        if (riderName && !riderPhone) return CFG.labels.riderPhone || 'Rider Phone';
+        if (riderPhone && invalidPhone(riderPhone)) return CFG.labels.invalidPhone || 'Invalid phone number';
         return null;
     }
 
@@ -757,6 +779,13 @@
     function openDeliveryModal() {
         fillDeliveryModal();
         if (els.deliveryModal) els.deliveryModal.hidden = false;
+        var name = document.getElementById('pos-del-name');
+        if (name) {
+            requestAnimationFrame(function () {
+                name.focus();
+                try { name.select(); } catch (err) {}
+            });
+        }
     }
 
     function closeDeliveryModal() {
@@ -1016,7 +1045,9 @@
             payment_method: state.cart.payment,
             cash_received: paid,
             change: Math.max(0, paid - total),
-            mpesa_till: branchMpesaTill()
+            mpesa_till: branchMpesaTill(),
+            cashier: CFG.cashierName || CFG.branchName || '',
+            riderName: type === 'delivery' ? ((state.cart.rider && state.cart.rider.rider_name) || '') : ''
         };
     }
 
@@ -1052,7 +1083,9 @@
             payment_method: order.payment_method,
             cash_received: order.cash_received,
             change: order.change,
-            mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim()
+            mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim(),
+            cashier: order.cashier || CFG.cashierName || CFG.branchName || '',
+            riderName: order.rider_name || ''
         };
     }
 
@@ -1155,6 +1188,11 @@
             '.order-type{text-align:center;margin:3mm 0 2mm}' +
             '.order-type__label{font-size:' + (kitchen ? '15px' : '14px') + ';font-weight:900;letter-spacing:.1em;margin:0}' +
             '.order-type__value{font-size:' + (kitchen ? '24px' : '22px') + ';font-weight:900;margin:1mm 0 0;letter-spacing:.04em}' +
+            '.order-type__channel{font-size:' + (kitchen ? '16px' : '14px') + ';font-weight:900;margin:1mm 0 0}' +
+            '.ticket-channel{display:inline-block;padding:1mm 2.5mm;border-radius:2mm;font-weight:900}' +
+            '.ticket-channel--glovo{background:#facc15;color:#1c1917}' +
+            '.ticket-channel--uber{background:#111827;color:#fff}' +
+            '.ticket-channel--bolt_food{background:#16a34a;color:#fff}' +
             '@media print{html,body{width:80mm;margin:0;padding:0}}' +
             'html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}';
     }
@@ -1167,8 +1205,14 @@
     }
 
     function orderTypeBannerHtml(job) {
-        return '<div class="order-type"><p class="order-type__label">ORDER TYPE</p>' +
-            '<p class="order-type__value">' + escapeHtml(String(job.orderType || '').toUpperCase()) + '</p></div>';
+        var html = '<div class="order-type"><p class="order-type__label">ORDER TYPE</p>' +
+            '<p class="order-type__value">' + escapeHtml(String(job.orderType || '').toUpperCase()) + '</p>';
+        if (isMarketplaceChannel(job.salesChannel)) {
+            html += '<p class="order-type__channel"><span class="ticket-channel ticket-channel--' + escapeAttr(job.salesChannel) + '">' +
+                escapeHtml(orderTypeLabel(job.salesChannel)).toUpperCase() + '</span></p>';
+        }
+        html += '</div>';
+        return html;
     }
 
     function kitchenTicketHtml(job) {
@@ -1177,9 +1221,7 @@
         html += orderTypeBannerHtml(job);
         html += '<div class="meta">';
         html += '<p>' + escapeHtml(L('order', 'Order')) + ' # ' + escapeHtml(job.number || '') + '</p>';
-        html += '<p>' + escapeHtml(L('date', 'Date')) + ' ' + escapeHtml(job.date || '') + '</p>';
         html += '<p>' + escapeHtml(L('time', 'Time')) + ' ' + escapeHtml(job.time || '') + '</p>';
-        html += '<p>' + escapeHtml(L('branch', 'Branch')) + ' ' + escapeHtml(job.branch || '') + '</p>';
         html += '</div><hr class="rule">';
         html += '<div class="meta"><p>' + escapeHtml(L('items', 'Items')) + '</p></div>';
         (job.items || []).forEach(function (item) {
@@ -1188,16 +1230,15 @@
                 html += '<p class="opt">- ' + escapeHtml(opt) + '</p>';
             });
         });
-        html += '<hr class="rule"><div class="meta">';
-        html += '<p>' + escapeHtml(L('customer', 'Customer')) + '</p><p>' + escapeHtml(job.customer || L('walkIn', 'Walk-in')) + '</p>';
-        if (job.phone) html += '<p>' + escapeHtml(L('phone', 'Phone')) + '</p><p>' + escapeHtml(job.phone) + '</p>';
-        if (job.isDelivery && job.address) {
-            html += '<p>' + escapeHtml(L('addressLabel', 'Address')) + '</p><p>' + escapeHtml(job.address) + '</p>';
+        if (job.isDelivery) {
+            html += '<hr class="rule"><div class="meta">';
+            if (job.customer) html += '<p>' + escapeHtml(L('customer', 'Customer')) + '</p><p>' + escapeHtml(job.customer) + '</p>';
+            if (job.riderName) html += '<p>' + escapeHtml(L('riderName', 'Rider Name')) + '</p><p>' + escapeHtml(job.riderName) + '</p>';
+            if (job.notes) html += '<p>' + escapeHtml(L('deliveryNotes', 'Delivery Notes')) + '</p><p>' + escapeHtml(job.notes) + '</p>';
+            html += '</div>';
+        } else if (job.notes) {
+            html += '<hr class="rule"><div class="meta"><p>' + escapeHtml(L('deliveryNotes', 'Notes')) + '</p><p>' + escapeHtml(job.notes) + '</p></div>';
         }
-        if (job.isDelivery && job.notes) {
-            html += '<p>' + escapeHtml(L('deliveryNotes', 'Delivery Notes')) + '</p><p>' + escapeHtml(job.notes) + '</p>';
-        }
-        html += '</div>';
         return ticketDocument('kitchen', html);
     }
 
@@ -1206,7 +1247,8 @@
         html += orderTypeBannerHtml(job);
         html += '<div class="meta">';
         html += '<p>' + escapeHtml(L('branch', 'Branch')) + '</p><p>' + escapeHtml(job.branch || '') + '</p>';
-        html += '<p>' + escapeHtml(L('order', 'Order')) + ' # ' + escapeHtml(job.number || '') + '</p>';
+        html += '<p>' + escapeHtml(L('cashier', 'Cashier')) + '</p><p>' + escapeHtml(job.cashier || CFG.cashierName || job.branch || '') + '</p>';
+        html += '<p>' + escapeHtml(L('receiptNumber', 'Receipt number')) + '</p><p>' + escapeHtml(job.number || '') + '</p>';
         html += '<p>' + escapeHtml(L('date', 'Date')) + ' ' + escapeHtml(job.date || '') + (job.time ? ' ' + escapeHtml(job.time) : '') + '</p>';
         html += '</div><hr class="rule">';
         html += '<div class="meta"><p>' + escapeHtml(L('items', 'Items')) + '</p></div>';
@@ -1226,7 +1268,7 @@
             html += '<div class="row"><span>' + escapeHtml(L('discount', 'Discount')) + '</span><span>−' + escapeHtml(money(job.discount)) + '</span></div>';
         }
         html += '<div class="row is-grand"><span>' + escapeHtml(L('grandTotal', 'Grand Total')) + '</span><span>' + escapeHtml(money(job.grand_total)) + '</span></div>';
-        html += '<div class="row"><span>' + escapeHtml(isMarketplacePayment(job.payment_method) ? L('payment', 'Payment') : L('paymentMethod', 'Payment Method')) + '</span><span>' + escapeHtml(paymentLabel(job.payment_method)) + '</span></div>';
+        html += '<div class="row"><span>' + escapeHtml(L('paymentMethod', 'Payment Method')) + '</span><span>' + escapeHtml(paymentLabel(job.payment_method)) + '</span></div>';
         if (job.payment_method === 'cash') {
             html += '<div class="row"><span>' + escapeHtml(L('cashReceivedPrint', 'Cash Received')) + '</span><span>' + escapeHtml(money(job.cash_received)) + '</span></div>';
             html += '<div class="row"><span>' + escapeHtml(L('balance', 'Balance')) + '</span><span>' + escapeHtml(money(job.change)) + '</span></div>';
@@ -1426,10 +1468,21 @@
         if (method === 'mpesa') return L('mpesa', 'M-PESA');
         if (method === 'pay_after_eating') return L('payAfter', 'Pay after eating');
         if (method === 'cash_on_delivery') return L('cod', 'Cash On Delivery');
-        if (method === 'glovo') return L('paidViaGlovo', 'PAID VIA GLOVO');
-        if (method === 'uber') return L('paidViaUber', 'PAID VIA UBER');
-        if (method === 'bolt_food') return L('paidViaBoltFood', 'PAID VIA BOLT FOOD');
+        if (method === 'glovo') return L('glovo', 'Glovo');
+        if (method === 'uber') return L('uber', 'Uber');
+        if (method === 'bolt_food') return L('boltFood', 'Bolt Food');
         return method || '';
+    }
+
+    function channelBadgeHtml(channel, label) {
+        if (!isMarketplaceChannel(channel)) {
+            return escapeHtml(label || '');
+        }
+        return '<span class="munch-channel-badge munch-channel-badge--' + escapeAttr(channel) + '">' + escapeHtml(label || channel) + '</span>';
+    }
+
+    function isMarketplaceChannel(channel) {
+        return channel === 'glovo' || channel === 'uber' || channel === 'bolt_food';
     }
 
     function paymentStatusClass(status) {
@@ -1497,6 +1550,7 @@
         }
         html += '<dt>' + escapeHtml(L('items', 'Items')) + '</dt><dd><table class="munch-pos-order__table"><thead><tr><th>' + escapeHtml(L('items', 'Items')) + '</th><th>' + escapeHtml(L('quantity', 'Qty')) + '</th><th>' + escapeHtml(L('unitPrice', 'Price')) + '</th><th>' + escapeHtml(L('discount', 'Discount')) + '</th><th>' + escapeHtml(L('subtotal', 'Subtotal')) + '</th></tr></thead><tbody>' + rows + '</tbody></table></dd>';
         html += '<dt>' + escapeHtml(L('grandTotal', 'Grand Total')) + '</dt><dd>' + money(order.grand_total) + '</dd>';
+        html += '<dt>' + escapeHtml(L('paymentStatus', 'Payment Status')) + '</dt><dd>' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</dd>';
         html += '<dt>' + escapeHtml(L('paymentMethod', 'Payment Method')) + '</dt><dd>' + escapeHtml(paymentLabel(order.payment_method)) + '</dd>';
         if (Number(order.cash_received) > 0) {
             html += '<dt>' + escapeHtml(L('cashReceived', 'Paid Amount')) + '</dt><dd>' + money(order.cash_received) + '</dd>';
@@ -1521,13 +1575,14 @@
                 return '<article class="munch-pos-order' + (open ? ' is-open' : '') + '" data-order-id="' + order.id + '">' +
                     '<div class="munch-pos-order__top">' +
                     '<div><p class="munch-pos-order__id">' + escapeHtml(order.number) + '</p>' +
-                    '<p class="munch-pos-order__meta"><span>' + escapeHtml(order.time) + '</span><span>' + escapeHtml(order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
+                    '<p class="munch-pos-order__meta"><span>' + escapeHtml(order.time) + '</span><span>' + channelBadgeHtml(order.sales_channel, order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
                     '<div class="munch-pos-order__side"><div class="munch-pos-order__total">' + money(order.grand_total) + '</div>' +
                     '<div class="munch-pos-order__prints">' +
                     '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +
                     '<button type="button" class="munch-pos-order__print munch-pos-order__print--receipt" data-print-receipt="' + order.id + '"' + (order.receipt_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('receipt', order.receipt_printed)) + '</button>' +
                     '</div></div></div>' +
                     '<div class="munch-pos-order__pills">' +
+                    (isMarketplaceChannel(order.sales_channel) ? channelBadgeHtml(order.sales_channel, order.sales_channel_label) : '') +
                     '<span class="munch-pos-order__pill">' + escapeHtml(paymentLabel(order.payment_method)) + '</span>' +
                     '<span class="munch-pos-order__pill ' + paymentStatusClass(order.payment_status) + '">' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</span>' +
                     '<span class="munch-pos-order__pill ' + orderStatusClass(order.order_status) + '">' + escapeHtml(order.order_status_label || order.order_status) + '</span>' +
@@ -1639,6 +1694,7 @@
         els.successKitchen = document.getElementById('pos-success-kitchen');
         els.successReceipt = document.getElementById('pos-success-receipt');
         els.successClose = document.getElementById('pos-success-close');
+        els.successDone = document.getElementById('pos-success-done');
         els.printFrame = document.getElementById('pos-print-frame');
         els.topTotal = document.getElementById('pos-top-total');
         els.queueList = document.getElementById('pos-queue-list');
@@ -1652,14 +1708,24 @@
         els.ordersSearch = document.getElementById('pos-orders-search');
 
         document.getElementById('pos-search').addEventListener('input', function (ev) {
-            state.search = ev.target.value;
-            scheduleRender();
+            state.searchDraft = ev.target.value;
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function () {
+                state.search = state.searchDraft;
+                lastGridKey = '';
+                scheduleRender();
+            }, 150);
         });
         els.tabs.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-cat]');
             if (!btn) return;
+            if (els.grid) categoryScroll[state.categoryId] = els.grid.scrollTop;
             state.categoryId = Number(btn.getAttribute('data-cat'));
+            lastGridKey = '';
             scheduleRender();
+            requestAnimationFrame(function () {
+                if (els.grid) els.grid.scrollTop = categoryScroll[state.categoryId] || 0;
+            });
         });
         if (els.tabsPrev) els.tabsPrev.addEventListener('click', function () { scrollTabs(-1); });
         if (els.tabsNext) els.tabsNext.addEventListener('click', function () { scrollTabs(1); });
@@ -1744,6 +1810,23 @@
         if (els.successKitchen) els.successKitchen.addEventListener('click', function () { printPlacedTicket('kitchen'); });
         if (els.successReceipt) els.successReceipt.addEventListener('click', function () { printPlacedTicket('receipt'); });
         if (els.successClose) els.successClose.addEventListener('click', dismissPlacedOrder);
+        if (els.successDone) els.successDone.addEventListener('click', dismissPlacedOrder);
+        if (els.deliveryModal) {
+            els.deliveryModal.addEventListener('keydown', function (ev) {
+                if (ev.key !== 'Enter') return;
+                var field = ev.target.closest('[data-del-field]');
+                if (!field) return;
+                if (field.tagName === 'TEXTAREA' && !ev.ctrlKey) return;
+                ev.preventDefault();
+                var fields = Array.prototype.slice.call(els.deliveryModal.querySelectorAll('[data-del-field]'));
+                var idx = fields.indexOf(field);
+                if (idx > -1 && idx < fields.length - 1) {
+                    fields[idx + 1].focus();
+                    return;
+                }
+                confirmDeliveryAndPlace();
+            });
+        }
         if (els.successModal) {
             els.successModal.addEventListener('click', function (ev) {
                 if (ev.target.id === 'pos-success-modal') dismissPlacedOrder();
@@ -1846,6 +1929,16 @@
         }
     }
 
+    function preloadCatalogMedia() {
+        (state.catalog.categories || []).forEach(function () { /* tabs already in catalog */ });
+        (state.catalog.products || []).slice(0, 80).forEach(function (product) {
+            if (!product.image) return;
+            var img = new Image();
+            img.decoding = 'async';
+            img.src = product.image;
+        });
+    }
+
     function boot() {
         bind();
         indexCatalog(state.catalog);
@@ -1867,6 +1960,7 @@
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();
+            preloadCatalogMedia();
             if (navigator.onLine) refreshHeartbeat().then(function () { syncQueue(); });
         }).catch(function () {
             scheduleRender();

@@ -78,31 +78,31 @@
         <p class="munch-pos-delivery-modal__error" id="pos-delivery-error" hidden></p>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Customer Name') }}</span>
-            <input type="text" id="pos-del-name" placeholder="{{ translate('Customer Name') }}" autocomplete="name">
+            <input type="text" id="pos-del-name" placeholder="{{ translate('Customer Name') }}" autocomplete="name" data-del-field>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Customer Phone') }}</span>
-            <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="tel">
+            <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="tel" inputmode="numeric" pattern="[0-9+]*" data-del-field>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Delivery Address') }}</span>
-            <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Delivery Address') }}"></textarea>
+            <textarea id="pos-del-address" rows="2" placeholder="{{ translate('Delivery Address') }}" data-del-field></textarea>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Delivery Fee') }}</span>
             <span class="munch-pos-fee__field">
                 <span class="munch-pos-fee__currency" id="pos-del-fee-currency">Ksh</span>
-                <input type="number" id="pos-del-fee" min="0" step="1" inputmode="decimal" value="0" aria-label="{{ translate('Delivery Fee') }}">
+                <input type="number" id="pos-del-fee" min="0" step="1" inputmode="decimal" value="0" aria-label="{{ translate('Delivery Fee') }}" data-del-field>
             </span>
         </label>
         <h3>{{ translate('Who will deliver this order?') }}</h3>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Rider Name') }}</span>
-            <input type="text" id="pos-del-rider-name" placeholder="{{ translate('Rider Name') }}" autocomplete="off">
+            <input type="text" id="pos-del-rider-name" placeholder="{{ translate('Rider Name') }}" autocomplete="off" data-del-field>
         </label>
         <label class="munch-pos-delivery-modal__field">
             <span>{{ translate('Rider Phone') }}</span>
-            <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="tel">
+            <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="tel" inputmode="numeric" pattern="[0-9+]*" data-del-field>
         </label>
         <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
         <button type="button" class="munch-pos-clear" id="pos-delivery-cancel">{{ translate('Close') }}</button>
@@ -151,6 +151,7 @@
         </dl>
         <button type="button" class="munch-pos-place" id="pos-success-kitchen">{{ translate('Print Kitchen Order') }}</button>
         <button type="button" class="munch-pos-success__receipt" id="pos-success-receipt">{{ translate('Print Receipt') }}</button>
+        <button type="button" class="munch-pos-place" id="pos-success-done">{{ translate('Done') }}</button>
         <button type="button" class="munch-pos-clear" id="pos-success-close">{{ translate('Close') }}</button>
     </div>
 </div>
@@ -165,6 +166,7 @@
     window.MUNCH_POS = {
         catalog: @json($catalog),
         branchName: @json($branchName),
+        cashierName: @json($branchName),
         restaurantName: 'MUNCH',
         csrf: @json(csrf_token()),
         urls: {
@@ -248,9 +250,11 @@
             page: @json(translate('Page')),
             paymentMethod: @json(translate('Payment Method')),
             payment: @json(translate('Payment')),
-            paidViaGlovo: @json(translate('PAID VIA GLOVO')),
-            paidViaUber: @json(translate('PAID VIA UBER')),
-            paidViaBoltFood: @json(translate('PAID VIA BOLT FOOD')),
+            paymentStatus: @json(translate('Payment_Status')),
+            invalidPhone: @json(translate('Invalid phone number')),
+            done: @json(translate('Done')),
+            salesChannel: @json(translate('Sales Channel')),
+            receiptNumber: @json(translate('Receipt number')),
             order: @json(translate('Order')),
             placedSuccess: @json(translate('Order Placed Successfully')),
             printKitchen: @json(translate('Print Kitchen Order')),
@@ -271,5 +275,5 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.3" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.4" defer></script>
 @endpush

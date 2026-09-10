@@ -340,7 +340,7 @@ class OrderController extends Controller
             return back();
         }
 
-        if ($request->order_status == 'delivered' && $order['transaction_reference'] == null && !in_array($order['payment_method'], ['cash_on_delivery', 'wallet_payment', 'offline_payment'])) {
+        if ($request->order_status == 'delivered' && $order['transaction_reference'] == null && !in_array($order['payment_method'], ['cash_on_delivery', 'wallet_payment', 'offline_payment']) && ! \App\Support\PosOrderTypes::isMarketplacePayment($order['payment_method'])) {
             Toastr::warning(translate('add_your_payment_reference_first'));
             return back();
         }
@@ -698,7 +698,7 @@ class OrderController extends Controller
     public function paymentStatus(Request $request): RedirectResponse
     {
         $order = $this->order->find($request->id);
-        if ($request->payment_status == 'paid' && $order['transaction_reference'] == null &&  $order['order_type'] != 'dine_in' && !in_array($order['payment_method'], ['cash_on_delivery', 'wallet_payment', 'offline_payment', 'cash'])) {
+        if ($request->payment_status == 'paid' && $order['transaction_reference'] == null &&  $order['order_type'] != 'dine_in' && !in_array($order['payment_method'], ['cash_on_delivery', 'wallet_payment', 'offline_payment', 'cash']) && ! \App\Support\PosOrderTypes::isMarketplacePayment($order['payment_method'])) {
             Toastr::warning(translate('Add your payment reference code first!'));
             return back();
         }

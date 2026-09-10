@@ -832,6 +832,18 @@
     font-weight: 700;
 }
 
+.munch-channel-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.munch-channel-badge--glovo { background: #facc15; color: #1c1917; }
+.munch-channel-badge--uber { background: #111827; color: #fff; }
+.munch-channel-badge--bolt_food { background: #16a34a; color: #fff; }
+
 .munch-pos-order__pill--paid { background: #dcfce7; color: #166534; }
 .munch-pos-order__pill--unpaid { background: #fee2e2; color: #991b1b; }
 .munch-pos-order__pill--done { background: #dcfce7; color: #166534; }

@@ -285,6 +285,10 @@
                         </dl>
                     </div>
                 </div>
+                <div class="d-flex flex-column gap-1 mb-2">
+                    <span>{{translate('Payment Status')}}: {{ translate($order->payment_status == 'paid' ? 'Paid' : 'Unpaid') }}</span>
+                    <span>{{translate('Payment Method')}}: {{ \App\Support\PosOrderTypes::paymentDisplayLabel($order->payment_method) }}</span>
+                </div>
                 <hr class="text-dark hr-style-2">
                 <h5 class="text-center pt-3">
                     "{{translate('THANK YOU')}}"

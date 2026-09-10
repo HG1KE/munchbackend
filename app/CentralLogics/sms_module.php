@@ -1117,7 +1117,7 @@ class SMS_module
     /**
      * @param  array<string, string|int|float>  $vars
      */
-    public static function sendViaTemplate(string $templateKey, string $receiver, array $vars, ?string $logLabel = null): string
+    public static function sendViaTemplate(string $templateKey, string $receiver, array $vars, ?string $logLabel = null, ?callable $mutateMessage = null): string
     {
         $template = self::getSmsTemplate($templateKey);
         $gateway = self::resolveTemplateGatewayConfig($templateKey);
@@ -1138,6 +1138,9 @@ class SMS_module
         $message = $body !== ''
             ? self::textsms_ke_replace_notification_placeholders($body, array_map('strval', $vars))
             : '';
+        if ($mutateMessage !== null) {
+            $message = (string) $mutateMessage($message, $vars);
+        }
 
         return self::textsms_ke_send_general_message($gateway, $receiver, $message, $label);
     }

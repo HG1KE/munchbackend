@@ -83,9 +83,9 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('cash', PosOrderTypes::resolvedPaymentMethod('take_away', 'cash'));
         $this->assertTrue(PosOrderTypes::isMarketplacePayment('glovo'));
         $this->assertFalse(PosOrderTypes::isMarketplacePayment('cash'));
-        $this->assertSame('PAID VIA GLOVO', PosOrderTypes::paymentReceiptLabel('glovo'));
-        $this->assertSame('PAID VIA UBER', PosOrderTypes::paymentReceiptLabel('uber'));
-        $this->assertSame('PAID VIA BOLT FOOD', PosOrderTypes::paymentReceiptLabel('bolt_food'));
+        $this->assertSame('Glovo', PosOrderTypes::paymentReceiptLabel('glovo'));
+        $this->assertSame('Uber', PosOrderTypes::paymentReceiptLabel('uber'));
+        $this->assertSame('Bolt Food', PosOrderTypes::paymentReceiptLabel('bolt_food'));
     }
 
     public function test_rider_fields_are_required_only_for_delivery(): void
@@ -99,13 +99,15 @@ class BranchPosOrderTypesTest extends TestCase
         ];
         $missingRider = $complete;
         $missingRider['rider_name'] = '';
+        $missingRider['rider_phone'] = '';
         $missingPhone = $complete;
         $missingPhone['rider_phone'] = '  ';
 
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $complete));
-        $this->assertSame('Rider Name', PosOrderTypes::posDeliveryFieldError('delivery', $missingRider));
+        $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $missingRider));
         $this->assertSame('Rider Phone', PosOrderTypes::posDeliveryFieldError('delivery', $missingPhone));
         $this->assertSame('Customer Name', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_name' => ''])));
+        $this->assertSame('Invalid phone number', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '12'])));
 
         foreach (['take_away', 'dine_in', 'glovo', 'uber', 'bolt_food'] as $type) {
             $this->assertNull(PosOrderTypes::posDeliveryFieldError($type, $missingRider), $type);

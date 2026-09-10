@@ -180,18 +180,57 @@ class PosOrderTypes
         return in_array((string) $method, [self::GLOVO, self::UBER, self::BOLT_FOOD], true);
     }
 
-    public static function paymentReceiptLabel(?string $method): string
+    public static function isMarketplaceChannel(?string $channel): bool
+    {
+        return in_array((string) $channel, [self::GLOVO, self::UBER, self::BOLT_FOOD], true);
+    }
+
+    public static function paymentDisplayLabel(?string $method): string
     {
         return match ((string) $method) {
-            self::GLOVO => translate('PAID VIA GLOVO'),
-            self::UBER => translate('PAID VIA UBER'),
-            self::BOLT_FOOD => translate('PAID VIA BOLT FOOD'),
-            default => (string) $method,
+            self::GLOVO => 'Glovo',
+            self::UBER => 'Uber',
+            self::BOLT_FOOD => 'Bolt Food',
+            'cash' => translate('Cash'),
+            'card' => translate('Card'),
+            'mpesa' => translate('M-PESA'),
+            'cash_on_delivery' => translate('Cash On Delivery'),
+            default => ucwords(str_replace('_', ' ', (string) $method)),
         };
+    }
+
+    public static function paymentReceiptLabel(?string $method): string
+    {
+        return self::paymentDisplayLabel($method);
+    }
+
+    public static function channelBadgeClass(?string $channel): string
+    {
+        return match ((string) $channel) {
+            self::GLOVO => 'munch-channel-badge munch-channel-badge--glovo',
+            self::UBER => 'munch-channel-badge munch-channel-badge--uber',
+            self::BOLT_FOOD => 'munch-channel-badge munch-channel-badge--bolt_food',
+            default => 'munch-channel-badge',
+        };
+    }
+
+    public static function phoneDigitsError(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+        if ($digits === '') {
+            return 'Customer Phone';
+        }
+        if (strlen($digits) < 9 || strlen($digits) > 12) {
+            return 'Invalid phone number';
+        }
+
+        return null;
     }
 
     /**
      * Required POS Delivery fields. Other order types skip this validation.
+     *
+     * Rider phone is required only when a rider name is entered.
      *
      * @param  array{customer_name?: mixed, customer_phone?: mixed, address?: mixed, rider_name?: mixed, rider_phone?: mixed}  $fields
      */
@@ -204,17 +243,28 @@ class PosOrderTypes
         if (trim((string) ($fields['customer_name'] ?? '')) === '') {
             return 'Customer Name';
         }
-        if (trim((string) ($fields['customer_phone'] ?? '')) === '') {
+        $customerPhone = trim((string) ($fields['customer_phone'] ?? ''));
+        if ($customerPhone === '') {
             return 'Customer Phone';
+        }
+        $phoneError = self::phoneDigitsError($customerPhone);
+        if ($phoneError !== null) {
+            return $phoneError;
         }
         if (trim((string) ($fields['address'] ?? '')) === '') {
             return 'Delivery Address';
         }
-        if (trim((string) ($fields['rider_name'] ?? '')) === '') {
-            return 'Rider Name';
-        }
-        if (trim((string) ($fields['rider_phone'] ?? '')) === '') {
+
+        $riderName = trim((string) ($fields['rider_name'] ?? ''));
+        $riderPhone = trim((string) ($fields['rider_phone'] ?? ''));
+        if ($riderName !== '' && $riderPhone === '') {
             return 'Rider Phone';
+        }
+        if ($riderPhone !== '') {
+            $riderPhoneError = self::phoneDigitsError($riderPhone);
+            if ($riderPhoneError !== null) {
+                return 'Invalid phone number';
+            }
         }
 
         return null;

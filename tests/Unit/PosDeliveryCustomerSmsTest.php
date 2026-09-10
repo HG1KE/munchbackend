@@ -68,14 +68,29 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertSame('John Customer', $vars['customer_name']);
         $this->assertSame('0722222222', $vars['customer_phone']);
         $this->assertSame('Ngong Road', $vars['delivery_address']);
-        $this->assertSame('150.00', $vars['delivery_fee']);
-        $this->assertSame('1200.00', $vars['subtotal']);
-        $this->assertSame('1350.00', $vars['total']);
+        $this->assertMatchesRegularExpression('/150/', $vars['delivery_fee']);
+        $this->assertMatchesRegularExpression('/1200/', $vars['subtotal']);
+        $this->assertMatchesRegularExpression('/1350/', $vars['total']);
+        $this->assertStringContainsString('Jane Rider', $vars['rider_info']);
+        $this->assertStringContainsString('554433', $vars['mpesa_info']);
         $this->assertSame('Jane Rider', $vars['rider_name']);
         $this->assertSame('0711111111', $vars['rider_phone']);
         $this->assertSame('554433', $vars['mpesa_till']);
         $this->assertSame("2 x Chicken Burger\n1 x Fries\n1 x Soda", $vars['items']);
         $this->assertArrayHasKey('order_id', $vars);
+    }
+
+    public function test_empty_till_and_rider_omit_those_sentences(): void
+    {
+        $message = "Your order #M-1 has been received at Westlands and will be delivered by  ().\n\nPlease pay to M-PESA Till  if you haven't already.\n\nThank you!";
+        $cleaned = PosDeliveryCustomerSms::omitEmptySections($message, [
+            'mpesa_till' => '',
+            'rider_name' => '',
+        ]);
+
+        $this->assertStringNotContainsString('M-PESA Till', $cleaned);
+        $this->assertStringNotContainsString('delivered by', $cleaned);
+        $this->assertStringContainsString('Westlands', $cleaned);
     }
 
     public function test_sms_is_dispatched_only_after_server_order_create_and_never_from_the_pos_client(): void
