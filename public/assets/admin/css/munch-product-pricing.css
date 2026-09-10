@@ -363,6 +363,35 @@
     gap: 0.75rem;
 }
 
+.munch-pricing-copy-modal {
+    z-index: 1055;
+    background: rgba(15, 23, 42, 0.35);
+}
+
+.munch-pricing-copy-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 0.75rem;
+}
+
+.munch-pricing-copy-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.munch-pricing-copy-summary div {
+    background: #f8fafc;
+    border: 1px solid var(--mp-border);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+}
+
+.munch-pricing-copy-summary strong {
+    display: block;
+    font-size: 1.15rem;
+}
+
 body.munch-pricing-open {
     overflow: hidden;
 }

@@ -17,6 +17,7 @@ class ProductPriceAuditLog extends Model
         'actor_id',
         'product_id',
         'branch_id',
+        'source_branch_id',
         'channel',
         'field',
         'old_value',
@@ -31,6 +32,7 @@ class ProductPriceAuditLog extends Model
         'actor_id' => 'integer',
         'product_id' => 'integer',
         'branch_id' => 'integer',
+        'source_branch_id' => 'integer',
         'created_at' => 'datetime',
     ];
 

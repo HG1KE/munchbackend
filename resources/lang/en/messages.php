@@ -3157,4 +3157,13 @@
   'Availability updated' => 'Availability updated',
   'Preview changes before applying' => 'Preview changes before applying',
   'Product is not available for this channel' => 'Product is not available for this channel',
+  'Copy From Branch' => 'Copy From Branch',
+  'Copied' => 'Copied',
+  'Select a source branch' => 'Select a source branch',
+  'Select at least one destination branch' => 'Select at least one destination branch',
+  'Destination branches cannot include the source branch' => 'Destination branches cannot include the source branch',
+  'Choose at least one price or availability field to copy' => 'Choose at least one price or availability field to copy',
+  'Nothing to copy for this selection' => 'Nothing to copy for this selection',
+  'Pricing copy failed and was rolled back' => 'Pricing copy failed and was rolled back',
+  'Pricing tables are not ready' => 'Pricing tables are not ready',
 );

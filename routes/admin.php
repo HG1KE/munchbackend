@@ -221,6 +221,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('pricing/bulk-price/apply', [ProductPricingController::class, 'applyBulkPrice'])->name('pricing.bulk-price.apply');
             Route::post('pricing/bulk-availability/preview', [ProductPricingController::class, 'previewBulkAvailability'])->name('pricing.bulk-availability.preview');
             Route::post('pricing/bulk-availability/apply', [ProductPricingController::class, 'applyBulkAvailability'])->name('pricing.bulk-availability.apply');
+            Route::post('pricing/copy/preview', [ProductPricingController::class, 'previewCopy'])->name('pricing.copy.preview');
+            Route::post('pricing/copy/apply', [ProductPricingController::class, 'applyCopy'])->name('pricing.copy.apply');
             Route::get('pricing/{id}', [ProductPricingController::class, 'show'])->name('pricing.show');
             Route::post('pricing/{id}', [ProductPricingController::class, 'update'])->name('pricing.update');
             Route::get('excel-import', [ProductController::class, 'excelImport'])->name('excel-import');

@@ -18,8 +18,8 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringNotContainsString('Glovo Price', $list);
         $this->assertStringContainsString('munch-pricing-drawer', $list);
         $this->assertStringContainsString('munch-product-pricing.js', $list);
-        $this->assertStringContainsString('Search branches', $list);
-        $this->assertStringContainsString('Search products', $list);
+        $this->assertStringContainsString("translate('Copy From Branch')", $list);
+        $this->assertStringContainsString('munch-pricing-copy-modal', $list);
     }
 
     public function test_pricing_routes_are_lazy_admin_endpoints(): void
@@ -28,6 +28,8 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString("pricing/{id}", $routes);
         $this->assertStringContainsString('bulk-price/preview', $routes);
         $this->assertStringContainsString('bulk-availability/preview', $routes);
+        $this->assertStringContainsString('pricing/copy/preview', $routes);
+        $this->assertStringContainsString('pricing/copy/apply', $routes);
         $this->assertStringContainsString('ProductPricingController', $routes);
     }
 
@@ -44,6 +46,13 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('Difference', $js);
         $controller = file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php'));
         $this->assertStringContainsString('boolean(\'confirmed\')', $controller);
+        $js = file_get_contents(public_path('assets/admin/js/munch-product-pricing.js'));
+        $this->assertStringContainsString('Copy From Branch', file_get_contents(resource_path('views/admin-views/product/list.blade.php')));
+        $this->assertStringContainsString('runCopyPreview', $js);
+        $this->assertStringContainsString('Overwrite everything', $js);
+        $this->assertStringContainsString('Only fill missing overrides', $js);
+        $this->assertStringContainsString('Skip existing overrides', $js);
+        $this->assertStringContainsString('copy_branch_pricing', file_get_contents(app_path('Services/ProductBranchPricingCopyService.php')));
     }
 
     public function test_pos_catalog_and_checkout_use_channel_hierarchy(): void
@@ -75,6 +84,8 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('old_value', $migration);
         $this->assertStringContainsString('new_value', $migration);
         $this->assertStringContainsString('created_at', $migration);
+        $this->assertStringContainsString('source_branch_id', file_get_contents(database_path('migrations/2026_09_10_140000_add_source_branch_id_to_product_price_audit_logs.php')));
+        $this->assertStringContainsString('source_branch_id', file_get_contents(app_path('Services/ProductPricingAuditLogger.php')));
 
         $logger = file_get_contents(app_path('Services/ProductPricingAuditLogger.php'));
         $this->assertStringContainsString('actor_type', $logger);

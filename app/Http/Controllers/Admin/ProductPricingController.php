@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Model\Product;
+use App\Services\ProductBranchPricingCopyService;
 use App\Services\ProductBulkPricingService;
 use App\Services\ProductChannelPricingService;
 use App\Support\ProductPricingChannels;
@@ -15,6 +16,7 @@ class ProductPricingController extends Controller
     public function __construct(
         private ProductChannelPricingService $pricing,
         private ProductBulkPricingService $bulk,
+        private ProductBranchPricingCopyService $copy,
         private Product $product,
     ) {
     }
@@ -180,5 +182,46 @@ class ProductPricingController extends Controller
             'saved' => $result['saved'],
             'message' => translate('Availability updated'),
         ]);
+    }
+
+    public function previewCopy(Request $request): JsonResponse
+    {
+        $result = $this->copy->preview(
+            (int) $request->input('source_branch_id', 0),
+            $request->input('destination_branch_ids', []),
+            $request->input('price_channels', []),
+            $request->input('availability_channels', []),
+            (string) $request->input('mode', ProductBranchPricingCopyService::MODE_SKIP_EXISTING)
+        );
+
+        if (! empty($result['error'])) {
+            return response()->json(['success' => 0, 'message' => $result['error']], 422);
+        }
+
+        return response()->json(['success' => 1] + $result);
+    }
+
+    public function applyCopy(Request $request): JsonResponse
+    {
+        if (! $request->boolean('confirmed')) {
+            return response()->json([
+                'success' => 0,
+                'message' => translate('Preview changes before applying'),
+            ], 422);
+        }
+
+        $result = $this->copy->apply(
+            (int) $request->input('source_branch_id', 0),
+            $request->input('destination_branch_ids', []),
+            $request->input('price_channels', []),
+            $request->input('availability_channels', []),
+            (string) $request->input('mode', ProductBranchPricingCopyService::MODE_SKIP_EXISTING)
+        );
+
+        if (! empty($result['error'])) {
+            return response()->json(['success' => 0, 'message' => $result['error']], 422);
+        }
+
+        return response()->json(['success' => 1] + $result);
     }
 }

@@ -31,7 +31,7 @@ class ProductPricingAuditLogger
                 continue;
             }
 
-            $rows[] = [
+            $row = [
                 'admin_id' => $adminId,
                 'actor_type' => $adminId ? 'admin' : ($branchActorId ? 'branch' : 'system'),
                 'actor_id' => $adminId ?: $branchActorId,
@@ -45,6 +45,10 @@ class ProductPricingAuditLogger
                 'ip_address' => $ip,
                 'created_at' => $now,
             ];
+            if (Schema::hasColumn('product_price_audit_logs', 'source_branch_id')) {
+                $row['source_branch_id'] = isset($entry['source_branch_id']) ? (int) $entry['source_branch_id'] : null;
+            }
+            $rows[] = $row;
         }
 
         if ($rows === []) {

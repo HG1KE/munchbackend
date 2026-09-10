@@ -169,6 +169,8 @@
          data-apply-price-url="{{ route('admin.product.pricing.bulk-price.apply') }}"
          data-preview-avail-url="{{ route('admin.product.pricing.bulk-availability.preview') }}"
          data-apply-avail-url="{{ route('admin.product.pricing.bulk-availability.apply') }}"
+         data-copy-preview-url="{{ route('admin.product.pricing.copy.preview') }}"
+         data-copy-apply-url="{{ route('admin.product.pricing.copy.apply') }}"
          data-currency="{{ \App\CentralLogics\Helpers::currency_symbol() }}"></div>
 
     <div id="munch-pricing-backdrop" class="munch-pricing-backdrop" hidden></div>
@@ -209,7 +211,10 @@
         </div>
         <div id="munch-pricing-drawer-body" class="munch-pricing-drawer__body"></div>
         <div class="munch-pricing-drawer__footer">
-            <span id="munch-pricing-dirty-count" class="text-muted">{{ translate('No unsaved changes') }}</span>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-dark" data-copy-from-branch>{{ translate('Copy From Branch') }}</button>
+                <span id="munch-pricing-dirty-count" class="text-muted">{{ translate('No unsaved changes') }}</span>
+            </div>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary" data-pricing-close>{{ translate('Cancel') }}</button>
                 <button type="button" class="btn btn-primary" id="munch-pricing-save" disabled>{{ translate('Save changes') }}</button>
@@ -226,6 +231,18 @@
                 </button>
             </div>
             <div id="munch-pricing-modal-body" class="munch-pricing-modal__body"></div>
+        </div>
+    </div>
+
+    <div id="munch-pricing-copy-modal" class="munch-pricing-modal munch-pricing-copy-modal" hidden>
+        <div class="munch-pricing-modal__panel" style="width:min(720px,100%)">
+            <div class="munch-pricing-modal__header">
+                <h2 class="h4 mb-0">{{ translate('Copy From Branch') }}</h2>
+                <button type="button" class="btn btn-soft-secondary square-btn rounded-circle" data-copy-close aria-label="Close">
+                    <i class="tio-clear"></i>
+                </button>
+            </div>
+            <div id="munch-pricing-copy-body" class="munch-pricing-modal__body"></div>
         </div>
     </div>
 @endsection
@@ -289,5 +306,5 @@
             )
         }
     </script>
-    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.1"></script>
 @endpush

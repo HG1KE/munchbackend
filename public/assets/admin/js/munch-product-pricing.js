@@ -14,6 +14,8 @@
         applyPrice: root.getAttribute('data-apply-price-url'),
         previewAvail: root.getAttribute('data-preview-avail-url'),
         applyAvail: root.getAttribute('data-apply-avail-url'),
+        copyPreview: root.getAttribute('data-copy-preview-url'),
+        copyApply: root.getAttribute('data-copy-apply-url'),
         currency: root.getAttribute('data-currency') || ''
     };
 
@@ -44,6 +46,15 @@
         value: 0,
         preview: null
     };
+    var copy = {
+        sourceId: '',
+        dest: {},
+        prices: { pos: true, uber: true, glovo: true, bolt_food: true },
+        availability: { pos: true, uber: true, glovo: true, bolt_food: true },
+        mode: 'overwrite',
+        preview: null,
+        summary: null
+    };
 
     var els = {
         backdrop: document.getElementById('munch-pricing-backdrop'),
@@ -61,7 +72,9 @@
         categoryFilter: document.getElementById('munch-pricing-category-filter'),
         channelFilter: document.getElementById('munch-pricing-channel-filter'),
         modal: document.getElementById('munch-pricing-modal'),
-        modalBody: document.getElementById('munch-pricing-modal-body')
+        modalBody: document.getElementById('munch-pricing-modal-body'),
+        copyModal: document.getElementById('munch-pricing-copy-modal'),
+        copyBody: document.getElementById('munch-pricing-copy-body')
     };
 
     function json(url, options) {
@@ -104,10 +117,15 @@
     }
 
     function closeAll() {
+        closeCopy();
         els.drawer.hidden = true;
         els.modal.hidden = true;
         els.backdrop.hidden = true;
         document.body.classList.remove('munch-pricing-open');
+    }
+
+    function closeCopy() {
+        if (els.copyModal) els.copyModal.hidden = true;
     }
 
     function showUrl(id) {
@@ -434,6 +452,118 @@
         });
     }
 
+    function openCopy() {
+        copy.preview = null;
+        copy.summary = null;
+        if (els.copyModal) els.copyModal.hidden = false;
+        loadMeta().then(renderCopy);
+    }
+
+    function copyPayload() {
+        return {
+            source_branch_id: Number(copy.sourceId || 0),
+            destination_branch_ids: selectedIds(copy.dest),
+            price_channels: CHANNELS.filter(function (ch) { return !!copy.prices[ch]; }),
+            availability_channels: CHANNELS.filter(function (ch) { return !!copy.availability[ch]; }),
+            mode: copy.mode
+        };
+    }
+
+    function renderCopy() {
+        if (!els.copyBody) return;
+        var meta = metaCache || { branches: [] };
+        var branches = meta.branches || [];
+        if (copy.summary) {
+            els.copyBody.innerHTML =
+                '<div class="munch-pricing-card"><h3>Copied</h3>' +
+                '<div class="munch-pricing-copy-summary">' +
+                '<div>Products updated<strong>' + copy.summary.products_updated + '</strong></div>' +
+                '<div>Branches updated<strong>' + copy.summary.branches_updated + '</strong></div>' +
+                '<div>Rows affected<strong>' + copy.summary.rows_affected + '</strong></div>' +
+                '<div>Copied<strong>Yes</strong></div></div>' +
+                '<div class="munch-pricing-modal__footer px-0"><span></span>' +
+                '<button type="button" class="btn btn-primary" data-copy-close>Done</button></div></div>';
+            return;
+        }
+        var sourceOptions = '<option value="">Select source branch</option>' + branches.map(function (b) {
+            return '<option value="' + b.id + '"' + (String(copy.sourceId) === String(b.id) ? ' selected' : '') + '>' + escapeHtml(b.name) + '</option>';
+        }).join('');
+        var destChecks = branches.map(function (b) {
+            var disabled = String(b.id) === String(copy.sourceId);
+            return '<label class="' + (disabled ? 'text-muted' : '') + '"><input type="checkbox" data-copy-dest="' + b.id + '"' +
+                (copy.dest[b.id] && !disabled ? ' checked' : '') + (disabled ? ' disabled' : '') + '> ' + escapeHtml(b.name) + '</label>';
+        }).join('');
+        var field = function (group, ch, label) {
+            return '<label><input type="checkbox" data-copy-field="' + group + '" data-channel="' + ch + '"' +
+                (copy[group][ch] ? ' checked' : '') + '> ' + label + '</label>';
+        };
+        var previewHtml = '<p class="text-muted mb-0">Nothing is written yet. Preview first.</p>';
+        if (copy.preview && copy.preview.destinations) {
+            previewHtml = '<p class="mb-2">Source: <strong>' + escapeHtml(copy.preview.source_branch_name) + '</strong></p>' +
+                '<div class="table-responsive"><table class="munch-pricing-preview"><thead><tr>' +
+                '<th>Destination Branch</th><th>Products affected</th><th>Rows affected</th><th>Prices changing</th><th>Availability changing</th>' +
+                '</tr></thead><tbody>' + copy.preview.destinations.map(function (row) {
+                    return '<tr><td>' + escapeHtml(row.branch_name) + '</td><td>' + row.products_affected + '</td><td>' +
+                        row.rows_affected + '</td><td>' + row.prices_changing + '</td><td>' + row.availability_changing + '</td></tr>';
+                }).join('') + '</tbody></table></div>';
+        }
+        els.copyBody.innerHTML =
+            '<p class="text-muted">Copies POS, Uber, Glovo, and Bolt Food values for all products. Inheritance is left in place unless you overwrite it.</p>' +
+            '<div class="munch-pricing-card"><h3>1. Source Branch</h3><select class="custom-select" id="copy-source">' + sourceOptions + '</select></div>' +
+            '<div class="munch-pricing-card mt-3"><h3>2. Destination Branch(es)</h3>' +
+            '<div class="munch-pricing-checklist">' + destChecks + '</div></div>' +
+            '<div class="munch-pricing-card mt-3"><h3>3. Choose what to copy</h3>' +
+            '<div class="d-flex gap-2 mb-2"><button type="button" class="btn btn-sm btn-outline-primary" id="copy-select-all">Select All</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary" id="copy-clear-all">Clear All</button></div>' +
+            '<div class="munch-pricing-copy-fields">' +
+            field('prices', 'pos', 'POS Prices') +
+            field('prices', 'uber', 'Uber Prices') +
+            field('prices', 'glovo', 'Glovo Prices') +
+            field('prices', 'bolt_food', 'Bolt Food Prices') +
+            field('availability', 'pos', 'POS Availability') +
+            field('availability', 'uber', 'Uber Availability') +
+            field('availability', 'glovo', 'Glovo Availability') +
+            field('availability', 'bolt_food', 'Bolt Food Availability') +
+            '</div></div>' +
+            '<div class="munch-pricing-card mt-3"><h3>4. Conflict handling</h3>' +
+            '<label><input type="radio" name="copy-mode" value="overwrite"' + (copy.mode === 'overwrite' ? ' checked' : '') + '> Overwrite everything</label>' +
+            '<label><input type="radio" name="copy-mode" value="fill_missing"' + (copy.mode === 'fill_missing' ? ' checked' : '') + '> Only fill missing overrides</label>' +
+            '<label><input type="radio" name="copy-mode" value="skip_existing"' + (copy.mode === 'skip_existing' ? ' checked' : '') + '> Skip existing overrides</label>' +
+            '</div>' +
+            '<div class="munch-pricing-card mt-3"><h3>5. Preview</h3>' + previewHtml + '</div>' +
+            '<div class="munch-pricing-modal__footer px-0">' +
+            '<span class="text-muted">Apply writes the previewed rows in one transaction.</span>' +
+            '<div class="d-flex gap-2">' +
+            '<button type="button" class="btn btn-outline-primary" id="copy-preview">Preview</button>' +
+            '<button type="button" class="btn btn-primary" id="copy-apply" ' + (copy.preview && copy.preview.rows_affected ? '' : 'disabled') + '>Apply</button>' +
+            '</div></div>';
+    }
+
+    function runCopyPreview() {
+        json(CFG.copyPreview, { method: 'POST', body: copyPayload() }).then(function (data) {
+            copy.preview = data;
+            copy.summary = null;
+            renderCopy();
+        }).catch(function (err) {
+            copy.preview = null;
+            showToast(false, (err && err.message) || 'Preview failed');
+            renderCopy();
+        });
+    }
+
+    function runCopyApply() {
+        if (!copy.preview || !copy.preview.rows_affected) return;
+        var body = Object.assign({ confirmed: true }, copyPayload());
+        json(CFG.copyApply, { method: 'POST', body: body }).then(function (data) {
+            copy.summary = data;
+            copy.preview = null;
+            renderCopy();
+            if (drawer.productId) fetchDrawer();
+        }).catch(function (err) {
+            showToast(false, (err && err.message) || 'Copy failed');
+        });
+    }
+
     function escapeHtml(value) {
         return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
             return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
@@ -454,6 +584,16 @@
         if (ev.target.closest('[data-bulk-pricing]')) {
             ev.preventDefault();
             openBulk();
+            return;
+        }
+        if (ev.target.closest('[data-copy-from-branch]')) {
+            ev.preventDefault();
+            openCopy();
+            return;
+        }
+        if (ev.target.closest('[data-copy-close]')) {
+            ev.preventDefault();
+            closeCopy();
             return;
         }
         if (ev.target.closest('[data-pricing-close]')) {
@@ -479,7 +619,13 @@
         }
     });
 
-    els.backdrop.addEventListener('click', closeAll);
+    els.backdrop.addEventListener('click', function () {
+        if (els.copyModal && !els.copyModal.hidden) {
+            closeCopy();
+            return;
+        }
+        closeAll();
+    });
     els.save.addEventListener('click', saveDrawer);
     els.defaultInput.addEventListener('input', function () {
         drawer.defaultPrice = Number(els.defaultInput.value || 0);
@@ -519,7 +665,12 @@
         updateDirtyCount();
     });
     document.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape' && !els.drawer.hidden) closeAll();
+        if (ev.key !== 'Escape') return;
+        if (els.copyModal && !els.copyModal.hidden) {
+            closeCopy();
+            return;
+        }
+        if (!els.drawer.hidden) closeAll();
     });
 
     els.modal.addEventListener('input', function (ev) {
@@ -560,6 +711,57 @@
             renderBulk();
         }
     });
+    if (els.copyModal) {
+        els.copyModal.addEventListener('change', function (ev) {
+            if (ev.target.id === 'copy-source') {
+                copy.sourceId = ev.target.value;
+                delete copy.dest[copy.sourceId];
+                copy.preview = null;
+                renderCopy();
+                return;
+            }
+            if (ev.target.matches('[data-copy-dest]')) {
+                copy.dest[ev.target.getAttribute('data-copy-dest')] = ev.target.checked;
+                copy.preview = null;
+                return;
+            }
+            if (ev.target.matches('[data-copy-field]')) {
+                copy[ev.target.getAttribute('data-copy-field')][ev.target.getAttribute('data-channel')] = ev.target.checked;
+                copy.preview = null;
+                return;
+            }
+            if (ev.target.name === 'copy-mode') {
+                copy.mode = ev.target.value;
+                copy.preview = null;
+            }
+        });
+        els.copyModal.addEventListener('click', function (ev) {
+            if (ev.target === els.copyModal) {
+                closeCopy();
+                return;
+            }
+            if (ev.target.id === 'copy-select-all') {
+                CHANNELS.forEach(function (ch) {
+                    copy.prices[ch] = true;
+                    copy.availability[ch] = true;
+                });
+                copy.preview = null;
+                renderCopy();
+                return;
+            }
+            if (ev.target.id === 'copy-clear-all') {
+                CHANNELS.forEach(function (ch) {
+                    copy.prices[ch] = false;
+                    copy.availability[ch] = false;
+                });
+                copy.preview = null;
+                renderCopy();
+                return;
+            }
+            if (ev.target.id === 'copy-preview') runCopyPreview();
+            if (ev.target.id === 'copy-apply') runCopyApply();
+        });
+    }
     els.modal.addEventListener('keyup', debounce(function (ev) {
         if (ev.target.id === 'bulk-product-search') loadBulkProducts();
     }, 250));
