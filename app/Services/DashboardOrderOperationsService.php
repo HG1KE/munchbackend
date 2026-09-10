@@ -17,8 +17,7 @@ class DashboardOrderOperationsService
     public function baseQuery(?int $branchId = null): Builder
     {
         $query = Order::query()
-            ->notPos()
-            ->notDineIn()
+            ->onlineOrders()
             ->notSchedule();
 
         if ($branchId !== null) {
@@ -49,7 +48,7 @@ class DashboardOrderOperationsService
     }
 
     /**
-     * Same scope as the Online Orders Pending column (not POS / dine-in / scheduled).
+     * Same scope as the Online Orders Pending column (website/app/API only).
      */
     public function pendingQueueQuery(?int $branchId = null): Builder
     {

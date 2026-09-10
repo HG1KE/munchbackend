@@ -3,6 +3,7 @@
 namespace App\CentralLogics;
 
 use App\Model\Order;
+use App\Support\PosOrderTypes;
 use App\Support\SmsTemplateCatalog;
 
 /**
@@ -17,6 +18,10 @@ class CustomerOrderStatusSms
     public static function dispatchPlacement(Order $order): void
     {
         try {
+            if (PosOrderTypes::isPosFamily($order->order_type ?? null, $order->sales_channel ?? null)) {
+                return;
+            }
+
             if (! in_array($order->order_status, ['pending', 'confirmed'], true)) {
                 return;
             }
@@ -56,6 +61,10 @@ class CustomerOrderStatusSms
     public static function dispatchProcessing(Order $order, ?string $previousStatus): void
     {
         try {
+            if (PosOrderTypes::isPosFamily($order->order_type ?? null, $order->sales_channel ?? null)) {
+                return;
+            }
+
             if ($order->order_status !== 'processing') {
                 return;
             }

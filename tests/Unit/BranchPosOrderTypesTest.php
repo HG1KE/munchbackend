@@ -38,7 +38,13 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('pos', PosOrderTypes::databaseType('uber'));
         $this->assertSame('pos', PosOrderTypes::databaseType('bolt_food'));
         $this->assertSame('dine_in', PosOrderTypes::databaseType('dine_in'));
-        $this->assertSame('delivery', PosOrderTypes::databaseType('delivery'));
+        $this->assertSame('pos', PosOrderTypes::databaseType('delivery'));
+        $this->assertTrue(PosOrderTypes::isPosFamily('pos', 'delivery'));
+        $this->assertTrue(PosOrderTypes::isPosDeliveryOrder('pos', 'delivery'));
+        $this->assertTrue(PosOrderTypes::isPosDeliveryOrder('delivery', 'delivery'));
+        $this->assertFalse(PosOrderTypes::isPosDeliveryOrder('delivery', null));
+        $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'delivery'));
+        $this->assertTrue(PosOrderTypes::isOnlineOrder('delivery', null));
         $this->assertSame('takeaway', PosOrderTypes::salesChannel('take_away'));
         $this->assertSame('delivery', PosOrderTypes::salesChannel('delivery'));
         $this->assertSame('dine_in', PosOrderTypes::salesChannel('dine_in'));

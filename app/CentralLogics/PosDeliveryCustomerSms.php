@@ -56,8 +56,10 @@ class PosDeliveryCustomerSms
 
     public static function isPosDeliveryOrder(Order $order): bool
     {
-        return (string) $order->order_type === 'delivery'
-            && (string) $order->sales_channel === 'delivery';
+        return \App\Support\PosOrderTypes::isPosDeliveryOrder(
+            $order->order_type ?? null,
+            $order->sales_channel ?? null
+        );
     }
 
     /**

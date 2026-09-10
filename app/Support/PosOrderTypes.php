@@ -76,8 +76,10 @@ class PosOrderTypes
     }
 
     /**
-     * Stored `orders.order_type`. Marketplace channels stay `pos` so Online Orders
-     * (`notPos()` / `notDineIn()`) never picks them up.
+     * Stored `orders.order_type`. Every Branch POS channel stays in the POS family
+     * so Online Orders (`notPos()` / `notDineIn()`) never picks them up.
+     *
+     * POS Delivery is `pos` + `sales_channel=delivery`, never `order_type=delivery`.
      */
     public static function databaseType(?string $type): string
     {
@@ -85,9 +87,44 @@ class PosOrderTypes
 
         return match ($type) {
             self::DINE_IN => 'dine_in',
-            self::DELIVERY => 'delivery',
             default => 'pos',
         };
+    }
+
+    public static function isPosSalesChannel(?string $channel): bool
+    {
+        return in_array((string) $channel, self::salesChannels(), true);
+    }
+
+    /**
+     * Branch POS family: stored as `pos`, or tagged with a POS sales_channel
+     * (covers leftover POS Delivery rows that were saved as order_type=delivery).
+     */
+    public static function isPosFamily(?string $orderType, ?string $salesChannel): bool
+    {
+        if ((string) $orderType === 'pos') {
+            return true;
+        }
+
+        return self::isPosSalesChannel($salesChannel);
+    }
+
+    /**
+     * POS Delivery only. Website/app delivery is order_type=delivery with no POS channel.
+     */
+    public static function isPosDeliveryOrder(?string $orderType, ?string $salesChannel): bool
+    {
+        return (string) $salesChannel === self::DELIVERY
+            && self::isPosFamily($orderType, $salesChannel);
+    }
+
+    public static function isOnlineOrder(?string $orderType, ?string $salesChannel): bool
+    {
+        if (self::isPosFamily($orderType, $salesChannel)) {
+            return false;
+        }
+
+        return (string) $orderType !== 'dine_in';
     }
 
     /**

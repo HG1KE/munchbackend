@@ -9,9 +9,11 @@ use App\Models\OrderPartialPayment;
 use App\Services\OrderReadableIdService;
 use App\Support\OnlineOrderStatus;
 use App\Support\OrderDispatchedTime;
+use App\Support\PosOrderTypes;
 use App\Support\OrderPlacementTime;
 use App\User;
 use App\Models\OrderArea;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -121,7 +123,12 @@ class Order extends Model
 
     public function scopePos($query)
     {
-        return $query->where('order_type', '=', 'pos');
+        return $query->where(function ($inner) {
+            $inner->where('order_type', 'pos');
+            if (Schema::hasColumn($this->getTable(), 'sales_channel')) {
+                $inner->orWhereIn('sales_channel', PosOrderTypes::salesChannels());
+            }
+        });
     }
 
     public function scopeDineIn($query)
@@ -137,7 +144,34 @@ class Order extends Model
 
     public function scopeNotPos($query)
     {
-        return $query->where('order_type', '!=', 'pos');
+        $query->where('order_type', '!=', 'pos');
+        if (Schema::hasColumn($this->getTable(), 'sales_channel')) {
+            $query->where(function ($inner) {
+                $inner->whereNull('sales_channel')
+                    ->orWhere('sales_channel', '')
+                    ->orWhereNotIn('sales_channel', PosOrderTypes::salesChannels());
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Genuine website / app / API orders. Never POS Delivery or any other POS channel.
+     */
+    public function scopeOnlineOrders($query)
+    {
+        return $query->notPos()->notDineIn();
+    }
+
+    public function isPosFamily(): bool
+    {
+        return PosOrderTypes::isPosFamily($this->order_type ?? null, $this->sales_channel ?? null);
+    }
+
+    public function isPosDeliveryOrder(): bool
+    {
+        return PosOrderTypes::isPosDeliveryOrder($this->order_type ?? null, $this->sales_channel ?? null);
     }
 
     public function scopeSchedule($query)

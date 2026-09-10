@@ -14,9 +14,19 @@ class PosDeliveryCustomerSmsTest extends TestCase
     public function test_only_pos_delivery_orders_qualify(): void
     {
         $delivery = new Order();
-        $delivery->order_type = 'delivery';
+        $delivery->order_type = 'pos';
         $delivery->sales_channel = 'delivery';
         $this->assertTrue(PosDeliveryCustomerSms::isPosDeliveryOrder($delivery));
+
+        $legacy = new Order();
+        $legacy->order_type = 'delivery';
+        $legacy->sales_channel = 'delivery';
+        $this->assertTrue(PosDeliveryCustomerSms::isPosDeliveryOrder($legacy));
+
+        $website = new Order();
+        $website->order_type = 'delivery';
+        $website->sales_channel = null;
+        $this->assertFalse(PosDeliveryCustomerSms::isPosDeliveryOrder($website));
 
         foreach (['takeaway', 'dine_in', 'glovo', 'uber', 'bolt_food'] as $channel) {
             $other = new Order();
@@ -35,7 +45,7 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $order = new Order();
         $order->id = 100123;
         $order->readable_order_id = 'M-100123';
-        $order->order_type = 'delivery';
+        $order->order_type = 'pos';
         $order->sales_channel = 'delivery';
         $order->order_amount = 1350;
         $order->delivery_charge = 150;

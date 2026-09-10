@@ -634,7 +634,8 @@ class POSController extends Controller
                 }
             });
 
-            if (in_array($order->order_status, ['pending', 'confirmed'], true)) {
+            if (! PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel)
+                && in_array($order->order_status, ['pending', 'confirmed'], true)) {
                 CustomerOrderStatusSms::dispatchPlacement($order->fresh(['customer', 'branch']));
             }
 
@@ -672,7 +673,7 @@ class POSController extends Controller
             }
 
             //send notification to customer for home delivery
-            if ($order->order_type == 'delivery' && $order->user_id){
+            if ($order->order_type == 'delivery' && ! PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel) && $order->user_id){
                 $message = Helpers::order_status_update_message('confirmed');
                 $customer = $this->user->find($order->user_id);
                 $customerFcmToken = $customer?->cm_firebase_token;

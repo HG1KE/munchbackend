@@ -34,6 +34,12 @@ class LoyaltyDeliverySmsService
             'runtime' => $runtime,
         ]);
 
+        if (\App\Support\PosOrderTypes::isPosFamily($order->order_type ?? null, $order->sales_channel ?? null)) {
+            self::logSkipped($order, 0, 0, 'pos_family', $handlerPath);
+
+            return;
+        }
+
         if ((int) $order->is_guest !== 0) {
             self::logSkipped($order, 0, 0, 'guest_checkout', $handlerPath);
 

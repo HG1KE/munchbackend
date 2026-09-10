@@ -233,8 +233,7 @@ class OrderAutomationService
         }
 
         $query = Order::query()
-            ->notPos()
-            ->notDineIn()
+            ->onlineOrders()
             ->notSchedule()
             ->whereIn('order_status', $eligible)
             ->whereNotIn('order_status', $excluded);

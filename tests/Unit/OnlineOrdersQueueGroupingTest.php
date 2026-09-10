@@ -104,6 +104,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
             $table->unsignedBigInteger('delivery_man_id')->nullable();
             $table->string('order_status')->default('pending');
             $table->string('order_type')->default('delivery');
+            $table->string('sales_channel')->nullable();
             $table->string('payment_status')->default('unpaid');
             $table->string('payment_method')->nullable();
             $table->decimal('order_amount', 24, 2)->default(0);
@@ -182,9 +183,13 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->insertOrder(7, ['order_type' => 'dine_in']);
         $this->insertOrder(8, ['delivery_date' => now()->addDay()->format('Y-m-d')]);
         $this->insertOrder(9, ['order_status' => 'pending']);
+        $this->insertOrder(61, ['order_type' => 'pos', 'sales_channel' => 'delivery', 'order_status' => 'confirmed']);
+        $this->insertOrder(62, ['order_type' => 'delivery', 'sales_channel' => 'delivery', 'order_status' => 'pending']);
+        $this->insertOrder(63, ['order_type' => 'pos', 'sales_channel' => 'glovo', 'order_status' => 'delivered']);
 
         $this->assertSame([9], $this->service()->expressPendingQueue(null)->pluck('id')->all());
         $this->assertSame(1, $this->service()->dashboardCounts(null)['online']);
+        $this->assertSame(1, $this->service()->pendingOrderAlertPayload(null)['new_order']);
     }
 
     public function test_pending_order_alert_matches_pending_queue_and_ignores_other_statuses(): void
