@@ -10,6 +10,7 @@ use App\Model\ProductByBranch;
 use App\Model\Table;
 use App\Models\DeliveryChargeByArea;
 use App\Support\PosOrderTypes;
+use App\Support\ProductPricingChannels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -36,10 +37,10 @@ class BranchPosCatalogService
 
         $products = Product::query()
             ->with(['product_by_branch' => function ($query) use ($branchId) {
-                $query->where(['is_available' => 1, 'branch_id' => $branchId]);
+                $query->where('branch_id', $branchId);
             }])
             ->whereHas('product_by_branch', function ($query) use ($branchId) {
-                $query->where(['is_available' => 1, 'branch_id' => $branchId]);
+                $query->where('branch_id', $branchId);
             })
             ->active()
             ->leftJoinSub($this->posSoldSubquery($branchId), 'pos_sold', 'pos_sold.product_id', '=', 'products.id')
@@ -48,6 +49,9 @@ class BranchPosCatalogService
             ->select('products.*')
             ->get();
 
+        $pricing = app(ProductChannelPricingService::class);
+        $channelRows = $pricing->channelRowsForBranch($branchId, $products->pluck('id')->all());
+
         $mappedProducts = [];
         foreach ($products as $product) {
             $branchProduct = $product->product_by_branch->first();
@@ -55,8 +59,18 @@ class BranchPosCatalogService
                 continue;
             }
 
+            $defaultPrice = $pricing->defaultPrice($product);
+            $matrix = $pricing->resolveMatrix(
+                $defaultPrice,
+                $branchProduct,
+                $channelRows[(int) $product->id] ?? []
+            );
+            if (! $pricing->anyChannelAvailable($matrix['available'])) {
+                continue;
+            }
+
             $variations = $this->normalizeVariations($branchProduct->variations);
-            $price = (float) $branchProduct->price;
+            $price = $matrix['prices'][ProductPricingChannels::POS];
             $discountData = [
                 'discount_type' => $branchProduct->discount_type,
                 'discount' => (float) $branchProduct->discount,
@@ -73,6 +87,8 @@ class BranchPosCatalogService
                 'discount_data' => $discountData,
                 'has_modifiers' => $variations !== [],
                 'variations' => $variations,
+                'channel_prices' => $matrix['prices'],
+                'channel_available' => $matrix['available'],
             ];
         }
 
@@ -131,6 +147,7 @@ class BranchPosCatalogService
             $branchId,
             'pos-catalog-popularity-1',
             'pos-mpesa-settings-1',
+            'pos-channel-pricing-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
             (string) ($branch->a ?? 0),
@@ -140,6 +157,7 @@ class BranchPosCatalogService
             (string) $categoryMax,
             (string) $categoryCount,
             (string) $this->posSoldStamp($branchId),
+            (string) $this->channelPriceStamp($branchId),
             $this->branchPosMpesaEnabled($branchSettings) ? '1' : '0',
             trim((string) ($branchSettings?->mpesa_till ?? '')),
         ]));
@@ -152,6 +170,25 @@ class BranchPosCatalogService
         }
 
         return (int) $branch->pos_mpesa_enabled === 1;
+    }
+
+    private function channelPriceStamp(int $branchId): string
+    {
+        if (! Schema::hasTable('product_channel_prices')) {
+            return '';
+        }
+
+        $row = DB::table('product_channel_prices')
+            ->where('branch_id', $branchId)
+            ->selectRaw('MAX(updated_at) as u, COUNT(*) as c, SUM(price) as p, SUM(is_available) as a')
+            ->first();
+
+        return implode(':', [
+            (string) ($row->u ?? ''),
+            (string) ($row->c ?? 0),
+            (string) ($row->p ?? 0),
+            (string) ($row->a ?? 0),
+        ]);
     }
 
     /**

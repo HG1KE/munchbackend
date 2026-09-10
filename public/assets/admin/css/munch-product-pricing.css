@@ -1,0 +1,368 @@
+/**
+ * Admin product pricing drawer + bulk editor.
+ * Scoped to .munch-pricing-* so Product List stays unchanged until opened.
+ */
+
+.munch-pricing-drawer,
+.munch-pricing-modal {
+    --mp-bg: #f4f6f9;
+    --mp-surface: #ffffff;
+    --mp-border: #e2e8f0;
+    --mp-text: #0f172a;
+    --mp-muted: #64748b;
+    --mp-accent: #e7032d;
+    --mp-ok: #15803d;
+    --mp-off: #94a3b8;
+    position: fixed;
+    z-index: 1040;
+}
+
+.munch-pricing-drawer[hidden],
+.munch-pricing-modal[hidden],
+.munch-pricing-backdrop[hidden] {
+    display: none !important;
+}
+
+.munch-pricing-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1035;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.munch-pricing-drawer {
+    top: 0;
+    right: 0;
+    width: min(1120px, 100vw);
+    height: 100vh;
+    background: var(--mp-surface);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -12px 0 40px rgba(15, 23, 42, 0.12);
+}
+
+.munch-pricing-drawer__header {
+    padding: 1.1rem 1.25rem 0.9rem;
+    border-bottom: 1px solid var(--mp-border);
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.munch-pricing-drawer__identity {
+    display: flex;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.munch-pricing-drawer__identity img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: var(--mp-bg);
+}
+
+.munch-pricing-drawer__title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--mp-text);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.munch-pricing-drawer__meta {
+    color: var(--mp-muted);
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+}
+
+.munch-pricing-default {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+}
+
+.munch-pricing-default label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mp-muted);
+    margin: 0;
+}
+
+.munch-pricing-default input {
+    width: 132px;
+    font-weight: 600;
+}
+
+.munch-pricing-drawer__toolbar {
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    border-bottom: 1px solid var(--mp-border);
+    background: var(--mp-bg);
+}
+
+.munch-pricing-drawer__toolbar .form-control,
+.munch-pricing-drawer__toolbar .custom-select {
+    min-width: 160px;
+    max-width: 220px;
+}
+
+.munch-pricing-drawer__body {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem 1.25rem 1.5rem;
+    background: var(--mp-bg);
+}
+
+.munch-pricing-branch {
+    background: var(--mp-surface);
+    border: 1px solid var(--mp-border);
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.munch-pricing-branch__name {
+    padding: 0.7rem 1rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--mp-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.munch-pricing-grid {
+    display: grid;
+    grid-template-columns: 88px repeat(4, minmax(0, 1fr));
+}
+
+.munch-pricing-grid--filtered {
+    grid-template-columns: 88px minmax(0, 1fr);
+}
+
+.munch-pricing-grid__head,
+.munch-pricing-grid__cell,
+.munch-pricing-grid__label {
+    padding: 0.55rem 0.7rem;
+    border-top: 1px solid var(--mp-border);
+}
+
+.munch-pricing-grid__head {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mp-muted);
+    background: #f8fafc;
+}
+
+.munch-pricing-grid__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--mp-muted);
+    display: flex;
+    align-items: center;
+}
+
+.munch-pricing-input {
+    width: 100%;
+    border: 1px solid var(--mp-border);
+    border-radius: 8px;
+    padding: 0.35rem 0.5rem;
+    font-weight: 600;
+}
+
+.munch-pricing-input.is-override {
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.munch-pricing-reset {
+    display: block;
+    margin-top: 0.25rem;
+    border: 0;
+    background: none;
+    color: var(--mp-accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0;
+}
+
+.munch-pricing-reset[hidden] {
+    display: none !important;
+}
+
+.munch-pricing-inherited {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    color: var(--mp-muted);
+}
+
+.munch-pricing-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0;
+}
+
+.munch-pricing-switch input {
+    width: 16px;
+    height: 16px;
+}
+
+.munch-pricing-drawer__footer {
+    border-top: 1px solid var(--mp-border);
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--mp-surface);
+}
+
+.munch-pricing-empty,
+.munch-pricing-loading {
+    text-align: center;
+    color: var(--mp-muted);
+    padding: 3rem 1rem;
+}
+
+.munch-pricing-modal {
+    inset: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 1.5vh 1.5vw;
+}
+
+.munch-pricing-modal__panel {
+    width: min(1200px, 100%);
+    background: var(--mp-surface);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+}
+
+.munch-pricing-modal__header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--mp-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.munch-pricing-modal__tabs {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.munch-pricing-modal__tabs button {
+    border: 0;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.munch-pricing-modal__tabs button.is-active {
+    background: #0f172a;
+    color: #fff;
+}
+
+.munch-pricing-modal__body {
+    padding: 1rem 1.25rem;
+    overflow: auto;
+    background: var(--mp-bg);
+    flex: 1;
+}
+
+.munch-pricing-split {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 0.85rem;
+}
+
+@media (max-width: 900px) {
+    .munch-pricing-split,
+    .munch-pricing-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.munch-pricing-card {
+    background: var(--mp-surface);
+    border: 1px solid var(--mp-border);
+    border-radius: 12px;
+    padding: 0.9rem;
+}
+
+.munch-pricing-card h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0 0 0.7rem;
+}
+
+.munch-pricing-checklist {
+    max-height: 220px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.munch-pricing-checklist label {
+    display: flex;
+    gap: 0.45rem;
+    align-items: flex-start;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.munch-pricing-preview {
+    width: 100%;
+    font-size: 0.82rem;
+}
+
+.munch-pricing-preview th,
+.munch-pricing-preview td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--mp-border);
+}
+
+.munch-pricing-preview .is-up {
+    color: var(--mp-ok);
+    font-weight: 700;
+}
+
+.munch-pricing-preview .is-down {
+    color: var(--mp-accent);
+    font-weight: 700;
+}
+
+.munch-pricing-modal__footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--mp-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+body.munch-pricing-open {
+    overflow: hidden;
+}

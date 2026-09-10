@@ -171,6 +171,14 @@ class ProductController extends Controller
             }
         }
 
+        $synced = $this->productByBranch
+            ->where('product_id', $productId)
+            ->where('branch_id', auth('branch')->id())
+            ->first();
+        if ($synced) {
+            app(\App\Services\ProductChannelPricingService::class)->syncPosChannelFromBranch($synced, 'branch');
+        }
+
         return response()->json([], 200);
     }
 
@@ -243,6 +251,14 @@ class ProductController extends Controller
                 'product_id' => $product->id,
                 'branch_id' => auth('branch')->id()
             ], $data);
+        }
+
+        $synced = $this->productByBranch
+            ->where('product_id', $product->id)
+            ->where('branch_id', auth('branch')->id())
+            ->first();
+        if ($synced) {
+            app(\App\Services\ProductChannelPricingService::class)->syncPosChannelFromBranch($synced, 'branch');
         }
 
         return response()->json(['success_message' => 'Status updated!']);

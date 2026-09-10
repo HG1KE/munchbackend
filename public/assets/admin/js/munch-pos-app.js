@@ -145,10 +145,42 @@
         return extra;
     }
 
+    function pricingChannel(orderType) {
+        if (orderType === 'uber') return 'uber';
+        if (orderType === 'glovo') return 'glovo';
+        if (orderType === 'bolt_food') return 'bolt_food';
+        return 'pos';
+    }
+
+    function productChannelAvailable(product) {
+        if (!product) return false;
+        var ch = pricingChannel(state.cart.orderType);
+        var flags = product.channel_available || {};
+        if (flags[ch] === undefined) return true;
+        return !!flags[ch];
+    }
+
+    function resolvedProductPrice(product) {
+        if (!product) return 0;
+        var ch = pricingChannel(state.cart.orderType);
+        var prices = product.channel_prices || {};
+        if (prices[ch] != null && prices[ch] !== '') return Number(prices[ch]);
+        return Number(product.price || 0);
+    }
+
+    function productDiscountAmount(product) {
+        if (!product) return 0;
+        var data = product.discount_data || {};
+        var price = resolvedProductPrice(product);
+        if (data.discount_type === 'percent') return price * Number(data.discount || 0) / 100;
+        if (data.discount != null && data.discount !== '') return Number(data.discount);
+        return Number(product.discount || 0);
+    }
+
     function lineUnit(line) {
         var product = state.productMap[line.productId];
         if (!product) return 0;
-        var unit = Number(product.price) - Number(product.discount || 0) + variationPrice(product, line.variations || []);
+        var unit = resolvedProductPrice(product) - productDiscountAmount(product) + variationPrice(product, line.variations || []);
         return unit;
     }
 
@@ -197,6 +229,7 @@
     function filteredProducts() {
         var q = (state.search || '').trim().toLowerCase();
         return (state.catalog.products || []).filter(function (p) {
+            if (!productChannelAvailable(p)) return false;
             if (!productInCategory(p, state.categoryId)) return false;
             if (q && String(p.name || '').toLowerCase().indexOf(q) === -1 && String(p.id) !== q) return false;
             return true;
@@ -215,7 +248,7 @@
     function renderAll() {
         renderStatus();
         renderTabs();
-        var gridKey = [state.categoryId, state.search, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length].join('|');
+        var gridKey = [state.categoryId, state.search, state.cart.orderType, (state.catalog && state.catalog.version) || '', (state.catalog.products || []).length].join('|');
         if (gridKey !== lastGridKey) {
             lastGridKey = gridKey;
             renderGrid();
@@ -371,7 +404,7 @@
             '<img src="' + escapeAttr(img) + '" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'' + escapeAttr(state.catalog.placeholder_image || '') + '\'">' +
             '<div class="munch-pos-card__body">' +
             '<div class="munch-pos-card__name">' + escapeHtml(product.name) + '</div>' +
-            '<div class="munch-pos-card__price">' + money(product.price - (product.discount || 0)) + '</div>' +
+            '<div class="munch-pos-card__price">' + money(resolvedProductPrice(product) - productDiscountAmount(product)) + '</div>' +
             '</div>' +
             '<div class="munch-pos-card__actions" data-qty="' + qty + '">' + cardQtyHtml(product.id, qty) + '</div>' +
             '</article>';
@@ -1853,6 +1886,10 @@
             var btn = ev.target.closest('[data-type]');
             if (!btn) return;
             state.cart.orderType = btn.getAttribute('data-type');
+            state.cart.lines = state.cart.lines.filter(function (line) {
+                return productChannelAvailable(state.productMap[line.productId]);
+            });
+            lastGridKey = '';
             persistCart();
             scheduleRender();
         });

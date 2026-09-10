@@ -4,6 +4,7 @@
 
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-pricing.css') }}?v=1.0">
 @endpush
 
 @section('content')
@@ -36,6 +37,9 @@
                             </div>
                             <div class="col-lg-8">
                                 <div class="d-flex gap-3 justify-content-end text-nowrap flex-wrap">
+                                    <button type="button" class="btn btn-outline-dark" data-bulk-pricing>
+                                        {{ translate('Bulk Price Edit') }}
+                                    </button>
                                     <div>
                                         <button type="button" class="btn btn-outline-primary" data-toggle="dropdown" aria-expanded="false">
                                             <i class="tio-download-to"></i>
@@ -123,6 +127,9 @@
                                         </td>
                                         <td>
                                             <div class="d-flex justify-content-center gap-2">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" data-pricing="{{ $product['id'] }}">
+                                                    {{ translate('Pricing') }}
+                                                </button>
                                                 <a class="btn btn-outline-info btn-sm edit square-btn"
                                                 href="{{route('admin.product.edit',[$product['id']])}}"><i class="tio-edit"></i></a>
                                                 <button type="button" class="btn btn-outline-danger btn-sm delete square-btn form-alert"
@@ -153,6 +160,74 @@
         </div>
     </div>
 
+    <div id="munch-pricing-root"
+         data-show-url="{{ route('admin.product.pricing.show', ['id' => '__ID__']) }}"
+         data-update-url="{{ route('admin.product.pricing.update', ['id' => '__ID__']) }}"
+         data-meta-url="{{ route('admin.product.pricing.meta') }}"
+         data-products-url="{{ route('admin.product.pricing.products') }}"
+         data-preview-price-url="{{ route('admin.product.pricing.bulk-price.preview') }}"
+         data-apply-price-url="{{ route('admin.product.pricing.bulk-price.apply') }}"
+         data-preview-avail-url="{{ route('admin.product.pricing.bulk-availability.preview') }}"
+         data-apply-avail-url="{{ route('admin.product.pricing.bulk-availability.apply') }}"
+         data-currency="{{ \App\CentralLogics\Helpers::currency_symbol() }}"></div>
+
+    <div id="munch-pricing-backdrop" class="munch-pricing-backdrop" hidden></div>
+
+    <aside id="munch-pricing-drawer" class="munch-pricing-drawer" hidden>
+        <div class="munch-pricing-drawer__header">
+            <div class="munch-pricing-drawer__identity">
+                <img id="munch-pricing-drawer-image" alt="">
+                <div>
+                    <h2 id="munch-pricing-drawer-title" class="munch-pricing-drawer__title">{{ translate('Pricing') }}</h2>
+                    <div id="munch-pricing-drawer-meta" class="munch-pricing-drawer__meta"></div>
+                    <div class="munch-pricing-default">
+                        <label for="munch-pricing-default-price">{{ translate('Default Price') }}</label>
+                        <input id="munch-pricing-default-price" type="number" min="0" step="0.01" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-soft-secondary square-btn rounded-circle" data-pricing-close aria-label="Close">
+                <i class="tio-clear"></i>
+            </button>
+        </div>
+        <div class="munch-pricing-drawer__toolbar">
+            <input id="munch-pricing-branch-search" class="form-control" type="search" placeholder="{{ translate('Search branches') }}">
+            <div class="position-relative">
+                <input id="munch-pricing-product-search" class="form-control" type="search" placeholder="{{ translate('Search products') }}">
+                <div id="munch-pricing-product-results" class="dropdown-menu mt-1" hidden></div>
+            </div>
+            <select id="munch-pricing-category-filter" class="custom-select">
+                <option value="">{{ translate('All categories') }}</option>
+            </select>
+            <select id="munch-pricing-channel-filter" class="custom-select">
+                <option value="">{{ translate('All channels') }}</option>
+                <option value="pos">POS</option>
+                <option value="uber">Uber</option>
+                <option value="glovo">Glovo</option>
+                <option value="bolt_food">Bolt Food</option>
+            </select>
+        </div>
+        <div id="munch-pricing-drawer-body" class="munch-pricing-drawer__body"></div>
+        <div class="munch-pricing-drawer__footer">
+            <span id="munch-pricing-dirty-count" class="text-muted">{{ translate('No unsaved changes') }}</span>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-pricing-close>{{ translate('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="munch-pricing-save" disabled>{{ translate('Save changes') }}</button>
+            </div>
+        </div>
+    </aside>
+
+    <div id="munch-pricing-modal" class="munch-pricing-modal" hidden>
+        <div class="munch-pricing-modal__panel">
+            <div class="munch-pricing-modal__header">
+                <h2 class="h4 mb-0">{{ translate('Bulk Price Edit') }}</h2>
+                <button type="button" class="btn btn-soft-secondary square-btn rounded-circle" data-pricing-close aria-label="Close">
+                    <i class="tio-clear"></i>
+                </button>
+            </div>
+            <div id="munch-pricing-modal-body" class="munch-pricing-modal__body"></div>
+        </div>
+    </div>
 @endsection
 
 @push('script_2')
@@ -214,4 +289,5 @@
             )
         }
     </script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.0"></script>
 @endpush

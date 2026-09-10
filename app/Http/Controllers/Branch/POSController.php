@@ -1186,7 +1186,7 @@ class POSController extends Controller
             if (! is_array($item)) {
                 continue;
             }
-            $line = $this->composeLineItem($item);
+            $line = $this->composeLineItem($item, PosOrderTypes::normalize($request->input('order_type')));
             if (! ($line['ok'] ?? false)) {
                 return $this->posFail($request, (string) ($line['message'] ?? translate('failed_to_place_order')));
             }
@@ -1249,7 +1249,7 @@ class POSController extends Controller
      * @param  array<string, mixed>  $input
      * @return array{ok: bool, data?: array<string, mixed>, message?: string}
      */
-    private function composeLineItem(array $input): array
+    private function composeLineItem(array $input, string $orderType = PosOrderTypes::TAKE_AWAY): array
     {
         $productId = (int) ($input['id'] ?? 0);
         $product = $this->product->find($productId);
@@ -1266,7 +1266,12 @@ class POSController extends Controller
         $branchProduct = $this->product_by_Branch
             ->where(['product_id' => $productId, 'branch_id' => auth('branch')->id()])
             ->first();
-        $branchProductPrice = 0;
+        $resolved = app(\App\Services\ProductChannelPricingService::class)
+            ->resolveForSale($product, (int) auth('branch')->id(), $orderType);
+        if (! $resolved['available']) {
+            return ['ok' => false, 'message' => translate('Product is not available for this channel')];
+        }
+        $branchProductPrice = $resolved['price'];
         $discountData = [];
 
         if (isset($branchProduct)) {
@@ -1302,7 +1307,6 @@ class POSController extends Controller
                 $variations = $requestVariations;
             }
 
-            $branchProductPrice = $branchProduct['price'];
             $discountData = [
                 'discount_type' => $branchProduct['discount_type'],
                 'discount' => $branchProduct['discount']

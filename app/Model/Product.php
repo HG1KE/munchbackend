@@ -143,6 +143,11 @@ class Product extends Model
         return $this->hasMany(ProductByBranch::class);
     }
 
+    public function channelPrices(): HasMany
+    {
+        return $this->hasMany(ProductChannelPrice::class);
+    }
+
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;
