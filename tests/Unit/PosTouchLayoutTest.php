@@ -111,12 +111,35 @@ class PosTouchLayoutTest extends TestCase
             strpos($line, 'munch-pos-line__sub') < strpos($line, 'munch-pos-qty'),
             'quantity controls stay horizontal beside the line total'
         );
-        $this->assertStringContainsString('min-height: 70px', $css);
         $this->assertStringContainsString('gap: 0.55rem', $css);
         $this->assertStringContainsString('flex-wrap: nowrap', $css);
         $this->assertStringContainsString('min-width: 44px', $css);
         $this->assertStringContainsString('min-height: 44px', $css);
+        $this->assertStringContainsString('minmax(300px, 340px)', $css);
         $this->assertStringNotContainsString('min-height: 62px', $css);
+        $this->assertStringNotContainsString('min-height: 70px', $css);
+    }
+
+    public function test_cart_variations_wrap_instead_of_truncating(): void
+    {
+        $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
+        $metaStart = strpos($css, '.munch-pos-line__meta');
+        $this->assertNotFalse($metaStart);
+        $meta = substr($css, $metaStart, 280);
+        $nameStart = strpos($css, '.munch-pos-line__name');
+        $this->assertNotFalse($nameStart);
+        $name = substr($css, $nameStart, 280);
+
+        $this->assertStringContainsString('white-space: normal', $meta);
+        $this->assertStringContainsString('overflow-wrap: break-word', $meta);
+        $this->assertStringContainsString('word-break: normal', $meta);
+        $this->assertStringNotContainsString('text-overflow: ellipsis', $meta);
+        $this->assertStringNotContainsString('white-space: nowrap', $meta);
+        $this->assertStringContainsString('white-space: normal', $name);
+        $this->assertStringContainsString('overflow-wrap: break-word', $name);
+        $this->assertStringNotContainsString('text-overflow: ellipsis', $name);
+        $this->assertStringNotContainsString('-webkit-line-clamp', $name);
+        $this->assertStringContainsString('height: auto', $css);
     }
 
     public function test_search_checkout_and_offline_hooks_are_unchanged(): void

@@ -189,19 +189,24 @@ test('three-column layout is derived from measured card width', function () {
     assert(css.indexOf('repeat(3, minmax(160px, 1fr))') !== -1, '15-inch CSS must keep 3 columns');
 });
 
-test('cart rows leave room for 7-9 items', function () {
-    var row = 70;
+test('cart rows leave room for 7-9 compact items and wrap variations', function () {
+    var row = 60;
     var gap = 9;
     var seven = (7 * row) + (6 * gap);
     var nine = (9 * row) + (8 * gap);
-    assert(seven <= 560, '7 rows should fit a 15-inch cart scroller');
-    assert(nine <= 720, '9 rows should fit with modest scrolling');
-    assert(css.indexOf('min-height: 70px') !== -1, 'cart rows should be about 70px');
+    assert(seven <= 560, '7 compact rows should fit a 15-inch cart scroller');
+    assert(nine <= 720, '9 compact rows should fit with modest scrolling');
+    assert(css.indexOf('min-height: 70px') === -1, 'cart rows must grow with content instead of a fixed 70px');
     assert(css.indexOf('gap: 0.55rem') !== -1, 'cart spacing should be 8-10px');
     assert(js.indexOf('munch-pos-line__main') !== -1, 'left stack missing');
     assert(js.indexOf('munch-pos-line__sub') !== -1, 'line total must stay on the right');
     assert(js.indexOf("money(lineUnit(line)) + ' × ' + qty") !== -1, 'unit × qty missing');
     assert(css.indexOf('flex-wrap: nowrap') !== -1, 'qty controls must stay horizontal');
+    var metaAt = css.indexOf('.munch-pos-line__meta');
+    var meta = css.slice(metaAt, metaAt + 280);
+    assert(meta.indexOf('text-overflow: ellipsis') === -1, 'variations must not ellipsize');
+    assert(meta.indexOf('white-space: nowrap') === -1, 'variations must wrap');
+    assert(meta.indexOf('overflow-wrap: break-word') !== -1, 'variations must wrap long option names');
 });
 
 test('search, category filters, checkout and offline mode remain unchanged', function () {

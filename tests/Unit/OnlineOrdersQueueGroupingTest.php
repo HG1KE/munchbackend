@@ -395,7 +395,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('[hidden]', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
-        $this->assertStringContainsString('munch-pos-shell-v20', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
+        $this->assertStringContainsString('munch-pos-shell-v21', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('fetchTodayOrders', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
