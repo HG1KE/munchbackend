@@ -222,6 +222,15 @@ class PosOrderTypes
         return in_array((string) $channel, [self::GLOVO, self::UBER, self::BOLT_FOOD], true);
     }
 
+    /**
+     * Channels cashiers may cancel from Branch POS View Orders.
+     * Marketplace orders stay POS-family for reporting, but are not POS-owned.
+     */
+    public static function allowsPosCancellation(?string $salesChannel): bool
+    {
+        return in_array((string) $salesChannel, [self::DELIVERY, 'takeaway', self::DINE_IN, 'pos'], true);
+    }
+
     public static function paymentDisplayLabel(?string $method): string
     {
         return match ((string) $method) {

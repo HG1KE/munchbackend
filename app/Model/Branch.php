@@ -7,11 +7,17 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\DeliveryChargeSetup;
 use App\Models\DeliveryChargeByArea;
-
+use App\Support\BranchOnlineOrdering;
 
 class Branch extends Authenticatable
 {
     use Notifiable;
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'online_orders_enabled',
+    ];
 
     protected $casts = [
         'coverage' => 'integer',
@@ -21,6 +27,7 @@ class Branch extends Authenticatable
         'updated_at' => 'datetime',
         'preparation_time' => 'integer',
         'pos_mpesa_enabled' => 'integer',
+        'online_orders_enabled' => 'integer',
     ];
 
     public function branch_promotion(): HasMany
@@ -72,6 +79,11 @@ class Branch extends Authenticatable
     public function branch_time_schedules(): HasMany
     {
         return $this->hasMany(BranchTimeSchedule::class, 'branch_id', 'id');
+    }
+
+    public function acceptsOnlineOrders(): bool
+    {
+        return BranchOnlineOrdering::isEnabled($this);
     }
 
 }

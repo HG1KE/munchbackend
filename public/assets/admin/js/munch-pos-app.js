@@ -52,7 +52,8 @@
         open: false,
         submitting: false,
         order: null,
-        clientUuid: ''
+        clientUuid: '',
+        opener: null
     };
     var cancelQueuedIds = {};
 
@@ -859,6 +860,7 @@
     function openDeliveryModal() {
         fillDeliveryModal();
         if (els.deliveryModal) els.deliveryModal.hidden = false;
+        syncPosOverlayState();
         var name = document.getElementById('pos-del-name');
         if (name) {
             requestAnimationFrame(function () {
@@ -870,6 +872,7 @@
 
     function closeDeliveryModal() {
         if (els.deliveryModal) els.deliveryModal.hidden = true;
+        syncPosOverlayState();
     }
 
     function csrfToken() {
@@ -1236,12 +1239,14 @@
         if (els.successPay) els.successPay.textContent = paymentLabel(job.payment_method);
         applyPrintButtonState(job);
         els.successModal.hidden = false;
+        syncPosOverlayState();
         renderTotals();
     }
 
     function dismissPlacedOrder() {
         successJob = null;
         if (els.successModal) els.successModal.hidden = true;
+        syncPosOverlayState();
         clearCart();
     }
 
@@ -1262,6 +1267,37 @@
 
     function isCancelledJob(job) {
         return !!(job && (isCancelledStatus(job.orderStatus) || isCancelledOrder(job)));
+    }
+
+    function orderAllowsCancel(order) {
+        return !!(order && order.cancellable && !isMarketplaceChannel(order.sales_channel) && !isCancelledOrder(order));
+    }
+
+    function ordersCardEl() {
+        return els.ordersModal ? els.ordersModal.querySelector('.munch-pos-orders__card') : null;
+    }
+
+    function syncPosOverlayState() {
+        var nested = !!(cancelUi.open && els.cancelModal && !els.cancelModal.hidden);
+        if (els.ordersModal) {
+            els.ordersModal.classList.toggle('is-nested-open', nested);
+        }
+        var card = ordersCardEl();
+        if (card) {
+            if (nested) {
+                card.setAttribute('inert', '');
+                card.setAttribute('aria-hidden', 'true');
+            } else {
+                card.removeAttribute('inert');
+                card.removeAttribute('aria-hidden');
+            }
+        }
+        var overlayOpen = !!(
+            (els.ordersModal && !els.ordersModal.hidden) ||
+            (els.successModal && !els.successModal.hidden) ||
+            (els.deliveryModal && !els.deliveryModal.hidden)
+        );
+        document.documentElement.classList.toggle('munch-pos-overlay-open', overlayOpen);
     }
 
     function applyCancelledOrder(serverOrder, payload) {
@@ -1308,11 +1344,12 @@
     }
 
     function openCancelModal(order) {
-        if (!order || !order.cancellable || !els.cancelModal) return;
+        if (!orderAllowsCancel(order) || !els.cancelModal) return;
         cancelUi.open = true;
         cancelUi.order = order;
         cancelUi.clientUuid = uuid();
         cancelUi.submitting = false;
+        cancelUi.opener = document.activeElement;
         if (els.cancelReason) {
             els.cancelReason.value = '';
             els.cancelReason.disabled = false;
@@ -1320,7 +1357,10 @@
         setCancelError('');
         setCancelSubmitting(false);
         els.cancelModal.hidden = false;
-        if (els.cancelReason) els.cancelReason.focus();
+        syncPosOverlayState();
+        requestAnimationFrame(function () {
+            if (els.cancelReason) els.cancelReason.focus();
+        });
     }
 
     function closeCancelModal() {
@@ -1331,6 +1371,27 @@
         if (els.cancelModal) els.cancelModal.hidden = true;
         setCancelError('');
         setCancelSubmitting(false);
+        syncPosOverlayState();
+        var opener = cancelUi.opener;
+        cancelUi.opener = null;
+        if (opener && typeof opener.focus === 'function' && ordersUi.open && !opener.hasAttribute('disabled')) {
+            try { opener.focus(); } catch (err) {}
+        }
+    }
+
+    function trapCancelFocus(ev) {
+        if (ev.key !== 'Tab' || !cancelUi.open || !els.cancelModal || els.cancelModal.hidden) return;
+        var nodes = els.cancelModal.querySelectorAll('textarea:not([disabled]), button:not([disabled])');
+        if (!nodes.length) return;
+        var first = nodes[0];
+        var last = nodes[nodes.length - 1];
+        if (ev.shiftKey && document.activeElement === first) {
+            ev.preventDefault();
+            last.focus();
+        } else if (!ev.shiftKey && document.activeElement === last) {
+            ev.preventDefault();
+            first.focus();
+        }
     }
 
     function cancelReasonError(reason) {
@@ -1907,7 +1968,7 @@
                     '<div class="munch-pos-order__prints">' +
                     '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed || isCancelledOrder(order) ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +
                     '<button type="button" class="munch-pos-order__print munch-pos-order__print--receipt" data-print-receipt="' + order.id + '"' + (order.receipt_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('receipt', order.receipt_printed)) + '</button>' +
-                    (order.cancellable ? '<button type="button" class="munch-pos-order__cancel" data-cancel-order="' + order.id + '">' + escapeHtml(L('cancelOrder', 'Cancel Order')) + '</button>' : '') +
+                    (orderAllowsCancel(order) ? '<button type="button" class="munch-pos-order__cancel" data-cancel-order="' + order.id + '">' + escapeHtml(L('cancelOrder', 'Cancel Order')) + '</button>' : '') +
                     '</div></div></div>' +
                     '<div class="munch-pos-order__pills">' +
                     (isMarketplaceChannel(order.sales_channel) ? channelBadgeHtml(order.sales_channel, order.sales_channel_label) : '') +
@@ -1975,15 +2036,19 @@
         if (!els.ordersModal) return;
         ordersUi.open = true;
         els.ordersModal.hidden = false;
+        syncPosOverlayState();
         renderOrderFilters();
         fetchTodayOrders();
         startOrdersRefresh();
     }
 
     function closeOrdersModal() {
+        if (cancelUi.submitting) return;
+        if (cancelUi.open) closeCancelModal();
         ordersUi.open = false;
         stopOrdersRefresh();
         if (els.ordersModal) els.ordersModal.hidden = true;
+        syncPosOverlayState();
     }
 
     function bind() {
@@ -2195,6 +2260,7 @@
         if (ordersRefresh) ordersRefresh.addEventListener('click', function () { fetchTodayOrders(); });
         if (els.ordersModal) {
             els.ordersModal.addEventListener('click', function (ev) {
+                if (cancelUi.open) return;
                 if (ev.target.id === 'pos-orders-modal') closeOrdersModal();
             });
         }
@@ -2224,7 +2290,7 @@
                     ev.stopPropagation();
                     var cancelId = Number(cancelBtn.getAttribute('data-cancel-order'));
                     var cancelOrder = ordersUi.orders.find(function (row) { return Number(row.id) === cancelId; });
-                    if (cancelOrder) openCancelModal(cancelOrder);
+                    if (orderAllowsCancel(cancelOrder)) openCancelModal(cancelOrder);
                     return;
                 }
                 var kitchenBtn = ev.target.closest('[data-print-kitchen]');
@@ -2260,12 +2326,15 @@
         }
         if (els.cancelModal) {
             els.cancelModal.addEventListener('click', function (ev) {
-                if (ev.target.id === 'pos-cancel-modal' && !cancelUi.submitting) closeCancelModal();
+                if (ev.target === els.cancelModal && !cancelUi.submitting) closeCancelModal();
             });
+            els.cancelModal.addEventListener('keydown', trapCancelFocus);
         }
         document.addEventListener('keydown', function (ev) {
             if (ev.key === 'Escape') {
                 if (cancelUi.open) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
                     if (!cancelUi.submitting) closeCancelModal();
                     return;
                 }

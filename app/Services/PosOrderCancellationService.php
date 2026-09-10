@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\CentralLogics\PosOrderCancelledSms;
 use App\Model\Order;
+use App\Support\PosOrderTypes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -64,6 +65,10 @@ class PosOrderCancellationService
             return false;
         }
 
+        if (! PosOrderTypes::allowsPosCancellation($order->sales_channel ?? null)) {
+            return false;
+        }
+
         $status = (string) $order->order_status;
         if (in_array($status, self::TERMINAL_STATUSES, true)) {
             return false;
@@ -83,6 +88,9 @@ class PosOrderCancellationService
         }
         if (self::isCancelledStatus($order->order_status)) {
             return 'Order is already cancelled.';
+        }
+        if (! PosOrderTypes::allowsPosCancellation($order->sales_channel ?? null)) {
+            return 'Marketplace orders cannot be cancelled from POS.';
         }
         if (! self::isCancellable($order)) {
             return 'This order can no longer be cancelled.';

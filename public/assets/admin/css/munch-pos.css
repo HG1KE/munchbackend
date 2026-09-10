@@ -685,6 +685,28 @@
     padding: 0.85rem;
 }
 
+.munch-pos-orders__nested {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+
+.munch-pos-orders.is-nested-open .munch-pos-orders__card {
+    pointer-events: none;
+}
+
+.munch-pos-orders.is-nested-open .munch-pos-orders__list {
+    overflow: hidden;
+}
+
+html.munch-pos-overlay-open,
+html.munch-pos-overlay-open body {
+    overflow: hidden;
+}
+
 .munch-pos-orders__card {
     width: min(960px, 100%);
     height: min(880px, calc(100dvh - 1.7rem));

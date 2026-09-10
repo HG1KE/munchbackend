@@ -133,6 +133,22 @@
         <div class="munch-pos-orders__list" id="pos-orders-list"></div>
         <footer class="munch-pos-orders__pager" id="pos-orders-pager"></footer>
     </div>
+    <div class="munch-pos-orders__nested" id="pos-cancel-modal" hidden>
+        <div class="munch-pos-modal__card munch-pos-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="pos-cancel-title">
+            <h2 id="pos-cancel-title">{{ translate('Cancel Order') }}</h2>
+            <p class="munch-pos-cancel-modal__error" id="pos-cancel-error" hidden></p>
+            <label class="munch-pos-cancel-modal__field">
+                <span>{{ translate('Cancellation Reason') }}</span>
+                <textarea id="pos-cancel-reason" rows="4" minlength="5" maxlength="500" required></textarea>
+            </label>
+            <p class="munch-pos-cancel-modal__warn">⚠️ {{ translate('This cancellation will be visible to the Master Admin.') }}</p>
+            <p class="munch-pos-cancel-modal__confirm">{{ translate('Are you sure you want to continue?') }}</p>
+            <div class="munch-pos-cancel-modal__actions">
+                <button type="button" class="munch-pos-clear" id="pos-cancel-dismiss">{{ translate('Cancel') }}</button>
+                <button type="button" class="munch-pos-cancel-modal__submit" id="pos-cancel-confirm">{{ translate('Confirm Cancellation') }}</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="munch-pos-success" id="pos-success-modal" hidden>
@@ -161,23 +177,6 @@
 </div>
 
 <iframe id="pos-print-frame" class="munch-pos-print-frame" title="{{ translate('Print') }}"></iframe>
-
-<div class="munch-pos-modal" id="pos-cancel-modal" hidden>
-    <div class="munch-pos-modal__card munch-pos-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="pos-cancel-title">
-        <h2 id="pos-cancel-title">{{ translate('Cancel Order') }}</h2>
-        <p class="munch-pos-cancel-modal__error" id="pos-cancel-error" hidden></p>
-        <label class="munch-pos-cancel-modal__field">
-            <span>{{ translate('Cancellation Reason') }}</span>
-            <textarea id="pos-cancel-reason" rows="4" minlength="5" maxlength="500" required></textarea>
-        </label>
-        <p class="munch-pos-cancel-modal__warn">⚠️ {{ translate('This cancellation will be visible to the Master Admin.') }}</p>
-        <p class="munch-pos-cancel-modal__confirm">{{ translate('Are you sure you want to continue?') }}</p>
-        <div class="munch-pos-cancel-modal__actions">
-            <button type="button" class="munch-pos-clear" id="pos-cancel-dismiss">{{ translate('Cancel') }}</button>
-            <button type="button" class="munch-pos-cancel-modal__submit" id="pos-cancel-confirm">{{ translate('Confirm Cancellation') }}</button>
-        </div>
-    </div>
-</div>
 
 <div class="munch-pos-toast" id="pos-toast" hidden></div>
 @endsection
@@ -314,5 +313,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.1"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-dine-in.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.0" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=3.1" defer></script>
 @endpush

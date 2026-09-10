@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Branch;
 
 use App\Http\Controllers\Controller;
 use App\Services\DashboardOrderOperationsService;
+use App\Support\BranchOnlineOrdering;
 use Illuminate\Contracts\Support\Renderable;
+use Illuminate\Http\RedirectResponse;
 
 class OrderOperationsController extends Controller
 {
@@ -12,8 +14,12 @@ class OrderOperationsController extends Controller
         private DashboardOrderOperationsService $operations,
     ) {}
 
-    public function online(): Renderable
+    public function online(): Renderable|RedirectResponse
     {
+        if (! BranchOnlineOrdering::isEnabled(auth('branch')->user())) {
+            return redirect()->route('branch.dashboard');
+        }
+
         $branchId = (int) auth('branch')->id();
         $pending = $this->operations->mapExpressOrderCards(
             $this->operations->expressPendingQueue($branchId),

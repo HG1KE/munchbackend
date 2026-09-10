@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
+use Illuminate\Support\Facades\Schema;
 use App\Models\DeliveryChargeByArea;
 use App\Models\DeliveryChargeSetup;
 use Brian2694\Toastr\Facades\Toastr;
@@ -73,6 +74,9 @@ class BranchController extends Controller
         $branch->phone = $request->phone ?? null;
         $branch->mpesa_till = $this->normalizedMpesaTill($request->mpesa_till);
         $branch->pos_mpesa_enabled = $request->boolean('pos_mpesa_enabled') ? 1 : 0;
+        if (Schema::hasColumn('branches', 'online_orders_enabled')) {
+            $branch->online_orders_enabled = $request->boolean('online_orders_enabled') ? 1 : 0;
+        }
         $branch->password = bcrypt($request->password);
         $branch->preparation_time = $request->preparation_time;
         $branch->image = $imageName;
@@ -139,6 +143,9 @@ class BranchController extends Controller
         $branch->phone = $request->phone ?? '';
         $branch->mpesa_till = $this->normalizedMpesaTill($request->mpesa_till);
         $branch->pos_mpesa_enabled = $request->boolean('pos_mpesa_enabled') ? 1 : 0;
+        if (Schema::hasColumn('branches', 'online_orders_enabled')) {
+            $branch->online_orders_enabled = $request->boolean('online_orders_enabled') ? 1 : 0;
+        }
         $branch->preparation_time = $request->preparation_time;
         $branch->save();
 

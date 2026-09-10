@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Branch;
 
 use App\Http\Controllers\Controller;
 use App\Services\DashboardOrderOperationsService;
+use App\Support\BranchOnlineOrdering;
 use Illuminate\Http\JsonResponse;
 
 class DashboardLiveCardsController extends Controller
@@ -15,7 +16,9 @@ class DashboardLiveCardsController extends Controller
     public function __invoke(): JsonResponse
     {
         $branchId = (int) auth('branch')->id();
-        $counts = $this->operations->dashboardCounts($branchId);
+        $counts = BranchOnlineOrdering::isEnabled(auth('branch')->user())
+            ? $this->operations->dashboardCounts($branchId)
+            : ['online' => 0, 'express' => 0];
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),

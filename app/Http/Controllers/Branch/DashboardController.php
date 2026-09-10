@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\Order;
 use App\Services\DashboardOrderOperationsService;
+use App\Support\BranchOnlineOrdering;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -94,9 +95,12 @@ class DashboardController extends Controller
             ->get();
 
 
-        $operations = $this->orderOperations->dashboardCounts((int) auth('branch')->id());
+        $showOnlineOrders = BranchOnlineOrdering::isEnabled(auth('branch')->user());
+        $operations = $showOnlineOrders
+            ? $this->orderOperations->dashboardCounts((int) auth('branch')->id())
+            : ['online' => 0, 'express' => 0];
 
-        return view('branch-views.dashboard', compact('data', 'earning', 'orderStatisticsChart', 'donut', 'operations'));
+        return view('branch-views.dashboard', compact('data', 'earning', 'orderStatisticsChart', 'donut', 'operations', 'showOnlineOrders'));
     }
 
     /**

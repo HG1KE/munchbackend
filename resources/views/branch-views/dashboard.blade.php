@@ -24,7 +24,8 @@
                 'operations' => $operations ?? ['online' => 0],
                 'onlineRoute' => 'branch.orders.online',
                 'posRoute' => 'branch.pos.index',
-                'liveCardsUrl' => route('branch.dashboard.live-cards'),
+                'liveCardsUrl' => ($showOnlineOrders ?? true) ? route('branch.dashboard.live-cards') : null,
+                'showOnlineOrders' => $showOnlineOrders ?? true,
             ])
         </div>
 
@@ -558,5 +559,5 @@
         chart.render();
 
     </script>
-    <script src="{{ asset('public/assets/admin/js/dashboard-online-orders.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/dashboard-online-orders.js') }}?v=1.1"></script>
 @endpush

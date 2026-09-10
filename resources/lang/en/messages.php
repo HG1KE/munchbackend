@@ -3167,4 +3167,5 @@
   'Nothing to copy for this selection' => 'Nothing to copy for this selection',
   'Pricing copy failed and was rolled back' => 'Pricing copy failed and was rolled back',
   'Pricing tables are not ready' => 'Pricing tables are not ready',
+  'When disabled, this branch will not see or ring for Online Orders. Customers can still order and Admin still receives them.' => 'When disabled, this branch will not see or ring for Online Orders. Customers can still order and Admin still receives them.',
 );

@@ -97,6 +97,7 @@
                             </a>
                             <ul class="js-navbar-vertical-aside-submenu nav nav-sub"
                                 style="display: {{Request::is('branch/orders/list*') || Request::is('branch/orders/online')?'block':'none'}}">
+                                @if(\App\Support\BranchOnlineOrdering::isEnabled(auth('branch')->user()))
                                 <li class="nav-item {{Request::is('branch/orders/online')?'active':''}}">
                                     <a class="nav-link" href="{{route('branch.orders.online')}}" title="">
                                         <span class="tio-circle nav-indicator-icon"></span>
@@ -105,6 +106,7 @@
                                         </span>
                                     </a>
                                 </li>
+                                @endif
                                 <li class="nav-item {{Request::is('branch/orders/list/all')?'active':''}}">
                                     <a class="nav-link" href="{{route('branch.orders.list',['all'])}}" title="">
                                         <span class="tio-circle nav-indicator-icon"></span>

@@ -74,6 +74,45 @@ class PosOrderCancellationTest extends TestCase
             'order_type' => 'pos',
         ]);
         $this->assertTrue(PosOrderCancellationService::isCancellable($confirmedDelivery));
+
+        $dineIn = $this->makeOrder([
+            'order_status' => 'confirmed',
+            'sales_channel' => 'dine_in',
+            'order_type' => 'dine_in',
+        ]);
+        $this->assertTrue(PosOrderCancellationService::isCancellable($dineIn));
+    }
+
+    public function test_marketplace_orders_are_not_cancellable_from_pos(): void
+    {
+        foreach (['glovo', 'uber', 'bolt_food'] as $channel) {
+            $order = $this->makeOrder([
+                'order_status' => 'delivered',
+                'sales_channel' => $channel,
+                'order_type' => 'pos',
+            ]);
+            $this->assertFalse(PosOrderCancellationService::isCancellable($order), $channel);
+            $this->assertSame(
+                'Marketplace orders cannot be cancelled from POS.',
+                PosOrderCancellationService::cancellableError($order),
+                $channel
+            );
+        }
+    }
+
+    public function test_marketplace_cancel_does_not_change_the_order_or_write_audit(): void
+    {
+        $order = $this->persistOrder([
+            'order_status' => 'delivered',
+            'sales_channel' => 'glovo',
+            'order_type' => 'pos',
+        ]);
+        $result = $this->service->cancel($order, 'Cancelled on Glovo app', 'branch', 3);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_cancellable', $result['code']);
+        $this->assertSame('delivered', $order->fresh()->order_status);
+        $this->assertSame(0, OrderCancellationAuditLog::query()->where('order_id', $order->id)->count());
     }
 
     public function test_cancel_sets_canceled_status_saves_reason_and_writes_audit_log(): void
@@ -223,7 +262,22 @@ class PosOrderCancellationTest extends TestCase
 
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $this->assertStringContainsString('data-cancel-order', $js);
-        $this->assertStringContainsString('pos-cancel-modal', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $this->assertStringContainsString('pos-cancel-modal', $page);
+        $ordersBlock = substr($page, strpos($page, 'id="pos-orders-modal"'), strpos($page, 'id="pos-success-modal"') - strpos($page, 'id="pos-orders-modal"'));
+        $this->assertStringContainsString('id="pos-cancel-modal"', $ordersBlock);
+        $this->assertStringContainsString('munch-pos-orders__nested', $ordersBlock);
+        $this->assertStringContainsString('orderAllowsCancel(order)', $js);
+        $this->assertStringContainsString('!isMarketplaceChannel(order.sales_channel)', $js);
+        $this->assertStringContainsString('syncPosOverlayState', $js);
+        $this->assertStringContainsString('is-nested-open', $js);
+        $this->assertStringContainsString('munch-pos-overlay-open', $js);
+        $this->assertStringContainsString('trapCancelFocus', $js);
+        $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
+        $this->assertStringContainsString('.munch-pos-orders__nested', $css);
+        $this->assertStringContainsString('.munch-pos-orders.is-nested-open', $css);
+        $nestedCss = substr($css, strpos($css, '.munch-pos-orders__nested'), 280);
+        $this->assertStringNotContainsString('z-index', $nestedCss);
         $this->assertStringContainsString('isCancelledOrder(order)', $js);
         $this->assertStringContainsString("kind === 'kitchen' && (job.kitchenPrinted || isCancelledJob(job))", $js);
         $this->assertStringContainsString("payload.action === 'cancel' ? postCancel(payload) : postOrder(payload)", $js);

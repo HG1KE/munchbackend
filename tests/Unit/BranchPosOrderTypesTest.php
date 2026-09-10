@@ -131,6 +131,17 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertFalse(PosOrderTypes::allowsManualDiscount('bolt_food'));
     }
 
+    public function test_pos_cancellation_is_limited_to_owned_channels(): void
+    {
+        $this->assertTrue(PosOrderTypes::allowsPosCancellation('dine_in'));
+        $this->assertTrue(PosOrderTypes::allowsPosCancellation('takeaway'));
+        $this->assertTrue(PosOrderTypes::allowsPosCancellation('delivery'));
+        $this->assertTrue(PosOrderTypes::allowsPosCancellation('pos'));
+        $this->assertFalse(PosOrderTypes::allowsPosCancellation('glovo'));
+        $this->assertFalse(PosOrderTypes::allowsPosCancellation('uber'));
+        $this->assertFalse(PosOrderTypes::allowsPosCancellation('bolt_food'));
+    }
+
     public function test_dine_in_json_payload_requires_table_and_hydrates_ids(): void
     {
         $valid = ['order_type' => 'dine_in', 'table_id' => '12', 'people_number' => '3'];

@@ -48,7 +48,7 @@
             return;
         }
         var url = root.getAttribute('data-live-cards-url');
-        if (!url) {
+        if (!url || !root.querySelector('[data-live-card="online"]')) {
             return;
         }
         poll(root, url);

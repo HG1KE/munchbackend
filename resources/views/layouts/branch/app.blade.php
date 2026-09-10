@@ -232,8 +232,9 @@
     <script>
         @php($admin_order_notification = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification'))
         @php($admin_order_notification_type = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
+        @php($branchAcceptsOnlineOrders = \App\Support\BranchOnlineOrdering::isEnabled(auth('branch')->user()))
 
-        @if($admin_order_notification)
+        @if($branchAcceptsOnlineOrders && $admin_order_notification)
             var munchPendingAlertUrl = '{{ route('branch.get-restaurant-data') }}';
 
             function munchPlayPendingOrderAlert(data) {

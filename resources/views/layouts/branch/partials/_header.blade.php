@@ -57,6 +57,7 @@
                         </div>
                     </li>
 
+                    @if(\App\Support\BranchOnlineOrdering::isEnabled(auth('branch')->user()))
                     <li class="nav-item d-none d-sm-inline-block">
                         <div class="hs-unfold">
                             <a class="js-hs-unfold-invoker btn btn-icon btn-ghost-secondary rounded-circle"
@@ -66,6 +67,7 @@
                             </a>
                         </div>
                     </li>
+                    @endif
 
                     <li class="nav-item ml-4">
                         <div class="hs-unfold">
