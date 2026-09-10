@@ -3147,6 +3147,7 @@
   'Pricing' => 'Pricing',
   'Bulk Price Edit' => 'Bulk Price Edit',
   'Default Price' => 'Default Price',
+  'Default Selling Price' => 'Default Selling Price',
   'Search branches' => 'Search branches',
   'Search products' => 'Search products',
   'All channels' => 'All channels',

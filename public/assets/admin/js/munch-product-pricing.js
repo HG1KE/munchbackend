@@ -169,9 +169,9 @@
         json(url).then(function (payload) {
             drawer.payload = payload;
             drawer.originalDefault = payload.product.default_price;
-            if (drawer.defaultPrice === null || Number(els.defaultInput.value) === Number(drawer.originalDefault)) {
-                drawer.defaultPrice = payload.product.default_price;
-            }
+            drawer.defaultPrice = payload.product.default_selling_price != null
+                ? payload.product.default_selling_price
+                : payload.product.default_price;
             renderDrawer();
         }).catch(function () {
             els.drawerBody.innerHTML = '<div class="munch-pricing-empty">Could not load pricing.</div>';
@@ -207,13 +207,13 @@
                 var isOverride = reset ? false : (drawer.dirty[key] !== undefined ? true : cell.override);
                 var value = drawer.dirty[key] !== undefined ? drawer.dirty[key] : cell.price;
                 if (reset) {
-                    value = ch === 'pos' ? drawer.defaultPrice : ((branch.cells.pos || {}).price || drawer.defaultPrice);
+                    value = cell.inherited_price != null ? cell.inherited_price : drawer.defaultPrice;
                 }
                 html += '<div class="munch-pricing-grid__cell">' +
                     '<input class="munch-pricing-input' + (isOverride ? ' is-override' : '') + '" type="number" min="0" step="0.01" data-price="' + branch.id + '" data-channel="' + ch + '" value="' + escapeAttr(value) + '">' +
                     (isOverride
                         ? '<button type="button" class="munch-pricing-reset" data-reset="' + branch.id + '" data-channel="' + ch + '">Reset to Default</button>'
-                        : '<span class="munch-pricing-inherited">Uses ' + escapeHtml(inheritLabel(cell.inherited_from)) + '</span>') +
+                        : '<span class="munch-pricing-inherited">Uses ' + escapeHtml(inheritLabel(cell.inherited_from, ch)) + '</span>') +
                     '</div>';
             });
             html += '<div class="munch-pricing-grid__label">Available</div>';
@@ -232,17 +232,14 @@
         updateDirtyCount();
     }
 
-    function inheritLabel(from) {
-        if (from === 'pos') return 'POS price';
-        if (from === 'default') return 'default price';
+    function inheritLabel(from, channel) {
+        if (from === 'pos') return 'POS selling price';
+        if (from === 'default') return channel === 'pos' ? 'default price' : 'default selling price';
         return 'override';
     }
 
     function updateDirtyCount() {
         var count = Object.keys(drawer.dirty).length;
-        if (drawer.defaultPrice !== null && drawer.originalDefault !== null && Number(drawer.defaultPrice) !== Number(drawer.originalDefault)) {
-            count += 1;
-        }
         els.dirtyCount.textContent = count ? (count + ' unsaved change' + (count === 1 ? '' : 's')) : 'No unsaved changes';
         els.save.disabled = count === 0;
     }
@@ -268,7 +265,6 @@
         json(updateUrl(drawer.productId), {
             method: 'POST',
             body: {
-                default_price: Number(drawer.defaultPrice),
                 changes: collectChanges()
             }
         }).then(function (data) {
@@ -276,7 +272,9 @@
             drawer.dirty = {};
             drawer.payload = data.payload;
             drawer.originalDefault = data.payload.product.default_price;
-            drawer.defaultPrice = data.payload.product.default_price;
+            drawer.defaultPrice = data.payload.product.default_selling_price != null
+                ? data.payload.product.default_selling_price
+                : data.payload.product.default_price;
             renderDrawer();
         }).catch(function (err) {
             showToast(false, (err && err.message) || 'Could not save pricing');
@@ -627,10 +625,6 @@
         closeAll();
     });
     els.save.addEventListener('click', saveDrawer);
-    els.defaultInput.addEventListener('input', function () {
-        drawer.defaultPrice = Number(els.defaultInput.value || 0);
-        updateDirtyCount();
-    });
     els.branchSearch.addEventListener('input', debounce(function () {
         drawer.branchSearch = els.branchSearch.value;
         fetchDrawer();

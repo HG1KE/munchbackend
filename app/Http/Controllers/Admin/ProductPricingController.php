@@ -47,13 +47,12 @@ class ProductPricingController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $product = $this->product->findOrFail($id);
-        $default = $request->has('default_price') ? (float) $request->input('default_price') : null;
         $changes = $request->input('changes', []);
         if (! is_array($changes)) {
             $changes = [];
         }
 
-        $result = $this->pricing->saveDrawer($product, $default, $changes, 'drawer');
+        $result = $this->pricing->saveDrawer($product, null, $changes, 'drawer');
 
         return response()->json([
             'success' => 1,

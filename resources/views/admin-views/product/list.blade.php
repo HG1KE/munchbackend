@@ -183,8 +183,8 @@
                     <h2 id="munch-pricing-drawer-title" class="munch-pricing-drawer__title">{{ translate('Pricing') }}</h2>
                     <div id="munch-pricing-drawer-meta" class="munch-pricing-drawer__meta"></div>
                     <div class="munch-pricing-default">
-                        <label for="munch-pricing-default-price">{{ translate('Default Price') }}</label>
-                        <input id="munch-pricing-default-price" type="number" min="0" step="0.01" class="form-control">
+                        <label for="munch-pricing-default-price">{{ translate('Default Selling Price') }}</label>
+                        <input id="munch-pricing-default-price" type="number" min="0" step="0.01" class="form-control" readonly>
                     </div>
                 </div>
             </div>
@@ -306,5 +306,5 @@
             )
         }
     </script>
-    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.1"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=1.2"></script>
 @endpush

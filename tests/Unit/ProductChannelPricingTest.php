@@ -83,4 +83,37 @@ class ProductChannelPricingTest extends TestCase
         $this->assertSame(['bolt_food', false], $bulk->parseAvailabilityAction('disable_bolt_food'));
         $this->assertNull($bulk->parseAvailabilityAction('delete_everything'));
     }
+
+    public function test_effective_selling_price_reuses_storefront_discount_helper(): void
+    {
+        $pricing = $this->pricing();
+        $amount = ['discount_type' => 'amount', 'discount' => 150];
+        $percent = ['discount_type' => 'percent', 'discount' => 20];
+
+        $this->assertSame(790.0, $pricing->effectiveSellingPrice(940, $amount));
+        $this->assertSame(752.0, $pricing->effectiveSellingPrice(940, $percent));
+        $this->assertSame(940.0, $pricing->sellingToUnit(790, $amount));
+        $this->assertSame(1019.0, $pricing->sellingToUnit(869, $amount));
+        $this->assertSame(869.0, $pricing->effectiveSellingPrice(1019, $amount));
+        $this->assertSame(790.0, $pricing->displayPrice('uber', 940, $amount));
+        $this->assertSame(940.0, $pricing->displayPrice('pos', 940, $amount));
+    }
+
+    public function test_marketplace_previews_inherit_effective_selling_price(): void
+    {
+        $pricing = $this->pricing();
+        $discount = ['discount_type' => 'amount', 'discount' => 150];
+        $matrix = $pricing->resolveMatrix(940, null, [], $discount);
+        $bulk = new ProductBulkPricingService($pricing);
+
+        $this->assertSame(940.0, $matrix['prices']['pos']);
+        $this->assertSame(940.0, $matrix['prices']['uber']);
+        $this->assertSame(790.0, $matrix['display_prices']['uber']);
+        $this->assertSame(790.0, $matrix['inherited_price']['uber']);
+        $this->assertSame(869.0, $bulk->applyAction($matrix['display_prices']['uber'], 'increase_percent', 10));
+        $this->assertSame(900.0, $bulk->applyAction($matrix['display_prices']['glovo'], 'set_exact', 900));
+        $this->assertSame(840.0, $bulk->applyAction($matrix['display_prices']['bolt_food'], 'increase_amount', 50));
+        $this->assertTrue(ProductPricingChannels::isMarketplace('uber'));
+        $this->assertFalse(ProductPricingChannels::isMarketplace('pos'));
+    }
 }

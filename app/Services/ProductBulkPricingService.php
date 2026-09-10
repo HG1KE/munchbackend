@@ -287,17 +287,21 @@ class ProductBulkPricingService
             }
 
             foreach ($branchIds as $branchId) {
+                $branchProduct = $byBranch->get($branchId);
+                $payload = $this->pricing->discountPayload($product, $branchProduct);
                 $matrix = $this->pricing->resolveMatrix(
                     $default,
-                    $byBranch->get($branchId),
-                    $channelRows[$branchId] ?? []
+                    $branchProduct,
+                    $channelRows[$branchId] ?? [],
+                    $payload
                 );
+                $unit = $matrix['prices'][$channel] ?? $default;
                 $out[] = [
                     'product_id' => $productId,
                     'product_name' => (string) $product->name,
                     'branch_id' => $branchId,
                     'branch_name' => (string) ($branchNames->get($branchId)['name'] ?? 'Branch '.$branchId),
-                    'price' => $matrix['prices'][$channel] ?? $default,
+                    'price' => $this->pricing->displayPrice($channel, $unit, $payload),
                     'available' => (bool) ($matrix['available'][$channel] ?? false),
                 ];
             }

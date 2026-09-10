@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\CentralLogics\Helpers;
 use App\Model\Branch;
 use App\Model\Category;
 use App\Model\Product;
@@ -27,8 +28,9 @@ class ProductChannelPricingService
     }
 
     /**
-     * POS: override ?? default.
-     * Marketplace: channel override ?? POS override ?? default.
+     * Stored unit prices (POS checkout still applies product discounts on these):
+     * POS: override ?? default unit.
+     * Marketplace: channel override ?? POS override ?? default unit.
      */
     public function resolvePrice(string $channel, float $defaultPrice, ?float $posOverride, ?float $channelOverride): float
     {
@@ -47,45 +49,146 @@ class ProductChannelPricingService
     }
 
     /**
+     * Discount payload already used by storefront cards and POS catalog.
+     *
+     * @return array{discount_type: string, discount: float}
+     */
+    public function discountPayload(Product $product, ?ProductByBranch $branchProduct = null): array
+    {
+        if ($branchProduct !== null) {
+            return $this->normalizeDiscountPayload([
+                'discount_type' => $branchProduct->discount_type,
+                'discount' => $branchProduct->discount,
+            ]);
+        }
+
+        $discount = $product->getRawOriginal('discount');
+
+        return $this->normalizeDiscountPayload([
+            'discount_type' => $product->discount_type ?? 'amount',
+            'discount' => $discount !== null ? $discount : $product->discount,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{discount_type: string, discount: float}
+     */
+    public function normalizeDiscountPayload(array $payload): array
+    {
+        return [
+            'discount_type' => (string) ($payload['discount_type'] ?? 'amount'),
+            'discount' => (float) ($payload['discount'] ?? 0),
+        ];
+    }
+
+    /**
+     * Website / POS selling price: unit − Helpers::discount_calculate().
+     *
+     * @param  array<string, mixed>  $discountPayload
+     */
+    public function effectiveSellingPrice(float $unitPrice, array $discountPayload = []): float
+    {
+        $payload = $this->normalizeDiscountPayload($discountPayload);
+        $discount = (float) Helpers::discount_calculate($payload, $unitPrice);
+
+        return $this->money(max(0, $unitPrice - $discount));
+    }
+
+    /**
+     * Reverse of effectiveSellingPrice so marketplace admin edits stay in selling-price
+     * space while POS still stores and discounts unit prices.
+     *
+     * @param  array<string, mixed>  $discountPayload
+     */
+    public function sellingToUnit(float $sellingPrice, array $discountPayload = []): float
+    {
+        $payload = $this->normalizeDiscountPayload($discountPayload);
+        $selling = $this->money(max(0, $sellingPrice));
+
+        if ($payload['discount_type'] === 'percent') {
+            $percent = (float) $payload['discount'];
+            if ($percent <= 0 || $percent >= 100) {
+                return $selling;
+            }
+
+            return $this->money($selling / (1 - ($percent / 100)));
+        }
+
+        return $this->money($selling + (float) $payload['discount']);
+    }
+
+    /**
+     * Admin / preview figure for a stored unit price.
+     *
+     * @param  array<string, mixed>  $discountPayload
+     */
+    public function displayPrice(string $channel, float $unitPrice, array $discountPayload = []): float
+    {
+        if (ProductPricingChannels::isMarketplace($channel)) {
+            return $this->effectiveSellingPrice($unitPrice, $discountPayload);
+        }
+
+        return $this->money($unitPrice);
+    }
+
+    /**
      * @param  array<string, ProductChannelPrice|null>  $channelRows  keyed by channel
+     * @param  array<string, mixed>  $discountPayload
      * @return array{
      *     prices: array<string, float>,
+     *     display_prices: array<string, float>,
      *     available: array<string, bool>,
      *     overrides: array<string, bool>,
-     *     inherited_from: array<string, string>
+     *     inherited_from: array<string, string>,
+     *     inherited_price: array<string, float>
      * }
      */
-    public function resolveMatrix(float $defaultPrice, ?ProductByBranch $branchProduct, array $channelRows): array
+    public function resolveMatrix(float $defaultPrice, ?ProductByBranch $branchProduct, array $channelRows, array $discountPayload = []): array
     {
+        $discountPayload = $this->normalizeDiscountPayload($discountPayload);
         $posRow = $channelRows[ProductPricingChannels::POS] ?? null;
         $posOverride = $this->posOverrideValue($posRow, $branchProduct, $defaultPrice);
         $posAvailable = $this->posAvailable($posRow, $branchProduct);
+        $posUnit = $this->resolvePrice(ProductPricingChannels::POS, $defaultPrice, $posOverride, null);
+        $marketplaceInherit = $this->effectiveSellingPrice($posUnit, $discountPayload);
 
         $prices = [
-            ProductPricingChannels::POS => $this->resolvePrice(ProductPricingChannels::POS, $defaultPrice, $posOverride, null),
+            ProductPricingChannels::POS => $posUnit,
+        ];
+        $displayPrices = [
+            ProductPricingChannels::POS => $posUnit,
         ];
         $available = [ProductPricingChannels::POS => $posAvailable];
         $overrides = [ProductPricingChannels::POS => $posOverride !== null];
         $inheritedFrom = [
             ProductPricingChannels::POS => $posOverride !== null ? 'override' : ProductPricingChannels::DEFAULT,
         ];
+        $inheritedPrice = [
+            ProductPricingChannels::POS => $this->money($defaultPrice),
+        ];
 
-        foreach ([ProductPricingChannels::UBER, ProductPricingChannels::GLOVO, ProductPricingChannels::BOLT_FOOD] as $channel) {
+        foreach (ProductPricingChannels::marketplaceChannels() as $channel) {
             $row = $channelRows[$channel] ?? null;
             $channelOverride = ($row && $row->price !== null) ? (float) $row->price : null;
-            $prices[$channel] = $this->resolvePrice($channel, $defaultPrice, $posOverride, $channelOverride);
+            $unit = $this->resolvePrice($channel, $defaultPrice, $posOverride, $channelOverride);
+            $prices[$channel] = $unit;
+            $displayPrices[$channel] = $this->displayPrice($channel, $unit, $discountPayload);
             $available[$channel] = $row !== null ? ((int) $row->is_available === 1) : $posAvailable;
             $overrides[$channel] = $channelOverride !== null;
             $inheritedFrom[$channel] = $channelOverride !== null
                 ? 'override'
                 : ($posOverride !== null ? ProductPricingChannels::POS : ProductPricingChannels::DEFAULT);
+            $inheritedPrice[$channel] = $marketplaceInherit;
         }
 
         return [
             'prices' => $prices,
+            'display_prices' => $displayPrices,
             'available' => $available,
             'overrides' => $overrides,
             'inherited_from' => $inheritedFrom,
+            'inherited_price' => $inheritedPrice,
         ];
     }
 
@@ -111,7 +214,12 @@ class ProductChannelPricingService
             ->where('product_id', $product->id)
             ->where('branch_id', $branchId)
             ->first();
-        $matrix = $this->resolveMatrix($defaultPrice, $branchProduct, $this->channelRowsFor($product->id, $branchId));
+        $matrix = $this->resolveMatrix(
+            $defaultPrice,
+            $branchProduct,
+            $this->channelRowsFor($product->id, $branchId),
+            $this->discountPayload($product, $branchProduct)
+        );
 
         return [
             'channel' => $channel,
@@ -128,6 +236,7 @@ class ProductChannelPricingService
     public function drawerPayload(Product $product, ?string $branchSearch = null, ?string $channelFilter = null): array
     {
         $defaultPrice = $this->defaultPrice($product);
+        $defaultSellingPrice = $this->effectiveSellingPrice($defaultPrice, $this->discountPayload($product));
         $branches = Branch::query()
             ->orderBy('id')
             ->get(['id', 'name', 'status']);
@@ -157,18 +266,22 @@ class ProductChannelPricingService
         foreach ($branches as $branch) {
             $branchId = (int) $branch->id;
             $byChannel = $channelRows[$branchId] ?? [];
+            $branchProduct = $branchProducts->get($branchId);
+            $discountPayload = $this->discountPayload($product, $branchProduct);
             $matrix = $this->resolveMatrix(
                 $defaultPrice,
-                $branchProducts->get($branchId),
-                $byChannel
+                $branchProduct,
+                $byChannel,
+                $discountPayload
             );
 
             $cells = [];
             foreach ($visibleChannels as $channel) {
                 $cells[$channel] = [
-                    'price' => $matrix['prices'][$channel],
+                    'price' => $matrix['display_prices'][$channel] ?? $matrix['prices'][$channel],
                     'override' => $matrix['overrides'][$channel],
                     'inherited_from' => $matrix['inherited_from'][$channel],
+                    'inherited_price' => $matrix['inherited_price'][$channel] ?? $matrix['display_prices'][$channel] ?? $matrix['prices'][$channel],
                     'available' => $matrix['available'][$channel],
                 ];
             }
@@ -190,6 +303,7 @@ class ProductChannelPricingService
                 'image' => (string) $product->image_full_path,
                 'category' => is_array($category) ? (string) ($category['name'] ?? '') : '',
                 'default_price' => $defaultPrice,
+                'default_selling_price' => $defaultSellingPrice,
             ],
             'channels' => $visibleChannels,
             'channel_labels' => ProductPricingChannels::labels(),
@@ -468,7 +582,8 @@ class ProductChannelPricingService
             ->where('branch_id', $branchId)
             ->first();
         $channelRows = $this->channelRowsFor($product->id, $branchId);
-        $before = $this->resolveMatrix($defaultPrice, $branchProduct, $channelRows);
+        $discountPayload = $this->discountPayload($product, $branchProduct);
+        $before = $this->resolveMatrix($defaultPrice, $branchProduct, $channelRows, $discountPayload);
 
         $row = ProductChannelPrice::query()->firstOrNew([
             'product_id' => $product->id,
@@ -483,7 +598,11 @@ class ProductChannelPricingService
         if ($resetPrice) {
             $row->price = null;
         } elseif ($hasPrice && $change['price'] !== null && $change['price'] !== '') {
-            $row->price = $this->money($change['price']);
+            $price = $this->money($change['price']);
+            if (ProductPricingChannels::isMarketplace($channel)) {
+                $price = $this->sellingToUnit($price, $discountPayload);
+            }
+            $row->price = $price;
         } elseif (! $row->exists) {
             $row->price = null;
         }
@@ -511,16 +630,18 @@ class ProductChannelPricingService
             $branchProduct = $this->syncPosBranchPrice((int) $product->id, $branchId, $posPrice, 1);
         }
 
-        $after = $this->resolveMatrix($defaultPrice, $branchProduct, $afterRows);
+        $after = $this->resolveMatrix($defaultPrice, $branchProduct, $afterRows, $discountPayload);
+        $beforeDisplay = $before['display_prices'][$channel] ?? $before['prices'][$channel];
+        $afterDisplay = $after['display_prices'][$channel] ?? $after['prices'][$channel];
 
-        if (abs($before['prices'][$channel] - $after['prices'][$channel]) > 0.009 || ($before['overrides'][$channel] !== $after['overrides'][$channel])) {
+        if (abs($beforeDisplay - $afterDisplay) > 0.009 || ($before['overrides'][$channel] !== $after['overrides'][$channel])) {
             $audits[] = [
                 'product_id' => $product->id,
                 'branch_id' => $branchId,
                 'channel' => $channel,
                 'field' => 'price',
-                'old_value' => $before['prices'][$channel],
-                'new_value' => $resetPrice ? null : $after['prices'][$channel],
+                'old_value' => $beforeDisplay,
+                'new_value' => $resetPrice ? $after['inherited_price'][$channel] ?? $afterDisplay : $afterDisplay,
             ];
         }
         if ($before['available'][$channel] !== $after['available'][$channel]) {

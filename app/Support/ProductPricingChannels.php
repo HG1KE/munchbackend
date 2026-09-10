@@ -45,6 +45,19 @@ class ProductPricingChannels
         return in_array((string) $channel, self::overrideChannels(), true);
     }
 
+    /**
+     * @return list<string>
+     */
+    public static function marketplaceChannels(): array
+    {
+        return [self::UBER, self::GLOVO, self::BOLT_FOOD];
+    }
+
+    public static function isMarketplace(?string $channel): bool
+    {
+        return in_array((string) $channel, self::marketplaceChannels(), true);
+    }
+
     public static function isSelectable(?string $channel): bool
     {
         return in_array((string) $channel, self::selectableChannels(), true);

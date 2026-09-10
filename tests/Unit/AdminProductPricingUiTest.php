@@ -20,6 +20,8 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('munch-product-pricing.js', $list);
         $this->assertStringContainsString("translate('Copy From Branch')", $list);
         $this->assertStringContainsString('munch-pricing-copy-modal', $list);
+        $this->assertStringContainsString("translate('Default Selling Price')", $list);
+        $this->assertStringNotContainsString("translate('Default Price')", $list);
     }
 
     public function test_pricing_routes_are_lazy_admin_endpoints(): void
@@ -41,6 +43,9 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('Preview Changes', $js);
         $this->assertStringContainsString('confirmed: true', $js);
         $this->assertStringContainsString('Reset to Default', $js);
+        $this->assertStringContainsString('default_selling_price', $js);
+        $this->assertStringContainsString('inherited_price', $js);
+        $this->assertStringContainsString('default selling price', $js);
         $this->assertStringContainsString('Current Price', $js);
         $this->assertStringContainsString('New Price', $js);
         $this->assertStringContainsString('Difference', $js);
@@ -53,6 +58,10 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('Only fill missing overrides', $js);
         $this->assertStringContainsString('Skip existing overrides', $js);
         $this->assertStringContainsString('copy_branch_pricing', file_get_contents(app_path('Services/ProductBranchPricingCopyService.php')));
+        $this->assertStringContainsString('saveDrawer($product, null, $changes, \'drawer\')', $controller);
+        $this->assertStringContainsString('effectiveSellingPrice', file_get_contents(app_path('Services/ProductChannelPricingService.php')));
+        $this->assertStringContainsString('sellingToUnit', file_get_contents(app_path('Services/ProductChannelPricingService.php')));
+        $this->assertStringContainsString('displayPrice', file_get_contents(app_path('Services/ProductBulkPricingService.php')));
     }
 
     public function test_pos_catalog_and_checkout_use_channel_hierarchy(): void
