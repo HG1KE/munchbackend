@@ -559,6 +559,27 @@
     opacity: 0.45;
 }
 
+.munch-pos-place.is-submitting {
+    opacity: 1;
+    pointer-events: none;
+}
+
+.munch-pos-place__spin {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.45em;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    vertical-align: -0.15em;
+    animation: munch-pos-spin 0.7s linear infinite;
+}
+
+@keyframes munch-pos-spin {
+    to { transform: rotate(360deg); }
+}
+
 .munch-pos-clear {
     min-height: 44px;
     border: 0;

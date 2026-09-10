@@ -18,8 +18,14 @@
         syncLabel: '',
         syncKind: '',
         placing: false,
+        orderSubmitting: false,
         productMap: {}
     };
+    var SubmitGuard = window.MunchPosSubmitGuard || null;
+    var backgroundSyncOnce = SubmitGuard && SubmitGuard.createSyncOnce
+        ? SubmitGuard.createSyncOnce()
+        : null;
+    var syncInFlight = false;
     var els = {};
     var renderScheduled = false;
     var toastTimer = 0;
@@ -479,7 +485,7 @@
         if (els.topTotal) els.topTotal.textContent = money(grandTotal());
         if (els.discount) els.discount.value = state.cart.discount || '';
         if (els.discountType) els.discountType.value = state.cart.discountType;
-        if (els.place) els.place.disabled = !state.cart.lines.length || state.placing || !!successJob;
+        if (els.place) els.place.disabled = !state.cart.lines.length || state.placing || state.orderSubmitting || !!successJob;
         if (els.clear) els.clear.disabled = !!successJob;
         if (els.paidWrap) els.paidWrap.hidden = hidesPaidAmount();
         if (els.paid && document.activeElement !== els.paid) els.paid.value = state.cart.paid;
@@ -886,19 +892,31 @@
     }
 
     function enqueue(payload) {
-        var row = {
-            id: payload.client_uuid,
-            createdAt: payload.placed_at,
-            payload: payload,
-            status: 'queued',
-            attempts: 0,
-            lastError: null
-        };
-        return idbPut('queue', row).then(refreshQueueCount);
+        var id = payload && payload.client_uuid != null ? String(payload.client_uuid) : '';
+        if (!id) return Promise.reject(new Error('missing_uuid'));
+        return idbGet('queue', id).then(function (existing) {
+            var decision = SubmitGuard && SubmitGuard.enqueueUnique
+                ? SubmitGuard.enqueueUnique(existing ? [existing] : [], payload)
+                : { inserted: !existing, duplicate: !!existing, row: existing || {
+                    id: id,
+                    createdAt: payload.placed_at,
+                    payload: payload,
+                    status: 'queued',
+                    attempts: 0,
+                    lastError: null
+                } };
+            if (!decision.inserted) {
+                return refreshQueueCount().then(function () { return decision.row; });
+            }
+            return idbPut('queue', decision.row).then(refreshQueueCount).then(function () {
+                return decision.row;
+            });
+        });
     }
 
     function syncQueue() {
-        if (!navigator.onLine) return Promise.resolve();
+        if (!navigator.onLine || syncInFlight) return Promise.resolve();
+        syncInFlight = true;
         state.syncLabel = CFG.labels.syncing;
         state.syncKind = 'sync';
         scheduleRender();
@@ -928,6 +946,8 @@
             state.syncLabel = CFG.labels.syncFailed;
             state.syncKind = 'err';
             scheduleRender();
+        }).then(function () {
+            syncInFlight = false;
         });
     }
 
@@ -1090,6 +1110,7 @@
     }
 
     function openSuccessModal(job) {
+        if (successJob) return;
         successJob = job;
         if (!els.successModal) {
             toast(CFG.labels.placed);
@@ -1345,23 +1366,99 @@
         });
     }
 
-    function placeOrder() {
+    function beginOrderSubmit() {
+        if (state.orderSubmitting) return false;
+        if (successJob) return false;
+        if (SubmitGuard) {
+            if (!SubmitGuard.tryAcquire(state)) return false;
+        } else {
+            state.orderSubmitting = true;
+        }
+        state.placing = true;
+        applySubmitLockUi();
+        return true;
+    }
+
+    function endOrderSubmit() {
+        if (SubmitGuard) SubmitGuard.release(state);
+        else state.orderSubmitting = false;
+        state.placing = false;
+        restorePlaceButton();
+        renderTotals();
+    }
+
+    function applySubmitLockUi() {
+        if (els.place) {
+            els.place.disabled = true;
+            els.place.setAttribute('aria-busy', 'true');
+            els.place.classList.add('is-submitting');
+            els.place.innerHTML = '<span class="munch-pos-place__spin" aria-hidden="true"></span>' +
+                escapeHtml(navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...'));
+        }
+        if (els.deliveryConfirm) els.deliveryConfirm.disabled = true;
+    }
+
+    function restorePlaceButton() {
+        if (els.place) {
+            els.place.removeAttribute('aria-busy');
+            els.place.classList.remove('is-submitting');
+            els.place.textContent = L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
+        }
+        if (els.deliveryConfirm) els.deliveryConfirm.disabled = false;
+    }
+
+    function ignoreIfSubmitting(ev) {
+        if (!state.orderSubmitting && !successJob) return false;
+        if (ev) {
+            if (ev.preventDefault) ev.preventDefault();
+            if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        }
+        return true;
+    }
+
+    function bindSubmitControl(el, handler) {
+        if (!el) return;
+        function blockIfLocked(ev) {
+            if (state.orderSubmitting || successJob) {
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+            }
+        }
+        el.addEventListener('pointerdown', blockIfLocked, true);
+        el.addEventListener('touchstart', blockIfLocked, { capture: true, passive: false });
+        el.addEventListener('click', handler);
+        el.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Enter' && ev.key !== ' ') return;
+            ev.preventDefault();
+            handler(ev);
+        });
+    }
+
+    function placeOrder(ev) {
+        if (state.orderSubmitting) return;
+        if (ignoreIfSubmitting(ev)) return;
+        if (!beginOrderSubmit()) return;
         var error = validateCart();
         if (error) {
+            endOrderSubmit();
             toast(error);
             return;
         }
         if (state.cart.orderType === 'delivery') {
+            endOrderSubmit();
             openDeliveryModal();
             return;
         }
         submitPlacedOrder();
     }
 
-    function confirmDeliveryAndPlace() {
+    function confirmDeliveryAndPlace(ev) {
+        if (ignoreIfSubmitting(ev)) return;
+        if (!beginOrderSubmit()) return;
         readDeliveryModal();
         var error = validateDeliveryDetails();
         if (error) {
+            endOrderSubmit();
             showDeliveryError(error);
             return;
         }
@@ -1371,10 +1468,25 @@
         submitPlacedOrder();
     }
 
+    function finishQueuedOrder(payload, extraToast) {
+        return enqueue(payload).then(function () {
+            openSuccessModal(snapshotPrintJob({
+                order_display_id: extraToast || L('queuedSaved', 'Order saved offline')
+            }));
+            clearCart();
+            endOrderSubmit();
+            requestBackgroundSync();
+        }).catch(function () {
+            endOrderSubmit();
+            toast(L('queueFailed', 'Could not save offline. Please try again.'));
+        });
+    }
+
     function submitPlacedOrder() {
         if (state.cart.orderType === 'delivery') {
             var deliveryError = validateDeliveryDetails();
             if (deliveryError) {
+                endOrderSubmit();
                 showDeliveryError(deliveryError);
                 openDeliveryModal();
                 return;
@@ -1382,43 +1494,29 @@
         }
         var payload = buildPayload(uuid(), new Date().toISOString());
         if (!navigator.onLine) {
-            enqueue(payload).then(function () {
-                clearCart();
-                toast(CFG.labels.queuedSaved);
-                requestBackgroundSync();
-            });
+            finishQueuedOrder(payload);
             return;
         }
-        state.placing = true;
         renderTotals();
         postOrder(payload).then(function (body) {
             if (body && body.success === 1) {
                 openSuccessModal(snapshotPrintJob(body));
+                endOrderSubmit();
                 return;
             }
             if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
                 state.authRequired = true;
-                return enqueue(payload).then(function () {
-                    clearCart();
-                    toast(CFG.labels.sessionExpired);
-                });
+                return finishQueuedOrder(payload, CFG.labels.sessionExpired);
             }
             if (body && body._http === 422) {
+                endOrderSubmit();
                 toast((body && body.message) || CFG.labels.syncFailed);
                 return;
             }
-            return enqueue(payload).then(function () {
-                clearCart();
-                toast(CFG.labels.queuedSaved);
-            });
+            return finishQueuedOrder(payload);
         }).catch(function () {
-            return enqueue(payload).then(function () {
-                clearCart();
-                toast(CFG.labels.queuedSaved);
-            });
+            return finishQueuedOrder(payload);
         }).then(function () {
-            state.placing = false;
-            renderTotals();
             renderStatus();
             renderQueue();
         });
@@ -1449,9 +1547,16 @@
 
     function requestBackgroundSync() {
         if (!('serviceWorker' in navigator) || !('SyncManager' in window)) return;
-        navigator.serviceWorker.ready.then(function (reg) {
-            return reg.sync.register('munch-pos-sync');
-        }).catch(function () {});
+        var register = function () {
+            return navigator.serviceWorker.ready.then(function (reg) {
+                return reg.sync.register('munch-pos-sync');
+            }).catch(function () {});
+        };
+        if (backgroundSyncOnce) {
+            backgroundSyncOnce(register);
+            return;
+        }
+        register();
     }
 
     function L(key, fallback) {
@@ -1780,7 +1885,7 @@
             persistCart();
             scheduleRender();
         });
-        if (els.deliveryConfirm) els.deliveryConfirm.addEventListener('click', confirmDeliveryAndPlace);
+        bindSubmitControl(els.deliveryConfirm, confirmDeliveryAndPlace);
         if (els.deliveryCancel) els.deliveryCancel.addEventListener('click', closeDeliveryModal);
         if (els.deliveryModal) {
             els.deliveryModal.addEventListener('click', function (ev) {
@@ -1802,7 +1907,7 @@
             persistCart();
             scheduleRender();
         });
-        els.place.addEventListener('click', placeOrder);
+        bindSubmitControl(els.place, placeOrder);
         if (els.clear) els.clear.addEventListener('click', function () {
             if (successJob) return;
             clearCart();
@@ -1892,13 +1997,29 @@
             });
         }
         document.addEventListener('keydown', function (ev) {
-            if (ev.key !== 'Escape') return;
-            if (successJob && els.successModal && !els.successModal.hidden) {
-                dismissPlacedOrder();
+            if (ev.key === 'Escape') {
+                if (successJob && els.successModal && !els.successModal.hidden) {
+                    dismissPlacedOrder();
+                    return;
+                }
+                if (ordersUi.open) closeOrdersModal();
                 return;
             }
-            if (ordersUi.open) closeOrdersModal();
-        });
+            if (ev.key !== 'Enter') return;
+            if (state.orderSubmitting || successJob) {
+                ev.preventDefault();
+                return;
+            }
+            if (els.deliveryModal && !els.deliveryModal.hidden) return;
+            if (els.ordersModal && !els.ordersModal.hidden) return;
+            if (els.successModal && !els.successModal.hidden) return;
+            var tag = ev.target && ev.target.tagName;
+            if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+            if (els.place && !els.place.disabled) {
+                ev.preventDefault();
+                placeOrder(ev);
+            }
+        }, true);
         window.addEventListener('online', function () {
             state.online = true;
             scheduleRender();

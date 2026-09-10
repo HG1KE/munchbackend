@@ -61,7 +61,7 @@
                     <input type="number" id="pos-paid" min="0" step="1" placeholder="{{ translate('Paid Amount') }}">
                     <span id="pos-change"></span>
                 </div>
-                <button type="button" class="munch-pos-place" id="pos-place">{{ translate('Place Order') }}</button>
+                <button type="button" class="munch-pos-place" id="pos-place" data-label="{{ translate('Place Order') }}">{{ translate('Place Order') }}</button>
                 <button type="button" class="munch-pos-clear" id="pos-clear">{{ translate('Clear Cart') }}</button>
             </div>
         </aside>
@@ -214,6 +214,10 @@
             add: @json(translate('Add To Cart')),
             required: @json(translate('Required')),
             optional: @json(translate('optional')),
+            placeOrder: @json(translate('Place Order')),
+            placing: @json(translate('Placing...')),
+            queueing: @json(translate('Queueing...')),
+            queueFailed: @json(translate('Could not save offline. Please try again.')),
             emptyCart: @json(translate('Cart empty')),
             table: @json(translate('please select a table number')),
             people: @json(translate('please enter people number')),
@@ -275,5 +279,6 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.4" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=2.5" defer></script>
 @endpush
