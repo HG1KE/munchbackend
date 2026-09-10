@@ -509,16 +509,23 @@
         els.lines.innerHTML = state.cart.lines.map(function (line, index) {
             var product = state.productMap[line.productId] || { name: 'Item' };
             var mods = modifierText(line);
-            return '<li class="munch-pos-line">' +
+            var qty = Number(line.quantity || 1);
+            return '<li class="munch-pos-line' + (mods ? ' munch-pos-line--mods' : '') + '">' +
+                '<div class="munch-pos-line__main">' +
                 '<div class="munch-pos-line__name">' + escapeHtml(product.name) + '</div>' +
-                '<div class="munch-pos-line__sub">' + money(lineSubtotal(line)) + '</div>' +
                 (mods ? '<div class="munch-pos-line__meta">' + escapeHtml(mods) + '</div>' : '') +
+                '<div class="munch-pos-line__details">' +
+                '<div class="munch-pos-line__price">' + money(lineUnit(line)) + ' × ' + qty + '</div>' +
+                '<div class="munch-pos-line__sub">' + money(lineSubtotal(line)) + '</div>' +
+                '</div>' +
+                '</div>' +
                 '<div class="munch-pos-qty">' +
-                '<button type="button" data-qty="' + index + '" data-delta="-1">−</button>' +
-                '<span>' + line.quantity + '</span>' +
-                '<button type="button" data-qty="' + index + '" data-delta="1">+</button>' +
+                '<button type="button" data-qty="' + index + '" data-delta="-1" aria-label="−">−</button>' +
+                '<span>' + qty + '</span>' +
+                '<button type="button" data-qty="' + index + '" data-delta="1" aria-label="+">+</button>' +
+                '</div>' +
                 '<button type="button" class="munch-pos-line__remove" data-remove="' + index + '" aria-label="Remove">×</button>' +
-                '</div></li>';
+                '</li>';
         }).join('');
     }
 
@@ -564,12 +571,12 @@
         var sub = cartSubtotal();
         var disc = extraDiscount(sub);
         var del = deliveryCharge();
-        var html = '<div><span>' + escapeHtml(CFG.labels.subtotal) + '</span><span>' + money(sub) + '</span></div>';
+        var html = '<div class="munch-pos-totals__sub"><span>' + escapeHtml(CFG.labels.subtotal) + '</span><span>' + money(sub) + '</span></div>';
         if (state.cart.orderType === 'delivery') {
-            html += '<div><span>' + escapeHtml(CFG.labels.deliveryFee || CFG.labels.deliveryCharge) + '</span><span>' + money(del) + '</span></div>';
+            html += '<div class="munch-pos-totals__fee"><span>' + escapeHtml(CFG.labels.deliveryFee || CFG.labels.deliveryCharge) + '</span><span>' + money(del) + '</span></div>';
         }
         if (disc > 0) {
-            html += '<div><span>' + escapeHtml(CFG.labels.discount) + '</span><span>−' + money(disc) + '</span></div>';
+            html += '<div class="munch-pos-totals__disc"><span>' + escapeHtml(CFG.labels.discount) + '</span><span>−' + money(disc) + '</span></div>';
         }
         html += '<div class="is-grand"><span>' + escapeHtml(CFG.labels.grandTotal) + '</span><span>' + money(grandTotal()) + '</span></div>';
         els.totals.innerHTML = html;

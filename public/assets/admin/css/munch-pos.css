@@ -17,6 +17,11 @@
     overflow-x: hidden;
 }
 
+.munch-pos-body,
+.munch-pos-body * {
+    box-sizing: border-box;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -419,43 +424,105 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.75rem;
+    gap: 0.28rem;
 }
 
 .munch-pos-line {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.4rem 0.7rem;
-    padding: 0.85rem;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.18rem;
+    padding: 0.18rem 0.3rem;
     border: 1px solid var(--munch-pos-line);
-    border-radius: 14px;
+    border-radius: 10px;
+    min-height: 44px;
+    min-width: 0;
+    overflow: hidden;
 }
 
-.munch-pos-line__name { font-weight: 700; font-size: 0.95rem; }
-.munch-pos-line__meta { grid-column: 1 / -1; color: var(--munch-pos-muted); font-size: 0.8rem; }
-.munch-pos-line__sub { font-weight: 800; }
+.munch-pos-line__main {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.04rem;
+}
+
+.munch-pos-line__name {
+    font-weight: 600;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.munch-pos-line__meta {
+    color: var(--munch-pos-muted);
+    font-size: 0.68rem;
+    line-height: 1.2;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.munch-pos-line__details {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.munch-pos-line__price {
+    font-weight: 500;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: var(--munch-pos-ink);
+    white-space: nowrap;
+}
+
+.munch-pos-line__sub {
+    font-weight: 700;
+    font-size: 0.76rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
 
 .munch-pos-qty {
     display: inline-flex;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.06rem;
+    flex: 0 0 auto;
+    flex-shrink: 0;
 }
 
 .munch-pos-qty span {
-    min-width: 1.5rem;
+    min-width: 1.1rem;
     text-align: center;
     font-weight: 700;
+    font-size: 0.85rem;
 }
 
 .munch-pos-qty button,
 .munch-pos-line__remove {
     width: 44px;
     height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0;
     border: 0;
     border-radius: 10px;
     background: #f1f5f9;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 700;
+    flex: 0 0 44px;
 }
 
 .munch-pos-line__remove { color: var(--munch-pos-red); }
@@ -1233,9 +1300,9 @@ html.munch-pos-overlay-open body {
 
 @media (min-width: 900px) and (max-width: 1440px) {
     .munch-pos-topbar {
-        gap: 0.55rem;
-        padding: 0.4rem 0.75rem;
-        min-height: 52px;
+        gap: 0.45rem;
+        padding: 0.28rem 0.7rem;
+        min-height: 44px;
     }
 
     .munch-pos-shell {
@@ -1293,7 +1360,7 @@ html.munch-pos-overlay-open body {
     }
 
     .munch-pos-cart > .munch-pos-types {
-        padding: 0.55rem 0.7rem 0.3rem;
+        padding: 0.4rem 0.6rem 0.2rem;
     }
 
     .munch-pos-types {
@@ -1301,32 +1368,73 @@ html.munch-pos-overlay-open body {
     }
 
     .munch-pos-type {
-        min-height: 44px;
+        min-height: 40px;
         font-size: 0.75rem;
         border-radius: 10px;
     }
 
     .munch-pos-cart__scroll {
-        padding: 0.3rem 0.7rem 0.55rem;
+        padding: 0.25rem 0.65rem 0.4rem;
+    }
+
+    .munch-pos-lines {
+        gap: 0.18rem;
     }
 
     .munch-pos-line {
-        padding: 0.5rem 0.55rem;
-        border-radius: 12px;
-        gap: 0.3rem 0.5rem;
+        padding: 0.1rem 0.25rem;
+        border-radius: 10px;
+        gap: 0.12rem;
+        min-height: 44px;
+    }
+
+    .munch-pos-line__name {
+        font-size: 0.76rem;
     }
 
     .munch-pos-qty button,
     .munch-pos-line__remove {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        min-height: 48px;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
     }
 
     .munch-pos-footer {
-        padding: 0.55rem 0.7rem 0.7rem;
-        gap: 0.4rem;
+        padding: 0.22rem 0.55rem 0.28rem;
+        gap: 0.16rem;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "totals totals"
+            "discount clear"
+            "pay pay"
+            "place place";
+    }
+
+    .munch-pos-totals { grid-area: totals; }
+    .munch-pos-discount { grid-area: discount; }
+    .munch-pos-clear { grid-area: clear; }
+    .munch-pos-pay { grid-area: pay; }
+    .munch-pos-place { grid-area: place; }
+
+    .munch-pos-clear {
+        min-height: 40px;
+        padding: 0 0.4rem;
+        align-self: center;
+        justify-self: end;
+    }
+
+    .munch-pos-totals {
+        gap: 0.08rem;
+        font-size: 0.78rem;
+    }
+
+    .munch-pos-totals .munch-pos-totals__sub {
+        display: none;
+    }
+
+    .munch-pos-totals .is-grand {
+        font-size: 1.02rem;
     }
 
     .munch-pos-pay {
@@ -1340,30 +1448,89 @@ html.munch-pos-overlay-open body {
     }
 
     .munch-pos-place {
-        min-height: 56px;
-        font-size: 1.08rem;
+        min-height: 52px;
+        font-size: 1.05rem;
     }
 
     .munch-pos-discount input,
     .munch-pos-discount select {
-        min-height: 44px;
-        padding: 0.5rem 0.7rem;
+        min-height: 40px;
+        padding: 0.35rem 0.55rem;
     }
 }
 
 @media (min-width: 900px) and (max-height: 900px) {
     .munch-pos-topbar {
-        min-height: 48px;
-        padding-top: 0.3rem;
-        padding-bottom: 0.3rem;
+        min-height: 44px;
+        padding-top: 0.22rem;
+        padding-bottom: 0.22rem;
     }
 
     .munch-pos-card img {
         height: 88px;
     }
 
+    .munch-pos-totals {
+        gap: 0.08rem;
+        font-size: 0.78rem;
+    }
+
+    .munch-pos-totals .munch-pos-totals__sub {
+        display: none;
+    }
+
     .munch-pos-totals .is-grand {
-        font-size: 1.2rem;
+        font-size: 1.02rem;
+    }
+
+    .munch-pos-cart > .munch-pos-types {
+        padding: 0.3rem 0.55rem 0.12rem;
+    }
+
+    .munch-pos-type {
+        min-height: 40px;
+    }
+
+    .munch-pos-lines {
+        gap: 0.18rem;
+    }
+
+    .munch-pos-line {
+        padding: 0.08rem 0.22rem;
+    }
+
+    .munch-pos-footer {
+        padding: 0.22rem 0.5rem 0.28rem;
+        gap: 0.16rem;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "totals totals"
+            "discount clear"
+            "pay pay"
+            "place place";
+    }
+
+    .munch-pos-totals { grid-area: totals; }
+    .munch-pos-discount { grid-area: discount; }
+    .munch-pos-clear { grid-area: clear; }
+    .munch-pos-pay { grid-area: pay; }
+    .munch-pos-place { grid-area: place; }
+
+    .munch-pos-place {
+        min-height: 52px;
+    }
+
+    .munch-pos-discount input,
+    .munch-pos-discount select {
+        min-height: 40px;
+        padding: 0.35rem 0.55rem;
+    }
+
+    .munch-pos-clear {
+        min-height: 40px;
+        padding: 0 0.4rem;
+        align-self: center;
+        justify-self: end;
     }
 }
 

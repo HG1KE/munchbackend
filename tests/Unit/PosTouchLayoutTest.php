@@ -41,7 +41,7 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('overflow-y: auto', $css);
         $this->assertStringContainsString('.munch-pos-footer', $css);
         $this->assertStringContainsString('flex: 0 0 auto', $css);
-        $this->assertStringContainsString('min-height: 56px', $css);
+        $this->assertStringContainsString('min-height: 52px', $css);
         $this->assertStringContainsString('min-height: 48px', $css);
     }
 
@@ -72,5 +72,23 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('scheduleLayoutPass()', $js);
         $this->assertStringContainsString("window.addEventListener('resize', invalidateGridLayout)", $js);
         $this->assertStringNotContainsString('setTimeout(invalidateGridLayout', $js);
+    }
+
+    public function test_cart_rows_are_compact_with_touch_sized_quantity_controls(): void
+    {
+        $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+
+        $this->assertStringContainsString('munch-pos-line__main', $js);
+        $this->assertStringContainsString('munch-pos-line__details', $js);
+        $this->assertStringContainsString('munch-pos-line__price', $js);
+        $this->assertStringContainsString("money(lineUnit(line)) + ' × ' + qty", $js);
+        $this->assertStringContainsString('.munch-pos-line__name', $css);
+        $this->assertStringContainsString('font-weight: 600', $css);
+        $this->assertStringContainsString('font-weight: 500', $css);
+        $this->assertStringContainsString('flex-wrap: nowrap', $css);
+        $this->assertStringContainsString('min-width: 44px', $css);
+        $this->assertStringContainsString('min-height: 44px', $css);
+        $this->assertStringNotContainsString('width: 48px;' . "\n" . '        height: 48px;' . "\n" . '        min-width: 48px;' . "\n" . '        min-height: 48px;', $css);
     }
 }
