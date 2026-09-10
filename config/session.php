@@ -26,12 +26,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may specify the number of minutes that you wish the session
-    | to be allowed to remain idle before it expires. If you want them
-    | to immediately expire on the browser closing, set that option.
+    | to be allowed to remain idle before it expires. Backend staff stay
+    | signed in for at least one year of idle time (525600 minutes).
+    | Customer API tokens are unaffected.
     |
     */
 
-    'lifetime' => env('SESSION_LIFETIME', 120),
+    'lifetime' => max((int) env('SESSION_LIFETIME', 525600), 525600),
 
     'expire_on_close' => false,
 

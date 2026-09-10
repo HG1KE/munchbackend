@@ -106,11 +106,11 @@ class LoginController extends Controller
             return back()->withErrors(translate('You have been blocked'));
         }
 
-        if (auth('admin')->attempt(['email' => $request->email, 'password' => $request->password], $request->remember)) {
+        if (auth('admin')->attempt(['email' => $request->email, 'password' => $request->password], true)) {
             return redirect()->route('admin.dashboard');
         }
 
-        return redirect()->back()->withInput($request->only('email', 'remember'))
+        return redirect()->back()->withInput($request->only('email'))
             ->withErrors([translate('Credentials does not match.')]);
     }
 

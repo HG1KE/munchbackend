@@ -166,4 +166,16 @@ return [
 
     'password_timeout' => 10800,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Remember Cookie Lifetime
+    |--------------------------------------------------------------------------
+    |
+    | Minutes that admin and branch "remember me" cookies remain valid.
+    | Staff logins always issue this cookie; customer/Passport auth is unchanged.
+    |
+    */
+
+    'remember_duration' => (int) env('AUTH_REMEMBER_DURATION', 5256000),
+
 ];

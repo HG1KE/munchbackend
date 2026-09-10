@@ -91,16 +91,6 @@
                         </div>
                     </div>
 
-                    <div class="form-group mb-3">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" id="termsCheckbox"
-                                name="remember" {{ old('remember') ? 'checked' : '' }}>
-                            <label class="custom-control-label" for="termsCheckbox">
-                                {{translate('remember_me')}}
-                            </label>
-                        </div>
-                    </div>
-
                     @php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
                     @if(isset($recaptcha) && $recaptcha['status'] == 1)
                         <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">

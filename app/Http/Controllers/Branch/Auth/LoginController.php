@@ -99,11 +99,11 @@ class LoginController extends Controller
             'email' => $request->email,
             'password' => $request->password,
             'status' => 1
-        ], $request->remember)) {
+        ], true)) {
             return redirect()->route('branch.dashboard');
         }
 
-        return redirect()->back()->withInput($request->only('email', 'remember'))
+        return redirect()->back()->withInput($request->only('email'))
             ->withErrors([translate('Credentials does not match.')]);
     }
 
