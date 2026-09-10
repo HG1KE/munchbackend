@@ -144,6 +144,56 @@
         return !!(product && (product.variations || []).length);
     }
 
+    function variationBadge(product) {
+        var groups = (product && product.variations) || [];
+        if (!groups.length) return '';
+        if (groups.length === 1) {
+            var name = String(groups[0].name || '').trim();
+            if (name) return ((CFG.labels && CFG.labels.choose) || 'Choose') + ' ' + name;
+            return (CFG.labels && CFG.labels.chooseFlavour) || 'Choose Flavour';
+        }
+        return groups.length + ' ' + ((CFG.labels && CFG.labels.variations) || 'Variations');
+    }
+
+    function variationSelectionKey(variations) {
+        return (variations || []).map(function (group) {
+            var raw = (group.values && group.values.label) || [];
+            var labels = raw.slice().map(function (label) { return String(label); }).sort();
+            return String(group.name || '') + ':' + labels.join(',');
+        }).join('|');
+    }
+
+    function findMatchingVariationLine(productId, variations) {
+        var key = variationSelectionKey(variations);
+        var id = Number(productId);
+        var i;
+        for (i = 0; i < (state.cart.lines || []).length; i++) {
+            var line = state.cart.lines[i];
+            if (Number(line.productId) === id && variationSelectionKey(line.variations) === key) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function addSelectedVariations(product, variations, qty) {
+        var amount = Number(qty || 1);
+        if (!product || !(amount > 0)) return;
+        var matchIdx = findMatchingVariationLine(product.id, variations);
+        if (matchIdx >= 0) {
+            state.cart.lines[matchIdx].quantity += amount;
+            return;
+        }
+        state.cart.lines.push({
+            productId: product.id,
+            quantity: amount,
+            variations: variations,
+            addon_id: [],
+            addon_quantities: {},
+            has_modifiers: true
+        });
+    }
+
     function variationPrice(product, selections) {
         var extra = 0;
         (product.variations || []).forEach(function (group, gi) {
@@ -416,7 +466,7 @@
             '<img src="' + escapeAttr(img) + '" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'' + escapeAttr(state.catalog.placeholder_image || '') + '\'">' +
             '<div class="munch-pos-card__body">' +
             '<div class="munch-pos-card__name">' + escapeHtml(product.name) + '</div>' +
-            (hasOptions ? '<div class="munch-pos-card__opt">' + escapeHtml((CFG.labels && CFG.labels.options) || 'Options') + '</div>' : '') +
+            (hasOptions ? '<div class="munch-pos-card__opt">' + escapeHtml(variationBadge(product)) + '</div>' : '') +
             '<div class="munch-pos-card__price">' + money(resolvedProductPrice(product) - productDiscountAmount(product)) + '</div>' +
             '</div>' +
             '<div class="munch-pos-card__actions" data-qty="' + qty + '">' + cardQtyHtml(product.id, qty) + '</div>' +
@@ -625,18 +675,7 @@
         if (!product || !delta) return;
         if (delta > 0) {
             if (productNeedsVariation(product)) {
-                if (productQty(productId) === 0) {
-                    openModifiers(product);
-                    return;
-                }
-                var plusIdx = lastLineIndex(productId);
-                if (plusIdx < 0) {
-                    openModifiers(product);
-                    return;
-                }
-                state.cart.lines[plusIdx].quantity += delta;
-                persistCart();
-                refreshCartUi(productId);
+                openModifiers(product);
                 return;
             }
             addSimple(product);
@@ -699,14 +738,7 @@
                 toast(CFG.labels.required);
                 return;
             }
-            state.cart.lines.push({
-                productId: product.id,
-                quantity: qty,
-                variations: variations,
-                addon_id: [],
-                addon_quantities: {},
-                has_modifiers: true
-            });
+            addSelectedVariations(product, variations, qty);
             persistCart();
             modal.hidden = true;
             refreshCartUi(product.id);

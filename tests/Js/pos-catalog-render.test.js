@@ -46,6 +46,17 @@ function productNeedsVariation(product) {
     return !!(product && (product.variations || []).length);
 }
 
+function variationBadge(product) {
+    var groups = (product && product.variations) || [];
+    if (!groups.length) return '';
+    if (groups.length === 1) {
+        var name = String(groups[0].name || '').trim();
+        if (name) return 'Choose ' + name;
+        return 'Choose Flavour';
+    }
+    return groups.length + ' Variations';
+}
+
 function cardQtyHtml(productId, qty) {
     if (qty > 0) {
         return '<div class="munch-pos-card__qty">' +
@@ -64,7 +75,7 @@ function productCard(product, qty) {
         '<img src="' + escapeAttr(img) + '" alt="">' +
         '<div class="munch-pos-card__body">' +
         '<div class="munch-pos-card__name">' + escapeHtml(product.name) + '</div>' +
-        (hasOptions ? '<div class="munch-pos-card__opt">Options</div>' : '') +
+        (hasOptions ? '<div class="munch-pos-card__opt">' + escapeHtml(variationBadge(product)) + '</div>' : '') +
         '<div class="munch-pos-card__price">' + money(product.price) + '</div>' +
         '</div>' +
         '<div class="munch-pos-card__actions" data-qty="' + (qty || 0) + '">' + cardQtyHtml(product.id, qty || 0) + '</div>' +
@@ -172,11 +183,11 @@ test('images never replace product information', function () {
 test('variation indicator appears only when the product has options', function () {
     var plain = productCard(products[0], 0);
     var optioned = productCard(products[3], 0);
-    assert(plain.indexOf('munch-pos-card__opt') === -1, 'plain cards should not show Options');
+    assert(plain.indexOf('munch-pos-card__opt') === -1, 'plain cards should not show a flavour badge');
     assert(optioned.indexOf('munch-pos-card__opt') !== -1, 'optioned cards must show the indicator');
-    assert(optioned.indexOf('Options') !== -1, 'option label missing');
+    assert(optioned.indexOf('Choose Size') !== -1, 'single variation group should say Choose Size');
     assert(js.indexOf('munch-pos-card__opt') !== -1, 'live productCard must emit the indicator');
-    assert(js.indexOf('productNeedsVariation(product)') !== -1, 'variation helper must still decide the indicator');
+    assert(js.indexOf('variationBadge(product)') !== -1, 'variation helper must still decide the indicator');
 });
 
 test('three-column layout is derived from measured card width', function () {
