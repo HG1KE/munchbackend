@@ -36,6 +36,8 @@ class PosDineInTableTest extends TestCase
         $this->assertStringNotContainsString('dine_in', $validate);
 
         $this->assertStringNotContainsString('jsonPosDineInValidationError', $controller);
+        $this->assertStringNotContainsString('private Table $table', $controller);
+        $this->assertStringNotContainsString('use App\\Model\\Table;', $controller);
         $this->assertStringNotContainsString('please select a table number', $controller);
         $this->assertStringNotContainsString('please enter people number', $controller);
         $this->assertStringNotContainsString('jsonDineInTableId', $controller);
@@ -46,6 +48,12 @@ class PosDineInTableTest extends TestCase
         $this->assertStringNotContainsString('function jsonDineInTableId', $types);
         $this->assertStringNotContainsString('function jsonDineInPeople', $types);
         $this->assertFalse(file_exists(public_path('assets/admin/js/munch-pos-dine-in.js')));
+    }
+
+    public function test_branch_pos_controller_resolves_without_a_table_dependency(): void
+    {
+        $controller = $this->app->make(\App\Http\Controllers\Branch\POSController::class);
+        $this->assertInstanceOf(\App\Http\Controllers\Branch\POSController::class, $controller);
     }
 
     public function test_dine_in_still_places_as_dine_in_without_table_fields(): void

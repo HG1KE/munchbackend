@@ -45,7 +45,6 @@ class POSController extends Controller
         private Category        $category,
         private Order           $order,
         private User            $user,
-        private Table           $table,
         private Product         $product,
         private Branch          $branch,
         private ProductByBranch $product_by_Branch,
