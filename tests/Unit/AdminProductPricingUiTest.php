@@ -81,8 +81,8 @@ class AdminProductPricingUiTest extends TestCase
         $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
 
         $this->assertStringContainsString('data-current-price-url', $list);
-        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.8", $list);
-        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.3", $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.9", $list);
+        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.4", $list);
         $this->assertStringContainsString("cache: 'no-store'", $js);
         $this->assertStringContainsString('bulkProductSeq', $js);
         $this->assertStringContainsString('bulkPriceSeq', $js);
@@ -92,6 +92,14 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('rowsForCurrentSelection', $js);
         $this->assertStringContainsString('dropUnselectedCurrentRows', $js);
         $this->assertStringContainsString('resetAfterBulkPriceApply', $js);
+        $this->assertStringContainsString('validateBulkPriceApply', $js);
+        $this->assertStringContainsString('setBulkApplyBusy', $js);
+        $this->assertStringContainsString('bulkApplyShouldDisable', $js);
+        $this->assertStringContainsString('closest(\'#bulk-apply\')', $js);
+        $this->assertStringContainsString('No price changes to apply.', $js);
+        $this->assertStringContainsString('Applying…', $js);
+        $this->assertStringContainsString('errorMessage', $js);
+        $this->assertStringNotContainsString('if (!bulk.preview || !bulk.preview.count) return;', $js);
         $this->assertStringContainsString('Changes applied successfully', $js);
         $this->assertStringContainsString('Set Exact Price', $js);
         $this->assertStringContainsString('Advanced adjustments', $js);
@@ -106,6 +114,7 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString("money(row.current_price) + ' → ' + money(row.new_price)", $js);
         $this->assertStringNotContainsString('product.price', $js);
         $this->assertStringContainsString('munch-pricing-product-editor', $css);
+        $this->assertStringContainsString('munch-pricing-product-editor.is-invalid', $css);
         $this->assertStringContainsString("input('action', 'set_exact')", $controller);
         $this->assertStringContainsString('bulkProductValues', $controller);
         $this->assertStringContainsString('normalizeProductValues', $bulk);

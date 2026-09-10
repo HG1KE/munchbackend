@@ -577,6 +577,16 @@
     margin-bottom: 0.3rem;
 }
 
+.munch-pricing-product-editor.is-invalid {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
+}
+
+.munch-pricing-product-editor.is-invalid input,
+#bulk-value.is-invalid {
+    border-color: #dc2626;
+}
+
 body.munch-pricing-open {
     overflow: hidden;
 }

@@ -58,7 +58,8 @@
         preview: null,
         currentRows: [],
         perChannel: false,
-        pricesLoading: false
+        pricesLoading: false,
+        applying: false
     };
     var bulkProductSeq = 0;
     var bulkPriceSeq = 0;
@@ -102,11 +103,36 @@
         }
         return fetch(url, Object.assign({ credentials: 'same-origin', cache: 'no-store', headers: headers }, options))
             .then(function (res) {
-                return res.json().then(function (data) {
-                    if (!res.ok) throw data;
+                return res.text().then(function (text) {
+                    var data = {};
+                    if (text) {
+                        try {
+                            data = JSON.parse(text);
+                        } catch (e) {
+                            throw { message: res.ok ? 'Unexpected response from server' : 'Request failed (' + res.status + ')' };
+                        }
+                    } else if (!res.ok) {
+                        throw { message: 'Request failed (' + res.status + ')' };
+                    }
+                    if (!res.ok) {
+                        throw data && typeof data === 'object' ? data : { message: 'Request failed (' + res.status + ')' };
+                    }
                     return data;
                 });
             });
+    }
+
+    function errorMessage(err, fallback) {
+        if (!err) return fallback;
+        if (typeof err === 'string' && err) return err;
+        if (err.message) return err.message;
+        if (err.errors && typeof err.errors === 'object') {
+            var key = Object.keys(err.errors)[0];
+            var first = key && err.errors[key];
+            if (Array.isArray(first) && first[0]) return first[0];
+            if (typeof first === 'string' && first) return first;
+        }
+        return fallback;
     }
 
     function showToast(ok, message) {
@@ -462,10 +488,10 @@
             '</div>' +
             '<div class="munch-pricing-card mt-3"><h3>Preview Changes</h3><div id="bulk-preview-panel">' + renderPreview(bulk.preview) + '</div></div>' +
             '<div class="munch-pricing-modal__footer px-0">' +
-            '<span class="text-muted">Nothing is saved until you apply the preview.</span>' +
+            '<span class="text-muted">Nothing is saved until you tap Apply.</span>' +
             '<div class="d-flex gap-2">' +
             '<button type="button" class="btn btn-outline-primary" id="bulk-preview">Preview Changes</button>' +
-            '<button type="button" class="btn btn-primary" id="bulk-apply" ' + (bulk.preview && bulk.preview.count ? '' : 'disabled') + '>Apply</button>' +
+            '<button type="button" class="btn btn-primary" id="bulk-apply"' + (bulkApplyShouldDisable() ? ' disabled' : '') + '>Apply</button>' +
             '</div></div>';
         if (bulk.tab === 'price') renderProductEditors();
     }
@@ -573,6 +599,104 @@
         return out;
     }
 
+    function bulkApplyShouldDisable() {
+        if (bulk.applying) return true;
+        return bulk.tab === 'availability' && !(bulk.preview && bulk.preview.count);
+    }
+
+    function syncBulkApplyButton() {
+        var apply = document.getElementById('bulk-apply');
+        if (!apply) return;
+        if (bulk.applying) {
+            if (!apply.getAttribute('data-label')) apply.setAttribute('data-label', 'Apply');
+            apply.disabled = true;
+            apply.textContent = 'Applying…';
+            return;
+        }
+        apply.textContent = apply.getAttribute('data-label') || 'Apply';
+        apply.removeAttribute('data-label');
+        apply.disabled = bulkApplyShouldDisable();
+    }
+
+    function setBulkApplyBusy(busy) {
+        bulk.applying = !!busy;
+        syncBulkApplyButton();
+    }
+
+    function clearBulkPriceRowErrors() {
+        if (!els.modalBody) return;
+        els.modalBody.querySelectorAll('.munch-pricing-product-editor.is-invalid').forEach(function (el) {
+            el.classList.remove('is-invalid');
+        });
+        els.modalBody.querySelectorAll('[data-bulk-product-value].is-invalid, #bulk-value.is-invalid').forEach(function (el) {
+            el.classList.remove('is-invalid');
+        });
+    }
+
+    function markProductEditorInvalid(id) {
+        var input = els.modalBody.querySelector('[data-bulk-product-value="' + id + '"]');
+        if (!input) return;
+        input.classList.add('is-invalid');
+        var row = input.closest('.munch-pricing-product-editor');
+        if (row) row.classList.add('is-invalid');
+    }
+
+    function hasAdvancedPriceEdits() {
+        if (bulk.advanced && bulk.perChannel) {
+            return selectedChannels(bulk.channels).some(function (ch) {
+                var op = ensureChannelOp(ch);
+                if (op.action === 'round_5' || op.action === 'round_10') return true;
+                return String(op.value == null ? '' : op.value).trim() !== '';
+            });
+        }
+        if (bulk.action === 'round_5' || bulk.action === 'round_10') return true;
+        return String(bulk.value == null ? '' : bulk.value).trim() !== '';
+    }
+
+    function validateBulkPriceApply() {
+        clearBulkPriceRowErrors();
+        if (!selectedIds(bulk.selectedProducts).length) {
+            return { message: 'Choose products first' };
+        }
+        if (!selectedChannels(bulk.channels).length) {
+            return { message: 'Choose at least one channel' };
+        }
+        if (!selectedIds(bulk.selectedBranches).length) {
+            return { message: 'Choose branches first' };
+        }
+        if (usesPerProductPrices()) {
+            var invalid = false;
+            selectedIds(bulk.selectedProducts).forEach(function (id) {
+                var raw = bulk.productValues[id];
+                if (raw == null || String(raw).trim() === '') return;
+                var value = Number(raw);
+                if (!isFinite(value) || value <= 0) {
+                    invalid = true;
+                    markProductEditorInvalid(id);
+                }
+            });
+            if (invalid) {
+                return { message: 'Enter a valid new price for the highlighted products' };
+            }
+            if (!Object.keys(productValuesPayload()).length) {
+                return { message: 'No price changes to apply.' };
+            }
+            return null;
+        }
+        if (actionNeedsValue(bulk.action) && !bulk.perChannel && String(bulk.value == null ? '' : bulk.value).trim() !== '') {
+            var shared = Number(bulk.value);
+            if (!isFinite(shared) || (bulk.action === 'set_exact' && shared <= 0)) {
+                var sharedInput = document.getElementById('bulk-value');
+                if (sharedInput) sharedInput.classList.add('is-invalid');
+                return { message: 'Enter a valid new price' };
+            }
+        }
+        if (!hasAdvancedPriceEdits()) {
+            return { message: 'No price changes to apply.' };
+        }
+        return null;
+    }
+
     function selectedProductModels() {
         return bulk.products.filter(function (p) { return !!bulk.selectedProducts[p.id]; });
     }
@@ -674,36 +798,54 @@
             if (bulk.tab === 'price') patchBulkPriceUi();
             else renderBulk();
         }).catch(function (err) {
-            showToast(false, (err && err.message) || 'Preview failed');
+            showToast(false, errorMessage(err, 'Preview failed'));
         });
     }
 
     function runApply() {
-        if (!bulk.preview || !bulk.preview.count) return;
-        var body;
-        var url;
-        if (bulk.tab === 'price') {
-            body = Object.assign({ confirmed: true }, bulkPricePayload());
-            url = CFG.applyPrice;
-        } else {
-            body = {
-                product_ids: selectedIds(bulk.selectedProducts),
-                branch_ids: selectedIds(bulk.selectedBranches),
-                channels: selectedChannels(bulk.availChannels),
-                enabled: !!bulk.availEnabled,
-                confirmed: true
-            };
-            url = CFG.applyAvail;
+        if (bulk.applying) return;
+        if (bulk.tab === 'availability') {
+            if (!bulk.preview || !bulk.preview.count) {
+                showToast(false, 'Preview changes before applying');
+                return;
+            }
+            setBulkApplyBusy(true);
+            json(CFG.applyAvail, {
+                method: 'POST',
+                body: {
+                    product_ids: selectedIds(bulk.selectedProducts),
+                    branch_ids: selectedIds(bulk.selectedBranches),
+                    channels: selectedChannels(bulk.availChannels),
+                    enabled: !!bulk.availEnabled,
+                    confirmed: true
+                }
+            }).then(function (data) {
+                showToast(true, data.message || 'Updated');
+                resetAfterBulkAvailApply();
+            }).catch(function (err) {
+                showToast(false, errorMessage(err, 'Apply failed'));
+            }).then(function () {
+                setBulkApplyBusy(false);
+            });
+            return;
         }
-        json(url, { method: 'POST', body: body }).then(function (data) {
-            showToast(true, bulk.tab === 'price'
-                ? 'Changes applied successfully'
-                : (data.message || 'Updated'));
-            if (bulk.tab === 'price') resetAfterBulkPriceApply();
-            else resetAfterBulkAvailApply();
-        }).catch(function (err) {
-            showToast(false, (err && err.message) || 'Apply failed');
-        });
+        var invalid = validateBulkPriceApply();
+        if (invalid) {
+            showToast(false, invalid.message);
+            return;
+        }
+        setBulkApplyBusy(true);
+        json(CFG.applyPrice, { method: 'POST', body: Object.assign({ confirmed: true }, bulkPricePayload()) })
+            .then(function () {
+                showToast(true, 'Changes applied successfully');
+                resetAfterBulkPriceApply();
+            })
+            .catch(function (err) {
+                showToast(false, errorMessage(err, 'Apply failed'));
+            })
+            .then(function () {
+                setBulkApplyBusy(false);
+            });
     }
 
     function uncheckBulkProducts() {
@@ -739,8 +881,7 @@
         bulk.preview = null;
         var panel = document.getElementById('bulk-preview-panel');
         if (panel) panel.innerHTML = renderPreview(null);
-        var apply = document.getElementById('bulk-apply');
-        if (apply) apply.disabled = true;
+        syncBulkApplyButton();
     }
 
     function openCopy() {
@@ -972,7 +1113,13 @@
         var opValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-op-value');
         if (opValue) ensureChannelOp(opValue).value = ev.target.value;
         var productValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-product-value');
-        if (productValue) bulk.productValues[productValue] = ev.target.value;
+        if (productValue) {
+            bulk.productValues[productValue] = ev.target.value;
+            ev.target.classList.remove('is-invalid');
+            var editor = ev.target.closest('.munch-pricing-product-editor');
+            if (editor) editor.classList.remove('is-invalid');
+        }
+        if (ev.target.id === 'bulk-value') ev.target.classList.remove('is-invalid');
         if (ev.target.id === 'bulk-value' || opValue || productValue) {
             bulk.preview = null;
             schedulePriceRefresh();
@@ -1091,7 +1238,10 @@
             return;
         }
         if (ev.target.id === 'bulk-preview') runPreview();
-        if (ev.target.id === 'bulk-apply') runApply();
+        if (ev.target.closest('#bulk-apply')) {
+            ev.preventDefault();
+            runApply();
+        }
         if (ev.target.id === 'bulk-fill-all-apply') fillAllSelectedProductValues();
         if (ev.target.id === 'bulk-select-visible') {
             bulk.products.forEach(function (p) {
@@ -1268,8 +1418,7 @@
         });
         var panel = document.getElementById('bulk-preview-panel');
         if (panel) panel.innerHTML = renderPreview(bulk.preview);
-        var apply = document.getElementById('bulk-apply');
-        if (apply) apply.disabled = !(bulk.preview && bulk.preview.count);
+        syncBulkApplyButton();
     }
 
     function invalidateBulkPrices() {
