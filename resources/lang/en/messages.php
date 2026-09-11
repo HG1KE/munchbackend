@@ -1652,6 +1652,8 @@
   'Enter Glovo Order Number' => 'Enter Glovo Order Number',
   'Enter Uber Order Number' => 'Enter Uber Order Number',
   'Enter Bolt Food Order Number' => 'Enter Bolt Food Order Number',
+  'Order Number' => 'Order Number',
+  'Enter here' => 'Enter here',
   'Glovo Order Number' => 'Glovo Order Number',
   'Uber Order Number' => 'Uber Order Number',
   'Bolt Food Order Number' => 'Bolt Food Order Number',

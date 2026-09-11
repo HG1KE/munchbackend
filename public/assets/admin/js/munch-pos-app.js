@@ -1029,15 +1029,10 @@
 
     function fillMarketplaceModal() {
         var title = document.getElementById('pos-platform-title');
-        var label = document.getElementById('pos-platform-label');
         var input = document.getElementById('pos-platform-number');
         var prompt = marketplaceOrderNumberPrompt();
         if (title) title.textContent = prompt;
-        if (label) label.textContent = prompt;
-        if (input) {
-            input.value = normalizePlatformOrderNumber(input.value);
-            input.setAttribute('placeholder', prompt);
-        }
+        if (input) input.value = normalizePlatformOrderNumber(input.value);
         var error = document.getElementById('pos-platform-error');
         if (error) {
             error.hidden = true;

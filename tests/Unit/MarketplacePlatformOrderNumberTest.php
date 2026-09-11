@@ -89,5 +89,6 @@ class MarketplacePlatformOrderNumberTest extends TestCase
         $this->assertStringContainsString('empty marketplace number cannot submit', $combined);
         $this->assertStringContainsString('lowercase marketplace numbers become uppercase', $combined);
         $this->assertStringContainsString('delivery phone must be exactly 10 digits', $combined);
+        $this->assertStringContainsString('marketplace modal title is unique and label is not repeated', $combined);
     }
 }

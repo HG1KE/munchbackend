@@ -94,9 +94,13 @@ test('marketplace place order opens the order-number modal', function () {
     assert(place.indexOf('submitPlacedOrder()') !== -1, 'non-marketplace still submits');
     assert(page.indexOf('id="pos-platform-modal"') !== -1, 'platform modal missing');
     assert(page.indexOf('id="pos-platform-number"') !== -1, 'platform input missing');
-    assert(page.indexOf('Enter Glovo Order Number') !== -1, 'Glovo prompt missing');
+    assert(page.indexOf('id="pos-platform-title"') !== -1, 'title missing');
+    assert(page.indexOf('Enter Glovo Order Number') !== -1, 'Glovo title missing');
     assert(page.indexOf('Enter Uber Order Number') !== -1, 'Uber prompt missing');
     assert(page.indexOf('Enter Bolt Food Order Number') !== -1, 'Bolt Food prompt missing');
+    assert(page.indexOf('>{{ translate(\'Order Number\') }}<') !== -1
+        || page.indexOf(">{{ translate('Order Number') }}<") !== -1, 'field label must be Order Number');
+    assert(page.indexOf("placeholder=\"{{ translate('Enter here') }}\"") !== -1, 'placeholder must be Enter here');
 });
 
 test('walk-in types skip the marketplace modal', function () {
@@ -140,6 +144,38 @@ test('lowercase marketplace numbers become uppercase', function () {
     state.cart.orderType = 'bolt_food';
     assert(marketplaceOrderNumberPrompt() === 'Enter Bolt Food Order Number', 'bolt prompt');
     assert(js.indexOf('normalizePlatformOrderNumber(this.value)') !== -1, 'input must uppercase as the cashier types');
+});
+
+test('marketplace modal title is unique and label is not repeated', function () {
+    var fill = extractFn(js, 'fillMarketplaceModal');
+    assert(fill.indexOf('title.textContent = prompt') !== -1, 'title stays platform-specific');
+    assert(fill.indexOf('label.textContent') === -1, 'JS must not overwrite the field label');
+    assert(fill.indexOf("setAttribute('placeholder'") === -1, 'JS must not overwrite the placeholder');
+
+    var nodes = {
+        'pos-platform-title': { textContent: '' },
+        'pos-platform-label': { textContent: 'Order Number' },
+        'pos-platform-number': { value: 'abc-12', placeholder: 'Enter here', setAttribute: function () { throw new Error('placeholder overwritten'); } },
+        'pos-platform-error': { hidden: false, textContent: 'old' }
+    };
+    var document = {
+        getElementById: function (id) { return nodes[id] || null; }
+    };
+    var fillMarketplaceModal;
+    eval('fillMarketplaceModal = ' + fill);
+
+    ['glovo', 'uber', 'bolt_food'].forEach(function (type) {
+        state.cart.orderType = type;
+        nodes['pos-platform-title'].textContent = '';
+        nodes['pos-platform-label'].textContent = 'Order Number';
+        nodes['pos-platform-number'].value = 'ab12';
+        fillMarketplaceModal();
+        var expected = marketplaceOrderNumberPrompt(type);
+        assert(nodes['pos-platform-title'].textContent === expected, type + ' title');
+        assert(nodes['pos-platform-label'].textContent === 'Order Number', type + ' label must stay Order Number');
+        assert(nodes['pos-platform-number'].placeholder === 'Enter here', type + ' placeholder must stay Enter here');
+        assert(nodes['pos-platform-number'].value === 'AB12', type + ' still uppercases');
+    });
 });
 
 test('delivery phone must be exactly 10 digits', function () {

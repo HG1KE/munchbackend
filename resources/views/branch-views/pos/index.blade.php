@@ -106,8 +106,8 @@
         <div class="munch-pos-dialog__body">
             <p class="munch-pos-delivery-modal__error" id="pos-platform-error" hidden></p>
             <label class="munch-pos-delivery-modal__field">
-                <span id="pos-platform-label">{{ translate('Enter Glovo Order Number') }}</span>
-                <input type="text" id="pos-platform-number" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" data-platform-field>
+                <span id="pos-platform-label">{{ translate('Order Number') }}</span>
+                <input type="text" id="pos-platform-number" placeholder="{{ translate('Enter here') }}" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" data-platform-field>
             </label>
         </div>
         <div class="munch-pos-dialog__actions">
@@ -327,5 +327,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.9" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=5.0" defer></script>
 @endpush
