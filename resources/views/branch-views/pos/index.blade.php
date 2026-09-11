@@ -228,6 +228,7 @@
             choose: @json(translate('Choose')),
             chooseFlavour: @json(translate('Choose Flavour')),
             variations: @json(translate('Variations')),
+            addons: @json(translate('addons')),
             required: @json(translate('Required')),
             optional: @json(translate('optional')),
             placeOrder: @json(translate('Place Order')),
@@ -305,5 +306,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.9"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.6" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.7" defer></script>
 @endpush

@@ -145,6 +145,21 @@
         return !!(product && (product.variations || []).length);
     }
 
+    function posAddons(product) {
+        if (!product || !product.allow_addon_on_pos) return [];
+        return product.addons || [];
+    }
+
+    function productNeedsModifiers(product) {
+        return productNeedsVariation(product) || posAddons(product).length > 0;
+    }
+
+    function modifierBadge(product) {
+        if (productNeedsVariation(product)) return variationBadge(product);
+        if (posAddons(product).length) return (CFG.labels && CFG.labels.addons) || 'Addons';
+        return '';
+    }
+
     function variationBadge(product) {
         var groups = (product && product.variations) || [];
         if (!groups.length) return '';
@@ -164,23 +179,39 @@
         }).join('|');
     }
 
-    function findMatchingVariationLine(productId, variations) {
+    function addonSelectionKey(addonId, addonQuantities) {
+        return (addonId || []).map(function (id) { return Number(id); })
+            .filter(function (id) { return id > 0; })
+            .sort(function (a, b) { return a - b; })
+            .map(function (id) {
+                var qty = Number((addonQuantities || {})[id] || (addonQuantities || {})[String(id)] || 1);
+                return id + 'x' + (qty > 0 ? qty : 1);
+            })
+            .join(',');
+    }
+
+    function findMatchingVariationLine(productId, variations, addonId, addonQuantities) {
         var key = variationSelectionKey(variations);
+        var addonKey = addonSelectionKey(addonId, addonQuantities);
         var id = Number(productId);
         var i;
         for (i = 0; i < (state.cart.lines || []).length; i++) {
             var line = state.cart.lines[i];
-            if (Number(line.productId) === id && variationSelectionKey(line.variations) === key) {
+            if (Number(line.productId) === id
+                && variationSelectionKey(line.variations) === key
+                && addonSelectionKey(line.addon_id, line.addon_quantities) === addonKey) {
                 return i;
             }
         }
         return -1;
     }
 
-    function addSelectedVariations(product, variations, qty) {
+    function addSelectedVariations(product, variations, qty, addonId, addonQuantities) {
         var amount = Number(qty || 1);
         if (!product || !(amount > 0)) return;
-        var matchIdx = findMatchingVariationLine(product.id, variations);
+        addonId = addonId || [];
+        addonQuantities = addonQuantities || {};
+        var matchIdx = findMatchingVariationLine(product.id, variations, addonId, addonQuantities);
         if (matchIdx >= 0) {
             state.cart.lines[matchIdx].quantity += amount;
             return;
@@ -189,8 +220,8 @@
             productId: product.id,
             quantity: amount,
             variations: variations,
-            addon_id: [],
-            addon_quantities: {},
+            addon_id: addonId,
+            addon_quantities: addonQuantities,
             has_modifiers: true
         });
     }
@@ -245,8 +276,20 @@
         return unit;
     }
 
+    function lineAddonTotal(line) {
+        var product = state.productMap[line.productId];
+        var selected = line.addon_id || [];
+        var qtys = line.addon_quantities || {};
+        var extra = 0;
+        posAddons(product).forEach(function (addon) {
+            if (selected.indexOf(addon.id) === -1 && selected.indexOf(String(addon.id)) === -1) return;
+            extra += Number(addon.price || 0) * Number(qtys[addon.id] || qtys[String(addon.id)] || 1);
+        });
+        return extra;
+    }
+
     function lineSubtotal(line) {
-        return lineUnit(line) * Number(line.quantity || 1);
+        return lineUnit(line) * Number(line.quantity || 1) + lineAddonTotal(line);
     }
 
     function cartSubtotal() {
@@ -462,12 +505,12 @@
     function productCard(product) {
         var img = product.image || state.catalog.placeholder_image || '';
         var qty = productQty(product.id);
-        var hasOptions = productNeedsVariation(product);
+        var hasOptions = productNeedsModifiers(product);
         return '<article class="munch-pos-card" data-id="' + product.id + '">' +
             '<img src="' + escapeAttr(img) + '" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'' + escapeAttr(state.catalog.placeholder_image || '') + '\'">' +
             '<div class="munch-pos-card__body">' +
             '<div class="munch-pos-card__name">' + escapeHtml(product.name) + '</div>' +
-            (hasOptions ? '<div class="munch-pos-card__opt">' + escapeHtml(variationBadge(product)) + '</div>' : '') +
+            (hasOptions ? '<div class="munch-pos-card__opt">' + escapeHtml(modifierBadge(product)) + '</div>' : '') +
             '<div class="munch-pos-card__price">' + money(resolvedProductPrice(product) - productDiscountAmount(product)) + '</div>' +
             '</div>' +
             '<div class="munch-pos-card__actions" data-qty="' + qty + '">' + cardQtyHtml(product.id, qty) + '</div>' +
@@ -539,7 +582,21 @@
             var labels = (group.values && group.values.label) || [];
             if (labels.length) bits.push((group.name ? group.name + ': ' : '') + labels.join(', '));
         });
+        addonLabels(line).forEach(function (label) { bits.push(label); });
         return bits.join(' · ');
+    }
+
+    function addonLabels(line) {
+        var product = state.productMap[line.productId];
+        var selected = line.addon_id || [];
+        var qtys = line.addon_quantities || {};
+        var out = [];
+        posAddons(product).forEach(function (addon) {
+            if (selected.indexOf(addon.id) === -1 && selected.indexOf(String(addon.id)) === -1) return;
+            var qty = Number(qtys[addon.id] || qtys[String(addon.id)] || 1);
+            out.push(qty > 1 ? addon.name + ' × ' + qty : addon.name);
+        });
+        return out;
     }
 
     function queueStatusLabel(row) {
@@ -670,7 +727,7 @@
     }
 
     function addSimple(product) {
-        if (productNeedsVariation(product)) {
+        if (productNeedsModifiers(product)) {
             openModifiers(product);
             return;
         }
@@ -687,7 +744,7 @@
         var product = state.productMap[productId];
         if (!product || !delta) return;
         if (delta > 0) {
-            if (productNeedsVariation(product)) {
+            if (productNeedsModifiers(product)) {
                 openModifiers(product);
                 return;
             }
@@ -704,7 +761,7 @@
     }
 
     function openModifiers(product) {
-        if (!productNeedsVariation(product)) {
+        if (!productNeedsModifiers(product)) {
             addSimple(product);
             return;
         }
@@ -720,6 +777,13 @@
             });
             html += '</div>';
         });
+        posAddons(product).forEach(function (addon, ai) {
+            if (ai === 0) {
+                html += '<div><strong>' + escapeHtml((CFG.labels && CFG.labels.addons) || 'Addons') + '</strong> <small>' + escapeHtml(CFG.labels.optional || 'optional') + '</small>';
+            }
+            html += '<label class="munch-pos-choice"><span><input type="checkbox" name="pos-addon" value="' + escapeAttr(addon.id) + '"> ' + escapeHtml(addon.name) + '</span><span>' + money(addon.price) + '</span></label>';
+        });
+        if (posAddons(product).length) html += '</div>';
         html += '</div><div class="munch-pos-dialog__actions">';
         html += '<div class="munch-pos-qty munch-pos-dialog__qty"><button type="button" id="pos-mod-minus">−</button><span id="pos-mod-qty">1</span><button type="button" id="pos-mod-plus">+</button></div>';
         html += '<button type="button" class="munch-pos-place" id="pos-mod-add">' + escapeHtml(CFG.labels.add) + '</button>';
@@ -751,7 +815,15 @@
                 toast(CFG.labels.required);
                 return;
             }
-            addSelectedVariations(product, variations, qty);
+            var addonId = [];
+            var addonQuantities = {};
+            card.querySelectorAll('input[name="pos-addon"]:checked').forEach(function (input) {
+                var id = Number(input.value);
+                if (!(id > 0)) return;
+                addonId.push(id);
+                addonQuantities[id] = 1;
+            });
+            addSelectedVariations(product, variations, qty, addonId, addonQuantities);
             persistCart();
             modal.hidden = true;
             refreshCartUi(product.id);
@@ -779,8 +851,8 @@
                     id: line.productId,
                     quantity: line.quantity,
                     variations: line.variations,
-                    addon_id: [],
-                    addon_quantities: {}
+                    addon_id: line.addon_id || [],
+                    addon_quantities: line.addon_quantities || {}
                 };
             })
         };
@@ -1169,7 +1241,7 @@
                 return {
                     name: product.name,
                     quantity: line.quantity,
-                    options: optionLabelsFromVariations(line.variations || []),
+                    options: optionLabelsFromVariations(line.variations || []).concat(addonLabels(line)),
                     unit_price: lineUnit(line),
                     line_total: lineSubtotal(line)
                 };

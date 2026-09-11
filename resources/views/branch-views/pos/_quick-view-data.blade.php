@@ -176,7 +176,7 @@
                         @endif
 
                         @php($add_ons = json_decode($product->add_ons))
-                        @if(count($add_ons)>0)
+                        @if(($product->allow_addon_on_pos ?? false) && count($add_ons)>0)
                            <div class="p-3 shadow rounded-10">
                             <h3>{{ translate('addon') }}</h3>
                             <div class="d-flex flex-column gap-2 addon-wrap">

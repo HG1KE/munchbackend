@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\CentralLogics\Helpers;
+use App\Model\AddOn;
 use App\Model\Branch;
 use App\Model\Category;
 use App\Model\Product;
@@ -54,6 +55,7 @@ class BranchPosCatalogService
 
         $pricing = app(ProductChannelPricingService::class);
         $channelRows = $pricing->channelRowsForBranch($branchId, $products->pluck('id')->all());
+        $addonMap = $this->addonMapForProducts($products);
 
         $mappedProducts = [];
         foreach ($products as $product) {
@@ -79,6 +81,8 @@ class BranchPosCatalogService
                 'discount' => (float) $branchProduct->discount,
             ];
             $discountAmount = (float) Helpers::discount_calculate($discountData, $price);
+            $allowAddonOnPos = $product->allowsAddonOnPos();
+            $addons = $allowAddonOnPos ? ($addonMap[(int) $product->id] ?? []) : [];
 
             $mappedProducts[] = [
                 'id' => (int) $product->id,
@@ -88,8 +92,10 @@ class BranchPosCatalogService
                 'price' => $price,
                 'discount' => $discountAmount,
                 'discount_data' => $discountData,
-                'has_modifiers' => $variations !== [],
+                'has_modifiers' => $variations !== [] || $addons !== [],
                 'variations' => $variations,
+                'allow_addon_on_pos' => $allowAddonOnPos,
+                'addons' => $addons,
                 'channel_prices' => $matrix['prices'],
                 'channel_available' => $matrix['available'],
             ];
@@ -141,6 +147,7 @@ class BranchPosCatalogService
             'pos-catalog-popularity-1',
             'pos-mpesa-settings-1',
             'pos-channel-pricing-1',
+            'pos-allow-addon-on-pos-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
             (string) ($branch->a ?? 0),
@@ -234,6 +241,59 @@ class BranchPosCatalogService
         }
 
         return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Compact addon payloads only for products that allow POS addons.
+     *
+     * @param  \Illuminate\Support\Collection<int, Product>  $products
+     * @return array<int, list<array{id: int, name: string, price: float, tax: float}>>
+     */
+    private function addonMapForProducts($products): array
+    {
+        $idsByProduct = [];
+        $allIds = [];
+        foreach ($products as $product) {
+            if (! $product->allowsAddonOnPos()) {
+                continue;
+            }
+            $ids = $product->addonIds();
+            if ($ids === []) {
+                continue;
+            }
+            $idsByProduct[(int) $product->id] = $ids;
+            foreach ($ids as $id) {
+                $allIds[] = $id;
+            }
+        }
+        if ($allIds === []) {
+            return [];
+        }
+
+        $addons = AddOn::query()
+            ->whereIn('id', array_values(array_unique($allIds)))
+            ->get()
+            ->keyBy('id');
+
+        $out = [];
+        foreach ($idsByProduct as $productId => $ids) {
+            $rows = [];
+            foreach ($ids as $id) {
+                $addon = $addons->get($id);
+                if (! $addon) {
+                    continue;
+                }
+                $rows[] = [
+                    'id' => (int) $addon->id,
+                    'name' => (string) ($addon->getRawOriginal('name') ?: $addon->name),
+                    'price' => (float) $addon->price,
+                    'tax' => (float) ($addon->tax ?? 0),
+                ];
+            }
+            $out[$productId] = $rows;
+        }
+
+        return $out;
     }
 
     /**

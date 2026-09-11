@@ -25,6 +25,7 @@ class Product extends Model
         'set_menu' => 'integer',
         'popularity_count' => 'integer',
         'is_recommended' => 'integer',
+        'allow_addon_on_pos' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'visible_from' => 'datetime',
@@ -45,6 +46,41 @@ class Product extends Model
     public function translations(): MorphMany
     {
         return $this->morphMany('App\Model\Translation', 'translationable');
+    }
+
+    public function allowsAddonOnPos(): bool
+    {
+        return (bool) ($this->allow_addon_on_pos ?? false);
+    }
+
+    /**
+     * Product-assigned addon IDs from the existing `products.add_ons` JSON list.
+     *
+     * @return list<int>
+     */
+    public function addonIds(): array
+    {
+        $raw = $this->getRawOriginal('add_ons');
+        if ($raw === null) {
+            $raw = $this->getAttributes()['add_ons'] ?? '[]';
+        }
+        $ids = is_array($raw) ? $raw : json_decode((string) $raw, true);
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($ids as $id) {
+            if (is_array($id) && isset($id['id'])) {
+                $id = $id['id'];
+            }
+            $id = (int) $id;
+            if ($id > 0) {
+                $out[] = $id;
+            }
+        }
+
+        return array_values(array_unique($out));
     }
 
     public function scopeActive($query)

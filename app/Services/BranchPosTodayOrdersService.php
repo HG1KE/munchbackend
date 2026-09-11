@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Model\AddOn;
 use App\Model\Order;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
@@ -284,6 +285,50 @@ class BranchPosTodayOrdersService
     }
 
     /**
+     * Receipt/kitchen option labels from stored order_details addon columns.
+     *
+     * @param  \App\Model\OrderDetail  $detail
+     * @return list<string>
+     */
+    public static function addonOptionLabels($detail): array
+    {
+        $ids = $detail->add_on_ids ?? [];
+        if (is_string($ids)) {
+            $ids = json_decode($ids, true);
+        }
+        if (! is_array($ids) || $ids === []) {
+            return [];
+        }
+
+        $qtys = $detail->add_on_qtys ?? [];
+        if (is_string($qtys)) {
+            $qtys = json_decode($qtys, true);
+        }
+        $qtys = is_array($qtys) ? $qtys : [];
+
+        $labels = [];
+        foreach ($ids as $index => $id) {
+            $id = (int) $id;
+            if ($id < 1) {
+                continue;
+            }
+            try {
+                $addon = AddOn::query()->find($id);
+            } catch (\Throwable) {
+                $addon = null;
+            }
+            $name = $addon ? trim((string) ($addon->getRawOriginal('name') ?: $addon->name)) : '';
+            if ($name === '') {
+                continue;
+            }
+            $qty = (int) ($qtys[$index] ?? 1);
+            $labels[] = $qty > 1 ? $name.' × '.$qty : $name;
+        }
+
+        return $labels;
+    }
+
+    /**
      * @param  \App\Model\OrderDetail  $detail
      * @return array<string, mixed>
      */
@@ -309,7 +354,10 @@ class BranchPosTodayOrdersService
         return [
             'name' => $name,
             'quantity' => $qty,
-            'options' => self::variationOptionLabels($detail->variation),
+            'options' => array_values(array_filter(array_merge(
+                self::variationOptionLabels($detail->variation),
+                self::addonOptionLabels($detail)
+            ))),
             'unit_price' => $unit,
             'discount' => $discount,
             'line_total' => max(0, ($unit - $discount) * $qty + $addonTotal),

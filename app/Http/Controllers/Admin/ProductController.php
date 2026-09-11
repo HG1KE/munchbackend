@@ -323,6 +323,7 @@ class ProductController extends Controller
         $product->add_ons = $request->has('addon_ids') ? json_encode($request->addon_ids) : json_encode([]);
         $product->status = $request->status == 'on' ? 1 : 0;
         $product->is_recommended = $request->is_recommended == 'on' ? 1 : 0;
+        $product->allow_addon_on_pos = $request->input('allow_addon_on_pos') == 'on';
         $product->save();
 
         $product->tags()->sync($tagIds);
@@ -602,6 +603,7 @@ class ProductController extends Controller
         $product->add_ons = $request->has('addon_ids') ? json_encode($request->addon_ids) : json_encode([]);
         $product->status = $request->status == 'on' ? 1 : 0;
         $product->is_recommended = $request->is_recommended == 'on' ? 1 : 0;
+        $product->allow_addon_on_pos = $request->input('allow_addon_on_pos') == 'on';
         $product->save();
 
         $product->tags()->sync($tagIds);

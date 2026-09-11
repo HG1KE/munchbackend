@@ -89,8 +89,11 @@ function makeEngine() {
     function openModifiers(product) { opened.push(product.id); }
 
     var productNeedsVariation;
+    var posAddons;
+    var productNeedsModifiers;
     var variationBadge;
     var variationSelectionKey;
+    var addonSelectionKey;
     var findMatchingVariationLine;
     var addSelectedVariations;
     var lastLineIndex;
@@ -99,8 +102,11 @@ function makeEngine() {
     var adjustProductQty;
 
     eval('productNeedsVariation = ' + extractFn(js, 'productNeedsVariation'));
+    eval('posAddons = ' + extractFn(js, 'posAddons'));
+    eval('productNeedsModifiers = ' + extractFn(js, 'productNeedsModifiers'));
     eval('variationBadge = ' + extractFn(js, 'variationBadge'));
     eval('variationSelectionKey = ' + extractFn(js, 'variationSelectionKey'));
+    eval('addonSelectionKey = ' + extractFn(js, 'addonSelectionKey'));
     eval('findMatchingVariationLine = ' + extractFn(js, 'findMatchingVariationLine'));
     eval('addSelectedVariations = ' + extractFn(js, 'addSelectedVariations'));
     eval('lastLineIndex = ' + extractFn(js, 'lastLineIndex'));
@@ -162,7 +168,7 @@ test('previous variation is never auto-selected', function () {
     var modal = extractFn(js, 'openModifiers');
     assert(!/\schecked/.test(modal) && !/checked=/.test(modal), 'selector inputs must start unchecked');
     assert(modal.indexOf(':checked') !== -1, 'confirm still reads the cashier\'s selection');
-    assert(modal.indexOf('addSelectedVariations(product, variations, qty)') !== -1, 'modal confirm must go through merge helper');
+    assert(modal.indexOf('addSelectedVariations(product, variations, qty, addonId, addonQuantities)') !== -1, 'modal confirm must go through merge helper');
     assert(js.indexOf('lastLineIndex(productId)') !== -1, 'last-line helper still used for decrement');
 
     var plus = extractFn(js, 'adjustProductQty');
@@ -229,8 +235,8 @@ test('cards show a flavour badge only when variations exist', function () {
     assert(engine.variationBadge({
         variations: [{ name: 'Wings Type' }, { name: 'Heat' }]
     }) === '2 Variations', 'multiple groups should show the count');
-    assert(js.indexOf('function variationBadge') !== -1, 'live productCard must use variationBadge');
-    assert(js.indexOf('escapeHtml(variationBadge(product))') !== -1, 'badge must render on the card');
+    assert(js.indexOf('function modifierBadge') !== -1, 'live productCard must use modifierBadge');
+    assert(js.indexOf('escapeHtml(modifierBadge(product))') !== -1, 'badge must render on the card');
 });
 
 test('checkout, pricing, discounts, reports and kitchen printing remain unchanged', function () {

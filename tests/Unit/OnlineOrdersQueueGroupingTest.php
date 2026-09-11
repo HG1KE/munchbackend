@@ -360,7 +360,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('PAID VIA GLOVO', $kitchenFn);
         $this->assertStringContainsString('Enable M-PESA Payments on POS', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
         $this->assertStringContainsString('pos_mpesa_enabled', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
-        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.6", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.7", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringNotContainsString('munch-pos-dine-in.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('munch-pos-submit-guard.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('isMarketplaceOrderType', $posJs);
@@ -382,7 +382,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('80mm', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
         $this->assertStringContainsString('z-index: 46', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
         $this->assertStringContainsString('variationOptionLabels', file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
-        $this->assertStringContainsString("'options' => self::variationOptionLabels", file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
+        $this->assertStringContainsString("'options' => array_values(array_filter(array_merge(", file_get_contents(app_path('Services/BranchPosTodayOrdersService.php')));
         $this->assertStringContainsString('pos-orders-modal', $posPage);
         $this->assertStringContainsString('todayOrders:', $posPage);
         $this->assertStringContainsString("translate('View Orders')", $posPage);
@@ -395,7 +395,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('[hidden]', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
-        $this->assertStringContainsString('munch-pos-shell-v25', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
+        $this->assertStringContainsString('munch-pos-shell-v26', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('fetchTodayOrders', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
@@ -418,9 +418,9 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringContainsString('COALESCE(pos_sold.qty_sold, 0) DESC', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('whereIn(\'orders.sales_channel\', PosOrderTypes::salesChannels())', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringNotContainsString("(int) (\$row['position'] ?? 0) === 0", file_get_contents(app_path('Services/BranchPosCatalogService.php')));
-        $this->assertStringNotContainsString('data-addon', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
-        $this->assertStringNotContainsString('addon_ids', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
-        $this->assertStringNotContainsString('AddOn::', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString('name="pos-addon"', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString("'allow_addon_on_pos'", file_get_contents(app_path('Services/BranchPosCatalogService.php')));
+        $this->assertStringContainsString('AddOn::query()', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('pos-catalog-popularity-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString('pos-mpesa-settings-1', file_get_contents(app_path('Services/BranchPosCatalogService.php')));
         $this->assertStringContainsString("'pos_mpesa_enabled'", file_get_contents(app_path('Services/BranchPosCatalogService.php')));

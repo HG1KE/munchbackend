@@ -12,11 +12,11 @@ class PosVariationSelectionTest extends TestCase
         $adjust = $this->functionBody($js, 'function adjustProductQty');
         $addPath = substr($adjust, strpos($adjust, 'if (delta > 0)'), strpos($adjust, 'var idx = lastLineIndex') - strpos($adjust, 'if (delta > 0)'));
 
-        $this->assertStringContainsString('if (productNeedsVariation(product))', $addPath);
+        $this->assertStringContainsString('if (productNeedsModifiers(product))', $addPath);
         $this->assertStringContainsString('openModifiers(product)', $addPath);
         $this->assertStringNotContainsString('quantity +=', $addPath);
         $this->assertStringNotContainsString('lastLineIndex', $addPath);
-        $this->assertStringContainsString('addSelectedVariations(product, variations, qty)', $js);
+        $this->assertStringContainsString('addSelectedVariations(product, variations, qty, addonId, addonQuantities)', $js);
         $this->assertStringContainsString('function variationSelectionKey', $js);
         $this->assertStringContainsString('function findMatchingVariationLine', $js);
     }
@@ -24,11 +24,11 @@ class PosVariationSelectionTest extends TestCase
     public function test_selector_does_not_reuse_a_previous_flavour(): void
     {
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
-        $modal = $this->functionBody($js, 'function openModifiers', 4500);
+        $modal = $this->functionBody($js, 'function openModifiers', 6500);
 
         $this->assertDoesNotMatchRegularExpression('/\schecked|checked=/', $modal);
         $this->assertStringContainsString(':checked', $modal);
-        $this->assertStringContainsString('addSelectedVariations(product, variations, qty)', $modal);
+        $this->assertStringContainsString('addSelectedVariations(product, variations, qty, addonId, addonQuantities)', $modal);
         $this->assertStringNotContainsString('state.cart.lines.push', $modal);
     }
 

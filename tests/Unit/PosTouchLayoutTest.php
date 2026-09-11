@@ -77,8 +77,8 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('munch-pos-card__price', $card);
         $this->assertStringContainsString('munch-pos-card__actions', $card);
         $this->assertStringContainsString('munch-pos-card__opt', $card);
-        $this->assertStringContainsString('productNeedsVariation(product)', $card);
-        $this->assertStringContainsString('variationBadge(product)', $card);
+        $this->assertStringContainsString('productNeedsModifiers(product)', $card);
+        $this->assertStringContainsString('modifierBadge(product)', $card);
         $this->assertTrue(
             strpos($card, '<img') < strpos($card, 'munch-pos-card__name'),
             'the image must not replace the name block'

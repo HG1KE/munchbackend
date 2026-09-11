@@ -222,7 +222,7 @@ class POSController extends Controller
         $price = $product->price;
         $addonPrice = 0;
 
-        if ($request['addon_id']) {
+        if ($request['addon_id'] && $product && $product->allowsAddonOnPos()) {
             foreach ($request['addon_id'] as $id) {
                 $addonPrice += $request['addon-price' . $id] * $request['addon-quantity' . $id];
             }
@@ -419,18 +419,26 @@ class POSController extends Controller
         $data['add_on_prices'] = [];
         $data['add_on_tax'] = [];
 
-        if ($request['addon_id']) {
+        if ($request['addon_id'] && $product->allowsAddonOnPos()) {
+            $allowedAddonIds = $product->addonIds();
             foreach ($request['addon_id'] as $id) {
+                $id = (int) $id;
+                if ($id < 1 || ! in_array($id, $allowedAddonIds, true)) {
+                    continue;
+                }
                 $addonPrice += $request['addon-price' . $id] * $request['addon-quantity' . $id];
                 $data['add_on_qtys'][] = $request['addon-quantity' . $id];
 
                 $add_on = AddOn::find($id);
+                if (! $add_on) {
+                    continue;
+                }
                 $data['add_on_prices'][] = $add_on['price'];
                 $addonTax = ($add_on['price'] * $add_on['tax']/100);
                 $addonTotalTax += (($add_on['price'] * $add_on['tax']/100) * $request['addon-quantity' . $id]);
                 $data['add_on_tax'][] = $addonTax;
+                $data['add_ons'][] = $id;
             }
-            $data['add_ons'] = $request['addon_id'];
         }
 
         $data['addon_price'] = $addonPrice;
@@ -1377,8 +1385,63 @@ class POSController extends Controller
         $data['addon_price'] = 0;
         $data['addon_total_tax'] = 0;
         $data['discount_data'] = $discountData;
+        $this->attachPosAddons($data, $product, $input);
 
         return ['ok' => true, 'data' => $data];
+    }
+
+    /**
+     * Apply selected POS addons using the existing order-detail addon fields.
+     * Ignored unless the product explicitly allows addons on POS.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $input
+     */
+    private function attachPosAddons(array &$data, Product $product, array $input): void
+    {
+        if (! $product->allowsAddonOnPos()) {
+            return;
+        }
+
+        $allowed = $product->addonIds();
+        if ($allowed === []) {
+            return;
+        }
+
+        $requested = $input['addon_id'] ?? [];
+        if (! is_array($requested) || $requested === []) {
+            return;
+        }
+
+        $qtyMap = is_array($input['addon_quantities'] ?? null) ? $input['addon_quantities'] : [];
+        $addonPrice = 0.0;
+        $addonTotalTax = 0.0;
+
+        foreach ($requested as $rawId) {
+            $id = (int) $rawId;
+            if ($id < 1 || ! in_array($id, $allowed, true)) {
+                continue;
+            }
+            $addon = AddOn::query()->find($id);
+            if (! $addon) {
+                continue;
+            }
+            $qty = (int) ($qtyMap[$id] ?? $qtyMap[(string) $id] ?? 1);
+            if ($qty < 1) {
+                $qty = 1;
+            }
+            $price = (float) $addon->price;
+            $tax = ((float) ($addon->tax ?? 0) / 100) * $price;
+            $data['add_ons'][] = $id;
+            $data['add_on_qtys'][] = $qty;
+            $data['add_on_prices'][] = $price;
+            $data['add_on_tax'][] = $tax;
+            $addonPrice += $price * $qty;
+            $addonTotalTax += $tax * $qty;
+        }
+
+        $data['addon_price'] = $addonPrice;
+        $data['addon_total_tax'] = $addonTotalTax;
     }
 
     private function jsonPosDeliveryValidationError(Request $request): ?string

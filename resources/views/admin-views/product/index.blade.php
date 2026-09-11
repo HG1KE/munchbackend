@@ -337,6 +337,16 @@
                                                     @endforeach
                                                 </select>
                                             </div>
+                                            <div class="d-flex align-items-center justify-content-between gap-sm-3 gap-1 flex-sm-nowrap flex-wrap">
+                                                <div class="text-dark">{{ translate('Allow customers to select addons for this product on POS.') }}</div>
+                                                <div class="d-flex gap-3 align-items-center">
+                                                    <h5 class="mb-0">{{ translate('Allow Addon on POS') }}</h5>
+                                                    <label class="switcher">
+                                                        <input class="switcher_input" type="checkbox" name="allow_addon_on_pos">
+                                                        <span class="switcher_control"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
