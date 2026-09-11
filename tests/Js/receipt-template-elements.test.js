@@ -193,6 +193,188 @@ test('editor wires grouped delivery customer fields and persists order on save',
     assert(editorPartial.indexOf('value="delivery" selected') !== -1, 'preview default should be Delivery');
 });
 
+function blockClass(html, id) {
+    var match = html.match(new RegExp('class="([^"]*ticket-block--' + id + '[^"]*)"'));
+    return match ? match[1] : '';
+}
+
+function withBlockStyle(template, id, style) {
+    template.block_styles = template.block_styles || {};
+    template.block_styles[id] = Object.assign({
+        font_size: 'normal',
+        bold: false,
+        align: 'left',
+        divider_before: false,
+        divider_after: false,
+        margin_top: false,
+        margin_bottom: false
+    }, style || {});
+    return template;
+}
+
+test('order number visibility alignment and weight reach the renderer', function () {
+    var T = renderer();
+    var off = T.defaults('customer');
+    off.sections.order.order_number = false;
+    var hidden = T.renderDocument('customer', off, job({ number: 'A10001' }));
+    assert(hidden.indexOf('ORDER #') === -1, 'order number stayed visible when disabled');
+
+    var on = withBlockStyle(T.defaults('customer'), 'order_number', {
+        align: 'center',
+        font_size: 'extra_large',
+        bold: true
+    });
+    on.sections.order.order_number = true;
+    var shown = T.renderDocument('customer', on, job({ number: 'A10001' }));
+    var cls = blockClass(shown, 'order_number');
+    assert(shown.indexOf('ORDER #A10001') !== -1, 'preview sample order number missing');
+    assert(cls.indexOf('fs-extra_large') !== -1, 'order number font size ignored');
+    assert(cls.indexOf('is-bold') !== -1, 'order number bold ignored');
+    assert(cls.indexOf('is-center') !== -1, 'order number center ignored');
+});
+
+test('delivery customer alignment and weight reach the renderer', function () {
+    var T = renderer();
+    var tmpl = withBlockStyle(T.defaults('customer'), 'delivery_customer', {
+        align: 'right',
+        font_size: 'large',
+        bold: true
+    });
+    var html = T.renderDocument('customer', tmpl, job());
+    var cls = blockClass(html, 'delivery_customer');
+    assert(html.indexOf('<p>CUSTOMER</p>') !== -1, 'delivery customer block missing');
+    assert(cls.indexOf('is-right') !== -1, 'delivery customer right align ignored');
+    assert(cls.indexOf('fs-large') !== -1, 'delivery customer font size ignored');
+    assert(cls.indexOf('is-bold') !== -1, 'delivery customer bold ignored');
+    assert(html.indexOf('.ticket-block.is-right .meta p') !== -1, 'right align CSS lost to hardcoded meta styles');
+    assert(html.indexOf('.ticket-block.fs-large,.ticket-block.fs-large .meta') !== -1, 'font size CSS does not override .meta');
+});
+
+test('payment status alignment reaches the renderer and can be disabled', function () {
+    var T = renderer();
+    var centered = withBlockStyle(T.defaults('customer'), 'payment', { align: 'center' });
+    centered.sections.payment.payment_status = true;
+    var html = T.renderDocument('customer', centered, job({ payment_status: 'paid' }));
+    assert(html.indexOf('Payment Status') !== -1, 'enabled payment status missing');
+    assert(blockClass(html, 'payment').indexOf('is-center') !== -1, 'payment center ignored');
+    assert(html.indexOf('.ticket-block.is-center .row{display:flex;justify-content:center') !== -1, 'payment row still uses space-between');
+
+    var off = T.defaults('customer');
+    off.sections.payment.payment_status = false;
+    var hidden = T.renderDocument('customer', off, job({ payment_status: 'paid' }));
+    assert(hidden.indexOf('Payment Status') === -1, 'disabled payment status still printed');
+});
+
+test('acceptance: styled config is visible in the shared renderer', function () {
+    var T = renderer();
+    var tmpl = T.defaults('customer');
+    withBlockStyle(tmpl, 'order_number', { align: 'center', font_size: 'extra_large', bold: true });
+    withBlockStyle(tmpl, 'delivery_customer', { align: 'right', font_size: 'large', bold: true });
+    withBlockStyle(tmpl, 'payment', { align: 'center', font_size: 'normal', bold: false });
+    tmpl.sections.order.order_number = true;
+    tmpl.sections.payment.payment_status = true;
+    var html = T.renderDocument('customer', tmpl, job({ number: 'A10001', payment_status: 'paid' }));
+    assert(html.indexOf('ORDER #A10001') !== -1, 'acceptance order number missing');
+    assert(blockClass(html, 'order_number').indexOf('fs-extra_large') !== -1, 'acceptance order number size missing');
+    assert(blockClass(html, 'order_number').indexOf('is-center') !== -1, 'acceptance order number align missing');
+    assert(blockClass(html, 'order_number').indexOf('is-bold') !== -1, 'acceptance order number bold missing');
+    assert(blockClass(html, 'delivery_customer').indexOf('is-right') !== -1, 'acceptance delivery align missing');
+    assert(blockClass(html, 'delivery_customer').indexOf('fs-large') !== -1, 'acceptance delivery size missing');
+    assert(blockClass(html, 'delivery_customer').indexOf('is-bold') !== -1, 'acceptance delivery bold missing');
+    assert(html.indexOf('Payment Status') !== -1, 'acceptance payment status missing');
+    assert(blockClass(html, 'payment').indexOf('is-center') !== -1, 'acceptance payment align missing');
+});
+
+test('acceptance: flipping styles updates the shared renderer', function () {
+    var T = renderer();
+    var tmpl = T.defaults('customer');
+    withBlockStyle(tmpl, 'order_number', { align: 'left', font_size: 'normal', bold: false });
+    withBlockStyle(tmpl, 'delivery_customer', { align: 'left', font_size: 'normal', bold: false });
+    tmpl.sections.order.order_number = true;
+    tmpl.sections.payment.payment_status = false;
+    var html = T.renderDocument('customer', tmpl, job({ number: 'A10001', payment_status: 'paid' }));
+    assert(html.indexOf('ORDER #A10001') !== -1, 'flipped order number missing');
+    assert(blockClass(html, 'order_number').indexOf('is-left') !== -1, 'flipped order number align missing');
+    assert(blockClass(html, 'order_number').indexOf('is-normal') !== -1, 'flipped order number weight missing');
+    assert(blockClass(html, 'order_number').indexOf('fs-normal') !== -1, 'flipped order number size missing');
+    assert(blockClass(html, 'delivery_customer').indexOf('is-left') !== -1, 'flipped delivery align missing');
+    assert(blockClass(html, 'delivery_customer').indexOf('is-normal') !== -1, 'flipped delivery weight missing');
+    assert(html.indexOf('Payment Status') === -1, 'flipped payment status still printed');
+});
+
+test('preview and print share one renderer and schema keys', function () {
+    assert(editorSrc.indexOf('MunchReceiptTicket.renderDocument') !== -1, 'editor preview does not use the shared renderer');
+    assert(editorSrc.indexOf("els.preview.srcdoc = ''") !== -1, 'editor preview must force an iframe rewrite');
+    assert(editorSrc.indexOf('st.align = styleAlign') !== -1, 'editor writes align');
+    assert(editorSrc.indexOf('ensureStyle(fsName.slice(3)).font_size = target.value') !== -1, 'editor writes font_size');
+    assert(editorSrc.indexOf('data-style-bool="bold"') !== -1, 'editor writes bold');
+    assert(ticketSrc.indexOf('st.align ===') !== -1, 'renderer reads align');
+    assert(ticketSrc.indexOf('st.font_size') !== -1, 'renderer reads font_size');
+    assert(ticketSrc.indexOf('st.bold') !== -1, 'renderer reads bold');
+    assert(ticketSrc.indexOf('textAlign') === -1, 'renderer has a mismatched textAlign schema');
+    assert(editorSrc.indexOf('textAlign') === -1, 'editor has a mismatched textAlign schema');
+    assert(ticketSrc.indexOf('.ticket-block.is-left{text-align:left}') !== -1, 'block align must beat hardcoded center');
+    assert(ticketSrc.indexOf('.ticket-block.is-normal,.ticket-block.is-normal *{font-weight:500}') !== -1, 'normal weight must beat ticket default bold');
+});
+
+test('80mm and 58mm paper sizes change the shared CSS', function () {
+    var T = renderer();
+    var tmpl = T.defaults('customer');
+    var wide = T.renderDocument('customer', tmpl, job(), { print: { paper: '80mm' } });
+    var narrow = T.renderDocument('customer', tmpl, job(), { print: { paper: '58mm' } });
+    assert(wide.indexOf('size:80mm') !== -1, '80mm preview CSS missing');
+    assert(wide.indexOf('width:80mm') !== -1, '80mm body width missing');
+    assert(narrow.indexOf('size:58mm') !== -1, '58mm preview CSS missing');
+    assert(narrow.indexOf('width:58mm') !== -1, '58mm body width missing');
+    withBlockStyle(tmpl, 'order_number', { align: 'center', font_size: 'large', bold: true });
+    var styled80 = T.renderDocument('customer', tmpl, job({ number: 'A10001' }), { print: { paper: '80mm' } });
+    var styled58 = T.renderDocument('customer', tmpl, job({ number: 'A10001' }), { print: { paper: '58mm' } });
+    assert(blockClass(styled80, 'order_number').indexOf('is-center') !== -1, '80mm lost order number align');
+    assert(blockClass(styled58, 'order_number').indexOf('is-center') !== -1, '58mm lost order number align');
+});
+
+test('reordering blocks is reflected by the shared renderer', function () {
+    var T = renderer();
+    var tmpl = T.defaults('customer');
+    tmpl.order = ['delivery_customer', 'order_number', 'items', 'payment'];
+    var html = T.renderDocument('customer', tmpl, job({ number: 'A10001' }));
+    var deliveryAt = html.indexOf('ticket-block--delivery_customer');
+    var orderAt = html.indexOf('ticket-block--order_number');
+    assert(deliveryAt !== -1 && orderAt !== -1, 'reordered blocks missing');
+    assert(deliveryAt < orderAt, 'block order ignored');
+});
+
+test('long customer names and addresses wrap instead of overflowing', function () {
+    var html = render('customer', null, {
+        customer: 'Jonathan Bartholomew Winterbottom-Cheltenham',
+        address: 'Apartment 12B, Nyali Beach Apartments, Links Road, Nyali, Mombasa, Kenya'
+    });
+    assert(html.indexOf('overflow-wrap:anywhere') !== -1, 'missing wrap CSS');
+    assert(html.indexOf('Jonathan Bartholomew Winterbottom-Cheltenham') !== -1, 'long name omitted');
+    assert(html.indexOf('Links Road, Nyali, Mombasa, Kenya') !== -1, 'long address omitted');
+});
+
+test('paid amount toggle is not decorative', function () {
+    var T = renderer();
+    var on = T.defaults('customer');
+    on.sections.summary.paid_amount = true;
+    var shown = T.renderDocument('customer', on, job({ paid_amount: 600, grand_total: 600 }));
+    assert(shown.indexOf('Paid Amount') !== -1, 'paid amount enabled but ignored');
+    var off = T.defaults('customer');
+    off.sections.summary.paid_amount = false;
+    var hidden = T.renderDocument('customer', off, job({ paid_amount: 600, grand_total: 600 }));
+    assert(hidden.indexOf('Paid Amount') === -1, 'paid amount stayed visible');
+});
+
+test('kitchen tickets ignore customer-only delivery and payment styling', function () {
+    var T = renderer();
+    withBlockStyle(T.defaults('customer'), 'delivery_customer', { align: 'right', bold: true, font_size: 'extra_large' });
+    var kitchen = T.renderDocument('kitchen', T.defaults('kitchen'), job());
+    assert(kitchen.indexOf('ticket-block--delivery_customer') === -1, 'kitchen rendered delivery customer');
+    assert(kitchen.indexOf('Payment Status') === -1, 'kitchen rendered payment status');
+    assert(kitchen.indexOf('<p>CUSTOMER</p>') === -1, 'kitchen used grouped delivery labels');
+});
+
 if (failed) {
     console.error(failed + ' failed, ' + passed + ' passed');
     process.exit(1);

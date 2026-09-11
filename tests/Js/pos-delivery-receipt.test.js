@@ -229,6 +229,16 @@ test('persistable cart still strips live delivery PII and leftover rider state',
     assert(cart.address.contact_person_name === 'Jane Doe', 'live cart was mutated');
 });
 
+test('POS print uses the live catalog receipt pack and shared renderer', function () {
+    assert(app.indexOf('function receiptPack()') !== -1, 'POS missing receiptPack');
+    assert(app.indexOf('if (state.catalog && state.catalog.receipt) return state.catalog.receipt') !== -1, 'POS print must prefer live catalog templates');
+    assert(app.indexOf('CFG.catalog = catalog') !== -1, 'catalog refresh must update CFG.catalog');
+    assert(app.indexOf("MunchReceiptTicket.renderDocument('customer'") !== -1, 'POS customer receipt must use the shared renderer');
+    assert(app.indexOf("MunchReceiptTicket.renderDocument('kitchen'") !== -1, 'POS kitchen ticket must use the shared renderer');
+    assert(app.indexOf('paid_amount: total') !== -1, 'new POS receipts should pass paid_amount');
+    assert(app.indexOf('paid_amount: order.paid_amount') !== -1, 'reprints should pass paid_amount');
+});
+
 if (failed) {
     console.error(failed + ' failed, ' + passed + ' passed');
     process.exit(1);

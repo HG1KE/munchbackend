@@ -143,6 +143,16 @@
         return out;
     }
 
+    function mergeBlockStyles(kind, template) {
+        var order = mergeOrder(kind, template);
+        var incoming = (template && template.block_styles) || {};
+        var out = {};
+        order.forEach(function (id) {
+            out[id] = Object.assign({}, DEFAULT_BLOCK_STYLE, incoming[id] || {});
+        });
+        return out;
+    }
+
     function normalizeTemplate(kind, template) {
         var base = clone(defaults(kind));
         if (!template || !template.sections) return base;
@@ -153,7 +163,7 @@
         out.style = Object.assign({}, base.style, template.style || {});
         out.texts = Object.assign({}, base.texts, template.texts || {});
         out.order = mergeOrder(kind, template);
-        out.block_styles = Object.assign({}, template.block_styles || {});
+        out.block_styles = mergeBlockStyles(kind, template);
         if (kind === 'kitchen') {
             out.qr = null;
         } else {
@@ -249,10 +259,11 @@
     function wrapBlock(id, html, template) {
         if (!html) return '';
         var st = blockStyle(template, id);
-        var cls = ['ticket-block', 'ticket-block--' + id, 'fs-' + (st.font_size || 'normal')];
-        if (st.bold) cls.push('is-bold');
-        if (st.align === 'center') cls.push('is-center');
-        if (st.align === 'right') cls.push('is-right');
+        var align = st.align === 'center' || st.align === 'right' ? st.align : 'left';
+        var fs = st.font_size || 'normal';
+        var cls = ['ticket-block', 'ticket-block--' + id, 'fs-' + fs];
+        cls.push(st.bold ? 'is-bold' : 'is-normal');
+        cls.push('is-' + align);
         if (st.margin_top) cls.push('mt-extra');
         if (st.margin_bottom) cls.push('mb-extra');
         var out = '';
@@ -346,19 +357,38 @@
             '.ticket-qr.qr-large img{width:38mm;height:38mm}' +
             '.ticket-barcode{text-align:center;margin:' + gap + ' 0}' +
             '.ticket-barcode p{margin:1mm 0 0;font-size:11px}' +
+            '.meta p,.brand,.title{overflow-wrap:anywhere;word-break:break-word}' +
+            '.ticket-block.is-normal,.ticket-block.is-normal *{font-weight:500}' +
             '.ticket-block.is-bold,.ticket-block.is-bold *{font-weight:900}' +
+            '.ticket-block.is-left{text-align:left}' +
+            '.ticket-block.is-left .brand,.ticket-block.is-left .title,.ticket-block.is-left .meta,.ticket-block.is-left .meta p,.ticket-block.is-left .thanks,.ticket-block.is-left .footer-block,.ticket-block.is-left .promo,.ticket-block.is-left .order-type,.ticket-block.is-left .order-type__label,.ticket-block.is-left .order-type__value,.ticket-block.is-left .order-type__channel,.ticket-block.is-left .ticket-qr,.ticket-block.is-left .ticket-barcode{text-align:left}' +
+            '.ticket-block.is-left .logo{margin-left:0;margin-right:auto}' +
             '.ticket-block.is-center{text-align:center}' +
-            '.ticket-block.is-center .brand,.ticket-block.is-center .title,.ticket-block.is-center .meta,.ticket-block.is-center .row{text-align:center}' +
+            '.ticket-block.is-center .brand,.ticket-block.is-center .title,.ticket-block.is-center .meta,.ticket-block.is-center .meta p,.ticket-block.is-center .thanks,.ticket-block.is-center .footer-block,.ticket-block.is-center .promo,.ticket-block.is-center .order-type,.ticket-block.is-center .order-type__label,.ticket-block.is-center .order-type__value,.ticket-block.is-center .order-type__channel,.ticket-block.is-center .ticket-qr,.ticket-block.is-center .ticket-barcode{text-align:center}' +
+            '.ticket-block.is-center .logo{margin-left:auto;margin-right:auto}' +
+            '.ticket-block.is-left .row{display:flex;justify-content:space-between;text-align:left}' +
+            '.ticket-block.is-center .row{display:flex;justify-content:center;gap:3mm;text-align:center}' +
+            '.ticket-block.is-center .row span{display:inline}' +
             '.ticket-block.is-right{text-align:right}' +
-            '.ticket-block.is-right .brand,.ticket-block.is-right .title,.ticket-block.is-right .meta,.ticket-block.is-right .row{text-align:right}' +
-            '.ticket-block.fs-small{font-size:11px}' +
+            '.ticket-block.is-right .brand,.ticket-block.is-right .title,.ticket-block.is-right .meta,.ticket-block.is-right .meta p,.ticket-block.is-right .thanks,.ticket-block.is-right .footer-block,.ticket-block.is-right .promo,.ticket-block.is-right .order-type,.ticket-block.is-right .order-type__label,.ticket-block.is-right .order-type__value,.ticket-block.is-right .order-type__channel,.ticket-block.is-right .ticket-qr,.ticket-block.is-right .ticket-barcode{text-align:right}' +
+            '.ticket-block.is-right .logo{margin-left:auto;margin-right:0}' +
+            '.ticket-block.is-right .row{display:flex;justify-content:flex-end;gap:3mm;text-align:right}' +
+            '.ticket-block.is-right .row span{display:inline}' +
+            '.ticket-block table{width:100%;text-align:left}' +
+            '.ticket-block .item,.ticket-block table td{overflow-wrap:anywhere;word-break:break-word}' +
+            '.ticket-block.is-left td.qty,.ticket-block.is-center td.qty,.ticket-block.is-right td.qty{text-align:left;white-space:nowrap}' +
+            '.ticket-block.is-left td.price,.ticket-block.is-center td.price,.ticket-block.is-right td.price{text-align:right;white-space:nowrap}' +
+            '.ticket-block.fs-small,.ticket-block.fs-small .meta,.ticket-block.fs-small .meta p,.ticket-block.fs-small .row,.ticket-block.fs-small .thanks,.ticket-block.fs-small .footer-block,.ticket-block.fs-small .order-type__label,.ticket-block.fs-small .order-type__channel{font-size:11px}' +
             '.ticket-block.fs-small .brand{font-size:16px}' +
+            '.ticket-block.fs-small .title,.ticket-block.fs-small .order-type__value{font-size:14px}' +
             '.ticket-block.fs-small .item,.ticket-block.fs-small table{font-size:12px}' +
-            '.ticket-block.fs-large{font-size:15px}' +
+            '.ticket-block.fs-large,.ticket-block.fs-large .meta,.ticket-block.fs-large .meta p,.ticket-block.fs-large .row,.ticket-block.fs-large .thanks,.ticket-block.fs-large .footer-block,.ticket-block.fs-large .order-type__label,.ticket-block.fs-large .order-type__channel{font-size:15px}' +
             '.ticket-block.fs-large .brand{font-size:22px}' +
+            '.ticket-block.fs-large .title,.ticket-block.fs-large .order-type__value{font-size:18px}' +
             '.ticket-block.fs-large .item,.ticket-block.fs-large table{font-size:16px}' +
-            '.ticket-block.fs-extra_large{font-size:18px}' +
+            '.ticket-block.fs-extra_large,.ticket-block.fs-extra_large .meta,.ticket-block.fs-extra_large .meta p,.ticket-block.fs-extra_large .row,.ticket-block.fs-extra_large .thanks,.ticket-block.fs-extra_large .footer-block,.ticket-block.fs-extra_large .order-type__label,.ticket-block.fs-extra_large .order-type__channel{font-size:18px}' +
             '.ticket-block.fs-extra_large .brand{font-size:26px}' +
+            '.ticket-block.fs-extra_large .title,.ticket-block.fs-extra_large .order-type__value{font-size:22px}' +
             '.ticket-block.fs-extra_large .item,.ticket-block.fs-extra_large table{font-size:18px}' +
             '.ticket-block.mt-extra{margin-top:4mm}' +
             '.ticket-block.mb-extra{margin-bottom:4mm}' +
@@ -441,7 +471,10 @@
 
     function orderNumberHtml(kind, template, job) {
         var bits = '';
-        if (show(kind, template, 'order', 'order_number')) bits += '<p>Order # ' + escapeHtml(job.number || '') + '</p>';
+        if (show(kind, template, 'order', 'order_number')) {
+            var number = String(job.number || '').replace(/^#/, '');
+            bits += '<p>ORDER #' + escapeHtml(number) + '</p>';
+        }
         if (show(kind, template, 'order', 'date') && job.date) bits += '<p>Date ' + escapeHtml(job.date) + '</p>';
         if (show(kind, template, 'order', 'time') && job.time) bits += '<p>Time ' + escapeHtml(job.time) + '</p>';
         if (show(kind, template, 'order', 'cashier') && job.cashier) bits += metaLine('Cashier', job.cashier);
@@ -576,6 +609,15 @@
         }
         if (show(kind, template, 'summary', 'total')) {
             html += '<div class="row is-grand"><span>Grand Total</span><span>' + escapeHtml(money(job.grand_total, currency)) + '</span></div>';
+        }
+        if (show(kind, template, 'summary', 'paid_amount')) {
+            var paid = job.paid_amount != null && job.paid_amount !== '' ? job.paid_amount : (job.cash_received != null && job.cash_received !== '' ? job.cash_received : job.grand_total);
+            if (paid != null && paid !== '') {
+                html += '<div class="row"><span>Paid Amount</span><span>' + escapeHtml(money(paid, currency)) + '</span></div>';
+            }
+        }
+        if (show(kind, template, 'summary', 'change') && Number(job.change) > 0) {
+            html += '<div class="row"><span>Change</span><span>' + escapeHtml(money(job.change, currency)) + '</span></div>';
         }
         return html;
     }

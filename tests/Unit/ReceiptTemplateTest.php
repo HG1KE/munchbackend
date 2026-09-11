@@ -231,6 +231,11 @@ class ReceiptTemplateTest extends TestCase
         $js = file_get_contents(public_path('assets/admin/js/munch-receipt-templates.js'));
         $this->assertStringContainsString('refreshPreview', $js);
         $this->assertStringContainsString('srcdoc', $js);
+        $this->assertStringContainsString("els.preview.srcdoc = ''", $js);
+        $this->assertStringContainsString('MunchReceiptTicket.renderDocument', $js);
+        $this->assertStringContainsString('st.align', $js);
+        $this->assertStringContainsString('font_size', $js);
+        $this->assertStringContainsString("data-style-bool=\"bold\"", $js);
         $this->assertStringContainsString('persistOrderFromDom', $js);
         $this->assertStringContainsString('delivery_customer', $js);
         $this->assertStringContainsString("withGroup(groups.delivery_customer || [], 'delivery_customer')", $js);
@@ -268,7 +273,11 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString('MunchReceiptTicket.renderDocument', $pos);
         $this->assertStringContainsString('kitchenTicketHtml', $pos);
         $this->assertStringContainsString('receiptTicketHtml', $pos);
-        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.6", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("if (state.catalog && state.catalog.receipt) return state.catalog.receipt", $pos);
+        $this->assertStringContainsString('CFG.catalog = catalog', $pos);
+        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.7", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.4", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-receipt-templates.js') }}?v=1.3", file_get_contents(resource_path('views/admin-views/business-settings/receipt-templates.blade.php')));
     }
 
     public function test_renderer_honors_order_typography_qr_and_printer_mode(): void
@@ -472,6 +481,7 @@ JS;
         $this->assertNotContains('delivery_customer', $service->applyKindOverlay('kitchen', [])['order']);
 
         $sample = $service->sampleJob(['branch_name' => 'Nyali']);
+        $this->assertSame('A10001', $sample['number']);
         $this->assertSame('delivery', $sample['salesChannel']);
         $this->assertSame('John Doe', $sample['customer']);
         $this->assertSame('0712345678', $sample['phone']);
@@ -479,6 +489,74 @@ JS;
         $this->assertSame(100, $sample['delivery_fee']);
         $this->assertSame('', $sample['riderName']);
         $this->assertSame('', $sample['riderPhone']);
+    }
+
+    public function test_block_styles_persist_and_missing_properties_fall_back(): void
+    {
+        $service = new ReceiptTemplateService();
+        $styled = $service->applyKindOverlay('customer', [
+            'sections' => [
+                'order' => ['order_number' => true],
+                'payment' => ['payment_status' => true, 'payment_method' => true],
+                'delivery_customer' => [
+                    'customer_name' => true,
+                    'customer_phone' => true,
+                    'delivery_address' => true,
+                    'delivery_fee' => true,
+                ],
+            ],
+            'block_styles' => [
+                'order_number' => ['align' => 'center', 'font_size' => 'extra_large', 'bold' => true],
+                'delivery_customer' => ['align' => 'right', 'font_size' => 'large', 'bold' => true],
+                'payment' => ['align' => 'center'],
+            ],
+        ]);
+
+        $this->assertSame('center', $styled['block_styles']['order_number']['align']);
+        $this->assertSame('extra_large', $styled['block_styles']['order_number']['font_size']);
+        $this->assertTrue($styled['block_styles']['order_number']['bold']);
+        $this->assertSame('right', $styled['block_styles']['delivery_customer']['align']);
+        $this->assertSame('large', $styled['block_styles']['delivery_customer']['font_size']);
+        $this->assertTrue($styled['block_styles']['delivery_customer']['bold']);
+        $this->assertSame('center', $styled['block_styles']['payment']['align']);
+        $this->assertSame('normal', $styled['block_styles']['payment']['font_size']);
+        $this->assertFalse($styled['block_styles']['payment']['bold']);
+        $this->assertTrue($styled['sections']['payment']['payment_status']);
+        $this->assertTrue($styled['sections']['order']['order_number']);
+
+        $flipped = $service->applyKindOverlay('customer', [
+            'sections' => [
+                'order' => ['order_number' => true],
+                'payment' => ['payment_status' => false],
+                'delivery_customer' => [
+                    'customer_name' => true,
+                    'customer_phone' => true,
+                    'delivery_address' => true,
+                    'delivery_fee' => true,
+                ],
+            ],
+            'block_styles' => [
+                'order_number' => ['align' => 'left', 'font_size' => 'normal', 'bold' => false],
+                'delivery_customer' => ['align' => 'left', 'font_size' => 'normal', 'bold' => false],
+            ],
+        ]);
+        $this->assertSame('left', $flipped['block_styles']['order_number']['align']);
+        $this->assertSame('normal', $flipped['block_styles']['order_number']['font_size']);
+        $this->assertFalse($flipped['block_styles']['order_number']['bold']);
+        $this->assertSame('left', $flipped['block_styles']['delivery_customer']['align']);
+        $this->assertFalse($flipped['sections']['payment']['payment_status']);
+
+        $kitchen = $service->applyKindOverlay('kitchen', [
+            'block_styles' => [
+                'delivery_customer' => ['align' => 'right', 'bold' => true],
+                'payment' => ['align' => 'center'],
+                'order_number' => ['align' => 'center', 'font_size' => 'large'],
+            ],
+        ]);
+        $this->assertArrayNotHasKey('delivery_customer', $kitchen['block_styles']);
+        $this->assertArrayNotHasKey('payment', $kitchen['block_styles']);
+        $this->assertSame('center', $kitchen['block_styles']['order_number']['align']);
+        $this->assertSame('large', $kitchen['block_styles']['order_number']['font_size']);
     }
 
     public function test_node_receipt_template_element_scenarios(): void
@@ -500,5 +578,11 @@ JS;
         $this->assertStringContainsString('delivery customer information renders from saved order fields', $joined);
         $this->assertStringContainsString('delivery customer information disappears when the block is disabled', $joined);
         $this->assertStringContainsString('legacy templates without delivery_customer still merge and render it', $joined);
+        $this->assertStringContainsString('order number visibility alignment and weight reach the renderer', $joined);
+        $this->assertStringContainsString('delivery customer alignment and weight reach the renderer', $joined);
+        $this->assertStringContainsString('acceptance: styled config is visible in the shared renderer', $joined);
+        $this->assertStringContainsString('acceptance: flipping styles updates the shared renderer', $joined);
+        $this->assertStringContainsString('preview and print share one renderer and schema keys', $joined);
+        $this->assertStringContainsString('80mm and 58mm paper sizes change the shared CSS', $joined);
     }
 }

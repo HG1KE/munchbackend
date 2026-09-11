@@ -149,6 +149,7 @@ class PosDeliveryReceiptTest extends TestCase
         $this->assertStringContainsString('offline snapshot keeps queued customer details', $joined);
         $this->assertStringContainsString('new delivery payloads omit rider fields', $joined);
         $this->assertStringContainsString('delivery modal no longer collects rider fields', $joined);
+        $this->assertStringContainsString('POS print uses the live catalog receipt pack and shared renderer', $joined);
     }
 
     /**

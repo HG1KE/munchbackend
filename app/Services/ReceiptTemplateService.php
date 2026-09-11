@@ -362,7 +362,7 @@ class ReceiptTemplateService
     {
         return [
             'orderId' => 1042,
-            'number' => '#M-1042',
+            'number' => 'A10001',
             'branch' => $context['branch_name'],
             'date' => '10 Sep 2026',
             'time' => '12:41',
@@ -398,6 +398,7 @@ class ReceiptTemplateService
             'grand_total' => 2000,
             'payment_method' => 'cash',
             'payment_status' => 'paid',
+            'paid_amount' => 2000,
             'cash_received' => 2000,
             'change' => 0,
             'mpesa_till' => '123456',

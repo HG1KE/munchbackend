@@ -153,7 +153,7 @@ class BranchPosCatalogService
             (string) $this->channelPriceStamp($branchId),
             $this->branchPosMpesaEnabled($branchSettings) ? '1' : '0',
             trim((string) ($branchSettings?->mpesa_till ?? '')),
-            'pos-receipt-templates-3',
+            'pos-receipt-templates-5',
             (string) ($branchSettings?->updated_at ?? ''),
             md5((string) ($branchSettings?->receipt_settings ?? '')),
             md5((string) json_encode(Helpers::get_business_settings(ReceiptTemplateService::SETTINGS_KEY) ?: [])),

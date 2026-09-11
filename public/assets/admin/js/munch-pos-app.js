@@ -135,6 +135,7 @@
 
     function indexCatalog(catalog) {
         state.catalog = catalog;
+        CFG.catalog = catalog;
         state.productMap = {};
         (catalog.products || []).forEach(function (p) { state.productMap[p.id] = p; });
         lastGridKey = '';
@@ -1171,6 +1172,7 @@
             grand_total: total,
             payment_method: pay,
             payment_status: immediatePaymentStatus(pay),
+            paid_amount: total,
             cash_received: 0,
             change: 0,
             mpesa_till: branchMpesaTill(),
@@ -1211,6 +1213,7 @@
             grand_total: order.grand_total,
             payment_method: order.payment_method,
             payment_status: order.payment_status || immediatePaymentStatus(order.payment_method),
+            paid_amount: order.paid_amount != null ? order.paid_amount : order.grand_total,
             cash_received: 0,
             change: 0,
             mpesa_till: String(order.mpesa_till || branchMpesaTill()).trim(),
@@ -1532,7 +1535,9 @@
     }
 
     function receiptPack() {
-        return CFG.receipt || (CFG.catalog && CFG.catalog.receipt) || {};
+        if (state.catalog && state.catalog.receipt) return state.catalog.receipt;
+        if (CFG.catalog && CFG.catalog.receipt) return CFG.catalog.receipt;
+        return CFG.receipt || {};
     }
 
     function ticketRenderOptions() {
@@ -1543,7 +1548,7 @@
                 restaurant_name: CFG.restaurantName
             },
             print: pack.print || { paper: '80mm', receipt_copies: 1, kitchen_copies: 1, auto_cut: true, drawer_kick: false },
-            currency: (CFG.catalog && CFG.catalog.currency_symbol) || ''
+            currency: (state.catalog && state.catalog.currency_symbol) || (CFG.catalog && CFG.catalog.currency_symbol) || ''
         };
     }
 

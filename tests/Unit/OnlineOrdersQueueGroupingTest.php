@@ -360,7 +360,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('PAID VIA GLOVO', $kitchenFn);
         $this->assertStringContainsString('Enable M-PESA Payments on POS', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
         $this->assertStringContainsString('pos_mpesa_enabled', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
-        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.3", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.4", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringNotContainsString('munch-pos-dine-in.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('munch-pos-submit-guard.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('isMarketplaceOrderType', $posJs);
@@ -395,7 +395,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('customer_id', $posPage);
         $this->assertStringNotContainsString('Select Customer', $posPage);
         $this->assertStringContainsString('[hidden]', file_get_contents(public_path('assets/admin/css/munch-pos.css')));
-        $this->assertStringContainsString('munch-pos-shell-v24', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
+        $this->assertStringContainsString('munch-pos-shell-v25', file_get_contents(public_path('assets/admin/js/munch-pos-sw.js')));
         $this->assertStringContainsString('indexedDB', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('catalog_version', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('fetchTodayOrders', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));

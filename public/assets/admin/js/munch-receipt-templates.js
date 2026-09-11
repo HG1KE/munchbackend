@@ -124,7 +124,10 @@
 
     function refreshPreview() {
         var html = previewHtml();
-        if (els.preview) els.preview.srcdoc = html;
+        if (els.preview) {
+            els.preview.srcdoc = '';
+            els.preview.srcdoc = html;
+        }
         if (els.paper) els.paper.classList.toggle('is-58', (state.print && state.print.paper) === '58mm');
         if (els.previewTitle) {
             var paper = (state.print && state.print.paper) || '80mm';
