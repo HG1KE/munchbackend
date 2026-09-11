@@ -8,6 +8,7 @@ use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
 
 class BranchPosTodayOrdersService
 {
@@ -90,6 +91,10 @@ class BranchPosTodayOrdersService
                     $address->where('contact_person_name', 'like', $like)
                         ->orWhere('contact_person_number', 'like', $like);
                 });
+            if (Schema::hasColumn('orders', 'platform_order_number')) {
+                $inner->orWhere('platform_order_number', 'like', '%'.strtoupper(ltrim($search, '#')).'%')
+                    ->orWhere('platform_order_number', 'like', $like);
+            }
         });
     }
 
@@ -150,6 +155,12 @@ class BranchPosTodayOrdersService
             'completed_at' => $completed?->format('d M Y H:i'),
             'sales_channel' => (string) $order->sales_channel,
             'sales_channel_label' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
+            'platform_order_number' => PosOrderTypes::isMarketplaceChannel($order->sales_channel)
+                ? trim((string) ($order->platform_order_number ?? ''))
+                : '',
+            'platform_order_label' => PosOrderTypes::isMarketplaceChannel($order->sales_channel)
+                ? PosOrderTypes::platformOrderNumberLabel($order->sales_channel)
+                : '',
             'branch' => $branchName,
             'cashier' => $cashierName !== '' ? $cashierName : $branchName,
             'customer' => $customerName,

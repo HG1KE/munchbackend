@@ -492,6 +492,9 @@
         if (show(kind, template, 'order', 'date') && job.date) bits += '<p>Date ' + escapeHtml(job.date) + '</p>';
         if (show(kind, template, 'order', 'time') && job.time) bits += '<p>Time ' + escapeHtml(job.time) + '</p>';
         if (show(kind, template, 'order', 'cashier') && job.cashier) bits += metaLine('Cashier', job.cashier);
+        if (job.platform_order_number) {
+            bits += '<p>' + escapeHtml(String(job.platform_order_label || 'Platform Order Number')) + ': ' + escapeHtml(job.platform_order_number) + '</p>';
+        }
         return bits ? '<div class="meta">' + bits + '</div>' : '';
     }
 

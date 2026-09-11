@@ -138,6 +138,7 @@
                                         {{translate('order')}} {{translate('type')}}
                                         : @include('partials.sales-channel-badge', ['channel' => $order->sales_channel, 'fallbackType' => $order->order_type])
                                     </div>
+                                    @include('partials.platform-order-number', ['order' => $order])
                                 </div>
                             </div>
                         </div>

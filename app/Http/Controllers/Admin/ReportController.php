@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Support\AdminSaleReportSummary;
+use App\Support\PosOrderTypes;
 use Barryvdh\DomPDF\Facade as PDF;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
@@ -286,15 +287,22 @@ class ReportController extends Controller
         $totalSold = 0;
         $totalQuantity = 0;
 
-        $orderDisplayIds = $this->order->whereIn('id', $orders)->get()
-            ->mapWithKeys(fn ($order) => [$order->id => Helpers::order_display_id($order)]);
+        $orderMeta = $this->order->whereIn('id', $orders)->get()
+            ->mapWithKeys(fn ($order) => [$order->id => [
+                'display_id' => Helpers::order_display_id($order),
+                'platform_order_number' => trim((string) ($order->platform_order_number ?? '')),
+                'sales_channel_label' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
+            ]]);
 
         foreach ($this->orderDetail->whereIn('order_id', $orders)->latest()->get() as $detail) {
             $price = $detail['price'] - $detail['discount_on_product'];
             $orderTotal = $price * $detail['quantity'];
+            $meta = $orderMeta[$detail['order_id']] ?? [];
             $data[] = [
                 'order_id' => $detail['order_id'],
-                'order_display_id' => $orderDisplayIds[$detail['order_id']] ?? $detail['order_id'],
+                'order_display_id' => $meta['display_id'] ?? $detail['order_id'],
+                'platform_order_number' => $meta['platform_order_number'] ?? '',
+                'sales_channel_label' => $meta['sales_channel_label'] ?? '',
                 'date' => $detail['created_at'],
                 'price' => $orderTotal,
                 'quantity' => $detail['quantity'],

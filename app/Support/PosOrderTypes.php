@@ -287,6 +287,64 @@ class PosOrderTypes
     }
 
     /**
+     * POS Delivery customer phones must be exactly 10 digits. Other POS
+     * channels and admin notification numbers do not use this rule.
+     */
+    public static function posDeliveryPhoneError(?string $phone): ?string
+    {
+        $phone = trim((string) $phone);
+        if ($phone === '') {
+            return 'Customer Phone';
+        }
+        if (! preg_match('/^\d{10}$/', $phone)) {
+            return 'Enter a valid 10-digit phone number.';
+        }
+
+        return null;
+    }
+
+    public static function normalizePlatformOrderNumber(?string $number): string
+    {
+        $normalized = strtoupper(trim((string) $number));
+        if ($normalized === '') {
+            return '';
+        }
+
+        return substr($normalized, 0, 64);
+    }
+
+    public static function platformOrderNumberLabel(?string $channelOrType): string
+    {
+        $key = self::isMarketplace($channelOrType)
+            ? self::salesChannel($channelOrType)
+            : (string) $channelOrType;
+
+        return match ($key) {
+            self::GLOVO => 'Glovo Order Number',
+            self::UBER => 'Uber Order Number',
+            self::BOLT_FOOD => 'Bolt Food Order Number',
+            default => 'Platform Order Number',
+        };
+    }
+
+    public static function marketplacePlatformOrderPrompt(?string $type): string
+    {
+        return 'Enter '.self::platformOrderNumberLabel($type);
+    }
+
+    public static function marketplacePlatformOrderError(?string $type, ?string $number): ?string
+    {
+        if (! self::isMarketplace($type)) {
+            return null;
+        }
+        if (self::normalizePlatformOrderNumber($number) === '') {
+            return self::marketplacePlatformOrderPrompt($type);
+        }
+
+        return null;
+    }
+
+    /**
      * Required POS Delivery fields. Other order types skip this validation.
      *
      * POS Delivery requires customer name, phone, and address.
@@ -306,7 +364,7 @@ class PosOrderTypes
         if ($customerPhone === '') {
             return 'Customer Phone';
         }
-        $phoneError = self::phoneDigitsError($customerPhone);
+        $phoneError = self::posDeliveryPhoneError($customerPhone);
         if ($phoneError !== null) {
             return $phoneError;
         }

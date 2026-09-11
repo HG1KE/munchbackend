@@ -79,7 +79,7 @@
             </label>
             <label class="munch-pos-delivery-modal__field">
                 <span>{{ translate('Customer Phone') }}</span>
-                <input type="tel" id="pos-del-phone" placeholder="{{ translate('Customer Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
+                <input type="tel" id="pos-del-phone" placeholder="0712345678" autocomplete="off" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" data-del-field>
             </label>
             <label class="munch-pos-delivery-modal__field">
                 <span>{{ translate('Delivery Address') }}</span>
@@ -96,6 +96,23 @@
         <div class="munch-pos-dialog__actions">
             <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
             <button type="button" class="munch-pos-clear" id="pos-delivery-cancel">{{ translate('Close') }}</button>
+        </div>
+    </div>
+</div>
+
+<div class="munch-pos-modal" id="pos-platform-modal" hidden>
+    <div class="munch-pos-modal__card munch-pos-delivery-modal" role="dialog" aria-modal="true" aria-labelledby="pos-platform-title">
+        <h2 id="pos-platform-title">{{ translate('Enter Glovo Order Number') }}</h2>
+        <div class="munch-pos-dialog__body">
+            <p class="munch-pos-delivery-modal__error" id="pos-platform-error" hidden></p>
+            <label class="munch-pos-delivery-modal__field">
+                <span id="pos-platform-label">{{ translate('Enter Glovo Order Number') }}</span>
+                <input type="text" id="pos-platform-number" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" data-platform-field>
+            </label>
+        </div>
+        <div class="munch-pos-dialog__actions">
+            <button type="button" class="munch-pos-place" id="pos-platform-confirm">{{ translate('Confirm') }}</button>
+            <button type="button" class="munch-pos-clear" id="pos-platform-cancel">{{ translate('Close') }}</button>
         </div>
     </div>
 </div>
@@ -270,7 +287,11 @@
             paymentMethod: @json(translate('Payment Method')),
             payment: @json(translate('Payment')),
             paymentStatus: @json(translate('Payment_Status')),
-            invalidPhone: @json(translate('Invalid phone number')),
+            invalidPhone: @json(translate('Enter a valid 10-digit phone number.')),
+            glovoOrderNumber: @json(translate('Enter Glovo Order Number')),
+            uberOrderNumber: @json(translate('Enter Uber Order Number')),
+            boltFoodOrderNumber: @json(translate('Enter Bolt Food Order Number')),
+            confirm: @json(translate('Confirm')),
             done: @json(translate('Done')),
             salesChannel: @json(translate('Sales Channel')),
             receiptNumber: @json(translate('Receipt number')),
@@ -303,8 +324,8 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.9"></script>
+<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.8" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.9" defer></script>
 @endpush

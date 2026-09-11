@@ -4,6 +4,8 @@
         <tr>
             <td>{{translate('#')}} </td>
             <td>{{translate('order')}}</td>
+            <td>{{translate('Platform')}}</td>
+            <td>{{translate('Platform Order No.')}}</td>
             <td>{{translate('date')}}</td>
             <td>{{translate('qty')}}</td>
             <td>{{translate('customer')}}</td>
@@ -17,6 +19,8 @@
                 <td class="table-column-pl-0">
                     <a href="{{route('admin.orders.details',['id'=>$row['order_id']])}}">{{ $row['order_display_id'] ?? $row['order_id'] }}</a>
                 </td>
+                <td>{{ $row['sales_channel_label'] ?? '' }}</td>
+                <td>{{ $row['platform_order_number'] ?? '' }}</td>
                 <td>{{date('d M Y',strtotime($row['date']))}}</td>
                 <td>{{$row['quantity']}}</td>
                 <td>
@@ -34,35 +38,35 @@
         @if(!empty($summary ?? null))
             <tfoot>
                 <tr>
-                    <td colspan="5">{{ translate('Gross Sales') }}</td>
+                    <td colspan="7">{{ translate('Gross Sales') }}</td>
                     <td>{{ $summary['gross_sales'] }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('Total Discounts') }}</td>
+                    <td colspan="7">{{ translate('Total Discounts') }}</td>
                     <td>{{ $summary['total_discounts'] }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('Net Sales') }}</td>
+                    <td colspan="7">{{ translate('Net Sales') }}</td>
                     <td>{{ $summary['net_sales'] }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('Munch Sales') }}</td>
+                    <td colspan="7">{{ translate('Munch Sales') }}</td>
                     <td>{{ $summary['munch_sales'] ?? '' }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('Marketplace Sales') }}</td>
+                    <td colspan="7">{{ translate('Marketplace Sales') }}</td>
                     <td>{{ $summary['marketplace_sales'] ?? '' }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('tax') }}</td>
+                    <td colspan="7">{{ translate('tax') }}</td>
                     <td>{{ $summary['tax'] }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('Delivery Fees') }}</td>
+                    <td colspan="7">{{ translate('Delivery Fees') }}</td>
                     <td>{{ $summary['delivery_fees'] }}</td>
                 </tr>
                 <tr>
-                    <td colspan="5">{{ translate('Total Sales') }}</td>
+                    <td colspan="7">{{ translate('Total Sales') }}</td>
                     <td>{{ $summary['total_sales'] }}</td>
                 </tr>
             </tfoot>

@@ -107,6 +107,7 @@
                                 {{translate('SL')}}
                             </th>
                             <th>{{translate('order_ID')}}</th>
+                            <th>{{translate('Platform Order No.')}}</th>
                             <th>{{translate('order_Date')}}</th>
                             <th>{{translate('customer_Info')}}</th>
                             <th>{{translate('branch')}}</th>
@@ -126,6 +127,7 @@
                                 <td>
                                     <a class="text-dark" href="{{route('branch.orders.details',['id'=>$order['id']])}}">{{ \App\CentralLogics\Helpers::order_display_id($order) }}</a>
                                 </td>
+                                <td>{{ $order->platform_order_number ?: '' }}</td>
                                 <td>
                                     <div>{{date('d M Y',strtotime($order['created_at']))}}</div>
                                     <div>{{date('h:m A',strtotime($order['created_at']))}}</div>

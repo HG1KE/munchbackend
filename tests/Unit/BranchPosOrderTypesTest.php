@@ -116,12 +116,37 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $missingRider));
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $missingPhone));
         $this->assertSame('Customer Name', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_name' => ''])));
-        $this->assertSame('Invalid phone number', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '12'])));
+        $this->assertSame('Customer Phone', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => ''])));
+        $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '12'])));
+        $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '071234567'])));
+        $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '07123456789'])));
+        $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '07123ABC78'])));
+        $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '+254712345678'])));
+        $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '0798765432'])));
+        $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '0112345678'])));
 
         foreach (['take_away', 'dine_in', 'glovo', 'uber', 'bolt_food'] as $type) {
             $this->assertNull(PosOrderTypes::posDeliveryFieldError($type, $missingRider), $type);
             $this->assertNull(PosOrderTypes::posDeliveryFieldError($type, []), $type);
         }
+    }
+
+    public function test_marketplace_platform_order_number_is_required_and_uppercased(): void
+    {
+        $this->assertSame('ABC-123XY', PosOrderTypes::normalizePlatformOrderNumber('abc-123xy'));
+        $this->assertSame('AB12C', PosOrderTypes::normalizePlatformOrderNumber('aB12c'));
+        $this->assertSame('123456', PosOrderTypes::normalizePlatformOrderNumber('123456'));
+        $this->assertSame('', PosOrderTypes::normalizePlatformOrderNumber('   '));
+        $this->assertSame('Enter Glovo Order Number', PosOrderTypes::marketplacePlatformOrderError('glovo', ''));
+        $this->assertSame('Enter Uber Order Number', PosOrderTypes::marketplacePlatformOrderError('uber', '   '));
+        $this->assertSame('Enter Bolt Food Order Number', PosOrderTypes::marketplacePlatformOrderError('bolt_food', null));
+        $this->assertNull(PosOrderTypes::marketplacePlatformOrderError('glovo', 'abc123'));
+        $this->assertNull(PosOrderTypes::marketplacePlatformOrderError('take_away', ''));
+        $this->assertNull(PosOrderTypes::marketplacePlatformOrderError('dine_in', ''));
+        $this->assertNull(PosOrderTypes::marketplacePlatformOrderError('delivery', ''));
+        $this->assertSame('Uber Order Number', PosOrderTypes::platformOrderNumberLabel('uber'));
+        $this->assertSame('Glovo Order Number', PosOrderTypes::platformOrderNumberLabel('glovo'));
+        $this->assertSame('Bolt Food Order Number', PosOrderTypes::platformOrderNumberLabel('bolt_food'));
     }
 
     public function test_manual_discount_is_only_allowed_for_delivery_takeaway_and_dine_in(): void

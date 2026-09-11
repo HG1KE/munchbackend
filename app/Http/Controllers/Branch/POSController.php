@@ -485,6 +485,14 @@ class POSController extends Controller
             session()->has('order_type') ? (string) session()->get('order_type') : PosOrderTypes::TAKE_AWAY
         );
 
+        $platformError = PosOrderTypes::marketplacePlatformOrderError(
+            $orderType,
+            $request->input('platform_order_number')
+        );
+        if ($platformError !== null) {
+            return $this->posFail($request, translate($platformError));
+        }
+
         $deliveryCharge = 0;
         $distance = 0;
         $areaId = null;
@@ -498,6 +506,15 @@ class POSController extends Controller
             $addressData = session()->get('address');
             $distance = $addressData['distance'] ?? 0;
             $areaId = $addressData['area_id'] ?? $addressData['selected_area_id'] ?? null;
+
+            $deliveryError = PosOrderTypes::posDeliveryFieldError($orderType, [
+                'customer_name' => $addressData['contact_person_name'] ?? '',
+                'customer_phone' => $addressData['contact_person_number'] ?? '',
+                'address' => $addressData['address'] ?? '',
+            ]);
+            if ($deliveryError !== null) {
+                return $this->posFail($request, translate($deliveryError));
+            }
 
             $address = [
                 'address_type' => 'Home',
@@ -544,6 +561,11 @@ class POSController extends Controller
         $order->transaction_reference = $request->input('transaction_reference');
         $order->client_uuid = $this->posClientUuid($request);
         $order->sales_channel = PosOrderTypes::salesChannel($orderType);
+        if (Schema::hasColumn('orders', 'platform_order_number')) {
+            $order->platform_order_number = PosOrderTypes::isMarketplace($orderType)
+                ? PosOrderTypes::normalizePlatformOrderNumber($request->input('platform_order_number'))
+                : null;
+        }
         $order->delivery_address_id = PosOrderTypes::isDelivery($orderType) && $customerAddress ? $customerAddress->id : null;
         if (Schema::hasColumn('orders', 'rider_name')) {
             $order->rider_name = $this->posRiderName($request, $orderType);
@@ -1106,6 +1128,7 @@ class POSController extends Controller
             return [
                 'SL' => $key + 1,
                 'Order ID' => Helpers::order_display_id($order),
+                'Platform Order No.' => trim((string) ($order->platform_order_number ?? '')),
                 'Order Date' => date('d M Y h:i A', strtotime($order->created_at)),
                 'Customer Info' => $order->user_id ? "{$order->customer?->f_name} {$order->customer?->l_name}" : 'Walk-in Customer',
                 'Total Amount' => Helpers::set_symbol($order->order_amount),
@@ -1235,6 +1258,14 @@ class POSController extends Controller
         $deliveryError = $this->jsonPosDeliveryValidationError($request);
         if ($deliveryError !== null) {
             return $this->posFail($request, $deliveryError);
+        }
+
+        $platformError = PosOrderTypes::marketplacePlatformOrderError(
+            $request->input('order_type'),
+            $request->input('platform_order_number')
+        );
+        if ($platformError !== null) {
+            return $this->posFail($request, translate($platformError));
         }
 
         $cart = collect([]);

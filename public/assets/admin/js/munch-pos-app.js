@@ -885,6 +885,7 @@
             extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
             extra_discount_type: state.cart.discountType,
             delivery_charge: deliveryCharge(),
+            platform_order_number: isMarketplaceOrderType() ? readMarketplaceOrderNumber() : '',
             address: state.cart.orderType === 'delivery' ? {
                 contact_person_name: state.cart.address.contact_person_name || '',
                 contact_person_number: state.cart.address.contact_person_number || '',
@@ -913,8 +914,30 @@
     }
 
     function invalidPhone(value) {
-        var digits = phoneDigits(value);
-        return digits.length < 9 || digits.length > 12;
+        return !/^\d{10}$/.test(String(value || '').trim());
+    }
+
+    function normalizePlatformOrderNumber(value) {
+        return String(value || '').toUpperCase().trim();
+    }
+
+    function marketplaceOrderNumberPrompt(type) {
+        type = type || state.cart.orderType;
+        if (type === 'glovo') return CFG.labels.glovoOrderNumber || 'Enter Glovo Order Number';
+        if (type === 'uber') return CFG.labels.uberOrderNumber || 'Enter Uber Order Number';
+        if (type === 'bolt_food') return CFG.labels.boltFoodOrderNumber || 'Enter Bolt Food Order Number';
+        return 'Enter Order Number';
+    }
+
+    function readMarketplaceOrderNumber() {
+        var input = document.getElementById('pos-platform-number');
+        return normalizePlatformOrderNumber(input && input.value);
+    }
+
+    function validateMarketplaceOrderNumber() {
+        if (!isMarketplaceOrderType()) return null;
+        if (!readMarketplaceOrderNumber()) return marketplaceOrderNumberPrompt();
+        return null;
     }
 
     function validateDeliveryDetails() {
@@ -991,6 +1014,52 @@
 
     function closeDeliveryModal() {
         if (els.deliveryModal) els.deliveryModal.hidden = true;
+        syncPosOverlayState();
+    }
+
+    function showMarketplaceError(message) {
+        var error = document.getElementById('pos-platform-error');
+        if (!error) {
+            toast(message);
+            return;
+        }
+        error.hidden = false;
+        error.textContent = message;
+    }
+
+    function fillMarketplaceModal() {
+        var title = document.getElementById('pos-platform-title');
+        var label = document.getElementById('pos-platform-label');
+        var input = document.getElementById('pos-platform-number');
+        var prompt = marketplaceOrderNumberPrompt();
+        if (title) title.textContent = prompt;
+        if (label) label.textContent = prompt;
+        if (input) {
+            input.value = normalizePlatformOrderNumber(input.value);
+            input.setAttribute('placeholder', prompt);
+        }
+        var error = document.getElementById('pos-platform-error');
+        if (error) {
+            error.hidden = true;
+            error.textContent = '';
+        }
+    }
+
+    function openMarketplaceModal() {
+        fillMarketplaceModal();
+        if (els.platformModal) els.platformModal.hidden = false;
+        syncPosOverlayState();
+        var input = document.getElementById('pos-platform-number');
+        if (input) {
+            requestAnimationFrame(function () {
+                input.focus();
+                try { input.select(); } catch (err) {}
+            });
+        }
+    }
+
+    function closeMarketplaceModal() {
+        if (els.platformModal) els.platformModal.hidden = true;
         syncPosOverlayState();
     }
 
@@ -1307,7 +1376,9 @@
             mpesa_till: branchMpesaTill(),
             cashier: CFG.cashierName || CFG.branchName || '',
             riderName: '',
-            riderPhone: ''
+            riderPhone: '',
+            platform_order_number: (payload && payload.platform_order_number) || '',
+            platform_order_label: isMarketplaceOrderType(type) ? marketplaceOrderNumberPrompt(type).replace(/^Enter\s+/, '') : ''
         };
     }
 
@@ -1350,7 +1421,9 @@
             riderName: order.rider_name || '',
             riderPhone: order.rider_phone || '',
             order_status: order.order_status || '',
-            cancel_queued: !!order.cancel_queued
+            cancel_queued: !!order.cancel_queued,
+            platform_order_number: order.platform_order_number || '',
+            platform_order_label: order.platform_order_label || ''
         };
     }
 
@@ -1424,7 +1497,8 @@
         var overlayOpen = !!(
             (els.ordersModal && !els.ordersModal.hidden) ||
             (els.successModal && !els.successModal.hidden) ||
-            (els.deliveryModal && !els.deliveryModal.hidden)
+            (els.deliveryModal && !els.deliveryModal.hidden) ||
+            (els.platformModal && !els.platformModal.hidden)
         );
         document.documentElement.classList.toggle('munch-pos-overlay-open', overlayOpen);
     }
@@ -1805,6 +1879,7 @@
                 escapeHtml(navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...'));
         }
         if (els.deliveryConfirm) els.deliveryConfirm.disabled = true;
+        if (els.platformConfirm) els.platformConfirm.disabled = true;
     }
 
     function restorePlaceButton() {
@@ -1814,6 +1889,7 @@
             els.place.textContent = L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
         }
         if (els.deliveryConfirm) els.deliveryConfirm.disabled = false;
+        if (els.platformConfirm) els.platformConfirm.disabled = false;
     }
 
     function ignoreIfSubmitting(ev) {
@@ -1858,6 +1934,26 @@
             openDeliveryModal();
             return;
         }
+        if (isMarketplaceOrderType()) {
+            endOrderSubmit();
+            openMarketplaceModal();
+            return;
+        }
+        submitPlacedOrder();
+    }
+
+    function confirmMarketplaceAndPlace(ev) {
+        if (ignoreIfSubmitting(ev)) return;
+        if (!beginOrderSubmit()) return;
+        var input = document.getElementById('pos-platform-number');
+        if (input) input.value = normalizePlatformOrderNumber(input.value);
+        var error = validateMarketplaceOrderNumber();
+        if (error) {
+            endOrderSubmit();
+            showMarketplaceError(error);
+            return;
+        }
+        closeMarketplaceModal();
         submitPlacedOrder();
     }
 
@@ -1898,6 +1994,15 @@
                 endOrderSubmit();
                 showDeliveryError(deliveryError);
                 openDeliveryModal();
+                return;
+            }
+        }
+        if (isMarketplaceOrderType()) {
+            var platformError = validateMarketplaceOrderNumber();
+            if (platformError) {
+                endOrderSubmit();
+                showMarketplaceError(platformError);
+                openMarketplaceModal();
                 return;
             }
         }
@@ -2072,6 +2177,9 @@
         html += '<dt>' + escapeHtml(L('grandTotal', 'Grand Total')) + '</dt><dd>' + money(order.grand_total) + '</dd>';
         html += '<dt>' + escapeHtml(L('paymentStatus', 'Payment Status')) + '</dt><dd>' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</dd>';
         html += '<dt>' + escapeHtml(L('paymentMethod', 'Payment Method')) + '</dt><dd>' + escapeHtml(paymentLabel(order.payment_method)) + '</dd>';
+        if (order.platform_order_number) {
+            html += '<dt>' + escapeHtml(order.platform_order_label || 'Platform Order Number') + '</dt><dd>' + escapeHtml(order.platform_order_number) + '</dd>';
+        }
         html += '<dt>' + escapeHtml(L('cashier', 'Cashier')) + '</dt><dd>' + escapeHtml(order.cashier) + '</dd>';
         html += '<dt>' + escapeHtml(L('createdTime', 'Created at')) + '</dt><dd>' + escapeHtml(order.created_at) + '</dd>';
         if (order.completed_at) html += '<dt>' + escapeHtml(L('completedTime', 'Delivered')) + '</dt><dd>' + escapeHtml(order.completed_at) + '</dd>';
@@ -2105,6 +2213,7 @@
                     '</div></div></div>' +
                     '<div class="munch-pos-order__pills">' +
                     (isMarketplaceChannel(order.sales_channel) ? channelBadgeHtml(order.sales_channel, order.sales_channel_label) : '') +
+                    (order.platform_order_number ? '<span class="munch-pos-order__pill">' + escapeHtml(order.platform_order_number) + '</span>' : '') +
                     '<span class="munch-pos-order__pill">' + escapeHtml(paymentLabel(order.payment_method)) + '</span>' +
                     '<span class="munch-pos-order__pill ' + paymentStatusClass(order.payment_status) + '">' + escapeHtml(paymentStatusLabel(order.payment_status)) + '</span>' +
                     '<span class="munch-pos-order__pill ' + orderStatusClass(order.order_status) + '">' + escapeHtml(order.order_status_label || order.order_status) + '</span>' +
@@ -2199,6 +2308,10 @@
         els.deliveryModal = document.getElementById('pos-delivery-modal');
         els.deliveryConfirm = document.getElementById('pos-delivery-confirm');
         els.deliveryCancel = document.getElementById('pos-delivery-cancel');
+        els.platformModal = document.getElementById('pos-platform-modal');
+        els.platformConfirm = document.getElementById('pos-platform-confirm');
+        els.platformCancel = document.getElementById('pos-platform-cancel');
+        els.platformNumber = document.getElementById('pos-platform-number');
         els.fee = document.getElementById('pos-del-fee');
         els.feeCurrency = document.getElementById('pos-del-fee-currency');
         els.lines = document.getElementById('pos-lines');
@@ -2316,6 +2429,31 @@
                 if (ev.target.id === 'pos-delivery-modal') closeDeliveryModal();
             });
         }
+        bindSubmitControl(els.platformConfirm, confirmMarketplaceAndPlace);
+        if (els.platformCancel) els.platformCancel.addEventListener('click', closeMarketplaceModal);
+        if (els.platformModal) {
+            els.platformModal.addEventListener('click', function (ev) {
+                if (ev.target.id === 'pos-platform-modal') closeMarketplaceModal();
+            });
+        }
+        if (els.platformNumber) {
+            els.platformNumber.addEventListener('input', function () {
+                var start = this.selectionStart;
+                var end = this.selectionEnd;
+                var next = normalizePlatformOrderNumber(this.value);
+                if (next !== this.value) {
+                    this.value = next;
+                    try { this.setSelectionRange(start, end); } catch (err) {}
+                }
+            });
+        }
+        var deliveryPhone = document.getElementById('pos-del-phone');
+        if (deliveryPhone) {
+            deliveryPhone.addEventListener('input', function () {
+                var next = String(this.value || '').replace(/\D+/g, '');
+                if (next !== this.value) this.value = next;
+            });
+        }
         els.discount.addEventListener('input', function () {
             state.cart.discount = Number(els.discount.value || 0);
             persistCart();
@@ -2349,6 +2487,14 @@
                     return;
                 }
                 confirmDeliveryAndPlace();
+            });
+        }
+        if (els.platformModal) {
+            els.platformModal.addEventListener('keydown', function (ev) {
+                if (ev.key !== 'Enter') return;
+                if (!ev.target.closest('[data-platform-field]')) return;
+                ev.preventDefault();
+                confirmMarketplaceAndPlace();
             });
         }
         if (els.successModal) {
@@ -2449,6 +2595,11 @@
                     dismissPlacedOrder();
                     return;
                 }
+                if (els.platformModal && !els.platformModal.hidden) {
+                    ev.preventDefault();
+                    closeMarketplaceModal();
+                    return;
+                }
                 if (ordersUi.open) closeOrdersModal();
                 return;
             }
@@ -2458,6 +2609,7 @@
                 return;
             }
             if (els.deliveryModal && !els.deliveryModal.hidden) return;
+            if (els.platformModal && !els.platformModal.hidden) return;
             if (els.cancelModal && !els.cancelModal.hidden) return;
             if (els.ordersModal && !els.ordersModal.hidden) return;
             if (els.successModal && !els.successModal.hidden) return;

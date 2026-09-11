@@ -5,6 +5,8 @@
         <tr>
             <th>{{translate('SL')}} </th>
             <th>{{translate('order')}}</th>
+            <th>{{translate('Platform')}}</th>
+            <th>{{translate('Platform Order No.')}}</th>
             <th>{{translate('date')}}</th>
             <th>{{translate('qty')}}</th>
             <th>{{translate('amount')}}</th>
@@ -19,6 +21,8 @@
             <td class="">
                 <a href="{{route('admin.orders.details',['id'=>$row['order_id']])}}">{{ $row['order_display_id'] ?? $row['order_id'] }}</a>
             </td>
+            <td>{{ $row['sales_channel_label'] ?? '' }}</td>
+            <td>{{ $row['platform_order_number'] ?? '' }}</td>
             <td>{{date('d M Y',strtotime($row['date']))}}</td>
             <td>{{$row['quantity']}}</td>
             <td>{{ \App\CentralLogics\Helpers::set_symbol($row['price']) }}</td>
@@ -28,35 +32,35 @@
     @if(!empty($summary ?? null))
         <tfoot>
             <tr>
-                <th colspan="4">{{ translate('Gross Sales') }}</th>
+                <th colspan="6">{{ translate('Gross Sales') }}</th>
                 <th>{{ $summary['gross_sales'] }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('Total Discounts') }}</th>
+                <th colspan="6">{{ translate('Total Discounts') }}</th>
                 <th>{{ $summary['total_discounts'] }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('Net Sales') }}</th>
+                <th colspan="6">{{ translate('Net Sales') }}</th>
                 <th>{{ $summary['net_sales'] }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('Munch Sales') }}</th>
+                <th colspan="6">{{ translate('Munch Sales') }}</th>
                 <th>{{ $summary['munch_sales'] ?? '' }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('Marketplace Sales') }}</th>
+                <th colspan="6">{{ translate('Marketplace Sales') }}</th>
                 <th>{{ $summary['marketplace_sales'] ?? '' }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('tax') }}</th>
+                <th colspan="6">{{ translate('tax') }}</th>
                 <th>{{ $summary['tax'] }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('Delivery Fees') }}</th>
+                <th colspan="6">{{ translate('Delivery Fees') }}</th>
                 <th>{{ $summary['delivery_fees'] }}</th>
             </tr>
             <tr>
-                <th colspan="4">{{ translate('Total Sales') }}</th>
+                <th colspan="6">{{ translate('Total Sales') }}</th>
                 <th>{{ $summary['total_sales'] }}</th>
             </tr>
         </tfoot>
