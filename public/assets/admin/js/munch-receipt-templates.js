@@ -97,6 +97,12 @@
             var labels = window.MunchReceiptTicket.CHANNEL_LABELS || {};
             job.orderType = labels[previewAs.value] || previewAs.value;
             job.isDelivery = previewAs.value === 'delivery' || previewAs.value === 'glovo' || previewAs.value === 'uber' || previewAs.value === 'bolt_food';
+            if (previewAs.value === 'delivery') {
+                if (!job.customer) job.customer = 'John Doe';
+                if (!job.phone) job.phone = '0712345678';
+                if (!job.address) job.address = 'Nyali, Mombasa';
+                if (job.delivery_fee == null || job.delivery_fee === '') job.delivery_fee = 100;
+            }
         }
         return job;
     }
@@ -227,24 +233,34 @@
         }).join('');
     }
 
+    function withGroup(fields, group) {
+        return (fields || []).map(function (field) {
+            return Object.assign({}, field, { group: group });
+        });
+    }
+
     function fieldsFor(blockId) {
         var groups = catalog();
+        var customerKeys = currentKind() === 'kitchen'
+            ? ['customer_name', 'customer_phone', 'delivery_address', 'rider_name', 'rider_phone']
+            : ['customer_name', 'customer_phone', 'rider_name', 'rider_phone'];
         var map = {
-            logo: (groups.header || []).filter(function (f) { return f.key === 'logo'; }),
-            branch_name: (groups.header || []).filter(function (f) { return f.key === 'branch_name'; }),
-            receipt_title: (groups.header || []).filter(function (f) { return f.key === 'receipt_title'; }),
-            branch_details: (groups.header || []).filter(function (f) { return ['branch_address', 'branch_phone', 'tax_pin'].indexOf(f.key) !== -1; }),
-            order_type: (groups.order || []).filter(function (f) { return f.key === 'order_type' || f.key === 'sales_channel'; }),
-            order_number: (groups.order || []).filter(function (f) { return ['order_number', 'date', 'time', 'cashier'].indexOf(f.key) !== -1; }),
-            customer: (groups.order || []).filter(function (f) { return ['customer_name', 'customer_phone', 'delivery_address', 'rider_name', 'rider_phone'].indexOf(f.key) !== -1; }),
-            items: groups.items || [],
-            totals: groups.summary || [],
-            payment: (groups.payment || []).filter(function (f) { return f.key !== 'mpesa_till'; }),
-            mpesa_till: (groups.payment || []).filter(function (f) { return f.key === 'mpesa_till'; }),
-            promotion: groups.marketing || [],
-            qr_code: (groups.footer || []).filter(function (f) { return f.key === 'qr_code'; }),
-            barcode: (groups.footer || []).filter(function (f) { return f.key === 'barcode'; }),
-            footer: (groups.footer || []).filter(function (f) { return ['thank_you_message', 'footer_text', 'return_policy', 'social_media'].indexOf(f.key) !== -1; })
+            logo: withGroup((groups.header || []).filter(function (f) { return f.key === 'logo'; }), 'header'),
+            branch_name: withGroup((groups.header || []).filter(function (f) { return f.key === 'branch_name'; }), 'header'),
+            receipt_title: withGroup((groups.header || []).filter(function (f) { return f.key === 'receipt_title'; }), 'header'),
+            branch_details: withGroup((groups.header || []).filter(function (f) { return ['branch_address', 'branch_phone', 'tax_pin'].indexOf(f.key) !== -1; }), 'header'),
+            order_type: withGroup((groups.order || []).filter(function (f) { return f.key === 'order_type' || f.key === 'sales_channel'; }), 'order'),
+            order_number: withGroup((groups.order || []).filter(function (f) { return ['order_number', 'date', 'time', 'cashier'].indexOf(f.key) !== -1; }), 'order'),
+            customer: withGroup((groups.order || []).filter(function (f) { return customerKeys.indexOf(f.key) !== -1; }), 'order'),
+            delivery_customer: withGroup(groups.delivery_customer || [], 'delivery_customer'),
+            items: withGroup(groups.items || [], 'items'),
+            totals: withGroup(groups.summary || [], 'summary'),
+            payment: withGroup((groups.payment || []).filter(function (f) { return f.key !== 'mpesa_till'; }), 'payment'),
+            mpesa_till: withGroup((groups.payment || []).filter(function (f) { return f.key === 'mpesa_till'; }), 'payment'),
+            promotion: withGroup(groups.marketing || [], 'marketing'),
+            qr_code: withGroup((groups.footer || []).filter(function (f) { return f.key === 'qr_code'; }), 'footer'),
+            barcode: withGroup((groups.footer || []).filter(function (f) { return f.key === 'barcode'; }), 'footer'),
+            footer: withGroup((groups.footer || []).filter(function (f) { return ['thank_you_message', 'footer_text', 'return_policy', 'social_media'].indexOf(f.key) !== -1; }), 'footer')
         };
         return map[blockId] || [];
     }
@@ -348,6 +364,9 @@
             html += '<div class="mt-3"><label class="font-weight-bold">Promotion Banner</label>' +
                 '<textarea class="form-control" rows="3" data-text="promotion_banner">' + escapeHtml((tmpl.texts || {}).promotion_banner) + '</textarea></div>';
         }
+        if (id === 'delivery_customer') {
+            html += '<p class="munch-receipt-hint mt-2 mb-0">Shown on POS Delivery receipts. Other order types omit this block.</p>';
+        }
         return html;
     }
 
@@ -417,7 +436,7 @@
             html += '<div class="munch-receipt-block__head"><span class="munch-receipt-handle" aria-hidden="true">☰</span><h3>' + escapeHtml(labels[id] || id) + '</h3></div>';
             html += '<div class="munch-receipt-checks">';
             fieldsFor(id).forEach(function (field) {
-                var group = fieldGroup(field.key);
+                var group = field.group || fieldGroup(field.key);
                 var checked = tmpl.sections && tmpl.sections[group] && tmpl.sections[group][field.key] ? ' checked' : '';
                 html += '<label><input type="checkbox" data-section-group="' + group + '" data-section-key="' + field.key + '"' + checked + '> ' +
                     field.label + '</label>';
@@ -695,6 +714,7 @@
                 toast(false, 'Only Master Admin can edit the company template');
                 return;
             }
+            persistOrderFromDom();
             json(CFG.urls.save, { method: 'POST', body: savePayload() }).then(function (res) {
                 toast(true, res.message || 'Saved');
                 if (res.data) applyPayload(res.data);
@@ -728,7 +748,7 @@
                 currentTemplate().block_styles[key] = JSON.parse(JSON.stringify(source.block_styles[key]));
             }
             fieldsFor(key).forEach(function (field) {
-                var group = fieldGroup(field.key);
+                var group = field.group || fieldGroup(field.key);
                 if (source && source.sections && source.sections[group] && Object.prototype.hasOwnProperty.call(source.sections[group], field.key)) {
                     currentTemplate().sections[group][field.key] = source.sections[group][field.key];
                 }

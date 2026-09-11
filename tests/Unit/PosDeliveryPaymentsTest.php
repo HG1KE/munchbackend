@@ -69,7 +69,8 @@ class PosDeliveryPaymentsTest extends TestCase
         $payment = $this->functionBody($ticket, 'function paymentHtml');
         $this->assertStringContainsString("kind === 'kitchen') return ''", $payment);
         $this->assertStringContainsString('Payment Status', $payment);
-        $this->assertStringContainsString('PAID', $payment);
+        $this->assertStringContainsString("show(kind, template, 'payment', 'payment_status')", $payment);
+        $this->assertStringContainsString('PAID', $this->functionBody($ticket, 'function paymentStatusLabel'));
         $this->assertStringNotContainsString('Amount Due', $payment);
         $this->assertStringNotContainsString('Pending Balance', $payment);
         $this->assertStringNotContainsString('Remaining Balance', $payment);

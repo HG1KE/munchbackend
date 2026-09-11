@@ -57,6 +57,7 @@ class ReceiptTemplateService
         'order_type',
         'order_number',
         'customer',
+        'delivery_customer',
         'items',
         'totals',
         'payment',
@@ -366,7 +367,7 @@ class ReceiptTemplateService
             'date' => '10 Sep 2026',
             'time' => '12:41',
             'orderType' => 'Delivery',
-            'salesChannel' => 'glovo',
+            'salesChannel' => 'delivery',
             'isDelivery' => true,
             'items' => [
                 [
@@ -386,12 +387,12 @@ class ReceiptTemplateService
                     'line_total' => 250,
                 ],
             ],
-            'customer' => 'Jane W.',
-            'phone' => '0700 000 000',
-            'address' => 'Westlands, Nairobi',
+            'customer' => 'John Doe',
+            'phone' => '0712345678',
+            'address' => 'Nyali, Mombasa',
             'notes' => 'Leave at the gate',
             'subtotal' => 1950,
-            'delivery_fee' => 150,
+            'delivery_fee' => 100,
             'discount' => 100,
             'tax' => 0,
             'grand_total' => 2000,
@@ -401,8 +402,8 @@ class ReceiptTemplateService
             'change' => 0,
             'mpesa_till' => '123456',
             'cashier' => $context['branch_name'],
-            'riderName' => 'Alex',
-            'riderPhone' => '0711 111 111',
+            'riderName' => '',
+            'riderPhone' => '',
         ];
     }
 
@@ -430,9 +431,14 @@ class ReceiptTemplateService
                     ['key' => 'cashier', 'label' => 'Cashier'],
                     ['key' => 'customer_name', 'label' => 'Customer Name'],
                     ['key' => 'customer_phone', 'label' => 'Customer Phone'],
-                    ['key' => 'delivery_address', 'label' => 'Delivery Address'],
                     ['key' => 'rider_name', 'label' => 'Rider Name'],
                     ['key' => 'rider_phone', 'label' => 'Rider Phone'],
+                ],
+                'delivery_customer' => [
+                    ['key' => 'customer_name', 'label' => 'Customer Name'],
+                    ['key' => 'customer_phone', 'label' => 'Customer Phone'],
+                    ['key' => 'delivery_address', 'label' => 'Customer Address'],
+                    ['key' => 'delivery_fee', 'label' => 'Delivery Fee'],
                 ],
                 'items' => [
                     ['key' => 'product_name', 'label' => 'Product Name'],
@@ -515,6 +521,7 @@ class ReceiptTemplateService
             'order_type' => 'Order Type',
             'order_number' => 'Order Number',
             'customer' => 'Customer',
+            'delivery_customer' => 'Delivery Customer Information',
             'items' => 'Items',
             'totals' => 'Totals',
             'payment' => 'Payment',
@@ -595,6 +602,16 @@ class ReceiptTemplateService
         $overlaySections = is_array($overlay['sections'] ?? null) ? $overlay['sections'] : [];
         foreach ($sections as $group => $flags) {
             $incoming = is_array($overlaySections[$group] ?? null) ? $overlaySections[$group] : [];
+            if ($group === 'delivery_customer' && ! array_key_exists('delivery_customer', $overlaySections)) {
+                $orderFlags = is_array($overlaySections['order'] ?? null) ? $overlaySections['order'] : [];
+                $summaryFlags = is_array($overlaySections['summary'] ?? null) ? $overlaySections['summary'] : [];
+                $incoming = [
+                    'customer_name' => $orderFlags['customer_name'] ?? true,
+                    'customer_phone' => $orderFlags['customer_phone'] ?? true,
+                    'delivery_address' => $orderFlags['delivery_address'] ?? true,
+                    'delivery_fee' => $summaryFlags['delivery_fee'] ?? true,
+                ];
+            }
             foreach ($flags as $key => $default) {
                 if ($kind === 'kitchen' && in_array($key, self::KITCHEN_FORBIDDEN, true)) {
                     $sections[$group][$key] = false;
@@ -674,9 +691,17 @@ class ReceiptTemplateService
             }
         }
         foreach ($defaults as $id) {
-            if (! in_array($id, $out, true)) {
-                $out[] = $id;
+            if (in_array($id, $out, true)) {
+                continue;
             }
+            if ($id === 'delivery_customer') {
+                $after = array_search('customer', $out, true);
+                if ($after !== false) {
+                    array_splice($out, $after + 1, 0, [$id]);
+                    continue;
+                }
+            }
+            $out[] = $id;
         }
 
         return $out;
@@ -835,6 +860,12 @@ class ReceiptTemplateService
                     'delivery_address' => true,
                     'rider_name' => true,
                     'rider_phone' => true,
+                ],
+                'delivery_customer' => [
+                    'customer_name' => true,
+                    'customer_phone' => true,
+                    'delivery_address' => true,
+                    'delivery_fee' => true,
                 ],
                 'items' => [
                     'product_name' => true,

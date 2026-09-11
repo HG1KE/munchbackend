@@ -70,11 +70,10 @@ function functionBody(source, needle) {
 
 test('delivery receipt prints saved customer name phone address and fee', function () {
     var html = receiptHtml(deliveryJob());
-    assert(html.indexOf('Delivery Customer') !== -1, 'missing Delivery Customer heading');
-    assert(html.indexOf('Name') !== -1 && html.indexOf('John Doe') !== -1, 'missing customer name');
-    assert(html.indexOf('Phone') !== -1 && html.indexOf('0712345678') !== -1, 'missing customer phone');
-    assert(html.indexOf('Address') !== -1 && html.indexOf('Nyali, Links Road') !== -1, 'missing customer address');
-    assert(html.indexOf('Delivery Fee') !== -1, 'missing delivery fee label');
+    assert(html.indexOf('CUSTOMER') !== -1 && html.indexOf('John Doe') !== -1, 'missing customer name');
+    assert(html.indexOf('PHONE') !== -1 && html.indexOf('0712345678') !== -1, 'missing customer phone');
+    assert(html.indexOf('ADDRESS') !== -1 && html.indexOf('Nyali, Links Road') !== -1, 'missing customer address');
+    assert(html.indexOf('DELIVERY FEE') !== -1, 'missing delivery fee label');
     assert(html.indexOf('200') !== -1, 'missing delivery fee amount');
     assert(html.indexOf('Rider Name') === -1, 'new receipts must not print rider name');
     assert(html.indexOf('Rider Phone') === -1, 'new receipts must not print rider phone');
@@ -101,6 +100,7 @@ test('reprinting a saved delivery order keeps customer details', function () {
     var fromOrder = function (order) {
         return {
             isDelivery: order.sales_channel === 'delivery',
+            salesChannel: order.sales_channel,
             customer: order.customer || '',
             phone: order.phone || '',
             address: order.address || '',
@@ -124,18 +124,44 @@ test('reprinting a saved delivery order keeps customer details', function () {
 
 test('empty delivery customer fields do not print labels', function () {
     var html = receiptHtml(deliveryJob({ customer: '', phone: '', address: '', delivery_fee: 200 }));
-    assert(html.indexOf('Delivery Customer') === -1, 'heading printed without values');
-    assert(html.indexOf('<p>Name</p>') === -1, 'empty Name label');
-    assert(html.indexOf('<p>Phone</p>') === -1, 'empty Phone label');
-    assert(html.indexOf('<p>Address</p>') === -1, 'empty Address label');
+    assert(html.indexOf('<p>CUSTOMER</p>') === -1, 'empty CUSTOMER label');
+    assert(html.indexOf('<p>PHONE</p>') === -1, 'empty PHONE label');
+    assert(html.indexOf('<p>ADDRESS</p>') === -1, 'empty ADDRESS label');
     assert(html.indexOf('Walk-in') === -1, 'Walk-in must not stand in for delivery customer');
-    assert(html.indexOf('Delivery Fee') !== -1, 'fee should still print');
+    assert(html.indexOf('DELIVERY FEE') !== -1, 'fee should still print');
 });
 
 test('walk-in placeholder is omitted on delivery receipts', function () {
     var html = receiptHtml(deliveryJob({ customer: 'Walk-in', phone: '0712345678', address: 'Nyali, Links Road' }));
     assert(html.indexOf('Walk-in') === -1, 'Walk-in leaked onto delivery receipt');
     assert(html.indexOf('0712345678') !== -1, 'phone should still print');
+});
+
+test('delivery customer information is omitted when the template element is disabled', function () {
+    var T = renderer();
+    var template = T.defaults('customer');
+    template.sections.delivery_customer.customer_name = false;
+    template.sections.delivery_customer.customer_phone = false;
+    template.sections.delivery_customer.delivery_address = false;
+    template.sections.delivery_customer.delivery_fee = false;
+    var html = T.renderDocument('customer', template, deliveryJob());
+    assert(html.indexOf('John Doe') === -1, 'name printed while delivery customer was disabled');
+    assert(html.indexOf('0712345678') === -1, 'phone printed while delivery customer was disabled');
+    assert(html.indexOf('Nyali, Links Road') === -1, 'address printed while delivery customer was disabled');
+    assert(html.indexOf('DELIVERY FEE') === -1, 'grouped delivery fee printed while disabled');
+});
+
+test('dine in takeaway and marketplace receipts omit delivery customer information', function () {
+    ['dine_in', 'takeaway', 'glovo', 'uber', 'bolt_food'].forEach(function (channel) {
+        var html = receiptHtml(deliveryJob({
+            salesChannel: channel,
+            orderType: channel,
+            isDelivery: channel !== 'dine_in' && channel !== 'takeaway'
+        }));
+        assert(html.indexOf('<p>CUSTOMER</p>') === -1, channel + ' showed delivery CUSTOMER label');
+        assert(html.indexOf('<p>ADDRESS</p>') === -1, channel + ' showed delivery ADDRESS label');
+        assert(html.indexOf('<p>DELIVERY FEE</p>') === -1, channel + ' showed grouped DELIVERY FEE');
+    });
 });
 
 test('historical rider values still print when present on a saved order', function () {

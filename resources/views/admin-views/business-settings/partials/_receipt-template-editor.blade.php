@@ -23,12 +23,12 @@
                 <div>
                     <label for="receipt-preview-channel">{{ translate('Preview as') }}</label>
                     <select id="receipt-preview-channel" class="custom-select">
+                        <option value="delivery" selected>Delivery</option>
+                        <option value="dine_in">Dine In</option>
+                        <option value="takeaway">Take Away</option>
                         <option value="glovo">Glovo</option>
                         <option value="uber">Uber</option>
                         <option value="bolt_food">Bolt Food</option>
-                        <option value="delivery">Delivery</option>
-                        <option value="takeaway">Take Away</option>
-                        <option value="dine_in">Dine In</option>
                         <option value="pos">POS</option>
                     </select>
                 </div>

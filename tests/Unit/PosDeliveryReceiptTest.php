@@ -144,6 +144,8 @@ class PosDeliveryReceiptTest extends TestCase
         $joined = implode("\n", $output);
         $this->assertStringContainsString('delivery receipt prints saved customer name phone address and fee', $joined);
         $this->assertStringContainsString('reprinting a saved delivery order keeps customer details', $joined);
+        $this->assertStringContainsString('delivery customer information is omitted when the template element is disabled', $joined);
+        $this->assertStringContainsString('dine in takeaway and marketplace receipts omit delivery customer information', $joined);
         $this->assertStringContainsString('offline snapshot keeps queued customer details', $joined);
         $this->assertStringContainsString('new delivery payloads omit rider fields', $joined);
         $this->assertStringContainsString('delivery modal no longer collects rider fields', $joined);

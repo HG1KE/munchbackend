@@ -28,7 +28,7 @@
 
     var CUSTOMER_BLOCKS = [
         'logo', 'branch_name', 'receipt_title', 'branch_details', 'order_type',
-        'order_number', 'customer', 'items', 'totals', 'payment', 'mpesa_till',
+        'order_number', 'customer', 'delivery_customer', 'items', 'totals', 'payment', 'mpesa_till',
         'promotion', 'qr_code', 'barcode', 'footer'
     ];
 
@@ -51,6 +51,7 @@
         sections: {
             header: { logo: false, branch_name: true, branch_address: false, branch_phone: false, tax_pin: false, receipt_title: false },
             order: { order_number: true, order_type: true, sales_channel: true, date: true, time: true, cashier: true, customer_name: true, customer_phone: true, delivery_address: true, rider_name: true, rider_phone: true },
+            delivery_customer: { customer_name: true, customer_phone: true, delivery_address: true, delivery_fee: true },
             items: { product_name: true, variations: true, modifiers: true, notes: true, quantity: true, unit_price: false, line_total: true },
             summary: { subtotal: true, discount: true, tax: false, delivery_fee: true, total: true, paid_amount: true, change: true },
             payment: { payment_method: true, payment_status: true, mpesa_till: true },
@@ -106,8 +107,39 @@
             }
         });
         allowed.forEach(function (id) {
-            if (!seen[id]) out.push(id);
+            if (seen[id]) return;
+            if (id === 'delivery_customer') {
+                var after = out.indexOf('customer');
+                if (after !== -1) {
+                    out.splice(after + 1, 0, id);
+                    seen[id] = true;
+                    return;
+                }
+            }
+            seen[id] = true;
+            out.push(id);
         });
+        return out;
+    }
+
+    function mergeSections(kind, template) {
+        var base = defaults(kind).sections;
+        var incoming = (template && template.sections) || {};
+        var out = {};
+        Object.keys(base).forEach(function (group) {
+            out[group] = Object.assign({}, base[group], incoming[group] || {});
+        });
+        Object.keys(incoming).forEach(function (group) {
+            if (!out[group]) out[group] = incoming[group];
+        });
+        if (kind !== 'kitchen' && !incoming.delivery_customer && incoming.order) {
+            out.delivery_customer = Object.assign({}, out.delivery_customer, {
+                customer_name: incoming.order.customer_name !== false,
+                customer_phone: incoming.order.customer_phone !== false,
+                delivery_address: incoming.order.delivery_address !== false,
+                delivery_fee: !(incoming.summary && incoming.summary.delivery_fee === false)
+            });
+        }
         return out;
     }
 
@@ -115,7 +147,7 @@
         var base = clone(defaults(kind));
         if (!template || !template.sections) return base;
         var out = Object.assign({}, base, template);
-        out.sections = template.sections;
+        out.sections = mergeSections(kind, template);
         out.logo = Object.assign({}, base.logo, template.logo || {});
         if (!out.logo.size) out.logo.size = 'medium';
         out.style = Object.assign({}, base.style, template.style || {});
@@ -416,33 +448,57 @@
         return bits ? '<div class="meta">' + bits + '</div>' : '';
     }
 
+    function isPosDeliveryJob(job) {
+        var channel = channelKey(job);
+        if (channel === 'delivery') return true;
+        if (channel) return false;
+        return !!(job && job.isDelivery);
+    }
+
     function customerHtml(kind, template, job) {
         var bits = '';
         var name = String((job && job.customer) || '').trim();
-        if (job && job.isDelivery && name.toLowerCase() === 'walk-in') name = '';
+        if (isPosDeliveryJob(job) && name.toLowerCase() === 'walk-in') name = '';
         var phone = String((job && job.phone) || '').trim();
         var address = String((job && job.address) || '').trim();
         var riderName = String((job && (job.riderName || job.rider_name)) || '').trim();
         var riderPhone = String((job && (job.riderPhone || job.rider_phone)) || '').trim();
-        var deliveryReceipt = !!(job && job.isDelivery && kind !== 'kitchen');
 
-        if (deliveryReceipt) {
-            var lines = '';
-            if (show(kind, template, 'order', 'customer_name') && name) lines += metaLine('Name', name);
-            if (show(kind, template, 'order', 'customer_phone') && phone) lines += metaLine('Phone', phone);
-            if (show(kind, template, 'order', 'delivery_address') && address) lines += metaLine('Address', address);
-            if (lines) bits += '<p>Delivery Customer</p>' + lines;
+        if (kind === 'kitchen') {
+            if (show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name);
+            if (show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone);
+            if (show(kind, template, 'order', 'delivery_address') && address) bits += metaLine('Address', address);
             if (show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
             if (show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
             return bits ? '<div class="meta">' + bits + '</div>' : '';
         }
 
-        var wantCustomer = (job && job.isDelivery) || name;
-        if (wantCustomer && show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name);
-        if (wantCustomer && show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone);
-        if (job && job.isDelivery && show(kind, template, 'order', 'delivery_address') && address) bits += metaLine('Address', address);
-        if (job && job.isDelivery && show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
-        if (job && job.isDelivery && show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
+        if (isPosDeliveryJob(job)) return '';
+
+        if (show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name);
+        if (show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone);
+        if (show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
+        if (show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
+        return bits ? '<div class="meta">' + bits + '</div>' : '';
+    }
+
+    function deliveryCustomerHtml(kind, template, job, currency) {
+        if (kind === 'kitchen' || !isPosDeliveryJob(job)) return '';
+        var name = String((job && job.customer) || '').trim();
+        if (name.toLowerCase() === 'walk-in') name = '';
+        var phone = String((job && job.phone) || '').trim();
+        var address = String((job && job.address) || '').trim();
+        var bits = '';
+        if (show(kind, template, 'delivery_customer', 'customer_name') && name) bits += metaLine('CUSTOMER', name);
+        if (show(kind, template, 'delivery_customer', 'customer_phone') && phone) bits += metaLine('PHONE', phone);
+        if (show(kind, template, 'delivery_customer', 'delivery_address') && address) bits += metaLine('ADDRESS', address);
+        if (show(kind, template, 'delivery_customer', 'delivery_fee') && job.delivery_fee != null && job.delivery_fee !== '') {
+            bits += metaLine('DELIVERY FEE', money(job.delivery_fee, currency));
+        }
+        var riderName = String((job && (job.riderName || job.rider_name)) || '').trim();
+        var riderPhone = String((job && (job.riderPhone || job.rider_phone)) || '').trim();
+        if (show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
+        if (show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
         return bits ? '<div class="meta">' + bits + '</div>' : '';
     }
 
@@ -508,7 +564,8 @@
         if (show(kind, template, 'summary', 'subtotal')) {
             html += '<div class="row"><span>Subtotal</span><span>' + escapeHtml(money(job.subtotal, currency)) + '</span></div>';
         }
-        if (show(kind, template, 'summary', 'delivery_fee') && job.isDelivery) {
+        var groupedDeliveryFee = isPosDeliveryJob(job) && show(kind, template, 'delivery_customer', 'delivery_fee');
+        if (show(kind, template, 'summary', 'delivery_fee') && (job.isDelivery || isPosDeliveryJob(job)) && !groupedDeliveryFee) {
             html += '<div class="row"><span>Delivery Fee</span><span>' + escapeHtml(money(job.delivery_fee, currency)) + '</span></div>';
         }
         if (show(kind, template, 'summary', 'discount') && Number(job.discount) > 0) {
@@ -527,6 +584,19 @@
         return method === 'cash' || method === 'card' || method === 'mpesa';
     }
 
+    function paymentStatusLabel(job) {
+        var status = String((job && job.payment_status) || '').toLowerCase();
+        var method = String((job && job.payment_method) || '').toLowerCase();
+        if (status === 'unpaid' || status === 'pending' || status.indexOf('due') !== -1 || status.indexOf('remaining') !== -1) {
+            return '';
+        }
+        if (isImmediatePosPayment(method) || status === 'paid' || MARKETPLACE[method] || MARKETPLACE[channelKey(job)]) {
+            return 'PAID';
+        }
+        if (!status) return '';
+        return String(job.payment_status).toUpperCase();
+    }
+
     function paymentHtml(kind, template, job, currency) {
         if (kind === 'kitchen') return '';
         var method = String(job.payment_method || '');
@@ -534,13 +604,10 @@
         if (show(kind, template, 'payment', 'payment_method')) {
             html += '<div class="row"><span>Payment Method</span><span>' + escapeHtml(paymentLabel(method)) + '</span></div>';
         }
-        var paidNow = isImmediatePosPayment(method) || String(job.payment_status || '').toLowerCase() === 'paid';
-        if (paidNow) {
-            html += '<div class="row"><span>Payment Status</span><span>PAID</span></div>';
-        } else if (show(kind, template, 'payment', 'payment_status') && job.payment_status) {
-            var status = String(job.payment_status).toLowerCase();
-            if (status !== 'unpaid' && status !== 'pending' && status.indexOf('due') === -1 && status.indexOf('remaining') === -1) {
-                html += '<div class="row"><span>Payment Status</span><span>' + escapeHtml(String(job.payment_status).toUpperCase()) + '</span></div>';
+        if (show(kind, template, 'payment', 'payment_status')) {
+            var statusLabel = paymentStatusLabel(job);
+            if (statusLabel) {
+                html += '<div class="row"><span>Payment Status</span><span>' + escapeHtml(statusLabel) + '</span></div>';
             }
         }
         return html;
@@ -623,6 +690,7 @@
             order_type: function () { return orderTypeBannerHtml(kind, template, job); },
             order_number: function () { return orderNumberHtml(kind, template, job); },
             customer: function () { return customerHtml(kind, template, job); },
+            delivery_customer: function () { return deliveryCustomerHtml(kind, template, job, currency); },
             items: function () { return itemsHtml(kind, template, job, currency); },
             totals: function () { return summaryHtml(kind, template, job, currency); },
             payment: function () { return paymentHtml(kind, template, job, currency); },

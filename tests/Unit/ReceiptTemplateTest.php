@@ -25,7 +25,12 @@ class ReceiptTemplateTest extends TestCase
         $this->assertFalse($factory['customer']['sections']['items']['unit_price']);
         $this->assertTrue($factory['customer']['sections']['items']['line_total']);
         $this->assertTrue($factory['customer']['sections']['payment']['mpesa_till']);
+        $this->assertTrue($factory['customer']['sections']['payment']['payment_status']);
+        $this->assertTrue($factory['customer']['sections']['delivery_customer']['customer_name']);
+        $this->assertTrue($factory['customer']['sections']['delivery_customer']['delivery_fee']);
         $this->assertSame(ReceiptTemplateService::CUSTOMER_BLOCKS, $factory['customer']['order']);
+        $this->assertContains('delivery_customer', $factory['customer']['order']);
+        $this->assertNotContains('delivery_customer', $factory['kitchen']['order']);
         $this->assertSame(ReceiptTemplateService::KITCHEN_BLOCKS, $factory['kitchen']['order']);
         $this->assertArrayHasKey('logo', $factory['customer']['block_styles']);
         $this->assertSame('website', $factory['customer']['qr']['type']);
@@ -221,11 +226,15 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString("translate('Restore Branch Default')", $partial);
         $this->assertStringContainsString("translate('Reset Section')", $partial);
         $this->assertStringContainsString('receipt-preview-frame', $partial);
+        $this->assertStringContainsString('value="delivery" selected', $partial);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-receipt-templates.js'));
         $this->assertStringContainsString('refreshPreview', $js);
         $this->assertStringContainsString('srcdoc', $js);
         $this->assertStringContainsString('persistOrderFromDom', $js);
+        $this->assertStringContainsString('delivery_customer', $js);
+        $this->assertStringContainsString("withGroup(groups.delivery_customer || [], 'delivery_customer')", $js);
+        $this->assertStringContainsString('field.group || fieldGroup(field.key)', $js);
         $this->assertStringContainsString('qrCache', $js);
         $this->assertStringContainsString('print-mode', $js);
         $this->assertStringContainsString('Optimize Logo For Thermal Printing', $js);
@@ -259,7 +268,7 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString('MunchReceiptTicket.renderDocument', $pos);
         $this->assertStringContainsString('kitchenTicketHtml', $pos);
         $this->assertStringContainsString('receiptTicketHtml', $pos);
-        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.5", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.6", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
     }
 
     public function test_renderer_honors_order_typography_qr_and_printer_mode(): void
@@ -420,5 +429,76 @@ JS;
         $migration = file_get_contents(database_path('migrations/2026_09_10_160000_add_receipt_settings_to_branches_table.php'));
         $this->assertStringContainsString('receipt_settings', $migration);
         $this->assertStringContainsString('longText', $migration);
+    }
+
+    public function test_payment_status_and_delivery_customer_are_persisted_in_template_json(): void
+    {
+        $service = new ReceiptTemplateService();
+        $disabled = $service->applyKindOverlay('customer', [
+            'sections' => [
+                'payment' => ['payment_status' => false, 'payment_method' => true],
+                'delivery_customer' => [
+                    'customer_name' => false,
+                    'customer_phone' => true,
+                    'delivery_address' => true,
+                    'delivery_fee' => false,
+                ],
+            ],
+        ]);
+
+        $this->assertFalse($disabled['sections']['payment']['payment_status']);
+        $this->assertTrue($disabled['sections']['payment']['payment_method']);
+        $this->assertFalse($disabled['sections']['delivery_customer']['customer_name']);
+        $this->assertTrue($disabled['sections']['delivery_customer']['customer_phone']);
+        $this->assertFalse($disabled['sections']['delivery_customer']['delivery_fee']);
+        $this->assertContains('delivery_customer', $disabled['order']);
+        $blockLabels = array_column($service->blockCatalog()['customer'], 'label', 'id');
+        $this->assertSame('Delivery Customer Information', $blockLabels['delivery_customer']);
+
+        $legacy = $service->applyKindOverlay('customer', [
+            'sections' => [
+                'order' => ['customer_name' => true, 'customer_phone' => false, 'delivery_address' => true],
+                'summary' => ['delivery_fee' => false],
+            ],
+            'order' => ['logo', 'customer', 'items', 'totals', 'payment'],
+        ]);
+        $this->assertTrue($legacy['sections']['delivery_customer']['customer_name']);
+        $this->assertFalse($legacy['sections']['delivery_customer']['customer_phone']);
+        $this->assertTrue($legacy['sections']['delivery_customer']['delivery_address']);
+        $this->assertFalse($legacy['sections']['delivery_customer']['delivery_fee']);
+        $customerIndex = array_search('customer', $legacy['order'], true);
+        $this->assertNotFalse($customerIndex);
+        $this->assertSame($customerIndex + 1, array_search('delivery_customer', $legacy['order'], true));
+        $this->assertNotContains('delivery_customer', $service->applyKindOverlay('kitchen', [])['order']);
+
+        $sample = $service->sampleJob(['branch_name' => 'Nyali']);
+        $this->assertSame('delivery', $sample['salesChannel']);
+        $this->assertSame('John Doe', $sample['customer']);
+        $this->assertSame('0712345678', $sample['phone']);
+        $this->assertSame('Nyali, Mombasa', $sample['address']);
+        $this->assertSame(100, $sample['delivery_fee']);
+        $this->assertSame('', $sample['riderName']);
+        $this->assertSame('', $sample['riderPhone']);
+    }
+
+    public function test_node_receipt_template_element_scenarios(): void
+    {
+        $node = trim((string) shell_exec('command -v node'));
+        if ($node === '') {
+            $this->markTestSkipped('node is required for receipt template element scenarios');
+        }
+
+        $script = base_path('tests/Js/receipt-template-elements.test.js');
+        $output = [];
+        $code = 0;
+        exec(escapeshellcmd($node).' '.escapeshellarg($script).' 2>&1', $output, $code);
+
+        $this->assertSame(0, $code, implode("\n", $output));
+        $joined = implode("\n", $output);
+        $this->assertStringContainsString('payment status renders when the template toggle is enabled', $joined);
+        $this->assertStringContainsString('payment status is omitted when the template toggle is disabled', $joined);
+        $this->assertStringContainsString('delivery customer information renders from saved order fields', $joined);
+        $this->assertStringContainsString('delivery customer information disappears when the block is disabled', $joined);
+        $this->assertStringContainsString('legacy templates without delivery_customer still merge and render it', $joined);
     }
 }
