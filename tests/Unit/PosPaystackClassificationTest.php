@@ -10,16 +10,22 @@ class PosPaystackClassificationTest extends TestCase
 {
     public function test_paystack_is_delivery_only_and_not_a_marketplace_or_online_order(): void
     {
-        $this->assertSame(['cash', 'card', 'mpesa', 'paystack'], PosOrderTypes::paymentMethods('delivery'));
+        $this->assertSame(['cash', 'paystack', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
+        $this->assertCount(3, PosOrderTypes::paymentMethods('delivery'));
+        $this->assertNotContains('card', PosOrderTypes::paymentMethods('delivery'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('take_away'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('dine_in'));
+        $this->assertContains('card', PosOrderTypes::paymentMethods('take_away'));
+        $this->assertContains('card', PosOrderTypes::paymentMethods('dine_in'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('glovo'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('uber'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('bolt_food'));
 
         $this->assertSame('paystack', PosOrderTypes::resolvedPaymentMethod('delivery', 'paystack'));
-        $this->assertSame('cash', PosOrderTypes::resolvedPaymentMethod('take_away', 'paystack'));
-        $this->assertSame('cash', PosOrderTypes::resolvedPaymentMethod('dine_in', 'paystack'));
+        $this->assertSame('paystack', PosOrderTypes::resolvedPaymentMethod('delivery', 'card'));
+        $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('take_away', 'paystack'));
+        $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('dine_in', 'paystack'));
+        $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('take_away', 'card'));
         $this->assertSame('glovo', PosOrderTypes::resolvedPaymentMethod('glovo', 'paystack'));
 
         $this->assertTrue(PosOrderTypes::isImmediatePosPayment('paystack'));
@@ -47,7 +53,9 @@ class PosPaystackClassificationTest extends TestCase
         $this->assertStringContainsString("when(\$request['branch_id'] !== 'all'", $controller);
         $this->assertStringContainsString('id="pay-paystack"', $page);
         $this->assertStringContainsString('paystack: @json(translate(\'Paystack\'))', $posPage);
-        $this->assertStringContainsString("delivery.push('paystack')", $app);
+        $this->assertStringContainsString("['cash', 'paystack', 'mpesa']", $app);
+        $this->assertStringContainsString('function remapPaymentForOrderType', $app);
+        $this->assertStringNotContainsString("delivery.push('paystack')", $app);
         $this->assertStringContainsString("if (method === 'paystack') return L('paystack', 'Paystack')", $app);
         $this->assertStringContainsString("type: state.cart.payment", $app);
         $this->assertStringNotContainsString('PaystackPop', $app);

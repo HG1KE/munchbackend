@@ -279,7 +279,7 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString("if (state.catalog && state.catalog.receipt) return state.catalog.receipt", $pos);
         $this->assertStringContainsString('CFG.catalog = catalog', $pos);
         $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.9", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
-        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.5", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.6", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString("munch-receipt-templates.js') }}?v=1.4", file_get_contents(resource_path('views/admin-views/business-settings/receipt-templates.blade.php')));
         $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.9", file_get_contents(resource_path('views/admin-views/business-settings/receipt-templates.blade.php')));
         $this->assertStringContainsString("munch-receipt-templates.js') }}?v=1.4", file_get_contents(resource_path('views/branch-views/business-settings/receipt-templates.blade.php')));

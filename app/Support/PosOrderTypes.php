@@ -186,10 +186,9 @@ class PosOrderTypes
     public static function paymentMethods(?string $type, bool $posMpesaEnabled = true): array
     {
         return match (self::normalize($type)) {
-            self::DELIVERY => array_merge(
-                $posMpesaEnabled ? ['cash', 'card', 'mpesa'] : ['cash', 'card'],
-                [self::PAYSTACK]
-            ),
+            self::DELIVERY => $posMpesaEnabled
+                ? ['cash', self::PAYSTACK, 'mpesa']
+                : ['cash', self::PAYSTACK],
             self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
                 ? ['cash', 'card', 'mpesa']
                 : ['cash', 'card'],
@@ -215,8 +214,11 @@ class PosOrderTypes
         }
 
         $requested = (string) $requested;
-        if ($requested === self::PAYSTACK && ! self::isDelivery($type)) {
-            return (self::paymentMethods($type)[0] ?? 'cash');
+        if (self::isDelivery($type)) {
+            return $requested === 'card' ? self::PAYSTACK : $requested;
+        }
+        if ($requested === self::PAYSTACK) {
+            return 'card';
         }
 
         return $requested;

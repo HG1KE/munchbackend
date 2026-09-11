@@ -360,7 +360,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('PAID VIA GLOVO', $kitchenFn);
         $this->assertStringContainsString('Enable M-PESA Payments on POS', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
         $this->assertStringContainsString('pos_mpesa_enabled', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
-        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.5", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=4.6", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringNotContainsString('munch-pos-dine-in.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('munch-pos-submit-guard.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('isMarketplaceOrderType', $posJs);

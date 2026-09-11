@@ -599,7 +599,9 @@
     function renderPay() {
         if (!els.pay) return;
         var methods = paymentMethods();
-        if (methods.indexOf(state.cart.payment) === -1) state.cart.payment = methods[0] || '';
+        if (methods.indexOf(state.cart.payment) === -1) {
+            state.cart.payment = remapPaymentForOrderType(state.cart.payment, methods);
+        }
         if (isMarketplaceOrderType()) {
             els.pay.hidden = true;
             els.pay.innerHTML = '';
@@ -626,9 +628,7 @@
 
     function paymentMethods() {
         if (state.cart.orderType === 'delivery') {
-            var delivery = posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
-            delivery.push('paystack');
-            return delivery;
+            return posMpesaEnabled() ? ['cash', 'paystack', 'mpesa'] : ['cash', 'paystack'];
         }
         if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
             return posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
@@ -637,6 +637,13 @@
         if (state.cart.orderType === 'uber') return ['uber'];
         if (state.cart.orderType === 'bolt_food') return ['bolt_food'];
         return ['cash', 'card'];
+    }
+
+    function remapPaymentForOrderType(payment, methods) {
+        if (methods.indexOf(payment) !== -1) return payment;
+        if (payment === 'paystack' && methods.indexOf('card') !== -1) return 'card';
+        if (payment === 'card' && methods.indexOf('paystack') !== -1) return 'paystack';
+        return methods[0] || '';
     }
 
     function escapeHtml(value) {

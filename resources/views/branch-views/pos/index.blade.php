@@ -305,5 +305,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.9"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.5" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.6" defer></script>
 @endpush

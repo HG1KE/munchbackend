@@ -125,7 +125,7 @@ class PosDeliveryReceiptTest extends TestCase
         $this->assertSame('delivery', PosOrderTypes::salesChannel('delivery'));
         $this->assertTrue(PosOrderTypes::isPosDeliveryOrder('pos', 'delivery'));
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'delivery'));
-        $this->assertSame(['cash', 'card', 'mpesa', 'paystack'], PosOrderTypes::paymentMethods('delivery'));
+        $this->assertSame(['cash', 'paystack', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
     }
 
     public function test_node_delivery_receipt_scenarios(): void
