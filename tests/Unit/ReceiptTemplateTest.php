@@ -231,7 +231,9 @@ class ReceiptTemplateTest extends TestCase
         $js = file_get_contents(public_path('assets/admin/js/munch-receipt-templates.js'));
         $this->assertStringContainsString('refreshPreview', $js);
         $this->assertStringContainsString('srcdoc', $js);
-        $this->assertStringContainsString("els.preview.srcdoc = ''", $js);
+        $this->assertStringNotContainsString("els.preview.srcdoc = ''", $js);
+        $this->assertStringContainsString('hydrateState', $js);
+        $this->assertStringContainsString('previewSeq', $js);
         $this->assertStringContainsString('MunchReceiptTicket.renderDocument', $js);
         $this->assertStringContainsString('st.align', $js);
         $this->assertStringContainsString('font_size', $js);
@@ -264,7 +266,8 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString('print_mode', $ticket);
         $this->assertStringContainsString('paper_saving', $ticket);
         $this->assertStringContainsString('logo_thermal_url', $ticket);
-        $this->assertStringContainsString('template.order.forEach', $ticket);
+        $this->assertStringContainsString('Array.isArray(template.order)', $ticket);
+        $this->assertStringContainsString('html += wrapBlock(id, render(), template)', $ticket);
 
         $kitchenBlock = substr($ticket, strpos($ticket, 'function summaryHtml'), strpos($ticket, 'function paymentHtml') - strpos($ticket, 'function summaryHtml'));
         $this->assertStringContainsString("kind === 'kitchen') return ''", $kitchenBlock);
@@ -275,9 +278,11 @@ class ReceiptTemplateTest extends TestCase
         $this->assertStringContainsString('receiptTicketHtml', $pos);
         $this->assertStringContainsString("if (state.catalog && state.catalog.receipt) return state.catalog.receipt", $pos);
         $this->assertStringContainsString('CFG.catalog = catalog', $pos);
-        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.7", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.8", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString("munch-pos-app.js') }}?v=4.4", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
-        $this->assertStringContainsString("munch-receipt-templates.js') }}?v=1.3", file_get_contents(resource_path('views/admin-views/business-settings/receipt-templates.blade.php')));
+        $this->assertStringContainsString("munch-receipt-templates.js') }}?v=1.4", file_get_contents(resource_path('views/admin-views/business-settings/receipt-templates.blade.php')));
+        $this->assertStringContainsString("munch-receipt-ticket.js') }}?v=1.8", file_get_contents(resource_path('views/admin-views/business-settings/receipt-templates.blade.php')));
+        $this->assertStringContainsString("munch-receipt-templates.js') }}?v=1.4", file_get_contents(resource_path('views/branch-views/business-settings/receipt-templates.blade.php')));
     }
 
     public function test_renderer_honors_order_typography_qr_and_printer_mode(): void
@@ -559,6 +564,47 @@ JS;
         $this->assertSame('large', $kitchen['block_styles']['order_number']['font_size']);
     }
 
+    public function test_legacy_templates_gain_payment_status_and_delivery_customer(): void
+    {
+        $service = new ReceiptTemplateService();
+        $merged = $service->applyKindOverlay('customer', [
+            'sections' => [
+                'order' => ['order_number' => true, 'customer_name' => true, 'customer_phone' => true, 'delivery_address' => true],
+                'summary' => ['delivery_fee' => true],
+                'payment' => ['payment_method' => true],
+            ],
+            'order' => ['order_number', 'customer', 'items', 'totals', 'payment', 'footer'],
+        ]);
+
+        $this->assertTrue($merged['sections']['payment']['payment_status']);
+        $this->assertTrue($merged['sections']['delivery_customer']['customer_name']);
+        $this->assertTrue($merged['sections']['delivery_customer']['customer_phone']);
+        $this->assertTrue($merged['sections']['delivery_customer']['delivery_address']);
+        $this->assertTrue($merged['sections']['delivery_customer']['delivery_fee']);
+        $this->assertContains('delivery_customer', $merged['order']);
+        $this->assertSame('left', $merged['block_styles']['delivery_customer']['align']);
+        $this->assertSame('normal', $merged['block_styles']['order_number']['font_size']);
+    }
+
+    public function test_empty_or_partial_overlays_still_produce_a_renderable_template(): void
+    {
+        $service = new ReceiptTemplateService();
+        $empty = $service->applyKindOverlay('customer', []);
+        $partial = $service->applyKindOverlay('customer', [
+            'logo' => ['mode' => 'none'],
+            'sections' => ['header' => ['branch_name' => true]],
+        ]);
+
+        foreach ([$empty, $partial] as $merged) {
+            $this->assertTrue($merged['sections']['order']['order_number']);
+            $this->assertTrue($merged['sections']['payment']['payment_status']);
+            $this->assertTrue($merged['sections']['delivery_customer']['customer_name']);
+            $this->assertContains('delivery_customer', $merged['order']);
+            $this->assertArrayHasKey('align', $merged['block_styles']['order_number']);
+        }
+        $this->assertSame('none', $partial['logo']['mode']);
+    }
+
     public function test_node_receipt_template_element_scenarios(): void
     {
         $node = trim((string) shell_exec('command -v node'));
@@ -578,11 +624,38 @@ JS;
         $this->assertStringContainsString('delivery customer information renders from saved order fields', $joined);
         $this->assertStringContainsString('delivery customer information disappears when the block is disabled', $joined);
         $this->assertStringContainsString('legacy templates without delivery_customer still merge and render it', $joined);
+        $this->assertStringContainsString('empty partial and malformed templates still render a receipt', $joined);
+        $this->assertStringContainsString('a malformed optional item cannot blank the rest of the receipt', $joined);
         $this->assertStringContainsString('order number visibility alignment and weight reach the renderer', $joined);
         $this->assertStringContainsString('delivery customer alignment and weight reach the renderer', $joined);
         $this->assertStringContainsString('acceptance: styled config is visible in the shared renderer', $joined);
         $this->assertStringContainsString('acceptance: flipping styles updates the shared renderer', $joined);
         $this->assertStringContainsString('preview and print share one renderer and schema keys', $joined);
         $this->assertStringContainsString('80mm and 58mm paper sizes change the shared CSS', $joined);
+    }
+
+    public function test_node_receipt_template_editor_initialization(): void
+    {
+        $node = trim((string) shell_exec('command -v node'));
+        if ($node === '') {
+            $this->markTestSkipped('node is required for receipt template editor initialization');
+        }
+
+        $script = base_path('tests/Js/receipt-template-editor-init.test.js');
+        $output = [];
+        $code = 0;
+        exec(escapeshellcmd($node).' '.escapeshellarg($script).' 2>&1', $output, $code);
+
+        $this->assertSame(0, $code, implode("\n", $output));
+        $joined = implode("\n", $output);
+        $this->assertStringContainsString('empty payload still initializes a default customer preview', $joined);
+        $this->assertStringContainsString('null payload and missing optional sections still load', $joined);
+        $this->assertStringContainsString('legacy template without delivery_customer or payment_status still previews', $joined);
+        $this->assertStringContainsString('payment status enabled and disabled update the live preview', $joined);
+        $this->assertStringContainsString('delivery customer information can be toggled in the live preview', $joined);
+        $this->assertStringContainsString('alignment and typography changes update the live preview', $joined);
+        $this->assertStringContainsString('save payload round-trip keeps styled config on reload', $joined);
+        $this->assertStringContainsString('failed optional QR request cannot crash editor initialization', $joined);
+        $this->assertStringContainsString('editor source never blanks srcdoc before writing preview html', $joined);
     }
 }

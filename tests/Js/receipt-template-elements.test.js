@@ -302,9 +302,38 @@ test('acceptance: flipping styles updates the shared renderer', function () {
     assert(html.indexOf('Payment Status') === -1, 'flipped payment status still printed');
 });
 
+test('empty partial and malformed templates still render a receipt', function () {
+    var T = renderer();
+    var empty = T.renderDocument('customer', {}, job());
+    var partial = T.renderDocument('customer', { logo: { mode: 'none' } }, job());
+    var legacy = T.renderDocument('customer', {
+        sections: {
+            header: true,
+            order: { order_number: true, customer_name: true }
+        }
+    }, job());
+    [empty, partial, legacy].forEach(function (html, idx) {
+        assert(html.indexOf('class="ticket') !== -1, 'template ' + idx + ' did not render');
+        assert(html.indexOf('ORDER #M-1042') !== -1, 'template ' + idx + ' lost the order number default');
+        assert(html.indexOf('Receipt failed to render') === -1, 'template ' + idx + ' fell back to the error document');
+    });
+    assert(T.normalizeTemplate('customer', { logo: { mode: 'upload', path: 'x.png' } }).logo.mode === 'upload', 'partial logo overlay was discarded');
+    assert(T.normalizeTemplate('customer', { sections: { payment: true } }).sections.payment.payment_status === true, 'malformed payment group lost defaults');
+});
+
+test('a malformed optional item cannot blank the rest of the receipt', function () {
+    var html = render('customer', null, { items: [null, { name: 'Burger', quantity: 1, options: 'bad', unit_price: 500, line_total: 500 }] });
+    assert(html.indexOf('ORDER #M-1042') !== -1, 'bad item prevented the receipt from rendering');
+    assert(html.indexOf('Burger') !== -1, 'valid item was dropped because a sibling was malformed');
+    assert(html.indexOf('<p>CUSTOMER</p>') !== -1, 'delivery customer was dropped after a malformed item');
+    assert(html.indexOf('Payment Status') !== -1, 'payment status was dropped after a malformed item');
+});
+
 test('preview and print share one renderer and schema keys', function () {
     assert(editorSrc.indexOf('MunchReceiptTicket.renderDocument') !== -1, 'editor preview does not use the shared renderer');
-    assert(editorSrc.indexOf("els.preview.srcdoc = ''") !== -1, 'editor preview must force an iframe rewrite');
+    assert(editorSrc.indexOf("els.preview.srcdoc = ''") === -1, 'editor must not blank srcdoc before writing preview html');
+    assert(editorSrc.indexOf('hydrateState') !== -1, 'editor must normalize payloads before preview');
+    assert(editorSrc.indexOf('previewSeq') !== -1, 'editor must rewrite preview html without clearing srcdoc');
     assert(editorSrc.indexOf('st.align = styleAlign') !== -1, 'editor writes align');
     assert(editorSrc.indexOf('ensureStyle(fsName.slice(3)).font_size = target.value') !== -1, 'editor writes font_size');
     assert(editorSrc.indexOf('data-style-bool="bold"') !== -1, 'editor writes bold');

@@ -2,10 +2,22 @@
     'use strict';
 
     var root = document.getElementById('munch-receipt-root');
-    if (!root || !window.MunchReceiptTicket) return;
+    if (!root) return;
+    if (!window.MunchReceiptTicket) {
+        var missing = document.getElementById('receipt-preview-frame');
+        if (missing) {
+            missing.srcdoc = '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:8px;color:#b91c1c"><p>Receipt preview failed to load the shared renderer.</p></body></html>';
+        }
+        return;
+    }
 
     var CFG = window.MUNCH_RECEIPT_EDITOR || {};
-    var state = JSON.parse(JSON.stringify(CFG.payload || {}));
+    var state = {};
+    try {
+        state = JSON.parse(JSON.stringify(CFG.payload || {}));
+    } catch (err) {
+        state = {};
+    }
     state.kind = 'customer';
     state.uiTab = 'customer';
 
@@ -13,6 +25,7 @@
     var qrTimer = null;
     var dragging = null;
     var lastDropIndex = -1;
+    var previewSeq = 0;
 
     var els = {
         scope: document.getElementById('receipt-scope'),
@@ -51,7 +64,41 @@
     }
 
     function currentTemplate() {
-        return state[currentKind()];
+        var kind = currentKind();
+        var live = (state[kind] && typeof state[kind] === 'object') ? state[kind] : {};
+        state[kind] = window.MunchReceiptTicket.normalizeTemplate(kind, live);
+        return state[kind];
+    }
+
+    function hydrateKind(source) {
+        if (!source || typeof source !== 'object') {
+            return {
+                customer: window.MunchReceiptTicket.defaults('customer'),
+                kitchen: window.MunchReceiptTicket.defaults('kitchen')
+            };
+        }
+        return {
+            customer: window.MunchReceiptTicket.normalizeTemplate('customer', source.customer || {}),
+            kitchen: window.MunchReceiptTicket.normalizeTemplate('kitchen', source.kitchen || {}),
+            print: source.print
+        };
+    }
+
+    function hydrateState() {
+        state.customer = window.MunchReceiptTicket.normalizeTemplate('customer', state.customer || {});
+        state.kitchen = window.MunchReceiptTicket.normalizeTemplate('kitchen', state.kitchen || {});
+        if (!state.print || typeof state.print !== 'object') {
+            state.print = { paper: '80mm', receipt_copies: 1, kitchen_copies: 1, auto_cut: true, drawer_kick: false };
+        }
+        if (!state.sample_job || typeof state.sample_job !== 'object') {
+            state.sample_job = {};
+        }
+        if (!state.context || typeof state.context !== 'object') {
+            state.context = {};
+        }
+        state.factory = hydrateKind(state.factory);
+        state.company = hydrateKind(state.company);
+        if (state.company.print == null) state.company.print = state.print;
     }
 
     function locked() {
@@ -86,6 +133,7 @@
         state = JSON.parse(JSON.stringify(payload || {}));
         state.kind = kind;
         state.uiTab = uiTab;
+        hydrateState();
         render();
     }
 
@@ -115,17 +163,24 @@
     }
 
     function previewHtml(kind) {
-        return window.MunchReceiptTicket.renderDocument(kind || currentKind(), currentTemplate(), sampleJob(), {
-            context: state.context || {},
-            print: state.print || { paper: '80mm' },
-            currency: CFG.currency || ''
-        });
+        try {
+            return window.MunchReceiptTicket.renderDocument(kind || currentKind(), currentTemplate(), sampleJob(), {
+                context: state.context || {},
+                print: state.print || { paper: '80mm' },
+                currency: CFG.currency || ''
+            });
+        } catch (err) {
+            if (window.console && console.error) console.error(err);
+            return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body style="font-family:sans-serif;padding:8px;color:#b91c1c">' +
+                '<p>Receipt preview failed to render.</p><pre>' + escapeHtml(err && err.message ? err.message : String(err)) + '</pre></body></html>';
+        }
     }
 
     function refreshPreview() {
         var html = previewHtml();
         if (els.preview) {
-            els.preview.srcdoc = '';
+            previewSeq += 1;
+            html = String(html).replace(/<\/html>\s*$/i, '<!--pv-' + previewSeq + '--></html>');
             els.preview.srcdoc = html;
         }
         if (els.paper) els.paper.classList.toggle('is-58', (state.print && state.print.paper) === '58mm');
@@ -404,19 +459,19 @@
             '</div></div>' +
             '<div class="card mb-3 munch-receipt-card" data-section="style"><div class="card-body"><h3>Default fonts</h3>' +
             '<p class="font-weight-bold mb-1">Font Size</p><div class="munch-receipt-checks">' +
-            radioRow('font-size', currentTemplate().style.font_size, [
+            radioRow('font-size', (currentTemplate().style && currentTemplate().style.font_size) || 'medium', [
                 { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }
             ]) + '</div>' +
             '<p class="font-weight-bold mb-1 mt-3">Weight</p><div class="munch-receipt-checks">' +
-            radioRow('font-weight', currentTemplate().style.font_weight, [
+            radioRow('font-weight', (currentTemplate().style && currentTemplate().style.font_weight) || 'bold', [
                 { value: 'normal', label: 'Normal' }, { value: 'bold', label: 'Bold' }
             ]) + '</div>' +
             '<p class="font-weight-bold mb-1 mt-3">Section spacing</p><div class="munch-receipt-checks">' +
-            radioRow('section-spacing', currentTemplate().style.section_spacing, [
+            radioRow('section-spacing', (currentTemplate().style && currentTemplate().style.section_spacing) || 'normal', [
                 { value: 'compact', label: 'Compact' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }
             ]) + '</div>' +
             '<p class="font-weight-bold mb-1 mt-3">Divider style</p><div class="munch-receipt-checks">' +
-            radioRow('divider', currentTemplate().style.divider, [
+            radioRow('divider', (currentTemplate().style && currentTemplate().style.divider) || 'dashed', [
                 { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'none', label: 'None' }
             ]) + '</div></div></div>';
     }
@@ -469,6 +524,7 @@
     }
 
     function persistOrderFromDom() {
+        if (!els.editor) return;
         var list = els.editor.querySelector('.munch-receipt-blocks');
         if (!list) return;
         var next = Array.prototype.map.call(list.querySelectorAll('[data-block-id]'), function (el) {
@@ -488,11 +544,16 @@
     }
 
     function render() {
-        document.querySelectorAll('[data-receipt-tab]').forEach(function (btn) {
-            btn.classList.toggle('is-active', btn.getAttribute('data-receipt-tab') === state.uiTab);
-        });
-        renderEditor();
-        schedulePreview();
+        try {
+            document.querySelectorAll('[data-receipt-tab]').forEach(function (btn) {
+                btn.classList.toggle('is-active', btn.getAttribute('data-receipt-tab') === state.uiTab);
+            });
+            renderEditor();
+            schedulePreview();
+        } catch (err) {
+            if (window.console && console.error) console.error(err);
+            refreshPreview();
+        }
     }
 
     function savePayload() {
@@ -535,8 +596,10 @@
         els.modeCompany.addEventListener('change', function () {
             if (!els.modeCompany.checked) return;
             state.use_company = true;
-            state.customer = JSON.parse(JSON.stringify(state.company.customer));
-            state.kitchen = JSON.parse(JSON.stringify(state.company.kitchen));
+            var company = state.company || {};
+            state.customer = JSON.parse(JSON.stringify(company.customer || {}));
+            state.kitchen = JSON.parse(JSON.stringify(company.kitchen || {}));
+            hydrateState();
             render();
         });
     }
@@ -548,6 +611,7 @@
         });
     }
 
+    if (els.editor) {
     els.editor.addEventListener('dragstart', function (ev) {
         if (locked()) {
             ev.preventDefault();
@@ -619,11 +683,13 @@
             return;
         }
         if (target.name === 'logo-mode') {
+            if (!currentTemplate().logo) currentTemplate().logo = {};
             currentTemplate().logo.mode = target.value;
             schedulePreview();
             return;
         }
         if (target.name === 'logo-size') {
+            if (!currentTemplate().logo) currentTemplate().logo = {};
             currentTemplate().logo.size = target.value;
             schedulePreview();
             return;
@@ -651,10 +717,22 @@
             schedulePreview();
             return;
         }
-        if (target.name === 'font-size') currentTemplate().style.font_size = target.value;
-        if (target.name === 'font-weight') currentTemplate().style.font_weight = target.value;
-        if (target.name === 'section-spacing') currentTemplate().style.section_spacing = target.value;
-        if (target.name === 'divider') currentTemplate().style.divider = target.value;
+        if (target.name === 'font-size') {
+            if (!currentTemplate().style) currentTemplate().style = {};
+            currentTemplate().style.font_size = target.value;
+        }
+        if (target.name === 'font-weight') {
+            if (!currentTemplate().style) currentTemplate().style = {};
+            currentTemplate().style.font_weight = target.value;
+        }
+        if (target.name === 'section-spacing') {
+            if (!currentTemplate().style) currentTemplate().style = {};
+            currentTemplate().style.section_spacing = target.value;
+        }
+        if (target.name === 'divider') {
+            if (!currentTemplate().style) currentTemplate().style = {};
+            currentTemplate().style.divider = target.value;
+        }
         if (target.name === 'paper') state.print.paper = target.value;
         if (target.name === 'print-mode') state.print.print_mode = target.value;
         if (target.name === 'paper-saving') state.print.paper_saving = target.value;
@@ -707,6 +785,7 @@
             state.print[printKey] = Number(ev.target.value || 1);
         }
     });
+    }
 
     var previewChannel = document.getElementById('receipt-preview-channel');
     if (previewChannel) previewChannel.addEventListener('change', schedulePreview);
@@ -764,5 +843,11 @@
     if (els.testReceipt) els.testReceipt.addEventListener('click', function () { printKind('customer'); });
     if (els.testKitchen) els.testKitchen.addEventListener('click', function () { printKind('kitchen'); });
 
-    render();
+    try {
+        hydrateState();
+        render();
+    } catch (err) {
+        if (window.console && console.error) console.error(err);
+        refreshPreview();
+    }
 })();

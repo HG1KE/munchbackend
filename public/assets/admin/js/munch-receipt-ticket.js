@@ -122,17 +122,25 @@
         return out;
     }
 
+    function sectionGroup(incoming, group) {
+        var extra = incoming && incoming[group];
+        if (!extra || typeof extra !== 'object' || Array.isArray(extra)) return {};
+        return extra;
+    }
+
     function mergeSections(kind, template) {
         var base = defaults(kind).sections;
-        var incoming = (template && template.sections) || {};
+        var incoming = (template && template.sections && typeof template.sections === 'object' && !Array.isArray(template.sections))
+            ? template.sections
+            : {};
         var out = {};
         Object.keys(base).forEach(function (group) {
-            out[group] = Object.assign({}, base[group], incoming[group] || {});
+            out[group] = Object.assign({}, base[group], sectionGroup(incoming, group));
         });
         Object.keys(incoming).forEach(function (group) {
-            if (!out[group]) out[group] = incoming[group];
+            if (!out[group]) out[group] = sectionGroup(incoming, group);
         });
-        if (kind !== 'kitchen' && !incoming.delivery_customer && incoming.order) {
+        if (kind !== 'kitchen' && !incoming.delivery_customer && incoming.order && typeof incoming.order === 'object' && !Array.isArray(incoming.order)) {
             out.delivery_customer = Object.assign({}, out.delivery_customer, {
                 customer_name: incoming.order.customer_name !== false,
                 customer_phone: incoming.order.customer_phone !== false,
@@ -148,14 +156,16 @@
         var incoming = (template && template.block_styles) || {};
         var out = {};
         order.forEach(function (id) {
-            out[id] = Object.assign({}, DEFAULT_BLOCK_STYLE, incoming[id] || {});
+            var extra = incoming[id];
+            if (!extra || typeof extra !== 'object' || Array.isArray(extra)) extra = {};
+            out[id] = Object.assign({}, DEFAULT_BLOCK_STYLE, extra);
         });
         return out;
     }
 
     function normalizeTemplate(kind, template) {
         var base = clone(defaults(kind));
-        if (!template || !template.sections) return base;
+        if (!template || typeof template !== 'object' || Array.isArray(template)) return base;
         var out = Object.assign({}, base, template);
         out.sections = mergeSections(kind, template);
         out.logo = Object.assign({}, base.logo, template.logo || {});
@@ -252,12 +262,15 @@
     }
 
     function blockStyle(template, id) {
-        var src = (template.block_styles && template.block_styles[id]) || {};
+        var src = (template && template.block_styles && template.block_styles[id] && typeof template.block_styles[id] === 'object')
+            ? template.block_styles[id]
+            : {};
         return Object.assign({}, DEFAULT_BLOCK_STYLE, src);
     }
 
     function wrapBlock(id, html, template) {
         if (!html) return '';
+        template = template || {};
         var st = blockStyle(template, id);
         var align = st.align === 'center' || st.align === 'right' ? st.align : 'left';
         var fs = st.font_size || 'normal';
@@ -536,11 +549,13 @@
     }
 
     function itemOptions(item) {
-        return item.options || [];
+        if (!item || typeof item !== 'object') return [];
+        var opts = item.options;
+        return Array.isArray(opts) ? opts : [];
     }
 
     function itemsHtml(kind, template, job, currency) {
-        var items = job.items || [];
+        var items = Array.isArray(job.items) ? job.items : [];
         if (!items.length) return '';
         var showName = show(kind, template, 'items', 'product_name');
         var showQty = show(kind, template, 'items', 'quantity');
@@ -551,6 +566,7 @@
         var html = '<div class="meta"><p>Items</p></div>';
         if (kind === 'kitchen' || (!showUnit && !showTotal)) {
             items.forEach(function (item) {
+                if (!item || typeof item !== 'object') return;
                 var name = showName ? item.name : '';
                 var qty = showQty ? (item.quantity + ' x ') : '';
                 html += '<p class="item">' + escapeHtml(qty + name) + '</p>';
@@ -564,6 +580,7 @@
         } else {
             html += '<table>';
             items.forEach(function (item) {
+                if (!item || typeof item !== 'object') return;
                 html += '<tr>';
                 html += '<td class="qty">' + (showQty ? escapeHtml(item.quantity) : '') + '</td>';
                 html += '<td>' + (showName ? escapeHtml(item.name) : '');
@@ -743,30 +760,41 @@
             footer: function () { return footerHtml(kind, template, ctx); }
         };
         var html = '';
-        template.order.forEach(function (id) {
+        var order = Array.isArray(template.order) ? template.order : [];
+        order.forEach(function (id) {
             var render = blocks[id];
             if (!render) return;
-            html += wrapBlock(id, render(), template);
+            try {
+                html += wrapBlock(id, render(), template);
+            } catch (err) {
+                if (typeof console !== 'undefined' && console.error) console.error(err);
+            }
         });
         return html;
     }
 
     function renderDocument(kind, template, job, options) {
-        options = options || {};
-        template = normalizeTemplate(kind, template);
-        var print = options.print || { paper: '80mm' };
-        var tune = printTune(print);
-        var title = kind === 'kitchen' ? 'Kitchen Order' : 'Receipt';
-        var cls = [kind];
-        if (tune.mode === 'dark') cls.push('is-dark');
-        if (tune.mode === 'extra_dark') cls.push('is-extra_dark');
-        if (tune.save === 'normal') cls.push('save-normal');
-        if (tune.save === 'maximum') cls.push('save-maximum');
-        return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) +
-            '</title><style>' + ticketCss(kind, template, print) + '</style></head><body class="' + escapeAttr(kind) +
-            '" data-auto-cut="' + (print.auto_cut ? '1' : '0') + '" data-drawer-kick="' + (print.drawer_kick ? '1' : '0') +
-            '" data-print-mode="' + escapeAttr(tune.mode) + '" data-paper-saving="' + escapeAttr(tune.save) + '">' +
-            '<div class="ticket ' + cls.join(' ') + '">' + bodyHtml(kind, template, job, options) + '</div></body></html>';
+        try {
+            options = options || {};
+            template = normalizeTemplate(kind, template);
+            var print = options.print || { paper: '80mm' };
+            var tune = printTune(print);
+            var title = kind === 'kitchen' ? 'Kitchen Order' : 'Receipt';
+            var cls = [kind];
+            if (tune.mode === 'dark') cls.push('is-dark');
+            if (tune.mode === 'extra_dark') cls.push('is-extra_dark');
+            if (tune.save === 'normal') cls.push('save-normal');
+            if (tune.save === 'maximum') cls.push('save-maximum');
+            return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) +
+                '</title><style>' + ticketCss(kind, template, print) + '</style></head><body class="' + escapeAttr(kind) +
+                '" data-auto-cut="' + (print.auto_cut ? '1' : '0') + '" data-drawer-kick="' + (print.drawer_kick ? '1' : '0') +
+                '" data-print-mode="' + escapeAttr(tune.mode) + '" data-paper-saving="' + escapeAttr(tune.save) + '">' +
+                '<div class="ticket ' + cls.join(' ') + '">' + bodyHtml(kind, template, job, options) + '</div></body></html>';
+        } catch (err) {
+            if (typeof console !== 'undefined' && console.error) console.error(err);
+            return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt</title></head><body style="font-family:sans-serif;padding:8px;color:#b91c1c">' +
+                '<p>Receipt failed to render.</p></body></html>';
+        }
     }
 
     function copies(kind, print) {

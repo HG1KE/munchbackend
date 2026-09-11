@@ -32,7 +32,7 @@
 @endsection
 
 @push('script_2')
-    <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.7"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.8"></script>
     <script>
         window.MUNCH_RECEIPT_EDITOR = {
             payload: @json($payload),
@@ -48,5 +48,5 @@
             }
         };
     </script>
-    <script src="{{ asset('public/assets/admin/js/munch-receipt-templates.js') }}?v=1.3"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-receipt-templates.js') }}?v=1.4"></script>
 @endpush
