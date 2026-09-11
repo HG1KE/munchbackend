@@ -168,7 +168,7 @@ test('previous variation is never auto-selected', function () {
     var modal = extractFn(js, 'openModifiers');
     assert(!/\schecked/.test(modal) && !/checked=/.test(modal), 'selector inputs must start unchecked');
     assert(modal.indexOf(':checked') !== -1, 'confirm still reads the cashier\'s selection');
-    assert(modal.indexOf('addSelectedVariations(product, variations, qty, addonId, addonQuantities)') !== -1, 'modal confirm must go through merge helper');
+    assert(modal.indexOf('addSelectedVariations(product, variations, qty, selectedAddons.addon_id, selectedAddons.addon_quantities)') !== -1, 'modal confirm must go through merge helper');
     assert(js.indexOf('lastLineIndex(productId)') !== -1, 'last-line helper still used for decrement');
 
     var plus = extractFn(js, 'adjustProductQty');

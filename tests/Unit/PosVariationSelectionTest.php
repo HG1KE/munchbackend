@@ -16,7 +16,7 @@ class PosVariationSelectionTest extends TestCase
         $this->assertStringContainsString('openModifiers(product)', $addPath);
         $this->assertStringNotContainsString('quantity +=', $addPath);
         $this->assertStringNotContainsString('lastLineIndex', $addPath);
-        $this->assertStringContainsString('addSelectedVariations(product, variations, qty, addonId, addonQuantities)', $js);
+        $this->assertStringContainsString('addSelectedVariations(product, variations, qty, selectedAddons.addon_id, selectedAddons.addon_quantities)', $js);
         $this->assertStringContainsString('function variationSelectionKey', $js);
         $this->assertStringContainsString('function findMatchingVariationLine', $js);
     }
@@ -24,11 +24,11 @@ class PosVariationSelectionTest extends TestCase
     public function test_selector_does_not_reuse_a_previous_flavour(): void
     {
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
-        $modal = $this->functionBody($js, 'function openModifiers', 6500);
+        $modal = $this->functionBody($js, 'function openModifiers', 8500);
 
         $this->assertDoesNotMatchRegularExpression('/\schecked|checked=/', $modal);
         $this->assertStringContainsString(':checked', $modal);
-        $this->assertStringContainsString('addSelectedVariations(product, variations, qty, addonId, addonQuantities)', $modal);
+        $this->assertStringContainsString('addSelectedVariations(product, variations, qty, selectedAddons.addon_id, selectedAddons.addon_quantities)', $modal);
         $this->assertStringNotContainsString('state.cart.lines.push', $modal);
     }
 

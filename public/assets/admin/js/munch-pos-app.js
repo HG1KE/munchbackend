@@ -179,6 +179,45 @@
         }).join('|');
     }
 
+    function nextAddonQty(current, delta) {
+        var qty = Math.max(0, Number(current) || 0) + Number(delta || 0);
+        return qty < 0 ? 0 : Math.floor(qty);
+    }
+
+    function selectedAddonsFromQuantities(quantities) {
+        var addonId = [];
+        var addonQuantities = {};
+        Object.keys(quantities || {}).forEach(function (key) {
+            var id = Number(key);
+            var qty = nextAddonQty(quantities[key], 0);
+            if (!(id > 0) || qty < 1) return;
+            addonId.push(id);
+            addonQuantities[id] = qty;
+        });
+        addonId.sort(function (a, b) { return a - b; });
+        return { addon_id: addonId, addon_quantities: addonQuantities };
+    }
+
+    function setAddonRowQty(row, qty) {
+        qty = nextAddonQty(qty, 0);
+        row.setAttribute('data-addon-qty', String(qty));
+        var count = row.querySelector('[data-addon-count]');
+        if (count) count.textContent = String(qty);
+        if (qty > 0) row.classList.add('munch-pos-addon--on');
+        else row.classList.remove('munch-pos-addon--on');
+    }
+
+    function collectSelectedAddons(root) {
+        var quantities = {};
+        if (!root) return selectedAddonsFromQuantities(quantities);
+        root.querySelectorAll('[data-addon-id]').forEach(function (row) {
+            var id = Number(row.getAttribute('data-addon-id'));
+            if (!(id > 0)) return;
+            quantities[id] = nextAddonQty(row.getAttribute('data-addon-qty'), 0);
+        });
+        return selectedAddonsFromQuantities(quantities);
+    }
+
     function addonSelectionKey(addonId, addonQuantities) {
         return (addonId || []).map(function (id) { return Number(id); })
             .filter(function (id) { return id > 0; })
@@ -781,7 +820,13 @@
             if (ai === 0) {
                 html += '<div><strong>' + escapeHtml((CFG.labels && CFG.labels.addons) || 'Addons') + '</strong> <small>' + escapeHtml(CFG.labels.optional || 'optional') + '</small>';
             }
-            html += '<label class="munch-pos-choice"><span><input type="checkbox" name="pos-addon" value="' + escapeAttr(addon.id) + '"> ' + escapeHtml(addon.name) + '</span><span>' + money(addon.price) + '</span></label>';
+            html += '<div class="munch-pos-addon" data-addon-id="' + escapeAttr(addon.id) + '" data-addon-qty="0">';
+            html += '<div class="munch-pos-addon__meta"><strong>' + escapeHtml(addon.name) + '</strong><span>' + money(addon.price) + '</span></div>';
+            html += '<div class="munch-pos-qty munch-pos-addon__qty">';
+            html += '<button type="button" data-addon-delta="-1" aria-label="−">−</button>';
+            html += '<span data-addon-count>0</span>';
+            html += '<button type="button" data-addon-delta="1" aria-label="+">+</button>';
+            html += '</div></div>';
         });
         if (posAddons(product).length) html += '</div>';
         html += '</div><div class="munch-pos-dialog__actions">';
@@ -794,6 +839,13 @@
         card.querySelector('#pos-mod-minus').onclick = function () { qty = Math.max(1, qty - 1); card.querySelector('#pos-mod-qty').textContent = qty; };
         card.querySelector('#pos-mod-plus').onclick = function () { qty += 1; card.querySelector('#pos-mod-qty').textContent = qty; };
         card.querySelector('#pos-mod-close').onclick = function () { modal.hidden = true; };
+        card.querySelectorAll('[data-addon-delta]').forEach(function (btn) {
+            btn.onclick = function () {
+                var row = btn.closest('[data-addon-id]');
+                if (!row) return;
+                setAddonRowQty(row, nextAddonQty(row.getAttribute('data-addon-qty'), btn.getAttribute('data-addon-delta')));
+            };
+        });
         card.querySelector('#pos-mod-add').onclick = function () {
             var variations = [];
             var valid = true;
@@ -815,15 +867,8 @@
                 toast(CFG.labels.required);
                 return;
             }
-            var addonId = [];
-            var addonQuantities = {};
-            card.querySelectorAll('input[name="pos-addon"]:checked').forEach(function (input) {
-                var id = Number(input.value);
-                if (!(id > 0)) return;
-                addonId.push(id);
-                addonQuantities[id] = 1;
-            });
-            addSelectedVariations(product, variations, qty, addonId, addonQuantities);
+            var selectedAddons = collectSelectedAddons(card);
+            addSelectedVariations(product, variations, qty, selectedAddons.addon_id, selectedAddons.addon_quantities);
             persistCart();
             modal.hidden = true;
             refreshCartUi(product.id);

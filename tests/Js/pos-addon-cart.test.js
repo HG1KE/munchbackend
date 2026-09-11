@@ -89,6 +89,9 @@ function makeEngine() {
     var lineUnit;
     var lineAddonTotal;
     var lineSubtotal;
+    var addonLabels;
+    var nextAddonQty;
+    var selectedAddonsFromQuantities;
 
     eval('productNeedsVariation = ' + extractFn(js, 'productNeedsVariation'));
     eval('posAddons = ' + extractFn(js, 'posAddons'));
@@ -102,6 +105,9 @@ function makeEngine() {
     eval('lineUnit = ' + extractFn(js, 'lineUnit'));
     eval('lineAddonTotal = ' + extractFn(js, 'lineAddonTotal'));
     eval('lineSubtotal = ' + extractFn(js, 'lineSubtotal'));
+    eval('addonLabels = ' + extractFn(js, 'addonLabels'));
+    eval('nextAddonQty = ' + extractFn(js, 'nextAddonQty'));
+    eval('selectedAddonsFromQuantities = ' + extractFn(js, 'selectedAddonsFromQuantities'));
 
     return {
         state: state,
@@ -112,7 +118,10 @@ function makeEngine() {
         addSimple: addSimple,
         adjustProductQty: adjustProductQty,
         lineAddonTotal: lineAddonTotal,
-        lineSubtotal: lineSubtotal
+        lineSubtotal: lineSubtotal,
+        addonLabels: addonLabels,
+        nextAddonQty: nextAddonQty,
+        selectedAddonsFromQuantities: selectedAddonsFromQuantities
     };
 }
 
@@ -193,10 +202,62 @@ test('selected addon price is included', function () {
     assert(engine.lineSubtotal(line) === 500, 'burger 450 + cheese 50');
 });
 
+test('addon quantity starts at 0 and never goes negative', function () {
+    var engine = makeEngine();
+    assert(engine.nextAddonQty(0, 0) === 0, 'default is 0');
+    assert(engine.nextAddonQty(0, 1) === 1, '+ from 0 is 1');
+    assert(engine.nextAddonQty(1, 1) === 2, '+ from 1 is 2');
+    assert(engine.nextAddonQty(2, 1) === 3, '+ from 2 is 3');
+    assert(engine.nextAddonQty(3, -1) === 2, '- from 3 is 2');
+    assert(engine.nextAddonQty(1, -1) === 0, '- from 1 is 0');
+    assert(engine.nextAddonQty(0, -1) === 0, 'quantity never goes below 0');
+});
+
+test('quantity 0 is excluded and extra cheese x3 is 150', function () {
+    var engine = makeEngine();
+    engine.state.productMap[burgerOn.id] = burgerOn;
+    var picked = engine.selectedAddonsFromQuantities({ 8: 3, 9: 0 });
+    assert(picked.addon_id.length === 1, 'qty 0 addon must be dropped');
+    assert(picked.addon_id[0] === 8, 'Extra Cheese should remain');
+    assert(picked.addon_quantities[8] === 3, 'Extra Cheese qty must stay 3');
+    engine.addSelectedVariations(burgerOn, [], 1, picked.addon_id, picked.addon_quantities);
+    var line = engine.state.cart.lines[0];
+    assert(engine.lineAddonTotal(line) === 150, '50 x 3 must be 150');
+    assert(engine.lineSubtotal(line) === 600, 'burger 450 + cheese 150');
+    assert(engine.addonLabels(line).indexOf('Extra Cheese × 3') !== -1, 'receipt/kitchen must show Extra Cheese × 3');
+});
+
+test('multiple addons keep independent quantities', function () {
+    var engine = makeEngine();
+    engine.state.productMap[burgerOn.id] = burgerOn;
+    var picked = engine.selectedAddonsFromQuantities({ 8: 2, 9: 1 });
+    assert(picked.addon_id.length === 2, 'both addons with qty > 0 must stay');
+    assert(picked.addon_quantities[8] === 2, 'cheese qty 2');
+    assert(picked.addon_quantities[9] === 1, 'sauce qty 1');
+    engine.addSelectedVariations(burgerOn, [], 1, picked.addon_id, picked.addon_quantities);
+    var line = engine.state.cart.lines[0];
+    assert(engine.lineAddonTotal(line) === 130, '50x2 + 30x1 must be 130');
+    assert(engine.lineSubtotal(line) === 580, 'burger 450 + addons 130');
+});
+
+test('different addon quantities stay on separate lines', function () {
+    var engine = makeEngine();
+    engine.addSelectedVariations(burgerOn, [], 1, [cheese.id], { 8: 1 });
+    engine.addSelectedVariations(burgerOn, [], 1, [cheese.id], { 8: 2 });
+    assert(engine.state.cart.lines.length === 2, 'cheese x1 and cheese x2 must not merge');
+    engine.addSelectedVariations(burgerOn, [], 1, [cheese.id], { 8: 2 });
+    assert(engine.state.cart.lines.length === 2, 'matching cheese x2 should stack');
+    assert(engine.state.cart.lines[1].quantity === 2, 'matching cheese x2 product qty should increment');
+});
+
 test('payload still uses existing addon_id fields', function () {
     assert(js.indexOf('addon_id: line.addon_id || []') !== -1, 'checkout must send selected addon ids');
     assert(js.indexOf('addon_quantities: line.addon_quantities || {}') !== -1, 'checkout must send addon quantities');
-    assert(js.indexOf('name="pos-addon"') !== -1, 'selector must reuse checkbox addon picking');
+    assert(js.indexOf('data-addon-qty') !== -1, 'selector must expose addon quantity');
+    assert(js.indexOf('data-addon-delta') !== -1, 'selector must have +/- controls');
+    assert(js.indexOf('collectSelectedAddons(card)') !== -1, 'confirm must collect qty > 0 only');
+    assert(js.indexOf('name="pos-addon"') === -1, 'checkbox-only addon rows must be gone');
+    assert(js.indexOf('window.location.reload()') === -1, 'must not reload');
 });
 
 test('admin toggle defaults off on create and persists on edit', function () {

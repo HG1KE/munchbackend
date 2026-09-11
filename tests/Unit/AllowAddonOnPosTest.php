@@ -100,7 +100,9 @@ class AllowAddonOnPosTest extends TestCase
         $this->assertStringContainsString('function posAddons', $js);
         $this->assertStringContainsString('function productNeedsModifiers', $js);
         $this->assertStringContainsString('product.allow_addon_on_pos', $js);
-        $this->assertStringContainsString('name="pos-addon"', $js);
+        $this->assertStringContainsString('data-addon-qty', $js);
+        $this->assertStringContainsString('function nextAddonQty', $js);
+        $this->assertStringContainsString('function collectSelectedAddons', $js);
         $this->assertStringContainsString('addon_id: line.addon_id || []', $js);
         $this->assertStringContainsString('function lineAddonTotal', $js);
         $this->assertStringContainsString('function addonSelectionKey', $js);
@@ -134,5 +136,9 @@ class AllowAddonOnPosTest extends TestCase
         $this->assertStringContainsString('no addons skips selector even if toggle on', $combined);
         $this->assertStringContainsString('addon combinations stay on separate lines', $combined);
         $this->assertStringContainsString('selected addon price is included', $combined);
+        $this->assertStringContainsString('addon quantity starts at 0 and never goes negative', $combined);
+        $this->assertStringContainsString('quantity 0 is excluded and extra cheese x3 is 150', $combined);
+        $this->assertStringContainsString('different addon quantities stay on separate lines', $combined);
+        $this->assertStringContainsString('multiple addons keep independent quantities', $combined);
     }
 }
