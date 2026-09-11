@@ -8,7 +8,7 @@
     var CART_KEY = 'current';
     var state = {
         catalog: CFG.catalog || { products: [], categories: [], delivery: {} },
-        cart: { lines: [], orderType: 'take_away', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {}, rider: {} },
+        cart: { lines: [], orderType: 'take_away', discount: 0, discountType: 'amount', payment: 'cash', paid: '', deliveryFee: 0, address: {} },
         categoryId: 0,
         search: '',
         searchDraft: '',
@@ -755,14 +755,10 @@
             extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
             extra_discount_type: state.cart.discountType,
             delivery_charge: deliveryCharge(),
-            rider_name: state.cart.orderType === 'delivery' ? (state.cart.rider.rider_name || '') : '',
-            rider_phone: state.cart.orderType === 'delivery' ? (state.cart.rider.rider_phone || '') : '',
             address: state.cart.orderType === 'delivery' ? {
                 contact_person_name: state.cart.address.contact_person_name || '',
                 contact_person_number: state.cart.address.contact_person_number || '',
                 address: state.cart.address.address || '',
-                rider_name: state.cart.rider.rider_name || '',
-                rider_phone: state.cart.rider.rider_phone || '',
                 distance: 0
             } : null,
             items: state.cart.lines.map(function (line) {
@@ -796,22 +792,15 @@
         if (!String(state.cart.address.contact_person_number || '').trim()) return CFG.labels.customerPhone || 'Customer Phone';
         if (invalidPhone(state.cart.address.contact_person_number)) return CFG.labels.invalidPhone || 'Invalid phone number';
         if (!String(state.cart.address.address || '').trim()) return CFG.labels.deliveryAddress || CFG.labels.address;
-        var riderName = String((state.cart.rider && state.cart.rider.rider_name) || '').trim();
-        var riderPhone = String((state.cart.rider && state.cart.rider.rider_phone) || '').trim();
-        if (riderName && !riderPhone) return CFG.labels.riderPhone || 'Rider Phone';
-        if (riderPhone && invalidPhone(riderPhone)) return CFG.labels.invalidPhone || 'Invalid phone number';
         return null;
     }
 
     function readDeliveryModal() {
         if (!state.cart.address) state.cart.address = {};
-        if (!state.cart.rider) state.cart.rider = {};
         var name = document.getElementById('pos-del-name');
         var phone = document.getElementById('pos-del-phone');
         var address = document.getElementById('pos-del-address');
         var fee = document.getElementById('pos-del-fee');
-        var riderName = document.getElementById('pos-del-rider-name');
-        var riderPhone = document.getElementById('pos-del-rider-phone');
         if (name) state.cart.address.contact_person_name = name.value;
         if (phone) state.cart.address.contact_person_number = phone.value;
         if (address) state.cart.address.address = address.value;
@@ -819,8 +808,6 @@
             var amount = Number(fee.value);
             state.cart.deliveryFee = isFinite(amount) && amount >= 0 ? amount : 0;
         }
-        if (riderName) state.cart.rider.rider_name = riderName.value;
-        if (riderPhone) state.cart.rider.rider_phone = riderPhone.value;
     }
 
     function resetDelivery() {
@@ -828,26 +815,20 @@
         else {
             state.cart.deliveryFee = 0;
             state.cart.address = { contact_person_name: '', contact_person_number: '', address: '' };
-            state.cart.rider = { rider_name: '', rider_phone: '' };
         }
         fillDeliveryModal();
     }
 
     function fillDeliveryModal() {
         if (!state.cart.address) state.cart.address = {};
-        if (!state.cart.rider) state.cart.rider = {};
         var name = document.getElementById('pos-del-name');
         var phone = document.getElementById('pos-del-phone');
         var address = document.getElementById('pos-del-address');
         var fee = document.getElementById('pos-del-fee');
-        var riderName = document.getElementById('pos-del-rider-name');
-        var riderPhone = document.getElementById('pos-del-rider-phone');
         if (name) name.value = state.cart.address.contact_person_name || '';
         if (phone) phone.value = state.cart.address.contact_person_number || '';
         if (address) address.value = state.cart.address.address || '';
         if (fee) fee.value = Number(state.cart.deliveryFee || 0);
-        if (riderName) riderName.value = (state.cart.rider && state.cart.rider.rider_name) || '';
-        if (riderPhone) riderPhone.value = (state.cart.rider && state.cart.rider.rider_phone) || '';
         var error = document.getElementById('pos-delivery-error');
         if (error) {
             error.hidden = true;
@@ -1149,10 +1130,16 @@
         return out;
     }
 
-    function snapshotPrintJob(body) {
+    function snapshotPrintJob(body, payload) {
+        if (body && body.order) {
+            return printJobFromOrder(body.order);
+        }
         var now = new Date();
-        var type = state.cart.orderType;
-        var total = grandTotal();
+        var type = (payload && payload.order_type) || state.cart.orderType;
+        var addr = (payload && payload.address) || (type === 'delivery' ? (state.cart.address || {}) : {}) || {};
+        var fee = payload && payload.delivery_charge != null ? Number(payload.delivery_charge) : deliveryCharge();
+        var total = payload && payload.paid_amount != null ? Number(payload.paid_amount) : grandTotal();
+        var pay = (payload && payload.type) || state.cart.payment;
         return {
             orderId: body && body.order_id ? Number(body.order_id) : 0,
             kitchenPrinted: !!(body && body.kitchen_printed),
@@ -1174,22 +1161,22 @@
                     line_total: lineSubtotal(line)
                 };
             }),
-            customer: type === 'delivery' ? (state.cart.address.contact_person_name || '') : '',
-            phone: type === 'delivery' ? (state.cart.address.contact_person_number || '') : '',
-            address: type === 'delivery' ? (state.cart.address.address || '') : '',
+            customer: type === 'delivery' ? (addr.contact_person_name || '') : '',
+            phone: type === 'delivery' ? (addr.contact_person_number || '') : '',
+            address: type === 'delivery' ? (addr.address || '') : '',
             notes: '',
             subtotal: cartSubtotal(),
-            delivery_fee: deliveryCharge(),
+            delivery_fee: type === 'delivery' ? fee : 0,
             discount: extraDiscount(cartSubtotal()),
             grand_total: total,
-            payment_method: state.cart.payment,
-            payment_status: immediatePaymentStatus(state.cart.payment),
+            payment_method: pay,
+            payment_status: immediatePaymentStatus(pay),
             cash_received: 0,
             change: 0,
             mpesa_till: branchMpesaTill(),
             cashier: CFG.cashierName || CFG.branchName || '',
-            riderName: type === 'delivery' ? ((state.cart.rider && state.cart.rider.rider_name) || '') : '',
-            riderPhone: type === 'delivery' ? ((state.cart.rider && state.cart.rider.rider_phone) || '') : ''
+            riderName: '',
+            riderPhone: ''
         };
     }
 
@@ -1760,7 +1747,7 @@
         return enqueue(payload).then(function () {
             openSuccessModal(snapshotPrintJob({
                 order_display_id: extraToast || L('queuedSaved', 'Order saved offline')
-            }));
+            }, payload));
             clearCart();
             endOrderSubmit();
             requestBackgroundSync();
@@ -2404,7 +2391,6 @@
                     ? Delivery.hydrateCart(state.cart, results[1])
                     : Object.assign(state.cart, results[1]);
                 if (!state.cart.address) state.cart.address = {};
-                if (!state.cart.rider) state.cart.rider = {};
             }
             resetDelivery();
             persistCart();

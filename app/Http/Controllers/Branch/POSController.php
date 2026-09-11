@@ -537,16 +537,6 @@ class POSController extends Controller
         $order->client_uuid = $this->posClientUuid($request);
         $order->sales_channel = PosOrderTypes::salesChannel($orderType);
         $order->delivery_address_id = PosOrderTypes::isDelivery($orderType) && $customerAddress ? $customerAddress->id : null;
-        if (PosOrderTypes::isDelivery($orderType) && $customerAddress) {
-            $order->forceFill([
-                'delivery_address' => [
-                    'contact_person_name' => $customerAddress->contact_person_name,
-                    'contact_person_number' => $customerAddress->contact_person_number,
-                    'address' => $customerAddress->address,
-                    'phone' => $customerAddress->contact_person_number,
-                ],
-            ]);
-        }
         if (Schema::hasColumn('orders', 'rider_name')) {
             $order->rider_name = $this->posRiderName($request, $orderType);
         }
@@ -650,8 +640,9 @@ class POSController extends Controller
 
             OrderPlacementTime::applyToOrder($order, $placedAt);
 
-            DB::transaction(function () use ($order, &$orderDetails, $request, $paymentMethod) {
+            DB::transaction(function () use ($order, &$orderDetails, $request, $paymentMethod, $orderType, $customerAddress) {
                 $order->save();
+                $this->persistPosDeliveryAddressJson($order, $orderType, $customerAddress);
 
                 foreach ($orderDetails as $key => $item) {
                     $orderDetails[$key]['order_id'] = $order->id;
@@ -752,12 +743,7 @@ class POSController extends Controller
             }
 
             if ($this->isJsonPosOrder($request)) {
-                return response()->json(array_merge([
-                    'success' => 1,
-                    'order_id' => $order->id,
-                    'order_display_id' => Helpers::order_display_id($order),
-                    'message' => translate('order_placed_successfully'),
-                ], $this->posPrintFlags($order)));
+                return response()->json($this->posPlacedOrderJson($order));
             }
 
             return back();
@@ -772,13 +758,7 @@ class POSController extends Controller
                 if ($existing) {
                     $this->dispatchPosDeliveryCustomerSms($existing);
 
-                    return response()->json(array_merge([
-                        'success' => 1,
-                        'duplicate' => true,
-                        'order_id' => $existing->id,
-                        'order_display_id' => Helpers::order_display_id($existing),
-                        'message' => translate('order_placed_successfully'),
-                    ], $this->posPrintFlags($existing)));
+                    return response()->json($this->posPlacedOrderJson($existing, ['duplicate' => true]));
                 }
             }
         }
@@ -1141,6 +1121,47 @@ class POSController extends Controller
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function posPlacedOrderJson(Order $order, array $extra = []): array
+    {
+        $fresh = $order->fresh(['details', 'customer', 'customer_delivery_address', 'branch']) ?: $order;
+        $cashierName = (string) (auth('branch')->user()->name ?? '');
+
+        return array_merge([
+            'success' => 1,
+            'order_id' => $fresh->id,
+            'order_display_id' => Helpers::order_display_id($fresh),
+            'message' => translate('order_placed_successfully'),
+            'order' => $this->posTodayOrders->serializeOrder($fresh, $cashierName),
+        ], $extra, $this->posPrintFlags($fresh));
+    }
+
+    /**
+     * `orders.delivery_address` is both a JSON column and a BelongsTo relation.
+     * Eloquent `forceFill`/`save` can write the relation instead of the JSON,
+     * so persist the POS delivery customer snapshot with the query builder.
+     */
+    private function persistPosDeliveryAddressJson(Order $order, string $orderType, ?CustomerAddress $customerAddress): void
+    {
+        if (! PosOrderTypes::isDelivery($orderType) || ! $customerAddress || ! $order->id) {
+            return;
+        }
+
+        $payload = [
+            'contact_person_name' => $customerAddress->contact_person_name,
+            'contact_person_number' => $customerAddress->contact_person_number,
+            'address' => $customerAddress->address,
+            'phone' => $customerAddress->contact_person_number,
+        ];
+
+        DB::table('orders')->where('id', $order->id)->update([
+            'delivery_address' => json_encode($payload),
+        ]);
+    }
+
     private function isJsonPosOrder(Request $request): bool
     {
         return $request->expectsJson() || $request->header('X-Munch-POS') === '1';
@@ -1194,13 +1215,7 @@ class POSController extends Controller
             if ($existing) {
                 $this->dispatchPosDeliveryCustomerSms($existing);
 
-                return response()->json(array_merge([
-                    'success' => 1,
-                    'duplicate' => true,
-                    'order_id' => $existing->id,
-                    'order_display_id' => Helpers::order_display_id($existing),
-                    'message' => translate('order_placed_successfully'),
-                ], $this->posPrintFlags($existing)));
+                return response()->json($this->posPlacedOrderJson($existing, ['duplicate' => true]));
             }
         }
 
@@ -1243,8 +1258,6 @@ class POSController extends Controller
 
         $address = $request->input('address');
         if (is_array($address) && PosOrderTypes::isDelivery($request->input('order_type'))) {
-            $address['rider_name'] = trim((string) ($request->input('rider_name', $address['rider_name'] ?? '')));
-            $address['rider_phone'] = trim((string) ($request->input('rider_phone', $address['rider_phone'] ?? '')));
             $request->session()->put('address', $address);
         } else {
             $request->session()->forget('address');
@@ -1376,8 +1389,6 @@ class POSController extends Controller
             'customer_name' => $address['contact_person_name'] ?? '',
             'customer_phone' => $address['contact_person_number'] ?? '',
             'address' => $address['address'] ?? '',
-            'rider_name' => $request->input('rider_name', $address['rider_name'] ?? ''),
-            'rider_phone' => $request->input('rider_phone', $address['rider_phone'] ?? ''),
         ]);
 
         return $error === null ? null : translate($error);

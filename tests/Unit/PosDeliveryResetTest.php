@@ -48,7 +48,9 @@ class PosDeliveryResetTest extends TestCase
         $this->assertStringContainsString('function hydrateCart', $helper);
         $this->assertStringContainsString("deliveryFee: 0", $helper);
         $this->assertStringContainsString("contact_person_name: ''", $helper);
-        $this->assertStringContainsString("rider_name: ''", $helper);
+        $this->assertStringNotContainsString("rider_name: ''", $helper);
+        $this->assertStringNotContainsString('pos-del-rider-name', $page);
+        $this->assertStringNotContainsString('Who will deliver this order?', $page);
     }
 
     public function test_node_delivery_reset_scenarios(): void

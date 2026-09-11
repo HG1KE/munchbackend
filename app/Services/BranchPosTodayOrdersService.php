@@ -112,11 +112,17 @@ class BranchPosTodayOrdersService
             ? TimezoneDisplay::parseStoredUtc($order->updated_at)?->timezone($tz)
             : null;
 
-        $customerName = trim((string) (($order->customer?->f_name.' '.$order->customer?->l_name) ?: ''));
+        $deliveryCustomer = $this->deliveryCustomer($order);
+        $customerName = $deliveryCustomer['name'];
         if ($customerName === '') {
-            $customerName = $this->addressField($order, 'contact_person_name');
+            $customerName = trim((string) (($order->customer?->f_name.' '.$order->customer?->l_name) ?: ''));
         }
-        $phone = (string) ($order->customer?->phone ?: $this->addressField($order, 'contact_person_number') ?: $this->addressField($order, 'phone'));
+        if ($customerName === '' && (string) $order->sales_channel !== 'delivery') {
+            $customerName = 'Walk-in';
+        }
+        $phone = $deliveryCustomer['phone'] !== ''
+            ? $deliveryCustomer['phone']
+            : (string) ($order->customer?->phone ?: '');
 
         $grand = (float) $order->order_amount;
         $items = [];
@@ -145,9 +151,9 @@ class BranchPosTodayOrdersService
             'sales_channel_label' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
             'branch' => $branchName,
             'cashier' => $cashierName !== '' ? $cashierName : $branchName,
-            'customer' => $customerName !== '' ? $customerName : 'Walk-in',
+            'customer' => $customerName,
             'phone' => $phone,
-            'address' => $order->sales_channel === 'delivery' ? $this->addressField($order, 'address') : '',
+            'address' => $order->sales_channel === 'delivery' ? $deliveryCustomer['address'] : '',
             'notes' => trim((string) ($order->order_note ?: '')),
             'delivery_fee' => (float) $order->delivery_charge,
             'discount' => (float) $order->extra_discount + $itemDiscount,
@@ -176,25 +182,45 @@ class BranchPosTodayOrdersService
     }
 
     /**
+     * @return array{name: string, phone: string, address: string}
+     */
+    public function deliveryCustomer(Order $order): array
+    {
+        return [
+            'name' => $this->addressField($order, 'contact_person_name'),
+            'phone' => $this->addressField($order, 'contact_person_number') ?: $this->addressField($order, 'phone'),
+            'address' => $this->addressField($order, 'address'),
+        ];
+    }
+
+    /**
      * `orders.delivery_address` is JSON (array cast) and also a relation name.
      * Never read it with object `->` — Delivery POS rows crash the All tab if you do.
      */
     private function addressField(Order $order, string $key): string
     {
-        if ($order->relationLoaded('customer_delivery_address')) {
-            $related = $order->getRelation('customer_delivery_address');
-            if (is_object($related)) {
-                $value = trim((string) ($related->{$key} ?? ''));
+        $rawColumn = $order->getRawOriginal('delivery_address');
+        if (is_string($rawColumn) && $rawColumn !== '') {
+            $decoded = json_decode($rawColumn, true);
+            if (is_array($decoded)) {
+                $value = trim((string) ($decoded[$key] ?? ''));
                 if ($value !== '') {
                     return $value;
                 }
             }
         }
 
-        $raw = $order->getAttributes()['delivery_address'] ?? null;
-        if ($raw === null) {
-            $raw = $order->getAttribute('delivery_address');
+        $related = $order->relationLoaded('customer_delivery_address')
+            ? $order->getRelation('customer_delivery_address')
+            : null;
+        if (is_object($related)) {
+            $value = trim((string) ($related->{$key} ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
         }
+
+        $raw = $order->getAttributes()['delivery_address'] ?? null;
         if (is_string($raw) && $raw !== '') {
             $decoded = json_decode($raw, true);
             $raw = is_array($decoded) ? $decoded : null;

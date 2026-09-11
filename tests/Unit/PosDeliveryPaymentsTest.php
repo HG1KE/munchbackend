@@ -45,7 +45,7 @@ class PosDeliveryPaymentsTest extends TestCase
         $this->assertStringNotContainsString('cash_on_delivery', $methods);
 
         $this->assertStringContainsString('function immediatePaymentStatus', $app);
-        $this->assertStringContainsString("payment_status: immediatePaymentStatus(state.cart.payment)", $app);
+        $this->assertStringContainsString('payment_status: immediatePaymentStatus(pay)', $app);
         $this->assertStringContainsString("isPaidImmediately(\$orderType, \$paymentMethod) ? 'paid' : 'unpaid'", $controller);
         $this->assertStringContainsString("in_array(\$paymentMethod, ['cash', 'card', 'mpesa'], true)", $controller);
         $this->assertStringContainsString('$orderChangeAmount->paid_amount = $order->order_amount;', $controller);
@@ -63,7 +63,8 @@ class PosDeliveryPaymentsTest extends TestCase
         $this->assertStringContainsString('id="pos-delivery-modal"', $page);
         $this->assertStringContainsString('id="pos-del-name"', $page);
         $this->assertStringContainsString('id="pos-del-fee"', $page);
-        $this->assertStringContainsString('id="pos-del-rider-name"', $page);
+        $this->assertStringNotContainsString('id="pos-del-rider-name"', $page);
+        $this->assertStringNotContainsString('Who will deliver this order?', $page);
 
         $payment = $this->functionBody($ticket, 'function paymentHtml');
         $this->assertStringContainsString("kind === 'kitchen') return ''", $payment);

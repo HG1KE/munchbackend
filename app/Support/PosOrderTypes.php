@@ -275,9 +275,9 @@ class PosOrderTypes
     /**
      * Required POS Delivery fields. Other order types skip this validation.
      *
-     * Rider phone is required only when a rider name is entered.
+     * POS Delivery requires customer name, phone, and address.
      *
-     * @param  array{customer_name?: mixed, customer_phone?: mixed, address?: mixed, rider_name?: mixed, rider_phone?: mixed}  $fields
+     * @param  array{customer_name?: mixed, customer_phone?: mixed, address?: mixed}  $fields
      */
     public static function posDeliveryFieldError(?string $type, array $fields): ?string
     {
@@ -298,18 +298,6 @@ class PosOrderTypes
         }
         if (trim((string) ($fields['address'] ?? '')) === '') {
             return 'Delivery Address';
-        }
-
-        $riderName = trim((string) ($fields['rider_name'] ?? ''));
-        $riderPhone = trim((string) ($fields['rider_phone'] ?? ''));
-        if ($riderName !== '' && $riderPhone === '') {
-            return 'Rider Phone';
-        }
-        if ($riderPhone !== '') {
-            $riderPhoneError = self::phoneDigitsError($riderPhone);
-            if ($riderPhoneError !== null) {
-                return 'Invalid phone number';
-            }
         }
 
         return null;

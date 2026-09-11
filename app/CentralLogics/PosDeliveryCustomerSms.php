@@ -71,20 +71,10 @@ class PosDeliveryCustomerSms
         $order->loadMissing(['customer', 'branch', 'details', 'customer_delivery_address']);
 
         $customerPhone = (string) (self::resolveCustomerPhone($order) ?? '');
-        $riderName = trim((string) ($order->rider_name ?? ''));
-        $riderPhone = trim((string) ($order->rider_phone ?? ''));
         $till = $order->branch ? trim((string) ($order->branch->mpesa_till ?? '')) : '';
         $deliveryFee = self::formatMoney((float) $order->delivery_charge);
         $total = self::formatMoney((float) $order->order_amount);
         $subtotal = self::formatMoney(max(0, (float) $order->order_amount - (float) $order->delivery_charge));
-
-        $riderInfo = '';
-        if ($riderName !== '') {
-            $riderInfo = ' and will be delivered by '.$riderName;
-            if ($riderPhone !== '') {
-                $riderInfo .= ' ('.$riderPhone.')';
-            }
-        }
 
         $mpesaInfo = $till !== '' && ($order->payment_method ?? '') === 'mpesa'
             ? "\n\nPlease pay to M-PESA Till ".$till." if you haven't already."
@@ -99,9 +89,9 @@ class PosDeliveryCustomerSms
             'delivery_fee' => $deliveryFee,
             'subtotal' => $subtotal,
             'total' => $total,
-            'rider_name' => $riderName,
-            'rider_phone' => $riderPhone,
-            'rider_info' => $riderInfo,
+            'rider_name' => '',
+            'rider_phone' => '',
+            'rider_info' => '',
             'mpesa_till' => $till,
             'mpesa_info' => $mpesaInfo,
             'items' => self::formatItems($order),

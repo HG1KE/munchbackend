@@ -27,10 +27,6 @@ function dirtyCart(overrides) {
             contact_person_name: 'Jane Doe',
             contact_person_number: '0700000000',
             address: 'Westlands'
-        },
-        rider: {
-            rider_name: 'Alex',
-            rider_phone: '0711111111'
         }
     }, overrides || {});
 }
@@ -40,8 +36,7 @@ function assertBlankDelivery(cart, label) {
     assert(cart.address.contact_person_name === '', label + ': name leaked');
     assert(cart.address.contact_person_number === '', label + ': phone leaked');
     assert(cart.address.address === '', label + ': address leaked');
-    assert(cart.rider.rider_name === '', label + ': rider name leaked');
-    assert(cart.rider.rider_phone === '', label + ': rider phone leaked');
+    assert(!cart.rider, label + ': rider state should be removed');
 }
 
 function test(name, fn) {
@@ -56,7 +51,7 @@ function test(name, fn) {
 }
 
 test('applyEmptyDelivery clears every customer delivery field', function () {
-    var cart = dirtyCart();
+    var cart = dirtyCart({ rider: { rider_name: 'Alex', rider_phone: '0711111111' } });
     var previousAddress = cart.address;
     delivery.applyEmptyDelivery(cart);
     assertBlankDelivery(cart, 'reset');
@@ -74,7 +69,6 @@ test('persistableCart never writes delivery details and does not mutate live sta
     assert(stored.note === 'keep-me', 'idb snapshot should keep unrelated cart fields');
     assert(cart.deliveryFee === 200, 'live cart fee was mutated');
     assert(cart.address.contact_person_name === 'Jane Doe', 'live cart name was mutated');
-    assert(cart.rider.rider_name === 'Alex', 'live cart rider was mutated');
 });
 
 test('IndexedDB leftover delivery is not restored on a new sale', function () {
@@ -87,8 +81,7 @@ test('IndexedDB leftover delivery is not restored on a new sale', function () {
         payment: 'cash',
         paid: '',
         deliveryFee: 0,
-        address: {},
-        rider: {}
+        address: {}
     }, stored);
     assert(next.lines.length === 0, 'empty cart should stay empty');
     assertBlankDelivery(next, 'new sale hydrate');
@@ -96,7 +89,7 @@ test('IndexedDB leftover delivery is not restored on a new sale', function () {
 
 test('IndexedDB leftover delivery is not restored with in-progress lines', function () {
     var stored = dirtyCart();
-    var next = delivery.hydrateCart({ lines: [], deliveryFee: 0, address: {}, rider: {} }, stored);
+    var next = delivery.hydrateCart({ lines: [], deliveryFee: 0, address: {} }, stored);
     assert(next.lines.length === 1, 'in-progress lines should restore');
     assert(next.note === 'keep-me', 'unrelated cart fields should restore');
     assertBlankDelivery(next, 'draft hydrate');
@@ -108,15 +101,16 @@ test('offline queue payload is independent of the cleared form snapshot', functi
         contact_person_name: cart.address.contact_person_name,
         contact_person_number: cart.address.contact_person_number,
         address: cart.address.address,
-        rider_name: cart.rider.rider_name,
-        rider_phone: cart.rider.rider_phone,
         delivery_charge: cart.deliveryFee
     };
     delivery.applyEmptyDelivery(cart);
     assertBlankDelivery(cart, 'after queue');
     assert(queued.contact_person_name === 'Jane Doe', 'queued name should stay on the order payload');
+    assert(queued.contact_person_number === '0700000000', 'queued phone should stay on the order payload');
+    assert(queued.address === 'Westlands', 'queued address should stay on the order payload');
     assert(queued.delivery_charge === 200, 'queued fee should stay on the order payload');
-    assert(queued.rider_name === 'Alex', 'queued rider should stay on the order payload');
+    assert(!Object.prototype.hasOwnProperty.call(queued, 'rider_name'), 'queued payload must not include rider_name');
+    assert(!Object.prototype.hasOwnProperty.call(queued, 'rider_phone'), 'queued payload must not include rider_phone');
 });
 
 if (failed) {

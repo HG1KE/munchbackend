@@ -97,7 +97,7 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('Bolt Food', PosOrderTypes::paymentReceiptLabel('bolt_food'));
     }
 
-    public function test_rider_fields_are_required_only_for_delivery(): void
+    public function test_delivery_requires_customer_fields_and_ignores_rider(): void
     {
         $complete = [
             'customer_name' => 'Jane',
@@ -114,7 +114,7 @@ class BranchPosOrderTypesTest extends TestCase
 
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $complete));
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $missingRider));
-        $this->assertSame('Rider Phone', PosOrderTypes::posDeliveryFieldError('delivery', $missingPhone));
+        $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', $missingPhone));
         $this->assertSame('Customer Name', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_name' => ''])));
         $this->assertSame('Invalid phone number', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '12'])));
 

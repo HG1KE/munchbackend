@@ -109,7 +109,7 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertMatchesRegularExpression('/790/', $vars['items']);
     }
 
-    public function test_variables_include_branch_till_rider_delivery_fee_and_items(): void
+    public function test_variables_include_branch_till_delivery_fee_and_items(): void
     {
         $order = $this->deliveryOrder([
             $this->detail('Chicken Burger', 2, 350),
@@ -133,11 +133,10 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertMatchesRegularExpression('/150/', $vars['delivery_fee']);
         $this->assertMatchesRegularExpression('/1200/', $vars['subtotal']);
         $this->assertMatchesRegularExpression('/1350/', $vars['total']);
-        $this->assertStringContainsString('Jane Rider', $vars['rider_info']);
-        $this->assertStringContainsString('0711111111', $vars['rider_info']);
+        $this->assertSame('', $vars['rider_info']);
+        $this->assertSame('', $vars['rider_name']);
+        $this->assertSame('', $vars['rider_phone']);
         $this->assertStringContainsString('554433', $vars['mpesa_info']);
-        $this->assertSame('Jane Rider', $vars['rider_name']);
-        $this->assertSame('0711111111', $vars['rider_phone']);
         $this->assertSame('554433', $vars['mpesa_till']);
         $this->assertStringContainsString('2 x Chicken Burger', $vars['items']);
         $this->assertStringContainsString('1 x Fries', $vars['items']);
@@ -149,7 +148,8 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $sms = $this->renderDefaultSms($vars);
         $this->assertStringContainsString('Delivery Fee:', $sms);
         $this->assertStringContainsString('M-PESA Till 554433', $sms);
-        $this->assertStringContainsString('Jane Rider', $sms);
+        $this->assertStringNotContainsString('Jane Rider', $sms);
+        $this->assertStringNotContainsString('delivered by', $sms);
         $this->assertMatchesRegularExpression('/1350/', $sms);
     }
 
@@ -189,7 +189,7 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertStringContainsString('Westlands', $cleaned);
     }
 
-    public function test_sample_sms_includes_plain_item_variation_prices_totals_rider_and_till(): void
+    public function test_sample_sms_includes_plain_item_variation_prices_totals_and_till(): void
     {
         $order = $this->deliveryOrder([
             $this->detail('Fries', 1, 200),
@@ -210,8 +210,9 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertStringContainsString('1 x Fries', $sms);
         $this->assertStringContainsString('2 x Double Burger (Large)', $sms);
         $this->assertStringContainsString('each', $sms);
-        $this->assertStringContainsString('Jane Rider', $sms);
-        $this->assertStringContainsString('0711111111', $sms);
+        $this->assertStringNotContainsString('Jane Rider', $sms);
+        $this->assertStringNotContainsString('0711111111', $sms);
+        $this->assertStringNotContainsString('delivered by', $sms);
         $this->assertStringContainsString('M-PESA Till 554433', $sms);
         $this->assertMatchesRegularExpression('/200/', $sms);
         $this->assertMatchesRegularExpression('/790/', $sms);

@@ -418,14 +418,31 @@
 
     function customerHtml(kind, template, job) {
         var bits = '';
-        var wantCustomer = job.isDelivery || job.customer;
-        if (wantCustomer && show(kind, template, 'order', 'customer_name') && job.customer) bits += metaLine('Customer', job.customer);
-        if (wantCustomer && show(kind, template, 'order', 'customer_phone') && job.phone) bits += metaLine('Phone', job.phone);
-        if (job.isDelivery && show(kind, template, 'order', 'delivery_address') && job.address) bits += metaLine('Address', job.address);
-        if (job.isDelivery && show(kind, template, 'order', 'rider_name') && job.riderName) bits += metaLine('Rider Name', job.riderName);
-        if (job.isDelivery && show(kind, template, 'order', 'rider_phone') && (job.riderPhone || job.rider_phone)) {
-            bits += metaLine('Rider Phone', job.riderPhone || job.rider_phone);
+        var name = String((job && job.customer) || '').trim();
+        if (job && job.isDelivery && name.toLowerCase() === 'walk-in') name = '';
+        var phone = String((job && job.phone) || '').trim();
+        var address = String((job && job.address) || '').trim();
+        var riderName = String((job && (job.riderName || job.rider_name)) || '').trim();
+        var riderPhone = String((job && (job.riderPhone || job.rider_phone)) || '').trim();
+        var deliveryReceipt = !!(job && job.isDelivery && kind !== 'kitchen');
+
+        if (deliveryReceipt) {
+            var lines = '';
+            if (show(kind, template, 'order', 'customer_name') && name) lines += metaLine('Name', name);
+            if (show(kind, template, 'order', 'customer_phone') && phone) lines += metaLine('Phone', phone);
+            if (show(kind, template, 'order', 'delivery_address') && address) lines += metaLine('Address', address);
+            if (lines) bits += '<p>Delivery Customer</p>' + lines;
+            if (show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
+            if (show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
+            return bits ? '<div class="meta">' + bits + '</div>' : '';
         }
+
+        var wantCustomer = (job && job.isDelivery) || name;
+        if (wantCustomer && show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name);
+        if (wantCustomer && show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone);
+        if (job && job.isDelivery && show(kind, template, 'order', 'delivery_address') && address) bits += metaLine('Address', address);
+        if (job && job.isDelivery && show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
+        if (job && job.isDelivery && show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
         return bits ? '<div class="meta">' + bits + '</div>' : '';
     }
 

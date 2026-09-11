@@ -92,15 +92,6 @@
                     <input type="number" id="pos-del-fee" min="0" step="1" inputmode="decimal" value="0" aria-label="{{ translate('Delivery Fee') }}" data-del-field>
                 </span>
             </label>
-            <h3>{{ translate('Who will deliver this order?') }}</h3>
-            <label class="munch-pos-delivery-modal__field">
-                <span>{{ translate('Rider Name') }}</span>
-                <input type="text" id="pos-del-rider-name" placeholder="{{ translate('Rider Name') }}" autocomplete="off" data-del-field>
-            </label>
-            <label class="munch-pos-delivery-modal__field">
-                <span>{{ translate('Rider Phone') }}</span>
-                <input type="tel" id="pos-del-rider-phone" placeholder="{{ translate('Rider Phone') }}" autocomplete="off" inputmode="numeric" pattern="[0-9+]*" data-del-field>
-            </label>
         </div>
         <div class="munch-pos-dialog__actions">
             <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
@@ -230,10 +221,7 @@
             customerName: @json(translate('Customer Name')),
             customerPhone: @json(translate('Customer Phone')),
             deliveryAddress: @json(translate('Delivery Address')),
-            riderName: @json(translate('Rider Name')),
-            riderPhone: @json(translate('Rider Phone')),
             confirmDelivery: @json(translate('Confirm Delivery')),
-            whoDelivers: @json(translate('Who will deliver this order?')),
             add: @json(translate('Add To Cart')),
             options: @json(translate('Options')),
             choose: @json(translate('Choose')),
@@ -313,8 +301,8 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.4"></script>
+<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.5"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.2" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.3" defer></script>
 @endpush

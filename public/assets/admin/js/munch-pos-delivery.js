@@ -15,10 +15,6 @@
                 contact_person_name: '',
                 contact_person_number: '',
                 address: ''
-            },
-            rider: {
-                rider_name: '',
-                rider_phone: ''
             }
         };
     }
@@ -28,7 +24,7 @@
         var empty = emptyDeliveryState();
         next.deliveryFee = empty.deliveryFee;
         next.address = empty.address;
-        next.rider = empty.rider;
+        if (Object.prototype.hasOwnProperty.call(next, 'rider')) delete next.rider;
         return next;
     }
 
