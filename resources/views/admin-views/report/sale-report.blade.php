@@ -3,7 +3,7 @@
 @section('title', translate('Sale Report'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.1">
 @endpush
 
 @section('content')
@@ -129,6 +129,10 @@
                 <p class="munch-sale-report__value" id="pay-mpesa">—</p>
             </article>
             <article class="munch-sale-report__card munch-sale-report__card--pay">
+                <span class="munch-sale-report__label">{{ translate('Paystack') }}</span>
+                <p class="munch-sale-report__value" id="pay-paystack">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--pay">
                 <span class="munch-sale-report__label">Glovo</span>
                 <p class="munch-sale-report__value" id="pay-glovo">—</p>
             </article>
@@ -184,6 +188,7 @@
                         $('#pay-cash').html(data.payment_totals.cash);
                         $('#pay-card').html(data.payment_totals.card);
                         $('#pay-mpesa').html(data.payment_totals.mpesa);
+                        $('#pay-paystack').html(data.payment_totals.paystack);
                         $('#pay-glovo').html(data.payment_totals.glovo);
                         $('#pay-uber').html(data.payment_totals.uber);
                         $('#pay-bolt_food').html(data.payment_totals.bolt_food);

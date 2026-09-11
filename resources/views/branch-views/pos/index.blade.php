@@ -215,6 +215,7 @@
             cash: @json(translate('Cash')),
             card: @json(translate('Card')),
             mpesa: @json(translate('M-PESA')),
+            paystack: @json(translate('Paystack')),
             payAfter: @json(translate('pay_after_eating')),
             cod: @json(translate('Cash On Delivery')),
             deliveryDetails: @json(translate('Delivery details')),
@@ -301,8 +302,8 @@
         }
     };
 </script>
-<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.8"></script>
+<script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=1.9"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.4" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=4.5" defer></script>
 @endpush

@@ -7,16 +7,11 @@ use Tests\TestCase;
 
 class PosDeliveryPaymentsTest extends TestCase
 {
-    public function test_delivery_uses_the_same_immediate_payment_methods_as_take_away(): void
+    public function test_delivery_keeps_cash_card_and_mpesa_and_adds_paystack(): void
     {
-        $this->assertSame(
-            PosOrderTypes::paymentMethods('take_away'),
-            PosOrderTypes::paymentMethods('delivery')
-        );
-        $this->assertSame(
-            PosOrderTypes::paymentMethods('dine_in'),
-            PosOrderTypes::paymentMethods('delivery')
-        );
+        $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('take_away'));
+        $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('dine_in'));
+        $this->assertSame(['cash', 'card', 'mpesa', 'paystack'], PosOrderTypes::paymentMethods('delivery'));
 
         foreach (['cash', 'card', 'mpesa'] as $method) {
             $this->assertTrue(PosOrderTypes::isImmediatePosPayment($method), $method);
@@ -42,12 +37,13 @@ class PosDeliveryPaymentsTest extends TestCase
         $methods = $this->functionBody($app, 'function paymentMethods');
         $this->assertStringContainsString("state.cart.orderType === 'delivery'", $methods);
         $this->assertStringContainsString("['cash', 'card', 'mpesa']", $methods);
+        $this->assertStringContainsString("delivery.push('paystack')", $methods);
         $this->assertStringNotContainsString('cash_on_delivery', $methods);
 
         $this->assertStringContainsString('function immediatePaymentStatus', $app);
         $this->assertStringContainsString('payment_status: immediatePaymentStatus(pay)', $app);
         $this->assertStringContainsString("isPaidImmediately(\$orderType, \$paymentMethod) ? 'paid' : 'unpaid'", $controller);
-        $this->assertStringContainsString("in_array(\$paymentMethod, ['cash', 'card', 'mpesa'], true)", $controller);
+        $this->assertStringContainsString('PosOrderTypes::isImmediatePosPayment($paymentMethod)', $controller);
         $this->assertStringContainsString('$orderChangeAmount->paid_amount = $order->order_amount;', $controller);
         $this->assertStringNotContainsString('$request->paid_amount', $controller);
 

@@ -25,6 +25,8 @@ class PosOrderTypes
 
     public const BOLT_FOOD = 'bolt_food';
 
+    public const PAYSTACK = 'paystack';
+
     /**
      * @return list<string>
      */
@@ -184,7 +186,11 @@ class PosOrderTypes
     public static function paymentMethods(?string $type, bool $posMpesaEnabled = true): array
     {
         return match (self::normalize($type)) {
-            self::DELIVERY, self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
+            self::DELIVERY => array_merge(
+                $posMpesaEnabled ? ['cash', 'card', 'mpesa'] : ['cash', 'card'],
+                [self::PAYSTACK]
+            ),
+            self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
                 ? ['cash', 'card', 'mpesa']
                 : ['cash', 'card'],
             self::GLOVO => [self::GLOVO],
@@ -208,7 +214,12 @@ class PosOrderTypes
             return $marketplace;
         }
 
-        return (string) $requested;
+        $requested = (string) $requested;
+        if ($requested === self::PAYSTACK && ! self::isDelivery($type)) {
+            return (self::paymentMethods($type)[0] ?? 'cash');
+        }
+
+        return $requested;
     }
 
     public static function isMarketplacePayment(?string $method): bool
@@ -239,6 +250,7 @@ class PosOrderTypes
             'cash' => translate('Cash'),
             'card' => translate('Card'),
             'mpesa' => translate('M-PESA'),
+            self::PAYSTACK => translate('Paystack'),
             'cash_on_delivery' => translate('Cash On Delivery'),
             default => ucwords(str_replace('_', ' ', (string) $method)),
         };
@@ -305,7 +317,7 @@ class PosOrderTypes
 
     public static function isImmediatePosPayment(?string $method): bool
     {
-        return in_array((string) $method, ['cash', 'card', 'mpesa'], true);
+        return in_array((string) $method, ['cash', 'card', 'mpesa', self::PAYSTACK], true);
     }
 
     public static function isPaidImmediately(?string $type, ?string $paymentMethod): bool

@@ -649,7 +649,7 @@ class POSController extends Controller
                 }
                 OrderDetail::insert($orderDetails);
 
-                if (in_array($paymentMethod, ['cash', 'card', 'mpesa'], true)) {
+                if (PosOrderTypes::isImmediatePosPayment($paymentMethod)) {
                     $orderChangeAmount = new OrderChangeAmount();
                     $orderChangeAmount->order_id = $order->id;
                     $orderChangeAmount->order_amount = $order->order_amount;

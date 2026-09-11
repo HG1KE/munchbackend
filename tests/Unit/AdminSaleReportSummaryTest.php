@@ -55,6 +55,23 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertSame(150.0, $groups['marketplace_sales']);
     }
 
+    public function test_paystack_is_not_included_in_munch_or_marketplace_sales(): void
+    {
+        $groups = AdminSaleReportSummary::fromPaymentTotals([
+            'cash' => 100,
+            'card' => 200,
+            'mpesa' => 50,
+            'paystack' => 5000,
+            'glovo' => 80,
+            'uber' => 40,
+            'bolt_food' => 30,
+        ]);
+
+        $this->assertSame(350.0, $groups['munch_sales']);
+        $this->assertSame(150.0, $groups['marketplace_sales']);
+        $this->assertNotEquals(5350.0, $groups['munch_sales']);
+    }
+
     public function test_payment_groups_do_not_change_total_sales(): void
     {
         $summary = AdminSaleReportSummary::fromParts([
@@ -92,6 +109,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("\$price = \$detail['price'] - \$detail['discount_on_product']", $controller);
         $this->assertStringContainsString("'order_sum' => Helpers::set_symbol(\$totalSold)", $controller);
         $this->assertStringContainsString("'cash' => Helpers::set_symbol(\$paymentTotals['cash'])", $controller);
+        $this->assertStringContainsString("'paystack' => Helpers::set_symbol(\$paymentTotals['paystack'])", $controller);
         $this->assertStringContainsString("input('payment_method', 'all')", $controller);
         $this->assertStringContainsString('fromPaymentTotals($paymentTotals)', $controller);
         $this->assertStringContainsString("\$summaryDisplay['munch_sales']", $controller);
@@ -107,6 +125,8 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('id="sum-delivery-fees"', $page);
         $this->assertStringContainsString('id="sum-total-sales"', $page);
         $this->assertStringContainsString('id="pay-cash"', $page);
+        $this->assertStringContainsString('id="pay-paystack"', $page);
+        $this->assertStringContainsString("data.payment_totals.paystack", $page);
         $this->assertStringContainsString('munch-sale-report__card', $page);
         $this->assertStringContainsString("data.summary.total_discounts", $page);
         $this->assertStringContainsString("data.summary.munch_sales", $page);

@@ -625,7 +625,12 @@
     }
 
     function paymentMethods() {
-        if (state.cart.orderType === 'delivery' || state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
+        if (state.cart.orderType === 'delivery') {
+            var delivery = posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
+            delivery.push('paystack');
+            return delivery;
+        }
+        if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
             return posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];
         }
         if (state.cart.orderType === 'glovo') return ['glovo'];
@@ -1849,13 +1854,14 @@
     }
 
     function immediatePaymentStatus(method) {
-        return (method === 'cash' || method === 'card' || method === 'mpesa') ? 'paid' : '';
+        return (method === 'cash' || method === 'card' || method === 'mpesa' || method === 'paystack') ? 'paid' : '';
     }
 
     function paymentLabel(method) {
         if (method === 'cash') return L('cash', 'Cash');
         if (method === 'card') return L('card', 'Card');
         if (method === 'mpesa') return L('mpesa', 'M-PESA');
+        if (method === 'paystack') return L('paystack', 'Paystack');
         if (method === 'pay_after_eating') return L('payAfter', 'Pay after eating');
         if (method === 'cash_on_delivery') return L('cod', 'Cash On Delivery');
         if (method === 'glovo') return L('glovo', 'Glovo');

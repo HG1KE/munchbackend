@@ -232,6 +232,7 @@
         if (key === 'cash') return 'Cash';
         if (key === 'card') return 'Card';
         if (key === 'mpesa' || key === 'wallet') return 'M-PESA';
+        if (key === 'paystack') return 'Paystack';
         if (key === 'pay_after_eating') return 'Pay after eating';
         if (key === 'cash_on_delivery') return 'Cash On Delivery';
         return key ? key.replace(/_/g, ' ') : '';
@@ -640,7 +641,7 @@
     }
 
     function isImmediatePosPayment(method) {
-        return method === 'cash' || method === 'card' || method === 'mpesa';
+        return method === 'cash' || method === 'card' || method === 'mpesa' || method === 'paystack';
     }
 
     function paymentStatusLabel(job) {

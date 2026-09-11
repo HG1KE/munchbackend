@@ -63,6 +63,7 @@ test('payment status renders when the template toggle is enabled', function () {
         cash: 'Cash',
         card: 'Card',
         mpesa: 'M-PESA',
+        paystack: 'Paystack',
         glovo: 'glovo',
         uber: 'uber',
         bolt_food: 'bolt food'
@@ -71,7 +72,7 @@ test('payment status renders when the template toggle is enabled', function () {
         var html = render('customer', null, {
             payment_method: method,
             payment_status: 'paid',
-            salesChannel: method === 'cash' || method === 'card' || method === 'mpesa' ? 'delivery' : method,
+            salesChannel: method === 'cash' || method === 'card' || method === 'mpesa' || method === 'paystack' ? 'delivery' : method,
             isDelivery: method !== 'dine_in'
         });
         assert(html.indexOf('Payment Status') !== -1, method + ' missing Payment Status');
@@ -84,7 +85,7 @@ test('payment status is omitted when the template toggle is disabled', function 
     var T = renderer();
     var template = T.defaults('customer');
     template.sections.payment.payment_status = false;
-    ['cash', 'card', 'mpesa', 'glovo', 'uber', 'bolt_food'].forEach(function (method) {
+    ['cash', 'card', 'mpesa', 'paystack', 'glovo', 'uber', 'bolt_food'].forEach(function (method) {
         var html = T.renderDocument('customer', template, job({
             payment_method: method,
             payment_status: 'paid',

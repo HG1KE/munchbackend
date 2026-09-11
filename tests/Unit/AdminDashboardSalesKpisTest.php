@@ -89,6 +89,23 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertNotEquals($totals['munch_sales'], $totals['glovo'] + $totals['uber'] + $totals['bolt_food']);
     }
 
+    public function test_paystack_is_not_classified_as_cash_card_mpesa_or_marketplace(): void
+    {
+        $totals = AdminDashboardSalesKpis::fromGroupedRows([
+            ['payment_method' => 'paystack', 'sales_channel' => 'delivery', 'total' => 5000],
+            ['payment_method' => 'cash', 'sales_channel' => 'delivery', 'total' => 100],
+        ]);
+
+        $this->assertSame(100.0, $totals['munch_sales']);
+        $this->assertSame(100.0, $totals['cash']);
+        $this->assertSame(0.0, $totals['card']);
+        $this->assertSame(0.0, $totals['mpesa']);
+        $this->assertSame(0.0, $totals['glovo']);
+        $this->assertSame(0.0, $totals['uber']);
+        $this->assertSame(0.0, $totals['bolt_food']);
+        $this->assertSame('other', AdminDashboardSalesKpis::category('paystack', 'delivery'));
+    }
+
     public function test_empty_dataset_returns_zeros(): void
     {
         $totals = AdminDashboardSalesKpis::fromGroupedRows([]);
