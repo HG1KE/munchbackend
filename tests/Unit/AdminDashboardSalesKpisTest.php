@@ -143,9 +143,12 @@ class AdminDashboardSalesKpisTest extends TestCase
 
         $this->assertStringContainsString("partials._dashboard-sales-kpis", $page);
         $this->assertStringContainsString('munch-dashboard-kpis.js', $page);
+        $this->assertStringContainsString("munch-dashboard-kpis.js') }}?v=1.1", $page);
         $this->assertStringContainsString("summarize(null, 'today')", $controller);
         $this->assertStringContainsString("value=\"all\" selected", $partial);
         $this->assertStringContainsString("value=\"today\" selected", $partial);
+        $this->assertStringContainsString('data-events-url', $partial);
+        $this->assertStringContainsString('admin.dashboard.sales-kpis', $partial);
         $this->assertStringContainsString('id="kpi-munch-sales"', $partial);
         $this->assertStringContainsString('id="kpi-glovo"', $partial);
         $this->assertStringContainsString('id="kpi-uber"', $partial);

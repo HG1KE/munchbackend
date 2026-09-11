@@ -3,7 +3,7 @@
     $kpiBranches = $kpiBranches ?? collect();
 @endphp
 
-<section class="munch-dash-kpis mb-3{{ ($salesKpis['timeframe'] ?? 'today') === 'custom' ? ' is-custom' : '' }}" id="munch-dash-kpis" data-url="{{ route('admin.dashboard.sales-kpis') }}">
+<section class="munch-dash-kpis mb-3{{ ($salesKpis['timeframe'] ?? 'today') === 'custom' ? ' is-custom' : '' }}" id="munch-dash-kpis" data-url="{{ route('admin.dashboard.sales-kpis') }}" data-events-url="{{ route('admin.dashboard.sales-kpis.events') }}" data-channel="admin.dashboard.sales-kpis">
     <div class="munch-dash-kpis__filters">
         <div class="munch-dash-kpis__field">
             <label for="kpi-branch">{{ translate('Select Branch') }}</label>

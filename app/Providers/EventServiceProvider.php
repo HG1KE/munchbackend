@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\AdminDashboardSaleRecorded;
+use App\Listeners\PublishAdminDashboardSaleRecorded;
 use App\Model\BusinessSetting;
 use App\Observers\BusinessSettingObserver;
 use Illuminate\Auth\Events\Registered;
@@ -19,6 +21,9 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+        AdminDashboardSaleRecorded::class => [
+            PublishAdminDashboardSaleRecorded::class,
         ],
     ];
 

@@ -588,6 +588,6 @@
                 }
             </script>
             <script src="{{ asset('public/assets/admin/js/dashboard-online-orders.js') }}?v=1.1"></script>
-            <script src="{{ asset('public/assets/admin/js/munch-dashboard-kpis.js') }}?v=1.0"></script>
+            <script src="{{ asset('public/assets/admin/js/munch-dashboard-kpis.js') }}?v=1.1"></script>
 
         @endpush

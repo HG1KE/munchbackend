@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\CustomerWalletController;
 use App\Http\Controllers\Admin\CustomRoleController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DashboardLiveCardsController;
+use App\Http\Controllers\Admin\DashboardSalesKpiEventsController;
 use App\Http\Controllers\Admin\DatabaseSettingsController;
 use App\Http\Controllers\Admin\DeliveryManController;
 use App\Http\Controllers\Admin\EmailTemplateController;
@@ -76,6 +77,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         Route::get('dashboard/live-stats', [DashboardController::class, 'liveStats'])->name('dashboard.live-stats');
         Route::get('dashboard/live-cards', DashboardLiveCardsController::class)->name('dashboard.live-cards');
         Route::get('dashboard/sales-kpis', [DashboardController::class, 'salesKpis'])->name('dashboard.sales-kpis');
+        Route::get('dashboard/sales-kpis/events', DashboardSalesKpiEventsController::class)->name('dashboard.sales-kpis.events');
         Route::get('settings', [SystemController::class, 'settings'])->name('settings');
         Route::post('settings', [SystemController::class, 'settingsUpdate']);
         Route::post('settings-password', [SystemController::class, 'settingsPasswordUpdate'])->name('settings-password');
