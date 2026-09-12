@@ -6,7 +6,9 @@ use App\Model\Order;
 use App\Support\AdminSaleReportExport;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Rap2hpoutre\FastExcel\FastExcel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -326,6 +328,68 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertSame(AdminSaleReportExport::FORMAT_XLSX, AdminSaleReportExport::normalizeFormat('excel'));
         $this->assertSame(AdminSaleReportExport::FORMAT_CSV, AdminSaleReportExport::normalizeFormat('csv'));
         $this->assertSame(AdminSaleReportExport::FORMAT_PDF, AdminSaleReportExport::normalizeFormat('pdf'));
+    }
+
+    public function test_shared_payload_generates_openable_pdf_csv_and_xlsx(): void
+    {
+        $this->assertTrue(class_exists(Pdf::class));
+        $this->assertFalse(class_exists('Barryvdh\\DomPDF\\Facade'));
+
+        $report = $this->sampleReport();
+        $this->assertSame(
+            'Munch Bamburi Sales 11th September 2026.pdf',
+            AdminSaleReportExport::filename($report, 'pdf')
+        );
+        $this->assertSame(
+            'Munch Bamburi Sales 11th September 2026.csv',
+            AdminSaleReportExport::filename($report, 'csv')
+        );
+        $this->assertSame(
+            'Munch Bamburi Sales 11th September 2026.xlsx',
+            AdminSaleReportExport::filename($report, 'xlsx')
+        );
+
+        $html = view('admin-views.report.partials._sale-report-export', compact('report'))->render();
+        foreach ([
+            'MUNCH',
+            'Branch:',
+            'Munch Bamburi',
+            'Sales Date:',
+            '11th September 2026',
+            'MUNCH SALES',
+            'Dine In',
+            'Take Away',
+            'Delivery',
+            'Munch Sales Total',
+            'MARKETPLACE SALES',
+            'Glovo Total',
+            'Uber Total',
+            'Bolt Food Total',
+            'TOTAL SALES',
+            'PAYMENT METHODS',
+            'A10123',
+            'A10126',
+            'GLV-12345',
+            'UBER-789',
+            'BOLT-456',
+        ] as $needle) {
+            $this->assertStringContainsString($needle, $html, $needle);
+        }
+
+        $binary = Pdf::loadView('admin-views.report.partials._sale-report-export', compact('report'))->output();
+        $this->assertNotSame('', $binary);
+        $this->assertSame('%PDF', substr($binary, 0, 4));
+
+        $csv = AdminSaleReportExport::csvString($report);
+        $this->assertStringContainsString('Branch: Munch Bamburi', $csv);
+        $this->assertStringContainsString('A10124', $csv);
+        $this->assertStringContainsString('GLV-12345', $csv);
+
+        $xlsxPath = sys_get_temp_dir().'/munch-sale-report-export-test.xlsx';
+        (new FastExcel(AdminSaleReportExport::flattenRows($report)))->export($xlsxPath);
+        $this->assertFileExists($xlsxPath);
+        $this->assertGreaterThan(100, (int) filesize($xlsxPath));
+        unlink($xlsxPath);
     }
 
     /**

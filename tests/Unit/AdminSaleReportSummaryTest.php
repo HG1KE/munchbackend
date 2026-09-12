@@ -120,6 +120,8 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('AdminSaleReportExport::downloadCsv($report, $filename)', $controller);
         $this->assertStringContainsString('AdminSaleReportExport::downloadXlsx($report, $filename)', $controller);
         $this->assertStringContainsString("partials._sale-report-export", $controller);
+        $this->assertStringContainsString('use Barryvdh\\DomPDF\\Facade\\Pdf;', $controller);
+        $this->assertStringNotContainsString('use Barryvdh\\DomPDF\\Facade as PDF;', $controller);
         $this->assertStringNotContainsString("sale_report_' . rand", $controller);
 
         $this->assertStringContainsString('id="sum-total-discounts"', $page);

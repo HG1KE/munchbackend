@@ -10,7 +10,7 @@ use App\Model\OrderDetail;
 use App\Support\AdminSaleReportExport;
 use App\Support\AdminSaleReportSummary;
 use App\Support\PosOrderTypes;
-use Barryvdh\DomPDF\Facade as PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
@@ -244,7 +244,7 @@ class ReportController extends Controller
             }
         }
 
-        $pdf = PDF::loadView('admin-views.report.partials._report', compact('data'));
+        $pdf = Pdf::loadView('admin-views.report.partials._report', compact('data'));
         return $pdf->download('report_' . rand(00001, 99999) . '.pdf');
     }
 
@@ -379,7 +379,7 @@ class ReportController extends Controller
             return view('admin-views.report.partials._sale-report-export', compact('report'));
         }
 
-        return PDF::loadView('admin-views.report.partials._sale-report-export', compact('report'))
+        return Pdf::loadView('admin-views.report.partials._sale-report-export', compact('report'))
             ->download($filename);
     }
 
