@@ -147,12 +147,17 @@
         </div>
 
         <div class="card munch-sale-report__table-card">
-            <div class="card-header">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
                 <h4 class="card-title mb-0">{{ translate('order') }}</h4>
+                <div class="d-flex flex-wrap gap-2" id="sale-report-exports">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.report.export-sale-report', ['format' => 'pdf']) }}">PDF</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.report.export-sale-report', ['format' => 'csv']) }}">CSV</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.report.export-sale-report', ['format' => 'xlsx']) }}">Excel</a>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive datatable_wrapper_row" id="set-rows">
-                    @include('admin-views.report.partials._table',['data'=>[]])
+                    @include('admin-views.report.partials._table',['data'=>[], 'isSaleReport' => true])
                 </div>
             </div>
         </div>

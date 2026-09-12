@@ -170,6 +170,21 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertFalse(PosOrderTypes::allowsPosCancellation('bolt_food'));
     }
 
+    public function test_sale_report_category_uses_pos_family_and_excludes_website_orders(): void
+    {
+        $this->assertSame('dine_in', PosOrderTypes::saleReportCategory('dine_in', 'dine_in'));
+        $this->assertSame('takeaway', PosOrderTypes::saleReportCategory('pos', 'takeaway'));
+        $this->assertSame('delivery', PosOrderTypes::saleReportCategory('pos', 'delivery'));
+        $this->assertSame('delivery', PosOrderTypes::saleReportCategory('delivery', 'delivery'));
+        $this->assertSame('glovo', PosOrderTypes::saleReportCategory('pos', 'glovo'));
+        $this->assertSame('uber', PosOrderTypes::saleReportCategory('pos', 'uber'));
+        $this->assertSame('bolt_food', PosOrderTypes::saleReportCategory('pos', 'bolt_food'));
+        $this->assertSame('takeaway', PosOrderTypes::saleReportCategory('pos', 'pos'));
+        $this->assertNull(PosOrderTypes::saleReportCategory('delivery', null));
+        $this->assertNull(PosOrderTypes::saleReportCategory('take_away', null));
+        $this->assertNull(PosOrderTypes::saleReportCategory('delivery', ''));
+    }
+
     public function test_dine_in_json_payload_does_not_require_table_or_people(): void
     {
         $this->assertFalse(method_exists(PosOrderTypes::class, 'jsonDineInError'));

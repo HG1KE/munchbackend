@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
+use App\Model\Branch;
 use App\Model\Order;
 use App\Model\OrderDetail;
+use App\Support\AdminSaleReportExport;
 use App\Support\AdminSaleReportSummary;
 use App\Support\PosOrderTypes;
 use Barryvdh\DomPDF\Facade as PDF;
@@ -317,8 +319,19 @@ class ReportController extends Controller
         $summaryDisplay['munch_sales'] = Helpers::set_symbol($paymentGroups['munch_sales']);
         $summaryDisplay['marketplace_sales'] = Helpers::set_symbol($paymentGroups['marketplace_sales']);
 
+        $exportReport = AdminSaleReportExport::build(
+            (clone $orderQuery)->orderBy('created_at')->get(),
+            [
+                'branch_name' => $this->saleReportBranchName($request['branch_id'] ?? 'all'),
+                'from' => $fromDate,
+                'to' => $toDate,
+                'payment_totals' => $paymentTotals,
+            ]
+        );
+
         session()->put('export_sale_data', $data);
         session()->put('export_sale_summary', $summaryDisplay);
+        session()->put('export_sale_report', $exportReport);
 
         return response()->json([
             'order_count' => count($data),
@@ -334,20 +347,51 @@ class ReportController extends Controller
                 'uber' => Helpers::set_symbol($paymentTotals['uber']),
                 'bolt_food' => Helpers::set_symbol($paymentTotals['bolt_food']),
             ],
-            'view' => view('admin-views.report.partials._table', ['data' => $data, 'summary' => $summaryDisplay])->render(),
+            'view' => view('admin-views.report.partials._table', ['data' => $data, 'summary' => $summaryDisplay, 'isSaleReport' => true])->render(),
         ]);
     }
 
     /**
      * @return mixed
      */
-    public function exportSaleReport(): mixed
+    public function exportSaleReport(Request $request): mixed
     {
-        $data = session('export_sale_data');
-        $summary = session('export_sale_summary');
-        $pdf = PDF::loadView('admin-views.report.partials._report', compact('data', 'summary'));
+        $report = session('export_sale_report');
+        if (! is_array($report)) {
+            Toastr::warning(translate('No Data Found'));
 
-        return $pdf->download('sale_report_' . rand(00001, 99999) . '.pdf');
+            return back();
+        }
+
+        $format = AdminSaleReportExport::normalizeFormat($request->query('format', AdminSaleReportExport::FORMAT_PDF));
+        $filename = AdminSaleReportExport::filename(
+            $report,
+            $format === AdminSaleReportExport::FORMAT_PRINT ? AdminSaleReportExport::FORMAT_PDF : $format
+        );
+
+        if ($format === AdminSaleReportExport::FORMAT_CSV) {
+            return AdminSaleReportExport::downloadCsv($report, $filename);
+        }
+        if ($format === AdminSaleReportExport::FORMAT_XLSX) {
+            return AdminSaleReportExport::downloadXlsx($report, $filename);
+        }
+        if ($format === AdminSaleReportExport::FORMAT_PRINT) {
+            return view('admin-views.report.partials._sale-report-export', compact('report'));
+        }
+
+        return PDF::loadView('admin-views.report.partials._sale-report-export', compact('report'))
+            ->download($filename);
+    }
+
+    private function saleReportBranchName(mixed $branchId): string
+    {
+        if ($branchId === 'all' || $branchId === null || $branchId === '') {
+            return 'All Branches';
+        }
+
+        $name = Branch::query()->where('id', $branchId)->value('name');
+
+        return is_string($name) && trim($name) !== '' ? $name : 'Branch';
     }
 
     private function saleReportOrderQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder

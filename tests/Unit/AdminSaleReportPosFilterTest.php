@@ -104,6 +104,8 @@ class AdminSaleReportPosFilterTest extends TestCase
         $this->assertStringContainsString('$this->saleReportOrderQuery($request, $fromDate, $toDate)', $controller);
         $this->assertStringContainsString("session()->put('export_sale_data', \$data)", $controller);
         $this->assertStringContainsString("session()->put('export_sale_summary', \$summaryDisplay)", $controller);
+        $this->assertStringContainsString("session()->put('export_sale_report', \$exportReport)", $controller);
+        $this->assertStringContainsString('AdminSaleReportExport::build(', $controller);
         $this->assertTrue(method_exists(PosOrderTypes::class, 'constrainSaleReportChannel'));
         $this->assertTrue(method_exists(Order::class, 'scopePos'));
     }

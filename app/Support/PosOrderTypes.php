@@ -174,6 +174,37 @@ class PosOrderTypes
         $query->where('sales_channel', $channel);
     }
 
+    /**
+     * Authoritative Sale Report export category. Website/app orders are null.
+     *
+     * @return 'dine_in'|'takeaway'|'delivery'|'glovo'|'uber'|'bolt_food'|null
+     */
+    public static function saleReportCategory(?string $orderType, ?string $salesChannel): ?string
+    {
+        if (! self::isPosFamily($orderType, $salesChannel)) {
+            return null;
+        }
+
+        $channel = (string) $salesChannel;
+        if ($channel === self::GLOVO) {
+            return self::GLOVO;
+        }
+        if ($channel === self::UBER) {
+            return self::UBER;
+        }
+        if ($channel === self::BOLT_FOOD) {
+            return self::BOLT_FOOD;
+        }
+        if ($channel === self::DINE_IN || (string) $orderType === self::DINE_IN) {
+            return self::DINE_IN;
+        }
+        if ($channel === self::DELIVERY || self::isPosDeliveryOrder($orderType, $salesChannel)) {
+            return self::DELIVERY;
+        }
+
+        return 'takeaway';
+    }
+
     public static function channelLabel(?string $salesChannel, ?string $orderType = null): string
     {
         return match ($salesChannel ?: '') {

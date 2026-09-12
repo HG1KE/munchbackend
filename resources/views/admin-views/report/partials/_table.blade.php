@@ -74,7 +74,14 @@
     var datatable = $.HSCore.components.HSDatatables.init($('#datatable'), {
         dom: 'Bfrtip',
         "iDisplayLength": 25,
-        @if(!empty($summary ?? null))
+        @if(!empty($isSaleReport ?? false))
+        buttons: [
+            { text: 'Excel', action: function () { window.location.assign('{{ route('admin.report.export-sale-report', ['format' => 'xlsx']) }}'); } },
+            { text: 'CSV', action: function () { window.location.assign('{{ route('admin.report.export-sale-report', ['format' => 'csv']) }}'); } },
+            { text: 'PDF', action: function () { window.location.assign('{{ route('admin.report.export-sale-report', ['format' => 'pdf']) }}'); } },
+            { text: 'Print', action: function () { window.location.assign('{{ route('admin.report.export-sale-report', ['format' => 'print']) }}'); } }
+        ],
+        @elseif(!empty($summary ?? null))
         buttons: [
             { extend: 'copy', footer: true },
             { extend: 'excel', footer: true },

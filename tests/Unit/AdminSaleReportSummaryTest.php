@@ -99,7 +99,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $controller = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
         $page = file_get_contents(resource_path('views/admin-views/report/sale-report.blade.php'));
         $table = file_get_contents(resource_path('views/admin-views/report/partials/_table.blade.php'));
-        $pdf = file_get_contents(resource_path('views/admin-views/report/partials/_report.blade.php'));
+        $pdf = file_get_contents(resource_path('views/admin-views/report/partials/_sale-report-export.blade.php'));
 
         $this->assertStringContainsString('SUM(discount_on_product * quantity)', $controller);
         $this->assertStringContainsString('SUM(price * quantity)', $controller);
@@ -116,6 +116,11 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('fromPaymentTotals($paymentTotals)', $controller);
         $this->assertStringContainsString("\$summaryDisplay['munch_sales']", $controller);
         $this->assertStringContainsString("\$summaryDisplay['marketplace_sales']", $controller);
+        $this->assertStringContainsString('AdminSaleReportExport::build(', $controller);
+        $this->assertStringContainsString('AdminSaleReportExport::downloadCsv($report, $filename)', $controller);
+        $this->assertStringContainsString('AdminSaleReportExport::downloadXlsx($report, $filename)', $controller);
+        $this->assertStringContainsString("partials._sale-report-export", $controller);
+        $this->assertStringNotContainsString("sale_report_' . rand", $controller);
 
         $this->assertStringContainsString('id="sum-total-discounts"', $page);
         $this->assertStringContainsString('id="total-discounts-highlight"', $page);
@@ -135,13 +140,21 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("data.summary.marketplace_sales", $page);
         $this->assertStringContainsString("data.order_sum", $page);
         $this->assertStringContainsString("data.payment_totals.cash", $page);
+        $this->assertStringContainsString("export-sale-report", $page);
+        $this->assertStringContainsString("'format' => 'pdf'", $page);
+        $this->assertStringContainsString("'format' => 'csv'", $page);
+        $this->assertStringContainsString("'format' => 'xlsx'", $page);
 
         $this->assertStringContainsString('Total Discounts', $table);
         $this->assertStringContainsString('Munch Sales', $table);
         $this->assertStringContainsString('Marketplace Sales', $table);
         $this->assertStringContainsString('footer: true', $table);
-        $this->assertStringContainsString('Total Discounts', $pdf);
-        $this->assertStringContainsString('Munch Sales', $pdf);
-        $this->assertStringContainsString('Marketplace Sales', $pdf);
+        $this->assertStringContainsString("route('admin.report.export-sale-report'", $table);
+        $this->assertStringContainsString('MUNCH SALES', $pdf);
+        $this->assertStringContainsString('MARKETPLACE SALES', $pdf);
+        $this->assertStringContainsString('TOTAL SALES', $pdf);
+        $this->assertStringContainsString('PAYMENT METHODS', $pdf);
+        $this->assertStringContainsString('Branch:', $pdf);
+        $this->assertStringContainsString('Sales Date:', $pdf);
     }
 }
