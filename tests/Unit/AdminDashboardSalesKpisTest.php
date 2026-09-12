@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Services\AdminDashboardSalesKpiService;
 use App\Support\AdminDashboardSalesKpis;
-use App\Support\AdminSaleReportSummary;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -53,33 +52,31 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertSame('2026-09-30 23:59:59', $period['to']->format('Y-m-d H:i:s'));
     }
 
-    public function test_cash_card_and_mpesa_aggregate_to_munch_sales(): void
+    public function test_pos_dine_in_takeaway_and_delivery_aggregate_to_munch_sales(): void
     {
         $totals = AdminDashboardSalesKpis::fromGroupedRows([
-            ['payment_method' => 'cash', 'sales_channel' => 'pos', 'total' => 82000],
-            ['payment_method' => 'card', 'sales_channel' => 'delivery', 'total' => 44000],
-            ['payment_method' => 'mpesa', 'sales_channel' => 'takeaway', 'total' => 60450],
-            ['payment_method' => 'glovo', 'sales_channel' => 'glovo', 'total' => 73210],
+            ['payment_method' => 'cash', 'sales_channel' => 'dine_in', 'order_type' => 'dine_in', 'total' => 82000],
+            ['payment_method' => 'card', 'sales_channel' => 'delivery', 'order_type' => 'pos', 'total' => 44000],
+            ['payment_method' => 'mpesa', 'sales_channel' => 'takeaway', 'order_type' => 'pos', 'total' => 60450],
+            ['payment_method' => 'glovo', 'sales_channel' => 'glovo', 'order_type' => 'pos', 'total' => 73210],
         ]);
 
         $this->assertSame(82000.0, $totals['cash']);
         $this->assertSame(44000.0, $totals['card']);
         $this->assertSame(60450.0, $totals['mpesa']);
         $this->assertSame(186450.0, $totals['munch_sales']);
-        $this->assertSame(
-            AdminSaleReportSummary::fromPaymentTotals($totals)['munch_sales'],
-            $totals['munch_sales']
-        );
         $this->assertSame(186450.0, $totals['cash'] + $totals['card'] + $totals['mpesa']);
+        $this->assertSame(73210.0, $totals['glovo']);
+        $this->assertNotEquals($totals['munch_sales'], $totals['glovo']);
     }
 
     public function test_marketplace_channels_are_aggregated_separately_and_excluded_from_munch(): void
     {
         $totals = AdminDashboardSalesKpis::fromGroupedRows([
-            ['payment_method' => 'cash', 'sales_channel' => 'pos', 'total' => 100],
-            ['payment_method' => 'glovo', 'sales_channel' => 'glovo', 'total' => 73210],
-            ['payment_method' => 'uber', 'sales_channel' => 'uber', 'total' => 38420],
-            ['payment_method' => 'bolt_food', 'sales_channel' => 'bolt_food', 'total' => 16980],
+            ['payment_method' => 'cash', 'sales_channel' => 'takeaway', 'order_type' => 'pos', 'total' => 100],
+            ['payment_method' => 'glovo', 'sales_channel' => 'glovo', 'order_type' => 'pos', 'total' => 73210],
+            ['payment_method' => 'uber', 'sales_channel' => 'uber', 'order_type' => 'pos', 'total' => 38420],
+            ['payment_method' => 'bolt_food', 'sales_channel' => 'bolt_food', 'order_type' => 'pos', 'total' => 16980],
         ]);
 
         $this->assertSame(100.0, $totals['munch_sales']);
@@ -89,21 +86,22 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertNotEquals($totals['munch_sales'], $totals['glovo'] + $totals['uber'] + $totals['bolt_food']);
     }
 
-    public function test_paystack_is_not_classified_as_cash_card_mpesa_or_marketplace(): void
+    public function test_paystack_pos_delivery_is_munch_sales_not_marketplace(): void
     {
         $totals = AdminDashboardSalesKpis::fromGroupedRows([
-            ['payment_method' => 'paystack', 'sales_channel' => 'delivery', 'total' => 5000],
-            ['payment_method' => 'cash', 'sales_channel' => 'delivery', 'total' => 100],
+            ['payment_method' => 'paystack', 'sales_channel' => 'delivery', 'order_type' => 'pos', 'total' => 5000],
+            ['payment_method' => 'cash', 'sales_channel' => 'delivery', 'order_type' => 'pos', 'total' => 100],
         ]);
 
-        $this->assertSame(100.0, $totals['munch_sales']);
+        $this->assertSame(5100.0, $totals['munch_sales']);
+        $this->assertSame(5000.0, $totals['paystack']);
         $this->assertSame(100.0, $totals['cash']);
         $this->assertSame(0.0, $totals['card']);
         $this->assertSame(0.0, $totals['mpesa']);
         $this->assertSame(0.0, $totals['glovo']);
         $this->assertSame(0.0, $totals['uber']);
         $this->assertSame(0.0, $totals['bolt_food']);
-        $this->assertSame('other', AdminDashboardSalesKpis::category('paystack', 'delivery'));
+        $this->assertSame('munch', AdminDashboardSalesKpis::category('paystack', 'delivery', 'pos'));
     }
 
     public function test_empty_dataset_returns_zeros(): void
@@ -114,6 +112,7 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertSame(0.0, $totals['cash']);
         $this->assertSame(0.0, $totals['card']);
         $this->assertSame(0.0, $totals['mpesa']);
+        $this->assertSame(0.0, $totals['paystack']);
         $this->assertSame(0.0, $totals['glovo']);
         $this->assertSame(0.0, $totals['uber']);
         $this->assertSame(0.0, $totals['bolt_food']);
@@ -132,6 +131,8 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertStringContainsString('sales_channel', $allSql);
         $this->assertStringContainsString('sum(order_amount)', $allSql);
         $this->assertStringContainsString('order_status', $allSql);
+        $this->assertStringContainsString('payment_status', $allSql);
+        $this->assertStringContainsString('order_type', $allSql);
 
         $one = $service->aggregatedQuery(7, $period);
         $this->assertStringContainsString('branch_id', $one->toSql());
@@ -147,8 +148,9 @@ class AdminDashboardSalesKpisTest extends TestCase
         $service = file_get_contents(app_path('Services/AdminDashboardSalesKpiService.php'));
         $this->assertStringContainsString("input('branch_id', 'all')", $service);
         $this->assertStringContainsString("input('timeframe', 'today')", $service);
-        $this->assertStringContainsString('earningReport()', $service);
-        $this->assertStringContainsString("groupBy('payment_method', 'sales_channel')", $service);
+        $this->assertStringNotContainsString('earningReport()', $service);
+        $this->assertStringContainsString('constrainQualifying', $service);
+        $this->assertStringContainsString("groupBy('order_type', 'payment_method', 'sales_channel')", $service);
     }
 
     public function test_dashboard_exposes_kpi_filters_and_does_not_change_sale_report(): void

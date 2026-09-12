@@ -5,16 +5,33 @@ namespace App\Support;
 use App\CentralLogics\Helpers;
 use App\Events\AdminDashboardSaleRecorded;
 use App\Model\Order;
+use App\Services\PosOrderCancellationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Admin Dashboard executive sales KPIs. Does not change Sale Report math.
+ * Admin Dashboard executive sales KPIs.
+ *
+ * Classification is the POS-family contract in {@see PosOrderTypes}:
+ * Dine In / Take Away / POS Delivery → Munch Sales.
+ * Glovo / Uber / Bolt Food → marketplace KPIs.
  */
 class AdminDashboardSalesKpis
 {
     public const MUNCH_METHODS = ['cash', 'card', 'mpesa'];
 
+    public const MUNCH_PAYMENT_METHODS = ['cash', 'card', 'mpesa', PosOrderTypes::PAYSTACK];
+
     public const MARKETPLACE_CHANNELS = ['glovo', 'uber', 'bolt_food'];
+
+    /**
+     * Voided / invalid statuses. Confirmed paid POS Dine In and POS Delivery
+     * remain qualifying sales.
+     *
+     * @var list<string>
+     */
+    public const EXCLUDED_STATUSES = ['canceled', 'cancelled', 'failed', 'returned', 'refunded'];
 
     /**
      * @return array{from: Carbon, to: Carbon}
@@ -57,11 +74,29 @@ class AdminDashboardSalesKpis
     }
 
     /**
-     * @param  list<array{payment_method?: mixed, sales_channel?: mixed, total?: mixed}>  $rows
+     * @param  Builder<\App\Model\Order>  $query
+     * @return Builder<\App\Model\Order>
+     */
+    public static function constrainQualifying(Builder $query): Builder
+    {
+        $query->pos()
+            ->where('payment_status', 'paid')
+            ->whereNotIn('order_status', self::EXCLUDED_STATUSES);
+
+        if (Schema::hasColumn((new Order())->getTable(), 'cancelled_at')) {
+            $query->whereNull('cancelled_at');
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  list<array{payment_method?: mixed, sales_channel?: mixed, order_type?: mixed, total?: mixed}>  $rows
      * @return array{
      *     cash: float,
      *     card: float,
      *     mpesa: float,
+     *     paystack: float,
      *     munch_sales: float,
      *     glovo: float,
      *     uber: float,
@@ -74,38 +109,39 @@ class AdminDashboardSalesKpis
             'cash' => 0.0,
             'card' => 0.0,
             'mpesa' => 0.0,
+            'paystack' => 0.0,
+            'munch_sales' => 0.0,
             'glovo' => 0.0,
             'uber' => 0.0,
             'bolt_food' => 0.0,
         ];
 
         foreach ($rows as $row) {
-            $method = (string) ($row['payment_method'] ?? '');
-            $channel = (string) ($row['sales_channel'] ?? '');
             $amount = round((float) ($row['total'] ?? 0), 2);
             if ($amount == 0.0) {
                 continue;
             }
 
-            $market = null;
-            if (in_array($method, self::MARKETPLACE_CHANNELS, true)) {
-                $market = $method;
-            } elseif (in_array($channel, self::MARKETPLACE_CHANNELS, true)) {
-                $market = $channel;
-            }
-
-            if ($market !== null) {
-                $totals[$market] += $amount;
+            $bucket = self::category(
+                $row['payment_method'] ?? null,
+                $row['sales_channel'] ?? null,
+                $row['order_type'] ?? null
+            );
+            if ($bucket === 'other') {
                 continue;
             }
 
-            if (in_array($method, self::MUNCH_METHODS, true)) {
+            if ($bucket !== 'munch') {
+                $totals[$bucket] += $amount;
+                continue;
+            }
+
+            $totals['munch_sales'] += $amount;
+            $method = (string) ($row['payment_method'] ?? '');
+            if (in_array($method, self::MUNCH_METHODS, true) || $method === PosOrderTypes::PAYSTACK) {
                 $totals[$method] += $amount;
             }
         }
-
-        $groups = AdminSaleReportSummary::fromPaymentTotals($totals);
-        $totals['munch_sales'] = $groups['munch_sales'];
 
         return $totals;
     }
@@ -153,33 +189,82 @@ class AdminDashboardSalesKpis
     }
 
     /**
-     * Same completed statuses as {@see Order::scopeEarningReport()}.
+     * Status is not cancelled / failed / returned / refunded.
+     * Confirmed and delivered both qualify.
      */
     public static function qualifiesStatus(mixed $status): bool
     {
-        return in_array((string) $status, ['delivered', 'completed'], true);
+        $status = (string) $status;
+
+        return $status !== '' && ! in_array($status, self::EXCLUDED_STATUSES, true);
     }
 
     public static function qualifies(Order $order): bool
     {
-        return self::qualifiesStatus($order->order_status);
+        return self::qualifiesAttributes(
+            $order->order_type ?? null,
+            $order->sales_channel ?? null,
+            $order->order_status ?? null,
+            $order->payment_status ?? null,
+            $order->payment_method ?? null,
+            $order->cancelled_at ?? null
+        );
     }
 
-    public static function category(?string $method, ?string $channel): string
+    public static function qualifiesOriginal(Order $order): bool
     {
-        $totals = self::fromGroupedRows([[
-            'payment_method' => $method,
-            'sales_channel' => $channel,
-            'total' => 1,
-        ]]);
+        return self::qualifiesAttributes(
+            $order->getOriginal('order_type') ?? $order->order_type ?? null,
+            $order->getOriginal('sales_channel') ?? $order->sales_channel ?? null,
+            $order->getOriginal('order_status'),
+            $order->getOriginal('payment_status') ?? $order->payment_status ?? null,
+            $order->getOriginal('payment_method') ?? $order->payment_method ?? null,
+            $order->getOriginal('cancelled_at')
+        );
+    }
 
-        foreach (self::MARKETPLACE_CHANNELS as $market) {
-            if (($totals[$market] ?? 0) > 0) {
-                return $market;
-            }
+    public static function qualifiesAttributes(
+        mixed $orderType,
+        mixed $salesChannel,
+        mixed $status,
+        mixed $paymentStatus,
+        mixed $paymentMethod,
+        mixed $cancelledAt = null
+    ): bool {
+        if (! PosOrderTypes::isPosFamily(
+            $orderType !== null ? (string) $orderType : null,
+            $salesChannel !== null ? (string) $salesChannel : null
+        )) {
+            return false;
         }
 
-        return ($totals['munch_sales'] ?? 0) > 0 ? 'munch' : 'other';
+        if (self::category($paymentMethod, $salesChannel, $orderType) === 'other') {
+            return false;
+        }
+
+        if (! self::qualifiesStatus($status) || PosOrderCancellationService::isCancelledStatus($status)) {
+            return false;
+        }
+
+        if ($cancelledAt !== null && $cancelledAt !== '') {
+            return false;
+        }
+
+        return (string) $paymentStatus === 'paid';
+    }
+
+    public static function category(?string $method, ?string $channel, ?string $orderType = null): string
+    {
+        $saleCategory = PosOrderTypes::saleReportCategory($orderType, $channel);
+        if (in_array((string) $saleCategory, self::MARKETPLACE_CHANNELS, true)) {
+            return (string) $saleCategory;
+        }
+
+        if (in_array((string) $saleCategory, AdminSaleReportExport::MUNCH_CATEGORIES, true)) {
+            return 'munch';
+        }
+
+        return 'other';
     }
 
     public static function fingerprint(Order $order): string
@@ -190,10 +275,12 @@ class AdminDashboardSalesKpis
         return implode('|', [
             (string) $order->id,
             (string) $order->order_status,
+            (string) $order->payment_status,
             (string) $order->branch_id,
             number_format((float) $order->order_amount, 2, '.', ''),
             (string) $order->payment_method,
             (string) $order->sales_channel,
+            (string) $order->order_type,
             (string) $createdStamp,
         ]);
     }
@@ -217,9 +304,11 @@ class AdminDashboardSalesKpis
             'date' => $created->toDateString(),
             'order_status' => (string) $order->order_status,
             'payment_method' => (string) $order->payment_method,
+            'payment_status' => (string) $order->payment_status,
             'sales_channel' => (string) $order->sales_channel,
+            'order_type' => (string) $order->order_type,
             'category' => $qualifies
-                ? self::category($order->payment_method, $order->sales_channel)
+                ? self::category($order->payment_method, $order->sales_channel, $order->order_type)
                 : 'removed',
             'qualifies' => $qualifies,
         ];

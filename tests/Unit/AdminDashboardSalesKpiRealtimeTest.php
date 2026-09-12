@@ -54,8 +54,10 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
             'id' => 501,
             'branch_id' => 2,
             'order_status' => 'delivered',
+            'payment_status' => 'paid',
             'payment_method' => 'cash',
             'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
             'order_amount' => 690,
             'created_at' => Carbon::parse('2026-09-11 14:10:00'),
         ], true);
@@ -84,8 +86,10 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
             'id' => 77,
             'branch_id' => 1,
             'order_status' => 'delivered',
+            'payment_status' => 'paid',
             'payment_method' => 'card',
             'sales_channel' => 'pos',
+            'order_type' => 'pos',
             'order_amount' => 500,
             'created_at' => Carbon::now(),
         ], true));
@@ -99,32 +103,36 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
         $this->assertSame(77, AdminDashboardSalesKpiBus::since(0)[0]['order_id']);
     }
 
-    public function test_pending_order_does_not_dispatch_until_delivered(): void
+    public function test_unpaid_pos_order_does_not_dispatch_until_paid(): void
     {
         Event::fake([AdminDashboardSaleRecorded::class]);
 
-        $pending = $this->makeOrder([
+        $unpaid = $this->makeOrder([
             'id' => 80,
             'branch_id' => 1,
-            'order_status' => 'pending',
-            'payment_method' => 'cash_on_delivery',
-            'sales_channel' => '',
+            'order_status' => 'confirmed',
+            'payment_status' => 'unpaid',
+            'payment_method' => 'cash',
+            'sales_channel' => 'dine_in',
+            'order_type' => 'dine_in',
             'order_amount' => 900,
             'created_at' => Carbon::now(),
         ], true);
 
-        $this->assertNull(AdminDashboardSalesKpiPublisher::publish($pending));
+        $this->assertFalse(AdminDashboardSalesKpis::qualifies($unpaid));
+        $this->assertNull(AdminDashboardSalesKpiPublisher::publish($unpaid));
         Event::assertNotDispatched(AdminDashboardSaleRecorded::class);
 
-        $pending->wasRecentlyCreated = false;
-        $pending->syncOriginal();
-        $pending->order_status = 'delivered';
+        $unpaid->wasRecentlyCreated = false;
+        $unpaid->syncOriginal();
+        $unpaid->payment_status = 'paid';
 
-        $this->assertNotNull(AdminDashboardSalesKpiPublisher::publish($pending));
+        $this->assertTrue(AdminDashboardSalesKpis::qualifies($unpaid));
+        $this->assertNotNull(AdminDashboardSalesKpiPublisher::publish($unpaid));
         Event::assertDispatchedTimes(AdminDashboardSaleRecorded::class, 1);
     }
 
-    public function test_pos_delivery_confirmed_is_not_a_kpi_sale_yet(): void
+    public function test_confirmed_paid_pos_delivery_is_a_munch_kpi_sale(): void
     {
         Event::fake([AdminDashboardSaleRecorded::class]);
 
@@ -132,15 +140,19 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
             'id' => 81,
             'branch_id' => 3,
             'order_status' => 'confirmed',
+            'payment_status' => 'paid',
             'payment_method' => 'cash',
             'sales_channel' => 'delivery',
+            'order_type' => 'pos',
             'order_amount' => 500,
             'created_at' => Carbon::now(),
         ], true);
 
-        $this->assertFalse(AdminDashboardSalesKpis::qualifies($order));
-        $this->assertNull(AdminDashboardSalesKpiPublisher::publish($order));
-        Event::assertNotDispatched(AdminDashboardSaleRecorded::class);
+        $this->assertTrue(AdminDashboardSalesKpis::qualifies($order));
+        $first = AdminDashboardSalesKpiPublisher::publish($order);
+        $this->assertNotNull($first);
+        $this->assertSame('munch', $first['category']);
+        Event::assertDispatchedTimes(AdminDashboardSaleRecorded::class, 1);
     }
 
     public function test_marketplace_categories_are_separated_from_munch(): void
@@ -148,8 +160,10 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
         $this->assertSame('glovo', AdminDashboardSalesKpis::category('glovo', 'glovo'));
         $this->assertSame('uber', AdminDashboardSalesKpis::category('uber', 'uber'));
         $this->assertSame('bolt_food', AdminDashboardSalesKpis::category('bolt_food', 'bolt_food'));
-        $this->assertSame('munch', AdminDashboardSalesKpis::category('mpesa', 'takeaway'));
-        $this->assertSame('munch', AdminDashboardSalesKpis::category('card', 'pos'));
+        $this->assertSame('munch', AdminDashboardSalesKpis::category('mpesa', 'takeaway', 'pos'));
+        $this->assertSame('munch', AdminDashboardSalesKpis::category('card', 'pos', 'pos'));
+        $this->assertSame('munch', AdminDashboardSalesKpis::category('paystack', 'delivery', 'pos'));
+        $this->assertSame('other', AdminDashboardSalesKpis::category('cash', '', 'delivery'));
     }
 
     public function test_filters_respect_branch_and_timeframe(): void
@@ -189,8 +203,10 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
             'id' => 90,
             'branch_id' => 2,
             'order_status' => 'delivered',
+            'payment_status' => 'paid',
             'payment_method' => 'cash',
             'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
             'order_amount' => 690,
             'created_at' => Carbon::parse('2026-09-11 11:00:00'),
         ], true);
@@ -213,8 +229,10 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
             'id' => 91,
             'branch_id' => 1,
             'order_status' => 'delivered',
+            'payment_status' => 'paid',
             'payment_method' => 'glovo',
             'sales_channel' => 'glovo',
+            'order_type' => 'pos',
             'order_amount' => 500,
             'created_at' => Carbon::now(),
         ], true);
@@ -226,14 +244,71 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
         });
     }
 
+    public function test_paystack_pos_delivery_updates_munch_not_marketplace(): void
+    {
+        Event::fake([AdminDashboardSaleRecorded::class]);
+
+        $order = $this->makeOrder([
+            'id' => 93,
+            'branch_id' => 14,
+            'order_status' => 'confirmed',
+            'payment_status' => 'paid',
+            'payment_method' => 'paystack',
+            'sales_channel' => 'delivery',
+            'order_type' => 'pos',
+            'order_amount' => 750,
+            'created_at' => Carbon::now(),
+        ], true);
+
+        $payload = AdminDashboardSalesKpiPublisher::publish($order);
+        $this->assertNotNull($payload);
+        $this->assertSame('munch', $payload['category']);
+        Event::assertDispatched(AdminDashboardSaleRecorded::class, function (AdminDashboardSaleRecorded $event) {
+            return $event->sale['category'] === 'munch'
+                && $event->sale['payment_method'] === 'paystack'
+                && (int) $event->sale['order_id'] === 93;
+        });
+    }
+
+    public function test_cancelled_pos_sale_publishes_removal_once(): void
+    {
+        Event::fake([AdminDashboardSaleRecorded::class]);
+
+        $order = $this->makeOrder([
+            'id' => 94,
+            'branch_id' => 1,
+            'order_status' => 'confirmed',
+            'payment_status' => 'paid',
+            'payment_method' => 'cash',
+            'sales_channel' => 'dine_in',
+            'order_type' => 'dine_in',
+            'order_amount' => 200,
+            'created_at' => Carbon::now(),
+        ], true);
+
+        $this->assertNotNull(AdminDashboardSalesKpiPublisher::publish($order));
+
+        $order->wasRecentlyCreated = false;
+        $order->syncOriginal();
+        $order->order_status = 'canceled';
+        $order->cancelled_at = Carbon::now();
+
+        $removed = AdminDashboardSalesKpiPublisher::publish($order);
+        $this->assertNotNull($removed);
+        $this->assertSame('removed', $removed['category']);
+        Event::assertDispatchedTimes(AdminDashboardSaleRecorded::class, 2);
+    }
+
     public function test_events_endpoint_returns_new_sales_without_a_page_reload(): void
     {
         $payload = AdminDashboardSalesKpis::realtimePayload($this->makeOrder([
             'id' => 92,
             'branch_id' => 1,
             'order_status' => 'delivered',
+            'payment_status' => 'paid',
             'payment_method' => 'mpesa',
             'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
             'order_amount' => 500,
             'created_at' => Carbon::now(),
         ], true));
@@ -263,7 +338,8 @@ class AdminDashboardSalesKpiRealtimeTest extends TestCase
         $js = file_get_contents(public_path('assets/admin/js/munch-dashboard-kpis.js'));
         $observer = file_get_contents(app_path('Observers/OrderObserver.php'));
 
-        $this->assertStringContainsString('earningReport()', $service);
+        $this->assertStringNotContainsString('earningReport()', $service);
+        $this->assertStringContainsString('constrainQualifying', $service);
         $this->assertStringContainsString('loadSalesKpis()', $js);
         $this->assertStringContainsString('handleEvents', $js);
         $this->assertStringNotContainsString('location.reload', $js);

@@ -38,13 +38,23 @@ class AdminDashboardSalesKpiPublisher
     public static function shouldPublish(Order $order): bool
     {
         $qualifies = AdminDashboardSalesKpis::qualifies($order);
-        $qualifiedBefore = AdminDashboardSalesKpis::qualifiesStatus($order->getOriginal('order_status'));
+        $qualifiedBefore = AdminDashboardSalesKpis::qualifiesOriginal($order);
 
         if ($order->wasRecentlyCreated) {
             return $qualifies;
         }
 
-        $kpiFields = ['order_status', 'order_amount', 'branch_id', 'payment_method', 'sales_channel', 'created_at'];
+        $kpiFields = [
+            'order_status',
+            'payment_status',
+            'order_amount',
+            'branch_id',
+            'payment_method',
+            'sales_channel',
+            'order_type',
+            'created_at',
+            'cancelled_at',
+        ];
         $changed = $order->wasChanged($kpiFields) || $order->isDirty($kpiFields);
         if (! $changed) {
             return false;

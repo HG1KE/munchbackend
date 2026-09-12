@@ -33,7 +33,7 @@ class AdminDashboardSalesKpiService
     }
 
     /**
-     * One aggregated query grouped by payment_method and sales_channel.
+     * One aggregated query grouped by POS type, payment method, and channel.
      *
      * @return array<string, mixed>
      */
@@ -46,6 +46,7 @@ class AdminDashboardSalesKpiService
             ->map(fn ($row) => [
                 'payment_method' => $row->payment_method,
                 'sales_channel' => $row->sales_channel,
+                'order_type' => $row->order_type,
                 'total' => (float) $row->total,
             ])
             ->all();
@@ -63,13 +64,12 @@ class AdminDashboardSalesKpiService
      */
     public function aggregatedQuery(?int $branchId, array $period): \Illuminate\Database\Eloquent\Builder
     {
-        return Order::query()
-            ->earningReport()
+        return AdminDashboardSalesKpis::constrainQualifying(Order::query())
             ->when($branchId !== null, function ($query) use ($branchId) {
                 $query->where('branch_id', $branchId);
             })
             ->whereBetween('created_at', [$period['from'], $period['to']])
-            ->selectRaw('payment_method, sales_channel, COALESCE(SUM(order_amount), 0) as total')
-            ->groupBy('payment_method', 'sales_channel');
+            ->selectRaw('order_type, payment_method, sales_channel, COALESCE(SUM(order_amount), 0) as total')
+            ->groupBy('order_type', 'payment_method', 'sales_channel');
     }
 }
