@@ -16,6 +16,7 @@ yarn-error.log
 /storage/install.zip
 /storage/update.zip
 /storage/logs
+/storage/fonts/*.ufm.json
 /bootstrap/cache/*.php
 *.zip
 deployment/env/.env.production
