@@ -155,6 +155,8 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('section-head', $pdf);
         $this->assertStringContainsString('SECTION_KEYS', $pdf);
         $this->assertStringContainsString('total_label', $pdf);
+        $this->assertStringContainsString('formatOrderCount', $pdf);
+        $this->assertStringContainsString('sectionOrderCount', $pdf);
         $this->assertStringContainsString('sectionThemes()', $pdf);
         $this->assertStringNotContainsString('MARKETPLACE SALES', $pdf);
         $this->assertStringNotContainsString('TOTAL SALES', $pdf);

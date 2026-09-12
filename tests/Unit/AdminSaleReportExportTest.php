@@ -92,6 +92,15 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertSame($report['sections']['glovo']['total'], $report['totals']['glovo']);
         $this->assertSame($report['sections']['uber']['total'], $report['totals']['uber']);
         $this->assertSame($report['sections']['bolt_food']['total'], $report['totals']['bolt_food']);
+        $this->assertSame(3, $report['order_counts']['munch_sales']);
+        $this->assertSame(1, $report['order_counts']['glovo']);
+        $this->assertSame(1, $report['order_counts']['uber']);
+        $this->assertSame(1, $report['order_counts']['bolt_food']);
+        $this->assertSame(count($report['sections']['munch_sales']['orders']), $report['order_counts']['munch_sales']);
+        $this->assertSame(count($report['sections']['glovo']['orders']), $report['order_counts']['glovo']);
+        $this->assertSame(count($report['sections']['uber']['orders']), $report['order_counts']['uber']);
+        $this->assertSame(count($report['sections']['bolt_food']['orders']), $report['order_counts']['bolt_food']);
+        $this->assertArrayNotHasKey('total_orders', $report);
     }
 
     public function test_duplicate_input_orders_are_not_double_counted(): void
@@ -113,6 +122,92 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertCount(1, $report['sections']['munch_sales']['categories']['dine_in']['orders']);
         $this->assertCount(1, $report['sections']['munch_sales']['orders']);
         $this->assertSame(100.0, $report['totals']['munch_sales']);
+        $this->assertSame(1, $report['order_counts']['munch_sales']);
+    }
+
+    public function test_section_order_counts_use_the_same_filtered_orders_as_sales_totals(): void
+    {
+        $report = AdminSaleReportExport::build([
+            $this->order([
+                'id' => 1,
+                'order_type' => 'dine_in',
+                'sales_channel' => 'dine_in',
+                'order_amount' => 100,
+                'readable_order_id' => 'A10123',
+            ]),
+            $this->order([
+                'id' => 1,
+                'order_type' => 'dine_in',
+                'sales_channel' => 'dine_in',
+                'order_amount' => 40,
+                'readable_order_id' => 'A10123',
+            ]),
+            $this->order([
+                'id' => 2,
+                'order_type' => 'pos',
+                'sales_channel' => 'takeaway',
+                'order_amount' => 80,
+                'readable_order_id' => 'A10124',
+            ]),
+            $this->order([
+                'id' => 3,
+                'order_type' => 'pos',
+                'sales_channel' => 'glovo',
+                'order_amount' => 50,
+                'readable_order_id' => 'A10126',
+                'platform_order_number' => 'GLV-1',
+            ]),
+            $this->order([
+                'id' => 4,
+                'order_type' => 'delivery',
+                'sales_channel' => null,
+                'order_amount' => 999,
+                'readable_order_id' => 'W10001',
+            ]),
+            $this->order([
+                'id' => 5,
+                'order_type' => 'pos',
+                'sales_channel' => 'uber',
+                'order_amount' => 70,
+                'readable_order_id' => 'A10127',
+                'platform_order_number' => 'UBER-1',
+            ]),
+            $this->order([
+                'id' => 6,
+                'order_type' => 'pos',
+                'sales_channel' => 'bolt_food',
+                'order_amount' => 90,
+                'readable_order_id' => 'A10128',
+                'platform_order_number' => 'BOLT-1',
+            ]),
+        ], [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-11',
+            'to' => '2026-09-11',
+        ]);
+
+        $this->assertSame(2, $report['order_counts']['munch_sales']);
+        $this->assertSame(1, $report['order_counts']['glovo']);
+        $this->assertSame(1, $report['order_counts']['uber']);
+        $this->assertSame(1, $report['order_counts']['bolt_food']);
+        $this->assertSame(180.0, $report['totals']['munch_sales']);
+        $this->assertSame(50.0, $report['totals']['glovo']);
+        $this->assertSame(70.0, $report['totals']['uber']);
+        $this->assertSame(90.0, $report['totals']['bolt_food']);
+        $this->assertSame(
+            $report['order_counts']['munch_sales'],
+            count($report['sections']['munch_sales']['orders'])
+        );
+        $this->assertNotContains('4', array_keys($report['assigned_order_ids']));
+        $this->assertSame(0, $report['sections']['munch_sales']['order_count'] - count($this->idsIn($report, 'munch_sales')));
+        $this->assertSame(['1', '2'], $this->idsIn($report, 'munch_sales'));
+        $this->assertSame(AdminSaleReportExport::formatOrderCount(2), 'Total Orders: 2');
+
+        $csv = AdminSaleReportExport::csvString($report);
+        $this->assertStringContainsString('Total Orders: 2', $csv);
+        $this->assertStringContainsString('Total Orders: 1', $csv);
+        $this->assertStringNotContainsString('Total Orders: 6', $csv);
+        $this->assertStringNotContainsString('Total Orders: 5', $csv);
     }
 
     public function test_single_day_rows_show_time_only_and_marketplace_numbers_stay_in_payload(): void
@@ -265,7 +360,17 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertContains('Glovo Total', $totals);
         $this->assertContains('Uber Total', $totals);
         $this->assertContains('Bolt Food Total', $totals);
+        $this->assertContains('Total Orders: 3', $totals);
+        $this->assertContains('Total Orders: 1', $totals);
         $this->assertNotContains('TOTAL SALES', $totals);
+        $this->assertSame(
+            ['Total Orders: 3', '', 'Munch Sales Total', AdminSaleReportExport::formatAmount(3550)],
+            $this->rowsByType($rows, 'total')['munch_sales']
+        );
+        $this->assertSame(
+            ['Total Orders: 1', '', '', 'Glovo Total', AdminSaleReportExport::formatAmount(1100)],
+            $this->rowsByType($rows, 'total')['glovo']
+        );
         $this->assertStringContainsString('Time', $csv);
         $this->assertStringContainsString('Munch Order #', $csv);
         $this->assertStringContainsString('Glovo Order #', $csv);
@@ -275,6 +380,8 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertStringNotContainsString('11 Sep 2026 10:42 AM', $csv);
         $this->assertStringNotContainsString('Timestamp', $csv);
         $this->assertStringContainsString('Munch Sales Total', $csv);
+        $this->assertStringContainsString('Total Orders: 3', $csv);
+        $this->assertStringContainsString('Total Orders: 1', $csv);
         $this->assertStringNotContainsString('TOTAL SALES', $csv);
         $this->assertSame(AdminSaleReportExport::FORMAT_XLSX, AdminSaleReportExport::normalizeFormat('excel'));
         $this->assertSame(AdminSaleReportExport::FORMAT_CSV, AdminSaleReportExport::normalizeFormat('csv'));
@@ -409,6 +516,10 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertSame(50.0, $report['totals']['glovo']);
         $this->assertSame(0.0, $report['totals']['uber']);
         $this->assertSame(0.0, $report['totals']['bolt_food']);
+        $this->assertSame(3, $report['order_counts']['munch_sales']);
+        $this->assertSame(1, $report['order_counts']['glovo']);
+        $this->assertSame(0, $report['order_counts']['uber']);
+        $this->assertSame(0, $report['order_counts']['bolt_food']);
         $this->assertSame(650.0, $report['payment_totals']['cash']);
         $this->assertNotContains('5', array_keys($report['assigned_order_ids']));
         $this->assertNotContains('6', array_keys($report['assigned_order_ids']));
@@ -447,6 +558,8 @@ class AdminSaleReportExportTest extends TestCase
             'Take Away',
             'Delivery',
             'Munch Sales Total',
+            'Total Orders: 3',
+            'Total Orders: 1',
             'GLOVO',
             'UBER',
             'BOLT FOOD',
@@ -486,6 +599,8 @@ class AdminSaleReportExportTest extends TestCase
         $csv = AdminSaleReportExport::csvString($report);
         $this->assertStringContainsString('Branch: Munch Bamburi', $csv);
         $this->assertStringContainsString('A10124', $csv);
+        $this->assertStringContainsString('Total Orders: 3', $csv);
+        $this->assertStringContainsString('Total Orders: 1', $csv);
         $this->assertStringContainsString('GLV-12345', $csv);
         $this->assertStringContainsString('UBER-789', $csv);
         $this->assertStringContainsString('BOLT-456', $csv);
@@ -518,6 +633,8 @@ class AdminSaleReportExportTest extends TestCase
             'Glovo Total',
             'Uber Total',
             'Bolt Food Total',
+            'Total Orders: 3',
+            'Total Orders: 1',
             'A10123',
             'GLV-12345',
             '10:42 AM',

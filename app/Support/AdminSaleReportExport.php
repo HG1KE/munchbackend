@@ -128,8 +128,10 @@ class AdminSaleReportExport
 
         foreach ($sections as &$section) {
             $section['total'] = self::money($section['total']);
+            $section['order_count'] = count($section['orders']);
             foreach ($section['categories'] as &$category) {
                 $category['total'] = self::money($category['total']);
+                $category['order_count'] = count($category['orders']);
                 usort($category['orders'], static function (array $left, array $right): int {
                     return strcmp((string) $left['sort_at'], (string) $right['sort_at']);
                 });
@@ -147,6 +149,12 @@ class AdminSaleReportExport
             'uber' => $sections['uber']['total'],
             'bolt_food' => $sections['bolt_food']['total'],
         ];
+        $orderCounts = [
+            'munch_sales' => $sections['munch_sales']['order_count'],
+            'glovo' => $sections['glovo']['order_count'],
+            'uber' => $sections['uber']['order_count'],
+            'bolt_food' => $sections['bolt_food']['order_count'],
+        ];
 
         $salesDateLabel = self::salesDateLabel($from, $to);
 
@@ -159,6 +167,7 @@ class AdminSaleReportExport
             'to' => $to->toDateString(),
             'sections' => $sections,
             'totals' => $totals,
+            'order_counts' => $orderCounts,
             'payment_totals' => self::normalizePaymentTotals($context['payment_totals'] ?? []),
             'assigned_order_ids' => $seen,
             'filename_base' => self::filenameBase($branchName, $salesDateLabel),
@@ -262,6 +271,23 @@ class AdminSaleReportExport
         return 'Ksh '.number_format($amount, 2);
     }
 
+    public static function formatOrderCount(int $count): string
+    {
+        return 'Total Orders: '.$count;
+    }
+
+    /**
+     * @param  array<string, mixed>  $section
+     */
+    public static function sectionOrderCount(array $section): int
+    {
+        if (isset($section['order_count'])) {
+            return (int) $section['order_count'];
+        }
+
+        return count(self::sectionOrders($section));
+    }
+
     /**
      * @param  array<string, mixed>  $section
      * @return list<array<string, mixed>>
@@ -339,10 +365,7 @@ class AdminSaleReportExport
                 }
             }
 
-            $totalCells = array_fill(0, max(count($columns) - 2, 0), '');
-            $totalCells[] = (string) ($section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total'));
-            $totalCells[] = self::formatAmount($report['totals'][$sectionKey] ?? ($section['total'] ?? 0));
-            $rows[] = self::exportRow('total', $sectionKey, $totalCells);
+            $rows[] = self::exportRow('total', $sectionKey, self::sectionTotalCells($section, $sectionKey, $report));
             $rows[] = self::exportRow('blank', null, ['']);
         }
 
@@ -489,14 +512,15 @@ class AdminSaleReportExport
                 'heading' => 'MUNCH SALES',
                 'total_label' => 'Munch Sales Total',
                 'total' => 0.0,
+                'order_count' => 0,
                 'orders' => [],
                 'color' => $themes['munch_sales']['color'],
                 'tint' => $themes['munch_sales']['tint'],
                 'header_ink' => $themes['munch_sales']['header_ink'],
                 'categories' => [
-                    'dine_in' => ['label' => 'Dine In', 'orders' => [], 'total' => 0.0],
-                    'takeaway' => ['label' => 'Take Away', 'orders' => [], 'total' => 0.0],
-                    'delivery' => ['label' => 'Delivery', 'orders' => [], 'total' => 0.0],
+                    'dine_in' => ['label' => 'Dine In', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
+                    'takeaway' => ['label' => 'Take Away', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
+                    'delivery' => ['label' => 'Delivery', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
                 ],
             ],
             'glovo' => [
@@ -504,12 +528,13 @@ class AdminSaleReportExport
                 'heading' => 'GLOVO',
                 'total_label' => 'Glovo Total',
                 'total' => 0.0,
+                'order_count' => 0,
                 'orders' => [],
                 'color' => $themes['glovo']['color'],
                 'tint' => $themes['glovo']['tint'],
                 'header_ink' => $themes['glovo']['header_ink'],
                 'categories' => [
-                    'glovo' => ['label' => 'Glovo', 'orders' => [], 'total' => 0.0],
+                    'glovo' => ['label' => 'Glovo', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
                 ],
             ],
             'uber' => [
@@ -517,12 +542,13 @@ class AdminSaleReportExport
                 'heading' => 'UBER',
                 'total_label' => 'Uber Total',
                 'total' => 0.0,
+                'order_count' => 0,
                 'orders' => [],
                 'color' => $themes['uber']['color'],
                 'tint' => $themes['uber']['tint'],
                 'header_ink' => $themes['uber']['header_ink'],
                 'categories' => [
-                    'uber' => ['label' => 'Uber', 'orders' => [], 'total' => 0.0],
+                    'uber' => ['label' => 'Uber', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
                 ],
             ],
             'bolt_food' => [
@@ -530,12 +556,13 @@ class AdminSaleReportExport
                 'heading' => 'BOLT FOOD',
                 'total_label' => 'Bolt Food Total',
                 'total' => 0.0,
+                'order_count' => 0,
                 'orders' => [],
                 'color' => $themes['bolt_food']['color'],
                 'tint' => $themes['bolt_food']['tint'],
                 'header_ink' => $themes['bolt_food']['header_ink'],
                 'categories' => [
-                    'bolt_food' => ['label' => 'Bolt Food', 'orders' => [], 'total' => 0.0],
+                    'bolt_food' => ['label' => 'Bolt Food', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
                 ],
             ],
         ];
@@ -648,6 +675,23 @@ class AdminSaleReportExport
         }
 
         return [$time, $number, (string) ($order['platform_order_number'] ?? ''), $type, $amount];
+    }
+
+    /**
+     * @param  array<string, mixed>  $section
+     * @param  array<string, mixed>  $report
+     * @return list<string>
+     */
+    private static function sectionTotalCells(array $section, string $sectionKey, array $report): array
+    {
+        $columns = self::sectionColumnLabels($sectionKey);
+        $width = max(count($columns), 2);
+        $cells = array_fill(0, $width, '');
+        $cells[0] = self::formatOrderCount(self::sectionOrderCount($section));
+        $cells[$width - 2] = (string) ($section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total'));
+        $cells[$width - 1] = self::formatAmount($report['totals'][$sectionKey] ?? ($section['total'] ?? 0));
+
+        return $cells;
     }
 
     /**

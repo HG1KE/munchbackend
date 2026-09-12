@@ -68,8 +68,8 @@
             ])
             <table class="total-wrap">
                 <tr>
-                    <td>{{ $section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total') }}</td>
-                    <td class="num">{{ \App\Support\AdminSaleReportExport::formatAmount($totals[$sectionKey] ?? ($section['total'] ?? 0)) }}</td>
+                    <td>{{ \App\Support\AdminSaleReportExport::formatOrderCount(\App\Support\AdminSaleReportExport::sectionOrderCount($section)) }}</td>
+                    <td class="num">{{ $section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total') }}: {{ \App\Support\AdminSaleReportExport::formatAmount($totals[$sectionKey] ?? ($section['total'] ?? 0)) }}</td>
                 </tr>
             </table>
         </div>
