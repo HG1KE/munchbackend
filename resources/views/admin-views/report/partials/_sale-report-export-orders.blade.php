@@ -1,24 +1,27 @@
+@php
+    $sectionKey = $sectionKey ?? 'munch_sales';
+    $columns = \App\Support\AdminSaleReportExport::sectionColumnLabels($sectionKey);
+    $platformColumn = \App\Support\AdminSaleReportExport::marketplaceOrderColumn($sectionKey);
+@endphp
 @if(empty($orders))
     <p class="empty">No orders</p>
 @else
-    <table>
+    <table class="report-table">
         <thead>
         <tr>
-            <th>Timestamp</th>
-            <th>Munch Order #</th>
-            <th>Marketplace Order #</th>
-            <th>Sales Category</th>
-            <th>Order Type</th>
-            <th class="num">Amount</th>
+            @foreach($columns as $column)
+                <th class="{{ $column === 'Amount' ? 'num' : '' }}">{{ $column }}</th>
+            @endforeach
         </tr>
         </thead>
         <tbody>
         @foreach($orders as $order)
             <tr>
-                <td>{{ $order['timestamp'] ?? '' }}</td>
+                <td>{{ $order['time'] ?? $order['timestamp'] ?? '' }}</td>
                 <td>{{ $order['order_number'] ?? '' }}</td>
-                <td>{{ $order['platform_order_number'] ?? '' }}</td>
-                <td>{{ $order['sales_category'] ?? '' }}</td>
+                @if($platformColumn !== '')
+                    <td>{{ $order['platform_order_number'] ?? '' }}</td>
+                @endif
                 <td>{{ $order['order_type'] ?? '' }}</td>
                 <td class="num">{{ \App\Support\AdminSaleReportExport::formatAmount($order['amount'] ?? 0) }}</td>
             </tr>

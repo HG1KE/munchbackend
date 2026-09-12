@@ -152,10 +152,18 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('Marketplace Sales', $table);
         $this->assertStringContainsString('footer: true', $table);
         $this->assertStringContainsString("route('admin.report.export-sale-report'", $table);
-        $this->assertStringContainsString('MUNCH SALES', $pdf);
-        $this->assertStringContainsString('MARKETPLACE SALES', $pdf);
-        $this->assertStringContainsString('TOTAL SALES', $pdf);
+        $this->assertStringContainsString('section-head', $pdf);
+        $this->assertStringContainsString('SECTION_KEYS', $pdf);
+        $this->assertStringContainsString('total_label', $pdf);
+        $this->assertStringContainsString('sectionThemes()', $pdf);
+        $this->assertStringNotContainsString('MARKETPLACE SALES', $pdf);
+        $this->assertStringNotContainsString('TOTAL SALES', $pdf);
         $this->assertStringContainsString('PAYMENT METHODS', $pdf);
+        $export = file_get_contents(app_path('Support/AdminSaleReportExport.php'));
+        $this->assertStringContainsString("COLOR_MUNCH = '#E7032D'", $export);
+        $this->assertStringContainsString("COLOR_GLOVO = '#FFC244'", $export);
+        $this->assertStringContainsString("COLOR_UBER = '#06C167'", $export);
+        $this->assertStringContainsString("COLOR_BOLT_FOOD = '#34D186'", $export);
         $this->assertStringContainsString('Branch:', $pdf);
         $this->assertStringContainsString('Sales Date:', $pdf);
     }

@@ -5,7 +5,10 @@ namespace App\Support;
 use App\CentralLogics\Helpers;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Rap2hpoutre\FastExcel\FastExcel;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Writer\XLSX\Options as XlsxOptions;
+use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -27,6 +30,28 @@ class AdminSaleReportExport
     public const MUNCH_CATEGORIES = ['dine_in', 'takeaway', 'delivery'];
 
     public const MARKETPLACE_CATEGORIES = ['glovo', 'uber', 'bolt_food'];
+
+    public const SECTION_KEYS = ['munch_sales', 'glovo', 'uber', 'bolt_food'];
+
+    /** Exact Munch brand red. */
+    public const COLOR_MUNCH = '#E7032D';
+
+    /** Official Glovo brand yellow. */
+    public const COLOR_GLOVO = '#FFC244';
+
+    /** Official Uber Eats green from Uber's published creative palette. */
+    public const COLOR_UBER = '#06C167';
+
+    /** Official Bolt green. */
+    public const COLOR_BOLT_FOOD = '#34D186';
+
+    public const TINT_MUNCH = '#FDE8EC';
+
+    public const TINT_GLOVO = '#FFF8E6';
+
+    public const TINT_UBER = '#E8F9F0';
+
+    public const TINT_BOLT_FOOD = '#E9F9F2';
 
     /**
      * @return list<string>
@@ -75,6 +100,7 @@ class AdminSaleReportExport
 
         $sections = self::emptySections();
         $seen = [];
+        $includeDate = ! $from->isSameDay($to);
 
         foreach ($orders as $order) {
             $id = self::orderId($order);
@@ -92,10 +118,11 @@ class AdminSaleReportExport
                 $seen[$id] = $category;
             }
 
-            $row = self::orderRow($order, $category);
+            $row = self::orderRow($order, $category, $includeDate);
             $sectionKey = self::sectionKey($category);
             $sections[$sectionKey]['categories'][$category]['orders'][] = $row;
             $sections[$sectionKey]['categories'][$category]['total'] += $row['amount'];
+            $sections[$sectionKey]['orders'][] = $row;
             $sections[$sectionKey]['total'] += $row['amount'];
         }
 
@@ -108,6 +135,9 @@ class AdminSaleReportExport
                 });
             }
             unset($category);
+            usort($section['orders'], static function (array $left, array $right): int {
+                return strcmp((string) $left['sort_at'], (string) $right['sort_at']);
+            });
         }
         unset($section);
 
@@ -117,9 +147,6 @@ class AdminSaleReportExport
             'uber' => $sections['uber']['total'],
             'bolt_food' => $sections['bolt_food']['total'],
         ];
-        $totals['total_sales'] = self::money(
-            $totals['munch_sales'] + $totals['glovo'] + $totals['uber'] + $totals['bolt_food']
-        );
 
         $salesDateLabel = self::salesDateLabel($from, $to);
 
@@ -192,7 +219,12 @@ class AdminSaleReportExport
         return $day.self::ordinal($day).' '.$date->format('F Y');
     }
 
-    public static function formatTimestamp(mixed $value): string
+    public static function formatTimestamp(mixed $value, bool $includeDate = false): string
+    {
+        return self::formatTime($value, $includeDate);
+    }
+
+    public static function formatTime(mixed $value, bool $includeDate = false): string
     {
         if ($value instanceof CarbonInterface) {
             $dt = $value->copy();
@@ -209,7 +241,9 @@ class AdminSaleReportExport
             // keep the parsed instant
         }
 
-        return $dt->format('j M Y h:i A');
+        return $includeDate
+            ? $dt->format('j M Y g:i A')
+            : $dt->format('g:i A');
     }
 
     public static function formatAmount(float|int|string $amount): string
@@ -229,50 +263,110 @@ class AdminSaleReportExport
     }
 
     /**
+     * @param  array<string, mixed>  $section
+     * @return list<array<string, mixed>>
+     */
+    public static function sectionOrders(array $section): array
+    {
+        if (isset($section['orders']) && is_array($section['orders'])) {
+            return $section['orders'];
+        }
+
+        $orders = [];
+        foreach ($section['categories'] ?? [] as $category) {
+            foreach ($category['orders'] ?? [] as $order) {
+                $orders[] = $order;
+            }
+        }
+
+        return $orders;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function sectionColumnLabels(string $sectionKey): array
+    {
+        if ($sectionKey === 'munch_sales') {
+            return ['Time', 'Munch Order #', 'Type', 'Amount'];
+        }
+
+        $platform = self::marketplaceOrderColumn($sectionKey);
+        if ($platform === '') {
+            return ['Time', 'Munch Order #', 'Type', 'Amount'];
+        }
+
+        return ['Time', 'Munch Order #', $platform, 'Type', 'Amount'];
+    }
+
+    public static function marketplaceOrderColumn(string $sectionKey): string
+    {
+        return match ($sectionKey) {
+            'glovo' => 'Glovo Order #',
+            'uber' => 'Uber Order #',
+            'bolt_food' => 'Bolt Food Order #',
+            default => '',
+        };
+    }
+
+    /**
      * Flatten the shared report so CSV and Excel receive the same rows.
      *
      * @param  array<string, mixed>  $report
-     * @return list<array<string, string>>
+     * @return list<array{type: string, section: string|null, cells: list<string>}>
      */
-    public static function flattenRows(array $report): array
+    public static function flattenExport(array $report): array
     {
         $rows = [];
-        $rows[] = self::sheetRow(self::BRAND);
-        $rows[] = self::sheetRow('Branch: '.($report['branch_name'] ?? ''));
-        $rows[] = self::sheetRow('Sales Date: '.($report['sales_date_label'] ?? ''));
-        $rows[] = self::sheetRow('');
+        $rows[] = self::exportRow('brand', null, [self::BRAND]);
+        $rows[] = self::exportRow('meta', null, ['Branch: '.($report['branch_name'] ?? '')]);
+        $rows[] = self::exportRow('meta', null, ['Sales Date: '.($report['sales_date_label'] ?? '')]);
+        $rows[] = self::exportRow('blank', null, ['']);
 
-        $munch = $report['sections']['munch_sales'] ?? [];
-        $rows[] = self::sheetRow('MUNCH SALES');
-        foreach (self::MUNCH_CATEGORIES as $category) {
-            $block = $munch['categories'][$category] ?? ['label' => $category, 'orders' => []];
-            $rows[] = self::sheetRow((string) ($block['label'] ?? $category));
-            foreach ($block['orders'] ?? [] as $order) {
-                $rows[] = self::orderSheetRow($order);
-            }
-        }
-        $rows[] = self::sheetRow('Munch Sales Total', amount: self::formatAmount($report['totals']['munch_sales'] ?? 0));
-        $rows[] = self::sheetRow('');
+        foreach (self::SECTION_KEYS as $sectionKey) {
+            $section = $report['sections'][$sectionKey] ?? [];
+            $heading = (string) ($section['heading'] ?? strtoupper((string) ($section['label'] ?? $sectionKey)));
+            $columns = self::sectionColumnLabels($sectionKey);
+            $rows[] = self::exportRow('section', $sectionKey, [$heading]);
+            $rows[] = self::exportRow('columns', $sectionKey, $columns);
 
-        $rows[] = self::sheetRow('MARKETPLACE SALES');
-        foreach (self::MARKETPLACE_CATEGORIES as $category) {
-            $section = $report['sections'][$category] ?? [];
-            $label = (string) ($section['label'] ?? $category);
-            $rows[] = self::sheetRow(strtoupper($label));
-            foreach (($section['categories'][$category]['orders'] ?? []) as $order) {
-                $rows[] = self::orderSheetRow($order);
+            $orders = self::sectionOrders($section);
+            if ($orders === []) {
+                $rows[] = self::exportRow('empty', $sectionKey, ['No orders']);
+            } else {
+                foreach ($orders as $order) {
+                    $rows[] = self::exportRow('order', $sectionKey, self::orderCells($order, $sectionKey));
+                }
             }
-            $rows[] = self::sheetRow($label.' Total', amount: self::formatAmount($report['totals'][$category] ?? 0));
+
+            $totalCells = array_fill(0, max(count($columns) - 2, 0), '');
+            $totalCells[] = (string) ($section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total'));
+            $totalCells[] = self::formatAmount($report['totals'][$sectionKey] ?? ($section['total'] ?? 0));
+            $rows[] = self::exportRow('total', $sectionKey, $totalCells);
+            $rows[] = self::exportRow('blank', null, ['']);
         }
-        $rows[] = self::sheetRow('');
-        $rows[] = self::sheetRow('TOTAL SALES', amount: self::formatAmount($report['totals']['total_sales'] ?? 0));
-        $rows[] = self::sheetRow('');
-        $rows[] = self::sheetRow('PAYMENT METHODS');
+
+        $rows[] = self::exportRow('payment_heading', 'payments', ['PAYMENT METHODS']);
         foreach (self::paymentMethodLabels() as $key => $label) {
-            $rows[] = self::sheetRow($label, amount: self::formatAmount($report['payment_totals'][$key] ?? 0));
+            $rows[] = self::exportRow('payment', 'payments', [
+                $label,
+                self::formatAmount($report['payment_totals'][$key] ?? 0),
+            ]);
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $report
+     * @return list<list<string>>
+     */
+    public static function flattenRows(array $report): array
+    {
+        return array_map(
+            static fn (array $row): array => $row['cells'],
+            self::flattenExport($report)
+        );
     }
 
     /**
@@ -285,12 +379,8 @@ class AdminSaleReportExport
             return '';
         }
 
-        $rows = self::flattenRows($report);
-        if ($rows !== []) {
-            fputcsv($handle, array_keys($rows[0]));
-            foreach ($rows as $row) {
-                fputcsv($handle, array_values($row));
-            }
+        foreach (self::flattenExport($report) as $row) {
+            fputcsv($handle, $row['cells']);
         }
         rewind($handle);
         $csv = stream_get_contents($handle);
@@ -315,9 +405,26 @@ class AdminSaleReportExport
     /**
      * @param  array<string, mixed>  $report
      */
+    public static function writeXlsx(string $path, array $report): void
+    {
+        $writer = new XlsxWriter(new XlsxOptions());
+        $writer->openToFile($path);
+        foreach (self::flattenExport($report) as $row) {
+            $writer->addRow(Row::fromValues($row['cells'], self::excelRowStyle($row)));
+        }
+        $writer->close();
+    }
+
+    /**
+     * @param  array<string, mixed>  $report
+     */
     public static function downloadXlsx(array $report, string $filename): mixed
     {
-        return (new FastExcel(self::flattenRows($report)))->download($filename);
+        return response()->streamDownload(static function () use ($report): void {
+            self::writeXlsx('php://output', $report);
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public static function sanitizeFilename(string $name): string
@@ -331,14 +438,61 @@ class AdminSaleReportExport
     /**
      * @return array<string, array<string, mixed>>
      */
+    public static function sectionThemes(): array
+    {
+        return [
+            'munch_sales' => [
+                'color' => self::COLOR_MUNCH,
+                'tint' => self::TINT_MUNCH,
+                'header_ink' => '#FFFFFF',
+            ],
+            'glovo' => [
+                'color' => self::COLOR_GLOVO,
+                'tint' => self::TINT_GLOVO,
+                'header_ink' => '#111111',
+            ],
+            'uber' => [
+                'color' => self::COLOR_UBER,
+                'tint' => self::TINT_UBER,
+                'header_ink' => '#111111',
+            ],
+            'bolt_food' => [
+                'color' => self::COLOR_BOLT_FOOD,
+                'tint' => self::TINT_BOLT_FOOD,
+                'header_ink' => '#111111',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function sectionTheme(string $sectionKey): array
+    {
+        return self::sectionThemes()[$sectionKey] ?? [
+            'color' => '#111111',
+            'tint' => '#F5F5F5',
+            'header_ink' => '#FFFFFF',
+        ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
     private static function emptySections(): array
     {
+        $themes = self::sectionThemes();
+
         return [
             'munch_sales' => [
                 'label' => 'Munch Sales',
                 'heading' => 'MUNCH SALES',
                 'total_label' => 'Munch Sales Total',
                 'total' => 0.0,
+                'orders' => [],
+                'color' => $themes['munch_sales']['color'],
+                'tint' => $themes['munch_sales']['tint'],
+                'header_ink' => $themes['munch_sales']['header_ink'],
                 'categories' => [
                     'dine_in' => ['label' => 'Dine In', 'orders' => [], 'total' => 0.0],
                     'takeaway' => ['label' => 'Take Away', 'orders' => [], 'total' => 0.0],
@@ -350,6 +504,10 @@ class AdminSaleReportExport
                 'heading' => 'GLOVO',
                 'total_label' => 'Glovo Total',
                 'total' => 0.0,
+                'orders' => [],
+                'color' => $themes['glovo']['color'],
+                'tint' => $themes['glovo']['tint'],
+                'header_ink' => $themes['glovo']['header_ink'],
                 'categories' => [
                     'glovo' => ['label' => 'Glovo', 'orders' => [], 'total' => 0.0],
                 ],
@@ -359,6 +517,10 @@ class AdminSaleReportExport
                 'heading' => 'UBER',
                 'total_label' => 'Uber Total',
                 'total' => 0.0,
+                'orders' => [],
+                'color' => $themes['uber']['color'],
+                'tint' => $themes['uber']['tint'],
+                'header_ink' => $themes['uber']['header_ink'],
                 'categories' => [
                     'uber' => ['label' => 'Uber', 'orders' => [], 'total' => 0.0],
                 ],
@@ -368,6 +530,10 @@ class AdminSaleReportExport
                 'heading' => 'BOLT FOOD',
                 'total_label' => 'Bolt Food Total',
                 'total' => 0.0,
+                'orders' => [],
+                'color' => $themes['bolt_food']['color'],
+                'tint' => $themes['bolt_food']['tint'],
+                'header_ink' => $themes['bolt_food']['header_ink'],
                 'categories' => [
                     'bolt_food' => ['label' => 'Bolt Food', 'orders' => [], 'total' => 0.0],
                 ],
@@ -379,7 +545,7 @@ class AdminSaleReportExport
      * @param  object|array<string, mixed>  $order
      * @return array<string, mixed>
      */
-    private static function orderRow(object|array $order, string $category): array
+    private static function orderRow(object|array $order, string $category, bool $includeDate = false): array
     {
         $createdAt = self::value($order, 'created_at');
         $sortAt = $createdAt instanceof CarbonInterface
@@ -388,10 +554,12 @@ class AdminSaleReportExport
         $salesCategory = in_array($category, self::MARKETPLACE_CATEGORIES, true)
             ? self::categoryLabel($category)
             : 'Munch Sales';
+        $time = self::formatTime($createdAt, $includeDate);
 
         return [
             'order_id' => self::orderId($order),
-            'timestamp' => self::formatTimestamp($createdAt),
+            'time' => $time,
+            'timestamp' => $time,
             'sort_at' => $sortAt,
             'order_number' => self::orderNumber($order),
             'platform_order_number' => PosOrderTypes::normalizePlatformOrderNumber(
@@ -467,39 +635,67 @@ class AdminSaleReportExport
 
     /**
      * @param  array<string, mixed>  $order
-     * @return array<string, string>
+     * @return list<string>
      */
-    private static function orderSheetRow(array $order): array
+    private static function orderCells(array $order, string $sectionKey): array
     {
-        return self::sheetRow(
-            (string) ($order['timestamp'] ?? ''),
-            (string) ($order['order_number'] ?? ''),
-            (string) ($order['platform_order_number'] ?? ''),
-            (string) ($order['sales_category'] ?? ''),
-            (string) ($order['order_type'] ?? ''),
-            self::formatAmount($order['amount'] ?? 0)
-        );
+        $time = (string) ($order['time'] ?? $order['timestamp'] ?? '');
+        $number = (string) ($order['order_number'] ?? '');
+        $type = (string) ($order['order_type'] ?? '');
+        $amount = self::formatAmount($order['amount'] ?? 0);
+        if (self::marketplaceOrderColumn($sectionKey) === '') {
+            return [$time, $number, $type, $amount];
+        }
+
+        return [$time, $number, (string) ($order['platform_order_number'] ?? ''), $type, $amount];
     }
 
     /**
-     * @return array<string, string>
+     * @param  list<string>  $cells
+     * @return array{type: string, section: string|null, cells: list<string>}
      */
-    private static function sheetRow(
-        string $timestamp,
-        string $orderNumber = '',
-        string $platformOrderNumber = '',
-        string $salesCategory = '',
-        string $orderType = '',
-        string $amount = ''
-    ): array {
+    private static function exportRow(string $type, ?string $section, array $cells): array
+    {
         return [
-            'Timestamp' => $timestamp,
-            'Munch Order #' => $orderNumber,
-            'Marketplace Order #' => $platformOrderNumber,
-            'Sales Category' => $salesCategory,
-            'Order Type' => $orderType,
-            'Amount' => $amount,
+            'type' => $type,
+            'section' => $section,
+            'cells' => $cells,
         ];
+    }
+
+    /**
+     * @param  array{type: string, section: string|null, cells: list<string>}  $row
+     */
+    private static function excelRowStyle(array $row): Style
+    {
+        $style = (new Style())
+            ->setFontName('Arial')
+            ->setFontSize(11)
+            ->setFontColor('111111');
+
+        $theme = $row['section'] ? self::sectionTheme($row['section']) : null;
+
+        return match ($row['type']) {
+            'brand' => $style->setFontBold()->setFontSize(16),
+            'section' => $style
+                ->setFontBold()
+                ->setFontSize(12)
+                ->setFontColor(self::excelHex($theme['header_ink'] ?? '#111111'))
+                ->setBackgroundColor(self::excelHex($theme['color'] ?? '#111111')),
+            'columns' => $style
+                ->setFontBold()
+                ->setBackgroundColor(self::excelHex($theme['tint'] ?? '#F5F5F5')),
+            'total' => $style
+                ->setFontBold()
+                ->setBackgroundColor(self::excelHex($theme['tint'] ?? '#F5F5F5')),
+            'payment_heading' => $style->setFontBold()->setFontSize(12),
+            default => $style,
+        };
+    }
+
+    private static function excelHex(string $color): string
+    {
+        return strtoupper(ltrim($color, '#'));
     }
 
     /**
