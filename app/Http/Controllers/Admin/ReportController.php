@@ -360,7 +360,7 @@ class ReportController extends Controller
                 $query->where('branch_id', $request['branch_id']);
             })
             ->when($channel !== '' && $channel !== 'all', function ($query) use ($channel) {
-                $query->where('sales_channel', $channel);
+                PosOrderTypes::constrainSaleReportChannel($query, $channel);
             })
             ->when($paymentMethod !== '' && $paymentMethod !== 'all', function ($query) use ($paymentMethod) {
                 $query->where('payment_method', $paymentMethod);

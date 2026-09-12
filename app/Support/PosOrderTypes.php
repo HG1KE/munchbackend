@@ -155,6 +155,25 @@ class PosOrderTypes
         return ['pos', 'delivery', 'takeaway', 'dine_in', 'glovo', 'uber', 'bolt_food'];
     }
 
+    /**
+     * Sale Report channel filter. "POS" is the whole Branch POS family
+     * (`order_type=pos` plus POS sales channels), not `sales_channel=pos`.
+     * Other values still match `orders.sales_channel` exactly.
+     */
+    public static function constrainSaleReportChannel($query, string $channel): void
+    {
+        if ($channel === '' || $channel === 'all') {
+            return;
+        }
+        if ($channel === 'pos') {
+            $query->pos();
+
+            return;
+        }
+
+        $query->where('sales_channel', $channel);
+    }
+
     public static function channelLabel(?string $salesChannel, ?string $orderType = null): string
     {
         return match ($salesChannel ?: '') {
