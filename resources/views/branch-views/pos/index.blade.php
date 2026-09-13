@@ -185,6 +185,8 @@
         <div class="munch-pos-success__actions">
             <button type="button" class="munch-pos-place" id="pos-success-kitchen">{{ translate('Print Kitchen Order') }}</button>
             <button type="button" class="munch-pos-success__receipt" id="pos-success-receipt">{{ translate('Print Receipt') }}</button>
+            <button type="button" class="munch-pos-success__edit" id="pos-success-edit">{{ translate('Edit Order') }}</button>
+            <p class="munch-pos-success__edit-hint" id="pos-success-edit-hint" hidden>{{ translate('Order cannot be edited because a kitchen order or receipt has already been printed.') }}</p>
             <button type="button" class="munch-pos-place" id="pos-success-done">{{ translate('Done') }}</button>
             <button type="button" class="munch-pos-clear" id="pos-success-close">{{ translate('Close') }}</button>
         </div>
@@ -212,6 +214,7 @@
             printTicket: @json(route('branch.pos.print-ticket')),
             cancelOrder: @json(route('branch.pos.cancel-order')),
             order: @json(route('branch.pos.order')),
+            updateOrder: @json(route('branch.pos.update-order')),
             invoice: @json(url('branch/pos/invoice')),
             sw: @json(route('branch.pos.service-worker')),
             login: @json(route('branch.auth.login')),
@@ -337,11 +340,19 @@
             cancelledBy: @json(translate('Cancelled by')),
             cancelledAt: @json(translate('Cancelled at')),
             cancelQueued: @json(translate('Cancellation saved offline')),
+            editOrder: @json(translate('Edit Order')),
+            saveChanges: @json(translate('Save Changes')),
+            savingChanges: @json(translate('Saving...')),
+            editBlockedPrinted: @json(translate('Order cannot be edited because a kitchen order or receipt has already been printed.')),
+            editBlockedCancelled: @json(translate('Cancelled orders cannot be edited.')),
+            editBlockedMarketplace: @json(translate('Marketplace orders cannot be edited.')),
+            receiptCancelled: @json(translate('Cancelled orders cannot print a customer receipt.')),
         }
     };
 </script>
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.1"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.0" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.1" defer></script>
 @endpush

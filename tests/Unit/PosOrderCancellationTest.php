@@ -254,12 +254,14 @@ class PosOrderCancellationTest extends TestCase
         $this->assertStringContainsString('cancellationAuditLogs', $orderModel);
     }
 
-    public function test_receipts_remain_accessible_and_kitchen_tickets_are_blocked(): void
+    public function test_cancelled_orders_cannot_print_kitchen_or_customer_receipts(): void
     {
         $controller = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
         $print = $this->methodBody($controller, 'markTicketPrinted');
         $invoice = $this->methodBody($controller, 'generateInvoice');
-        $this->assertStringContainsString("ticket === 'kitchen' && PosOrderCancellationService::isCancelledStatus", $print);
+        $this->assertStringContainsString('PosOrderEditService::printBlockedMessage', $print);
+        $this->assertStringContainsString('Cancelled orders cannot print a customer receipt.', file_get_contents(app_path('Services/PosOrderEditService.php')));
+        $this->assertStringContainsString('Cancelled orders cannot print kitchen tickets', file_get_contents(app_path('Services/PosOrderEditService.php')));
         $this->assertStringNotContainsString('order_status', $invoice);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
@@ -282,7 +284,10 @@ class PosOrderCancellationTest extends TestCase
         $this->assertStringNotContainsString('z-index', $nestedCss);
         $this->assertStringContainsString('isCancelledOrder(order)', $js);
         $this->assertStringContainsString("kind === 'kitchen' && (job.kitchenPrinted || isCancelledJob(job))", $js);
-        $this->assertStringContainsString("payload.action === 'cancel' ? postCancel(payload) : postOrder(payload)", $js);
+        $this->assertStringContainsString("kind === 'receipt' && (job.receiptPrinted || isCancelledJob(job))", $js);
+        $this->assertStringContainsString("payload.action === 'cancel'", $js);
+        $this->assertStringContainsString('postCancel(payload)', $js);
+        $this->assertStringContainsString('postUpdate(payload)', $js);
         $this->assertStringContainsString('if (cancelUi.submitting) return', $js);
         $this->assertStringContainsString('munch-pos-place__spin', $js);
     }

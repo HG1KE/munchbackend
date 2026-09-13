@@ -147,6 +147,18 @@ class PosOrderTypes
         };
     }
 
+    public static function uiTypeFromSalesChannel(?string $channel): string
+    {
+        return match ((string) $channel) {
+            self::DELIVERY => self::DELIVERY,
+            self::DINE_IN => self::DINE_IN,
+            self::GLOVO => self::GLOVO,
+            self::UBER => self::UBER,
+            self::BOLT_FOOD => self::BOLT_FOOD,
+            default => self::TAKE_AWAY,
+        };
+    }
+
     /**
      * @return list<string>
      */

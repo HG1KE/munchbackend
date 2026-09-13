@@ -52,6 +52,9 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('uber', PosOrderTypes::salesChannel('uber'));
         $this->assertSame('bolt_food', PosOrderTypes::salesChannel('bolt_food'));
         $this->assertSame('takeaway', PosOrderTypes::salesChannel('unknown'));
+        $this->assertSame('take_away', PosOrderTypes::uiTypeFromSalesChannel('takeaway'));
+        $this->assertSame('delivery', PosOrderTypes::uiTypeFromSalesChannel('delivery'));
+        $this->assertSame('dine_in', PosOrderTypes::uiTypeFromSalesChannel('dine_in'));
         $this->assertSame([
             'pos', 'delivery', 'takeaway', 'dine_in', 'glovo', 'uber', 'bolt_food',
         ], PosOrderTypes::salesChannels());

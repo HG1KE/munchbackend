@@ -47,7 +47,10 @@
         searchTimer: 0,
         loading: false
     };
+    var OrderRules = window.MunchPosOrderRules || {};
     var successJob = null;
+    var lastPosted = null;
+    var editingOrder = null;
     var printBusy = false;
     var cancelUi = {
         open: false,
@@ -708,7 +711,14 @@
         if (els.topTotal) els.topTotal.textContent = money(grandTotal());
         if (els.discount) els.discount.value = state.cart.discount || '';
         if (els.discountType) els.discountType.value = state.cart.discountType;
-        if (els.place) els.place.disabled = !state.cart.lines.length || state.placing || state.orderSubmitting || !!successJob;
+        if (els.place) {
+            els.place.disabled = !state.cart.lines.length || state.placing || state.orderSubmitting || !!successJob;
+            if (!state.placing && !state.orderSubmitting) {
+                els.place.textContent = editingOrder
+                    ? L('saveChanges', 'Save Changes')
+                    : L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
+            }
+        }
         if (els.clear) els.clear.disabled = !!successJob;
     }
 
@@ -1229,6 +1239,51 @@
         });
     }
 
+    function postUpdate(payload, retried) {
+        if (!CFG.urls.updateOrder) {
+            return Promise.resolve({ success: 0, message: 'Edit is unavailable' });
+        }
+        var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var timer = 0;
+        if (controller) {
+            timer = setTimeout(function () {
+                try { controller.abort(); } catch (err) {}
+            }, POST_TIMEOUT_MS);
+        }
+        return fetch(CFG.urls.updateOrder, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Munch-POS': '1'
+            },
+            body: JSON.stringify(payload),
+            signal: controller ? controller.signal : undefined
+        }).then(function (res) {
+            if (timer) clearTimeout(timer);
+            if (res.status === 419 && !retried) {
+                return refreshHeartbeat().then(function (ok) {
+                    if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
+                    if (!ok) return { success: 0, _http: 419, _ok: false };
+                    return postUpdate(payload, true);
+                });
+            }
+            return res.json().catch(function () { return {}; }).then(function (body) {
+                return parsePosResponse(res, body);
+            });
+        }).catch(function (err) {
+            if (timer) clearTimeout(timer);
+            if (err && err.name === 'AbortError') {
+                var timeoutErr = new Error('timeout');
+                timeoutErr.code = 'timeout';
+                throw timeoutErr;
+            }
+            throw err;
+        });
+    }
+
     function postCancel(payload, retried) {
         if (!CFG.urls.cancelOrder) {
             return Promise.resolve({ success: 0, message: 'Cancel is unavailable' });
@@ -1278,6 +1333,20 @@
             state.queueCount = state.queueItems.length;
             state.authRequired = state.queueItems.some(function (row) { return row.status === 'auth'; }) || state.authRequired;
             scheduleRender();
+        });
+    }
+
+    function replaceQueuedPayload(payload) {
+        var id = payload && payload.client_uuid != null ? String(payload.client_uuid) : '';
+        if (!id) return enqueue(payload);
+        return idbGet('queue', id).then(function (existing) {
+            if (!existing) return enqueue(payload);
+            existing.payload = payload;
+            existing.status = 'queued';
+            existing.lastError = null;
+            return idbPut('queue', existing).then(refreshQueueCount).then(function () {
+                return existing;
+            });
         });
     }
 
@@ -1347,7 +1416,9 @@
         row.attempts = (row.attempts || 0) + 1;
         return idbPut('queue', row).then(function () {
             var payload = row.payload || {};
-            var post = payload.action === 'cancel' ? postCancel(payload) : postOrder(payload);
+            var post = payload.action === 'cancel'
+                ? postCancel(payload)
+                : (payload.action === 'update' ? postUpdate(payload) : postOrder(payload));
             return post;
         }).then(function (body) {
             if (body && (body.success === 1 || body.duplicate)) {
@@ -1542,10 +1613,27 @@
         };
     }
 
+    function rememberPostedCart(payload, extras) {
+        extras = extras || {};
+        lastPosted = {
+            cart: JSON.parse(JSON.stringify(state.cart)),
+            payload: payload || null,
+            clientUuid: (payload && payload.client_uuid) || '',
+            placedAt: (payload && payload.placed_at) || new Date().toISOString(),
+            offline: !!extras.offline
+        };
+    }
+
+    function clearPostedEditState() {
+        lastPosted = null;
+        editingOrder = null;
+    }
+
     function openSuccessModal(job, extras) {
         if (successJob) return;
         successJob = job;
         extras = extras || {};
+        if (extras.payload) rememberPostedCart(extras.payload, extras);
         var copy = successOutcomeCopy(job, extras);
         if (!els.successModal) {
             toast(copy.detail);
@@ -1562,6 +1650,7 @@
         if (els.successTotal) els.successTotal.textContent = money(job.grand_total);
         if (els.successPay) els.successPay.textContent = paymentLabel(job.payment_method);
         applyPrintButtonState(job);
+        applyEditButtonState(job);
         els.successModal.hidden = false;
         syncPosOverlayState();
         renderTotals();
@@ -1569,9 +1658,54 @@
 
     function dismissPlacedOrder() {
         successJob = null;
+        clearPostedEditState();
         if (els.successModal) els.successModal.hidden = true;
         syncPosOverlayState();
         clearCart();
+    }
+
+    function applyEditButtonState(job) {
+        var allowed = !!(OrderRules.canEditPostedOrder && OrderRules.canEditPostedOrder(job));
+        var reason = '';
+        if (!allowed && OrderRules.editBlockedReason) {
+            reason = OrderRules.editBlockedReason(job) || L('editBlockedPrinted', 'Order cannot be edited because a kitchen order or receipt has already been printed.');
+        } else if (!allowed) {
+            reason = L('editBlockedPrinted', 'Order cannot be edited because a kitchen order or receipt has already been printed.');
+        }
+        if (els.successEdit) {
+            els.successEdit.disabled = !allowed;
+            els.successEdit.textContent = L('editOrder', 'Edit Order');
+        }
+        if (els.successEditHint) {
+            els.successEditHint.hidden = allowed;
+            els.successEditHint.textContent = allowed ? '' : reason;
+        }
+    }
+
+    function startEditPostedOrder() {
+        if (!successJob || !(OrderRules.canEditPostedOrder && OrderRules.canEditPostedOrder(successJob))) return;
+        if (!lastPosted || !lastPosted.cart) return;
+        var snapshot = lastPosted;
+        editingOrder = {
+            id: Number(successJob.orderId || 0),
+            clientUuid: snapshot.clientUuid,
+            placedAt: snapshot.placedAt,
+            offline: !!snapshot.offline
+        };
+        state.cart = JSON.parse(JSON.stringify(snapshot.cart));
+        if (!state.cart.address) state.cart.address = {};
+        fillDeliveryModal();
+        successJob = null;
+        if (els.successModal) els.successModal.hidden = true;
+        syncPosOverlayState();
+        persistCart();
+        lastGridKey = '';
+        scheduleRender();
+        renderLines();
+        renderTotals();
+        (state.cart.lines || []).forEach(function (line) {
+            updateProductCard(line.productId);
+        });
     }
 
     function printedLabel(kind, done) {
@@ -1820,9 +1954,10 @@
             els.successKitchen.textContent = printedLabel('kitchen', job.kitchenPrinted);
         }
         if (els.successReceipt) {
-            els.successReceipt.disabled = !!job.receiptPrinted;
+            els.successReceipt.disabled = !!job.receiptPrinted || isCancelledJob(job);
             els.successReceipt.textContent = printedLabel('receipt', job.receiptPrinted);
         }
+        applyEditButtonState(job);
     }
 
     function rememberPrinted(orderId, kind) {
@@ -1961,7 +2096,7 @@
     function printOneTicket(job, kind) {
         if (!job || printBusy) return Promise.resolve();
         if (kind === 'kitchen' && (job.kitchenPrinted || isCancelledJob(job))) return Promise.resolve();
-        if (kind === 'receipt' && job.receiptPrinted) return Promise.resolve();
+        if (kind === 'receipt' && (job.receiptPrinted || isCancelledJob(job))) return Promise.resolve();
         printBusy = true;
         var html = kind === 'kitchen' ? kitchenTicketHtml(job) : receiptTicketHtml(job);
         var copies = window.MunchReceiptTicket.copies(kind, ticketRenderOptions().print);
@@ -2010,7 +2145,9 @@
             els.place.setAttribute('aria-busy', 'true');
             els.place.classList.add('is-submitting');
             els.place.innerHTML = '<span class="munch-pos-place__spin" aria-hidden="true"></span>' +
-                escapeHtml(navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...'));
+                escapeHtml(editingOrder
+                    ? L('savingChanges', 'Saving...')
+                    : (navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...')));
         }
         setDeliveryFormBusy(true);
         if (els.platformConfirm) els.platformConfirm.disabled = true;
@@ -2020,7 +2157,9 @@
         if (els.place) {
             els.place.removeAttribute('aria-busy');
             els.place.classList.remove('is-submitting');
-            els.place.textContent = L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
+            els.place.textContent = editingOrder
+                ? L('saveChanges', 'Save Changes')
+                : L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
         }
         setDeliveryFormBusy(false);
         if (els.platformConfirm) els.platformConfirm.disabled = false;
@@ -2059,6 +2198,15 @@
     }
 
     function buildAttemptPayload() {
+        if (editingOrder && editingOrder.clientUuid) {
+            pendingAttempt = { client_uuid: editingOrder.clientUuid, placed_at: editingOrder.placedAt };
+            var editPayload = buildPayload(editingOrder.clientUuid, editingOrder.placedAt);
+            if (editingOrder.id) {
+                editPayload.order_id = editingOrder.id;
+                editPayload.action = 'update';
+            }
+            return editPayload;
+        }
         var keys = SubmitGuard && SubmitGuard.nextAttemptKeys
             ? SubmitGuard.nextAttemptKeys(pendingAttempt, uuid(), new Date().toISOString())
             : (pendingAttempt && pendingAttempt.client_uuid
@@ -2176,12 +2324,16 @@
     }
 
     function finishQueuedOrder(payload, extraToast) {
-        return enqueue(payload).then(function () {
+        var save = (editingOrder || (payload && payload.action === 'update'))
+            ? replaceQueuedPayload(payload)
+            : enqueue(payload);
+        return save.then(function () {
             clearPendingAttempt();
+            editingOrder = null;
             closeDeliveryModal(true);
             openSuccessModal(snapshotPrintJob({
                 order_display_id: queuedSuccessLabel(payload, extraToast)
-            }, payload), { offline: true });
+            }, payload), { offline: true, payload: payload });
             clearCart();
             endOrderSubmit();
             requestBackgroundSync();
@@ -2235,11 +2387,15 @@
                 return;
             }
             renderTotals();
-            postOrder(payload).then(function (body) {
+            var posted = (payload.action === 'update' && payload.order_id)
+                ? postUpdate(payload)
+                : postOrder(payload);
+            posted.then(function (body) {
                 if (body && body.success === 1) {
                     clearPendingAttempt();
+                    editingOrder = null;
                     closeDeliveryModal(true);
-                    openSuccessModal(snapshotPrintJob(body), { offline: false });
+                    openSuccessModal(snapshotPrintJob(body), { offline: false, payload: payload });
                     clearCart();
                     endOrderSubmit();
                     return;
@@ -2440,7 +2596,7 @@
                     '<div class="munch-pos-order__side"><div class="munch-pos-order__total">' + money(order.grand_total) + '</div>' +
                     '<div class="munch-pos-order__prints">' +
                     '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed || isCancelledOrder(order) ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +
-                    '<button type="button" class="munch-pos-order__print munch-pos-order__print--receipt" data-print-receipt="' + order.id + '"' + (order.receipt_printed ? ' disabled' : '') + '>' + escapeHtml(printedLabel('receipt', order.receipt_printed)) + '</button>' +
+                    '<button type="button" class="munch-pos-order__print munch-pos-order__print--receipt" data-print-receipt="' + order.id + '"' + (order.receipt_printed || isCancelledOrder(order) ? ' disabled' : '') + '>' + escapeHtml(printedLabel('receipt', order.receipt_printed)) + '</button>' +
                     (orderAllowsCancel(order) ? '<button type="button" class="munch-pos-order__cancel" data-cancel-order="' + order.id + '">' + escapeHtml(L('cancelOrder', 'Cancel Order')) + '</button>' : '') +
                     '</div></div></div>' +
                     '<div class="munch-pos-order__pills">' +
@@ -2565,6 +2721,8 @@
         els.successPay = document.getElementById('pos-success-pay');
         els.successKitchen = document.getElementById('pos-success-kitchen');
         els.successReceipt = document.getElementById('pos-success-receipt');
+        els.successEdit = document.getElementById('pos-success-edit');
+        els.successEditHint = document.getElementById('pos-success-edit-hint');
         els.successClose = document.getElementById('pos-success-close');
         els.successDone = document.getElementById('pos-success-done');
         els.printFrame = document.getElementById('pos-print-frame');
@@ -2621,6 +2779,7 @@
         els.types.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-type]');
             if (!btn) return;
+            if (editingOrder) return;
             state.cart.orderType = btn.getAttribute('data-type');
             state.cart.lines = state.cart.lines.filter(function (line) {
                 return productChannelAvailable(state.productMap[line.productId]);
@@ -2713,6 +2872,7 @@
         });
         if (els.successKitchen) els.successKitchen.addEventListener('click', function () { printPlacedTicket('kitchen'); });
         if (els.successReceipt) els.successReceipt.addEventListener('click', function () { printPlacedTicket('receipt'); });
+        if (els.successEdit) els.successEdit.addEventListener('click', startEditPostedOrder);
         if (els.successClose) els.successClose.addEventListener('click', dismissPlacedOrder);
         if (els.successDone) els.successDone.addEventListener('click', dismissPlacedOrder);
         if (els.deliveryModal) {

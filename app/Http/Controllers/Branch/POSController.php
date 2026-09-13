@@ -16,6 +16,7 @@ use App\Model\Order;
 use App\Services\BranchPosCatalogService;
 use App\Services\BranchPosTodayOrdersService;
 use App\Services\PosOrderCancellationService;
+use App\Services\PosOrderEditService;
 use App\Services\OrderReadableIdService;
 use App\Support\OrderPlacementTime;
 use App\Support\PosClientVersion;
@@ -53,6 +54,7 @@ class POSController extends Controller
         private BranchPosCatalogService $posCatalog,
         private BranchPosTodayOrdersService $posTodayOrders,
         private PosOrderCancellationService $posCancellation,
+        private PosOrderEditService $posEdit,
     )
     {}
 
@@ -158,6 +160,110 @@ class POSController extends Controller
         ]);
     }
 
+    public function updateOrder(Request $request): JsonResponse
+    {
+        $order = $this->order
+            ->where('id', (int) $request->input('order_id'))
+            ->where('branch_id', auth('branch')->id())
+            ->whereIn('sales_channel', PosOrderTypes::salesChannels())
+            ->first();
+
+        if (! $order) {
+            return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
+        }
+
+        $editableError = PosOrderEditService::editableError($order);
+        if ($editableError !== null) {
+            return response()->json(['success' => 0, 'message' => $editableError, 'code' => 'not_editable'], 422);
+        }
+
+        $orderType = PosOrderTypes::uiTypeFromSalesChannel($order->sales_channel);
+        $request->merge(['order_type' => $orderType]);
+
+        $hydrated = $this->hydrateJsonPosCart($request);
+        if ($hydrated instanceof JsonResponse) {
+            return $hydrated;
+        }
+
+        $deliveryCharge = 0;
+        $distance = 0;
+        $areaId = null;
+        $customerAddress = null;
+
+        if (PosOrderTypes::isDelivery($orderType)) {
+            if (! session()->has('address')) {
+                return $this->posFail($request, translate('please select a delivery address'));
+            }
+
+            $addressData = session()->get('address');
+            $distance = $addressData['distance'] ?? 0;
+            $areaId = $addressData['area_id'] ?? $addressData['selected_area_id'] ?? null;
+
+            $deliveryError = PosOrderTypes::posDeliveryFieldError($orderType, [
+                'customer_name' => $addressData['contact_person_name'] ?? '',
+                'customer_phone' => $addressData['contact_person_number'] ?? '',
+                'address' => $addressData['address'] ?? '',
+            ]);
+            if ($deliveryError !== null) {
+                return $this->posFail($request, translate($deliveryError));
+            }
+
+            $address = [
+                'address_type' => 'Home',
+                'contact_person_name' => $addressData['contact_person_name'] ?? 'POS Delivery',
+                'contact_person_number' => $addressData['contact_person_number'] ?? '',
+                'address' => $addressData['address'] ?? '',
+                'floor' => $addressData['floor'] ?? null,
+                'road' => $addressData['road'] ?? null,
+                'house' => $addressData['house'] ?? null,
+                'longitude' => (string) ($addressData['longitude'] ?? ''),
+                'latitude' => (string) ($addressData['latitude'] ?? ''),
+                'user_id' => session()->get('customer_id') ?: null,
+                'is_guest' => session()->get('customer_id') ? 0 : 1,
+            ];
+
+            if ($order->delivery_address_id) {
+                CustomerAddress::query()->where('id', $order->delivery_address_id)->update($address);
+                $customerAddress = CustomerAddress::query()->find($order->delivery_address_id);
+            } else {
+                $customerAddress = CustomerAddress::create($address);
+                $order->delivery_address_id = $customerAddress->id;
+                $order->save();
+            }
+        }
+
+        $cartSnapshot = $this->buildPosCartSnapshot($request, $orderType, $distance, $areaId);
+        if (! ($cartSnapshot['ok'] ?? false)) {
+            return $this->posFail($request, (string) ($cartSnapshot['message'] ?? translate('failed_to_place_order')));
+        }
+
+        $paymentMethod = PosOrderTypes::resolvedPaymentMethod($orderType, $request->type);
+        $cartSnapshot['order_note'] = $request->filled('order_note') ? $request->input('order_note') : $order->order_note;
+
+        $result = $this->posEdit->apply($order, $cartSnapshot, $paymentMethod);
+        if (! $result['success']) {
+            return response()->json([
+                'success' => 0,
+                'message' => $result['message'],
+                'code' => $result['code'] ?? 'not_editable',
+            ], 422);
+        }
+
+        $fresh = $result['order'];
+        $this->persistPosDeliveryAddressJson($fresh, $orderType, $customerAddress);
+
+        session()->forget('cart');
+        session()->forget('customer_id');
+        session()->forget('table_id');
+        session()->forget('people_number');
+        session()->forget('address');
+        session()->forget('order_type');
+
+        return response()->json($this->posPlacedOrderJson($fresh, [
+            'message' => 'Order updated.',
+        ]));
+    }
+
     public function markTicketPrinted(Request $request): JsonResponse
     {
         $ticket = (string) $request->input('ticket');
@@ -175,8 +281,9 @@ class POSController extends Controller
             return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
         }
 
-        if ($ticket === 'kitchen' && PosOrderCancellationService::isCancelledStatus($order->order_status)) {
-            return response()->json(['success' => 0, 'message' => 'Cancelled orders cannot print kitchen tickets'], 422);
+        $printBlocked = PosOrderEditService::printBlockedMessage($order, $ticket);
+        if ($printBlocked !== null) {
+            return response()->json(['success' => 0, 'message' => $printBlocked], 422);
         }
 
         $column = $ticket === 'kitchen' ? 'kitchen_printed_at' : 'receipt_printed_at';
@@ -535,12 +642,16 @@ class POSController extends Controller
             $customerAddress = CustomerAddress::create($address);
         }
 
-        $cart = $request->session()->get('cart');
-        $totalTaxAmount = 0;
-        $totalAddonPrice = 0;
-        $totalAddonTax = 0;
-        $productPrice = 0;
-        $orderDetails = [];
+        $cartSnapshot = $this->buildPosCartSnapshot($request, $orderType, $distance, $areaId);
+        if (! ($cartSnapshot['ok'] ?? false)) {
+            return $this->posFail($request, (string) ($cartSnapshot['message'] ?? translate('failed_to_place_order')));
+        }
+
+        $orderDetails = $cartSnapshot['details'];
+        $extraDiscount = $cartSnapshot['extra_discount'];
+        $totalTaxAmount = $cartSnapshot['total_tax_amount'];
+        $deliveryCharge = $cartSnapshot['delivery_charge'];
+        $orderAmount = $cartSnapshot['order_amount'];
 
         $orderId = 100000 + $this->order->all()->count() + 1;
         if ($this->order->find($orderId)) {
@@ -582,89 +693,11 @@ class POSController extends Controller
         $order->order_note = $request->filled('order_note') ? $request->input('order_note') : null;
         $order->checked = 1;
 
-        foreach ($cart as $c) {
-            if (is_array($c)) {
-                $discountOnProduct = 0;
-                $discount = 0;
-                $productSubtotal = ($c['price']) * $c['quantity'];
-                $discountOnProduct += ($c['discount'] * $c['quantity']);
-
-                $product = $this->product->find($c['id']);
-                if ($product) {
-                    $price = $c['price'];
-
-                    $product = Helpers::product_data_formatting($product);
-                    $addonData = Helpers::calculate_addon_price(AddOn::whereIn('id', $c['add_ons'])->get(), $c['add_on_qtys']);
-
-                    //*** addon quantity integer casting ***
-                    array_walk($c['add_on_qtys'], function (&$add_on_qtys) {
-                        $add_on_qtys = (int)$add_on_qtys;
-                    });
-                    //***end***
-
-                    $branchProduct = $this->product_by_Branch->where(['product_id' => $c['id'], 'branch_id' => auth('branch')->id()])->first();
-
-                    $discountData = [];
-                    if (isset($branchProduct)) {
-                        $variationData = Helpers::get_varient($branchProduct->variations, $c['variations']);
-                        $discountData = [
-                            'discount_type' => $branchProduct['discount_type'],
-                            'discount' => $branchProduct['discount']
-                        ];
-                    }
-
-                    $discount = Helpers::discount_calculate($discountData, $price);
-                    $variations = $variationData['variations'];
-
-                    $orderData = [
-                        'product_id' => $c['id'],
-                        'product_details' => $product,
-                        'quantity' => $c['quantity'],
-                        'price' => $price,
-                        'tax_amount' => Helpers::new_tax_calculate($product, $price, $discountData),
-                        'discount_on_product' => $discount,
-                        'discount_type' => 'discount_on_product',
-                        'variation' => json_encode($variations),
-                        'add_on_ids' => json_encode($addonData['addons']),
-                        'add_on_qtys' => json_encode($c['add_on_qtys']),
-                        'add_on_prices' => json_encode($c['add_on_prices']),
-                        'add_on_taxes' => json_encode($c['add_on_tax']),
-                        'add_on_tax_amount' => $c['addon_total_tax'],
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ];
-                    $totalTaxAmount += $orderData['tax_amount'] * $c['quantity'];
-                    $totalAddonPrice += $addonData['total_add_on_price'];
-
-                    $totalAddonTax += $c['addon_total_tax'];
-
-                    $productPrice += $productSubtotal - $discountOnProduct;
-                    $orderDetails[] = $orderData;
-                }
-            }
-        }
-
-        $totalPrice = $productPrice + $totalAddonPrice;
-        $totalPriceForDiscountValidation = $totalPrice ?? 0;
-        if (isset($cart['extra_discount'])) {
-            $extraDiscount = $cart['extra_discount_type'] == 'percent' && $cart['extra_discount'] > 0 ? (($totalPrice * $cart['extra_discount']) / 100) : $cart['extra_discount'];
-            $totalPrice -= $extraDiscount;
-        }
-        if (isset($cart['extra_discount']) && $cart['extra_discount_type'] == 'amount') {
-            if ($cart['extra_discount'] > $totalPriceForDiscountValidation) {
-                return $this->posFail($request, translate('discount_can_not_be_more_than '). $totalPriceForDiscountValidation);
-            }
-        }
-        $tax = isset($cart['tax']) ? $cart['tax'] : 0;
-        $totalTaxAmount = ($tax > 0) ? (($totalPrice * $tax) / 100) : $totalTaxAmount;
-
-        $deliveryCharge = $this->resolvePosDeliveryCharge($request, $orderType, $distance, $areaId, $totalPrice + $totalTaxAmount + $totalAddonTax);
-
         try {
-            $order->extra_discount = $extraDiscount ?? 0;
+            $order->extra_discount = $extraDiscount;
             $order->total_tax_amount = $totalTaxAmount;
             $order->delivery_charge = $deliveryCharge;
-            $order->order_amount = $totalPrice + $totalTaxAmount + $order->delivery_charge + $totalAddonTax;
+            $order->order_amount = $orderAmount;
             $order->coupon_discount_amount = 0.00;
             $order->branch_id = auth('branch')->id();
             $order->table_id = null;
@@ -1251,6 +1284,14 @@ class POSController extends Controller
             }
         }
 
+        return $this->hydrateJsonPosCart($request);
+    }
+
+    /**
+     * Build the session cart from a JSON POS payload without client_uuid short-circuit.
+     */
+    private function hydrateJsonPosCart(Request $request): ?JsonResponse
+    {
         $items = $request->input('items', []);
         if (! is_array($items) || $items === []) {
             return $this->posFail($request, translate('cart_empty_warning'));
@@ -1309,6 +1350,110 @@ class POSController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * @return array{ok: true, details: list<array<string, mixed>>, extra_discount: float, total_tax_amount: float, delivery_charge: float, order_amount: float}|array{ok: false, message: string}
+     */
+    private function buildPosCartSnapshot(Request $request, string $orderType, mixed $distance, mixed $areaId): array
+    {
+        $cart = $request->session()->get('cart');
+        $totalTaxAmount = 0;
+        $totalAddonPrice = 0;
+        $totalAddonTax = 0;
+        $productPrice = 0;
+        $orderDetails = [];
+
+        foreach ($cart as $c) {
+            if (is_array($c)) {
+                $discountOnProduct = 0;
+                $discount = 0;
+                $productSubtotal = ($c['price']) * $c['quantity'];
+                $discountOnProduct += ($c['discount'] * $c['quantity']);
+
+                $product = $this->product->find($c['id']);
+                if ($product) {
+                    $price = $c['price'];
+
+                    $product = Helpers::product_data_formatting($product);
+                    $addonData = Helpers::calculate_addon_price(AddOn::whereIn('id', $c['add_ons'])->get(), $c['add_on_qtys']);
+
+                    //*** addon quantity integer casting ***
+                    array_walk($c['add_on_qtys'], function (&$add_on_qtys) {
+                        $add_on_qtys = (int) $add_on_qtys;
+                    });
+                    //***end***
+
+                    $branchProduct = $this->product_by_Branch->where(['product_id' => $c['id'], 'branch_id' => auth('branch')->id()])->first();
+
+                    $discountData = [];
+                    if (isset($branchProduct)) {
+                        $variationData = Helpers::get_varient($branchProduct->variations, $c['variations']);
+                        $discountData = [
+                            'discount_type' => $branchProduct['discount_type'],
+                            'discount' => $branchProduct['discount'],
+                        ];
+                    }
+
+                    $discount = Helpers::discount_calculate($discountData, $price);
+                    $variations = $variationData['variations'];
+
+                    $orderData = [
+                        'product_id' => $c['id'],
+                        'product_details' => $product,
+                        'quantity' => $c['quantity'],
+                        'price' => $price,
+                        'tax_amount' => Helpers::new_tax_calculate($product, $price, $discountData),
+                        'discount_on_product' => $discount,
+                        'discount_type' => 'discount_on_product',
+                        'variation' => json_encode($variations),
+                        'add_on_ids' => json_encode($addonData['addons']),
+                        'add_on_qtys' => json_encode($c['add_on_qtys']),
+                        'add_on_prices' => json_encode($c['add_on_prices']),
+                        'add_on_taxes' => json_encode($c['add_on_tax']),
+                        'add_on_tax_amount' => $c['addon_total_tax'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                    $totalTaxAmount += $orderData['tax_amount'] * $c['quantity'];
+                    $totalAddonPrice += $addonData['total_add_on_price'];
+
+                    $totalAddonTax += $c['addon_total_tax'];
+
+                    $productPrice += $productSubtotal - $discountOnProduct;
+                    $orderDetails[] = $orderData;
+                }
+            }
+        }
+
+        $totalPrice = $productPrice + $totalAddonPrice;
+        $totalPriceForDiscountValidation = $totalPrice ?? 0;
+        $extraDiscount = 0;
+        if (isset($cart['extra_discount'])) {
+            $extraDiscount = $cart['extra_discount_type'] == 'percent' && $cart['extra_discount'] > 0 ? (($totalPrice * $cart['extra_discount']) / 100) : $cart['extra_discount'];
+            $totalPrice -= $extraDiscount;
+        }
+        if (isset($cart['extra_discount']) && $cart['extra_discount_type'] == 'amount') {
+            if ($cart['extra_discount'] > $totalPriceForDiscountValidation) {
+                return [
+                    'ok' => false,
+                    'message' => translate('discount_can_not_be_more_than ').$totalPriceForDiscountValidation,
+                ];
+            }
+        }
+        $tax = isset($cart['tax']) ? $cart['tax'] : 0;
+        $totalTaxAmount = ($tax > 0) ? (($totalPrice * $tax) / 100) : $totalTaxAmount;
+
+        $deliveryCharge = $this->resolvePosDeliveryCharge($request, $orderType, $distance, $areaId, $totalPrice + $totalTaxAmount + $totalAddonTax);
+
+        return [
+            'ok' => true,
+            'details' => $orderDetails,
+            'extra_discount' => $extraDiscount,
+            'total_tax_amount' => $totalTaxAmount,
+            'delivery_charge' => $deliveryCharge,
+            'order_amount' => $totalPrice + $totalTaxAmount + $deliveryCharge + $totalAddonTax,
+        ];
     }
 
     private function posClientUuid(Request $request): ?string

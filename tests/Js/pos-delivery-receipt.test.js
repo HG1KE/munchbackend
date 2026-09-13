@@ -174,8 +174,8 @@ test('online snapshot prefers the saved order payload over cart state', function
     var snap = functionBody(app, 'function snapshotPrintJob');
     assert(snap.indexOf('if (body && body.order)') !== -1, 'snapshot must prefer body.order');
     assert(snap.indexOf('return printJobFromOrder(body.order)') !== -1, 'snapshot must print from saved order');
-    assert(app.indexOf('openSuccessModal(snapshotPrintJob(body), { offline: false })') !== -1
-        || app.indexOf('openSuccessModal(snapshotPrintJob(body),{ offline: false })') !== -1, 'online success must snapshot the place-order response');
+    assert(app.indexOf('openSuccessModal(snapshotPrintJob(body), { offline: false, payload: payload })') !== -1
+        || app.indexOf('openSuccessModal(snapshotPrintJob(body),{ offline: false, payload: payload })') !== -1, 'online success must snapshot the place-order response');
 });
 
 test('offline snapshot keeps queued customer details after the cart is cleared', function () {

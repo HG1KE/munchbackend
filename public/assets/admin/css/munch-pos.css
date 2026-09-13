@@ -1383,9 +1383,30 @@ html.munch-pos-overlay-open body {
 }
 
 .munch-pos-success__receipt:disabled,
-.munch-pos-success__card .munch-pos-place:disabled {
+.munch-pos-success__card .munch-pos-place:disabled,
+.munch-pos-success__edit:disabled {
     opacity: 0.65;
     cursor: default;
+}
+
+.munch-pos-success__edit {
+    min-height: 48px;
+    border-radius: 14px;
+    border: 1px solid var(--munch-pos-ink);
+    background: #fff7ed;
+    color: var(--munch-pos-ink);
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-success__edit-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--munch-pos-muted);
+    text-align: left;
 }
 
 .munch-pos-print-frame {
@@ -1735,7 +1756,8 @@ html.munch-pos-overlay-open body {
 
     .munch-pos-success__card .munch-pos-place,
     .munch-pos-success__card .munch-pos-clear,
-    .munch-pos-success__receipt {
+    .munch-pos-success__receipt,
+    .munch-pos-success__edit {
         min-height: 48px;
         font-size: 0.95rem;
     }

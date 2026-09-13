@@ -343,7 +343,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('pos-people', $posPage);
         $this->assertStringContainsString('pos-discount-wrap', $posPage);
         $this->assertStringContainsString('pos-print-frame', $posPage);
-        $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body), { offline: false })', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body), { offline: false, payload: payload })', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('printOneTicket', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('allowsDiscount', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
         $this->assertStringContainsString('orderTypeBannerHtml', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
@@ -360,7 +360,7 @@ class OnlineOrdersQueueGroupingTest extends TestCase
         $this->assertStringNotContainsString('PAID VIA GLOVO', $kitchenFn);
         $this->assertStringContainsString('Enable M-PESA Payments on POS', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
         $this->assertStringContainsString('pos_mpesa_enabled', file_get_contents(resource_path('views/admin-views/branch/edit.blade.php')));
-        $this->assertStringContainsString("munch-pos-app.js') }}?v=6.0", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
+        $this->assertStringContainsString("munch-pos-app.js') }}?v=6.1", file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringNotContainsString('munch-pos-dine-in.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('munch-pos-submit-guard.js', file_get_contents(resource_path('views/branch-views/pos/index.blade.php')));
         $this->assertStringContainsString('isMarketplaceOrderType', $posJs);
