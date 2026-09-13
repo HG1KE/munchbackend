@@ -51,7 +51,7 @@ class MarketplacePlatformOrderNumberTest extends TestCase
         $this->assertStringContainsString("'platform_order_number'", $today);
         $this->assertStringContainsString("'platform_order_label'", $today);
 
-        $report = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
+        $report = file_get_contents(app_path('Support/AdminSaleReportExport.php'));
         $this->assertStringContainsString("'platform_order_number'", $report);
         $this->assertStringContainsString("'sales_channel_label'", $report);
 

@@ -173,6 +173,8 @@ class BranchPosTodayOrdersService
             'grand_total' => $grand,
             'payment_method' => (string) $order->payment_method,
             'payment_status' => (string) $order->payment_status,
+            'payment_refunded' => (string) $order->payment_status === 'refunded',
+            'cancelled' => \App\Services\PosOrderCancellationService::isCancelledStatus($status),
             'order_status' => $status,
             'order_status_label' => $this->statusLabel($status),
             'cash_received' => 0,

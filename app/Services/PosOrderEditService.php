@@ -152,18 +152,19 @@ class PosOrderEditService
             return;
         }
 
-        if ($existing) {
-            $existing->order_amount = $order->order_amount;
-            $existing->paid_amount = $order->order_amount;
-            $existing->save();
-
-            return;
+        try {
+            OrderChangeAmount::query()->updateOrInsert(
+                ['order_id' => $order->id],
+                [
+                    'order_amount' => $order->order_amount,
+                    'paid_amount' => $order->order_amount,
+                ]
+            );
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            OrderChangeAmount::query()->where('order_id', $order->id)->update([
+                'order_amount' => $order->order_amount,
+                'paid_amount' => $order->order_amount,
+            ]);
         }
-
-        $row = new OrderChangeAmount();
-        $row->order_id = $order->id;
-        $row->order_amount = $order->order_amount;
-        $row->paid_amount = $order->order_amount;
-        $row->save();
     }
 }

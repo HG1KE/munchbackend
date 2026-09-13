@@ -4,7 +4,8 @@
     var CFG = window.MUNCH_POS || {};
     var Delivery = window.MunchPosDelivery;
     var DB_NAME = 'munch_pos_v1';
-    var DB_VERSION = 1;
+    var DB_VERSION = 2;
+    var PENDING_ATTEMPT_KEY = 'pendingAttempt';
     var CART_KEY = 'current';
     var state = {
         catalog: CFG.catalog || { products: [], categories: [], delivery: {} },
@@ -920,10 +921,34 @@
         };
     }
 
+    function currentBranchId() {
+        var n = Number(CFG.branchId || 0);
+        return n > 0 ? n : 0;
+    }
+
+    function queuedBranchId(payload) {
+        if (SubmitGuard && SubmitGuard.payloadBranchId) {
+            return SubmitGuard.payloadBranchId(payload);
+        }
+        if (!payload || payload.branch_id == null || payload.branch_id === '') return null;
+        var n = Number(payload.branch_id);
+        return n > 0 ? n : null;
+    }
+
+    function queueBranchMismatch(payload) {
+        if (SubmitGuard && SubmitGuard.queueBranchMismatch) {
+            return SubmitGuard.queueBranchMismatch(payload, CFG);
+        }
+        var queued = queuedBranchId(payload);
+        var current = currentBranchId();
+        return queued !== null && current > 0 && queued !== current;
+    }
+
     function buildPayload(clientUuid, placedAt) {
         return {
             client_uuid: clientUuid,
             placed_at: placedAt,
+            branch_id: currentBranchId(),
             order_type: state.cart.orderType,
             type: state.cart.payment,
             paid_amount: grandTotal(),
@@ -1422,6 +1447,14 @@
 
     function syncOne(row) {
         if (row.status === 'syncing') return Promise.resolve();
+        var incoming = row.payload || {};
+        if (queueBranchMismatch(incoming)) {
+            row.status = 'failed';
+            row.lastError = CFG.labels.branchMismatch || 'This queued order belongs to another branch.';
+            state.syncLabel = CFG.labels.branchMismatch || row.lastError;
+            state.syncKind = 'err';
+            return idbPut('queue', row).then(refreshQueueCount);
+        }
         row.status = 'syncing';
         row.attempts = (row.attempts || 0) + 1;
         return idbPut('queue', row).then(function () {
@@ -1613,6 +1646,14 @@
             detail: number
                     ? (CFG.labels.queuedSavedNumber || 'Order {n} saved offline. It will sync automatically.').replace('{n}', number)
                     : (CFG.labels.queuedSavedDetail || 'Order saved offline. It will sync automatically.')
+            };
+        }
+        if (extras.duplicate || extras.idempotent) {
+            return {
+                title: CFG.labels.existingOrderFound || 'Existing order found',
+                detail: number
+                    ? (CFG.labels.existingOrderNumber || 'Order {n} already posted. Using the existing sale.').replace('{n}', number)
+                    : (CFG.labels.existingOrderDetail || 'This submission already posted. Using the existing sale.')
             };
         }
         return {
@@ -1874,6 +1915,7 @@
         return {
             action: 'cancel',
             client_uuid: clientUuid,
+            branch_id: currentBranchId(),
             order_id: Number(order.id),
             cancellation_reason: reason,
             placed_at: new Date().toISOString(),
@@ -2164,9 +2206,14 @@
     }
 
     function restorePlaceButton() {
+        if (state.orderSubmitting) {
+            applySubmitLockUi();
+            return;
+        }
         if (els.place) {
             els.place.removeAttribute('aria-busy');
             els.place.classList.remove('is-submitting');
+            els.place.disabled = false;
             els.place.textContent = editingOrder
                 ? L('saveChanges', 'Save Changes')
                 : L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
@@ -2203,13 +2250,57 @@
         }
     }
 
+    function persistPendingAttempt() {
+        var value = pendingAttempt && pendingAttempt.client_uuid ? {
+            client_uuid: String(pendingAttempt.client_uuid),
+            placed_at: String(pendingAttempt.placed_at || ''),
+            branch_id: pendingAttempt.branch_id || currentBranchId(),
+            order_id: pendingAttempt.order_id || (editingOrder && editingOrder.id) || null,
+            action: pendingAttempt.action || (editingOrder ? 'update' : 'place')
+        } : null;
+        return idbPut('meta', value, PENDING_ATTEMPT_KEY).catch(function () {});
+    }
+
+    function restorePendingAttempt(stored) {
+        if (!stored || !stored.client_uuid) return;
+        var storedBranch = Number(stored.branch_id || 0);
+        var current = currentBranchId();
+        if (storedBranch > 0 && current > 0 && storedBranch !== current) {
+            pendingAttempt = null;
+            persistPendingAttempt();
+            return;
+        }
+        pendingAttempt = {
+            client_uuid: String(stored.client_uuid),
+            placed_at: String(stored.placed_at || ''),
+            branch_id: storedBranch || current,
+            order_id: stored.order_id || null,
+            action: stored.action || 'place'
+        };
+        if (pendingAttempt.action === 'update' && pendingAttempt.order_id && !editingOrder) {
+            editingOrder = {
+                id: Number(pendingAttempt.order_id),
+                clientUuid: pendingAttempt.client_uuid,
+                placedAt: pendingAttempt.placed_at
+            };
+        }
+    }
+
     function clearPendingAttempt() {
         pendingAttempt = null;
+        persistPendingAttempt();
     }
 
     function buildAttemptPayload() {
         if (editingOrder && editingOrder.clientUuid) {
-            pendingAttempt = { client_uuid: editingOrder.clientUuid, placed_at: editingOrder.placedAt };
+            pendingAttempt = {
+                client_uuid: editingOrder.clientUuid,
+                placed_at: editingOrder.placedAt,
+                branch_id: currentBranchId(),
+                order_id: editingOrder.id || null,
+                action: 'update'
+            };
+            persistPendingAttempt();
             var editPayload = buildPayload(editingOrder.clientUuid, editingOrder.placedAt);
             if (editingOrder.id) {
                 editPayload.order_id = editingOrder.id;
@@ -2222,7 +2313,13 @@
             : (pendingAttempt && pendingAttempt.client_uuid
                 ? { client_uuid: pendingAttempt.client_uuid, placed_at: pendingAttempt.placed_at, reused: true }
                 : { client_uuid: uuid(), placed_at: new Date().toISOString(), reused: false });
-        pendingAttempt = { client_uuid: keys.client_uuid, placed_at: keys.placed_at };
+        pendingAttempt = {
+            client_uuid: keys.client_uuid,
+            placed_at: keys.placed_at,
+            branch_id: currentBranchId(),
+            action: 'place'
+        };
+        persistPendingAttempt();
         return buildPayload(keys.client_uuid, keys.placed_at);
     }
 
@@ -2405,7 +2502,12 @@
                     clearPendingAttempt();
                     editingOrder = null;
                     closeDeliveryModal(true);
-                    openSuccessModal(snapshotPrintJob(body), { offline: false, payload: payload });
+                    openSuccessModal(snapshotPrintJob(body), {
+                        offline: false,
+                        payload: payload,
+                        duplicate: !!body.duplicate,
+                        idempotent: !!body.idempotent
+                    });
                     clearCart();
                     endOrderSubmit();
                     return;
@@ -3078,6 +3180,7 @@
         Promise.all([
             idbGet('catalog', 'latest'),
             idbGet('cart', CART_KEY),
+            idbGet('meta', PENDING_ATTEMPT_KEY),
             idbPut('meta', { csrf: csrfToken(), orderUrl: CFG.urls.order }, 'session')
         ]).then(function (results) {
             if (results[0] && results[0].products && (!CFG.catalog || !CFG.catalog.version || results[0].version === CFG.catalog.version)) {
@@ -3098,6 +3201,7 @@
                     state.cart.deliveryFee = liveFee;
                 }
             }
+            restorePendingAttempt(results[2]);
             if (!isDeliveryModalOpen() && !state.orderSubmitting) {
                 resetDelivery();
             }

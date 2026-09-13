@@ -296,7 +296,8 @@ class OnlineOrderIdempotencyTest extends TestCase
         $this->assertSame(1, Order::query()->where('online_checkout_uuid', $shared)->count());
 
         $pos = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
-        $this->assertStringContainsString("where('client_uuid', \$clientUuid)", $pos);
+        $this->assertStringContainsString('PosCheckoutIdempotency', $pos);
+        $this->assertStringContainsString('findByClientUuid', $pos);
         $this->assertStringNotContainsString('online_checkout_uuid', $pos);
         $this->assertStringContainsString('orders_branch_client_uuid_unique', file_get_contents(database_path('migrations/2026_09_09_150000_add_sales_channel_and_client_uuid_to_orders_table.php')));
     }

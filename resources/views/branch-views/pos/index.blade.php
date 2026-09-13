@@ -202,6 +202,7 @@
 <script>
     window.MUNCH_POS = {
         catalog: @json($catalog),
+        branchId: @json($branchId ?? (int) auth('branch')->id()),
         branchName: @json($branchName),
         cashierName: @json($branchName),
         restaurantName: @json(\App\CentralLogics\Helpers::get_business_settings('restaurant_name') ?: 'MUNCH'),
@@ -302,6 +303,10 @@
             postedNumber: @json(translate('Order {n} posted successfully.')),
             queuedSavedDetail: @json(translate('Order saved offline. It will sync automatically.')),
             queuedSavedNumber: @json(translate('Order {n} saved offline. It will sync automatically.')),
+            existingOrderFound: @json(translate('Existing order found')),
+            existingOrderNumber: @json(translate('Order {n} already posted. Using the existing sale.')),
+            existingOrderDetail: @json(translate('This submission already posted. Using the existing sale.')),
+            branchMismatch: @json(translate('This queued order belongs to another branch.')),
             confirmTimeout: @json(translate('Unable to confirm order. Please check your connection and try again.')),
             submitFailed: @json(translate('Please try again.')),
             staleClient: @json(translate('New POS version available. Please refresh before placing new orders.')),
@@ -351,8 +356,8 @@
     };
 </script>
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.1"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.2" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.3" defer></script>
 @endpush

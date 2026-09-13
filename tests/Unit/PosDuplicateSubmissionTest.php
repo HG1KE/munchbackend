@@ -51,7 +51,10 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('var syncRunning = false', $sw);
         $this->assertStringContainsString("if (event.tag !== 'munch-pos-sync') return", $sw);
         $this->assertStringContainsString('if (syncRunning) return', $sw);
-        $this->assertStringContainsString('munch-pos-shell-v30', $sw);
+        $this->assertStringContainsString('munch-pos-shell-v31', $sw);
+        $this->assertStringContainsString('persistPendingAttempt', $js);
+        $this->assertStringContainsString('queueBranchMismatch', $js);
+        $this->assertStringContainsString('branch_id: currentBranchId()', $js);
     }
 
     public function test_validation_and_queue_failure_unlock(): void
@@ -116,6 +119,8 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('duplicate UUID', implode("\n", $output));
         $this->assertStringContainsString('422 unlocks', implode("\n", $output));
         $this->assertStringContainsString('timeout unlocks', implode("\n", $output));
+        $this->assertStringContainsString('queued payload is branch-scoped', implode("\n", $output));
+        $this->assertStringContainsString('refresh recovery reuses the same uuid', implode("\n", $output));
     }
 
     private function functionBody(string $source, string $needle): string

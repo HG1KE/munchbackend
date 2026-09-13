@@ -175,6 +175,8 @@ class PosOrderCancellationService
 
             $previousStatus = (string) $locked->order_status;
             $now = now();
+            // Cancellation is a status/audit event only. Do not mark money
+            // refunded or rewrite the original tender/payment_status.
             $locked->order_status = self::STATUS;
             if (Schema::hasColumn('orders', 'cancelled_by')) {
                 $locked->cancelled_by = $actorId;

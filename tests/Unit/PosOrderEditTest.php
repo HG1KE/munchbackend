@@ -345,6 +345,7 @@ class PosOrderEditTest extends TestCase
             $table->float('order_amount')->default(0);
             $table->float('paid_amount')->default(0);
             $table->timestamps();
+            $table->unique('order_id', 'order_change_amounts_order_id_unique');
         });
     }
 }

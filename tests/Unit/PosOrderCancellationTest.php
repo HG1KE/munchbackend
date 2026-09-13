@@ -147,6 +147,8 @@ class PosOrderCancellationTest extends TestCase
         $this->assertSame('branch', $log->actor_type);
         $this->assertSame(3, (int) $log->actor_id);
         $this->assertSame(7, (int) $log->branch_id);
+        $this->assertSame('paid', $log->payment_status);
+        $this->assertNotSame('refunded', $fresh->payment_status);
     }
 
     public function test_duplicate_cancellation_is_prevented_and_keeps_the_original_reason(): void
@@ -243,6 +245,8 @@ class PosOrderCancellationTest extends TestCase
         $this->assertStringContainsString("whereIn('order_status', ['canceled', 'cancelled', 'failed', 'returned'])", $today);
         $this->assertStringContainsString("'cancellable'", $today);
         $this->assertStringContainsString('cancellation_reason', $today);
+        $this->assertStringContainsString("'payment_refunded'", $today);
+        $this->assertStringContainsString("'cancelled'", $today);
 
         $report = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
         $this->assertStringContainsString("where(['order_status' => 'delivered'])", $report);
@@ -389,6 +393,7 @@ class PosOrderCancellationTest extends TestCase
             $table->string('reason', 500);
             $table->string('source', 32)->nullable();
             $table->string('ip_address', 64)->nullable();
+            $table->string('payment_status', 32)->nullable();
             $table->timestamp('created_at')->nullable();
         });
     }

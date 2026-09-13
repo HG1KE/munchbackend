@@ -33,6 +33,23 @@
         };
     }
 
+    function currentBranchId(cfg) {
+        var n = Number(cfg && cfg.branchId);
+        return n > 0 ? n : 0;
+    }
+
+    function payloadBranchId(payload) {
+        if (!payload || payload.branch_id == null || payload.branch_id === '') return null;
+        var n = Number(payload.branch_id);
+        return n > 0 ? n : null;
+    }
+
+    function queueBranchMismatch(payload, cfg) {
+        var queued = payloadBranchId(payload);
+        var current = currentBranchId(cfg);
+        return queued !== null && current > 0 && queued !== current;
+    }
+
     function tryAcquire(state) {
         if (!state || state.orderSubmitting || state.successOpen) return false;
         state.orderSubmitting = true;
@@ -61,17 +78,18 @@
             }
         }
         return {
-            inserted: true,
-            duplicate: false,
-            row: {
-                id: id,
-                createdAt: payload.placed_at,
-                payload: payload,
-                status: 'queued',
-                attempts: 0,
-                lastError: null
-            }
-        };
+                inserted: true,
+                duplicate: false,
+                row: {
+                    id: id,
+                    createdAt: payload.placed_at,
+                    payload: payload,
+                    branch_id: payload.branch_id != null ? payload.branch_id : null,
+                    status: 'queued',
+                    attempts: 0,
+                    lastError: null
+                }
+            };
     }
 
     function createSyncOnce() {
@@ -219,6 +237,9 @@
         createSubmitFlow: createSubmitFlow,
         shouldReuseClientUuid: shouldReuseClientUuid,
         shouldClearAttempt: shouldClearAttempt,
-        nextAttemptKeys: nextAttemptKeys
+        nextAttemptKeys: nextAttemptKeys,
+        currentBranchId: currentBranchId,
+        payloadBranchId: payloadBranchId,
+        queueBranchMismatch: queueBranchMismatch
     };
 }));

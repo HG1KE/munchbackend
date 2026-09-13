@@ -17,6 +17,7 @@ class OrderCancellationAuditLog extends Model
         'actor_type',
         'actor_id',
         'previous_status',
+        'payment_status',
         'new_status',
         'reason',
         'source',

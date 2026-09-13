@@ -57,7 +57,8 @@ class PosDeliveryPaymentsTest extends TestCase
         $this->assertStringContainsString('payment_status: immediatePaymentStatus(pay)', $app);
         $this->assertStringContainsString("isPaidImmediately(\$orderType, \$paymentMethod) ? 'paid' : 'unpaid'", $controller);
         $this->assertStringContainsString('PosOrderTypes::isImmediatePosPayment($paymentMethod)', $controller);
-        $this->assertStringContainsString('$orderChangeAmount->paid_amount = $order->order_amount;', $controller);
+        $this->assertStringContainsString("'paid_amount' => \$order->order_amount", $controller);
+        $this->assertStringContainsString('persistPosTender', $controller);
         $this->assertStringNotContainsString('$request->paid_amount', $controller);
 
         $this->assertStringNotContainsString('id="pos-paid"', $page);

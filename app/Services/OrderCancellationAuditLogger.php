@@ -22,7 +22,7 @@ class OrderCancellationAuditLogger
             return;
         }
 
-        OrderCancellationAuditLog::query()->create([
+        $payload = [
             'order_id' => (int) $order->id,
             'branch_id' => $order->branch_id ? (int) $order->branch_id : null,
             'actor_type' => $actorType !== '' ? $actorType : 'branch',
@@ -33,6 +33,11 @@ class OrderCancellationAuditLogger
             'source' => $source,
             'ip_address' => Request::ip(),
             'created_at' => now(),
-        ]);
+        ];
+        if (Schema::hasColumn('order_cancellation_audit_logs', 'payment_status')) {
+            $payload['payment_status'] = (string) ($order->payment_status ?? '');
+        }
+
+        OrderCancellationAuditLog::query()->create($payload);
     }
 }

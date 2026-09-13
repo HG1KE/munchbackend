@@ -20,6 +20,7 @@ use App\Services\PosOrderEditService;
 use App\Services\OrderReadableIdService;
 use App\Support\AddonChannelPricing;
 use App\Support\OrderPlacementTime;
+use App\Support\PosCheckoutIdempotency;
 use App\Support\PosClientVersion;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
@@ -30,6 +31,7 @@ use App\User;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -70,6 +72,7 @@ class POSController extends Controller
         return view('branch-views.pos.index', [
             'catalog' => $this->posCatalog->forBranch($branchId),
             'branchName' => (string) (auth('branch')->user()->name ?? ''),
+            'branchId' => $branchId,
         ]);
     }
 
@@ -190,6 +193,7 @@ class POSController extends Controller
         $distance = 0;
         $areaId = null;
         $customerAddress = null;
+        $pendingDeliveryAddress = null;
 
         if (PosOrderTypes::isDelivery($orderType)) {
             if (! session()->has('address')) {
@@ -223,14 +227,7 @@ class POSController extends Controller
                 'is_guest' => session()->get('customer_id') ? 0 : 1,
             ];
 
-            if ($order->delivery_address_id) {
-                CustomerAddress::query()->where('id', $order->delivery_address_id)->update($address);
-                $customerAddress = CustomerAddress::query()->find($order->delivery_address_id);
-            } else {
-                $customerAddress = CustomerAddress::create($address);
-                $order->delivery_address_id = $customerAddress->id;
-                $order->save();
-            }
+            $pendingDeliveryAddress = $address;
         }
 
         $cartSnapshot = $this->buildPosCartSnapshot($request, $orderType, $distance, $areaId);
@@ -251,6 +248,16 @@ class POSController extends Controller
         }
 
         $fresh = $result['order'];
+        if (isset($pendingDeliveryAddress) && is_array($pendingDeliveryAddress)) {
+            if ($fresh->delivery_address_id) {
+                CustomerAddress::query()->where('id', $fresh->delivery_address_id)->update($pendingDeliveryAddress);
+                $customerAddress = CustomerAddress::query()->find($fresh->delivery_address_id);
+            } else {
+                $customerAddress = CustomerAddress::create($pendingDeliveryAddress);
+                $fresh->delivery_address_id = $customerAddress->id;
+                $fresh->save();
+            }
+        }
         $this->persistPosDeliveryAddressJson($fresh, $orderType, $customerAddress);
 
         session()->forget('cart');
@@ -282,20 +289,37 @@ class POSController extends Controller
             return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
         }
 
-        $printBlocked = PosOrderEditService::printBlockedMessage($order, $ticket);
-        if ($printBlocked !== null) {
-            return response()->json(['success' => 0, 'message' => $printBlocked], 422);
-        }
-
         $column = $ticket === 'kitchen' ? 'kitchen_printed_at' : 'receipt_printed_at';
-        if ($order->{$column} === null) {
-            $order->{$column} = now();
-            $order->save();
+
+        $fresh = DB::transaction(function () use ($order, $ticket, $column) {
+            $locked = Order::query()->whereKey($order->id)->lockForUpdate()->first();
+            if (! $locked) {
+                return null;
+            }
+
+            $printBlocked = PosOrderEditService::printBlockedMessage($locked, $ticket);
+            if ($printBlocked !== null) {
+                return ['blocked' => $printBlocked, 'order' => $locked];
+            }
+
+            if ($locked->{$column} === null) {
+                $locked->{$column} = now();
+                $locked->save();
+            }
+
+            return ['blocked' => null, 'order' => $locked];
+        });
+
+        if ($fresh === null) {
+            return response()->json(['success' => 0, 'message' => 'Order not found'], 404);
+        }
+        if ($fresh['blocked'] !== null) {
+            return response()->json(['success' => 0, 'message' => $fresh['blocked']], 422);
         }
 
         return response()->json(array_merge([
             'success' => 1,
-        ], $this->posPrintFlags($order)));
+        ], $this->posPrintFlags($fresh['order'])));
     }
 
     public function serviceWorker()
@@ -578,6 +602,9 @@ class POSController extends Controller
     public function placeOrder(Request $request): RedirectResponse|JsonResponse
     {
         if ($this->isJsonPosOrder($request)) {
+            if (PosCheckoutIdempotency::normalizeUuid($request->input('client_uuid')) === null) {
+                return $this->posFail($request, translate('client_uuid is required'));
+            }
             $prepared = $this->prepareJsonPosOrder($request);
             if ($prepared instanceof JsonResponse) {
                 return $prepared;
@@ -681,6 +708,13 @@ class POSController extends Controller
                 ? PosOrderTypes::normalizePlatformOrderNumber($request->input('platform_order_number'))
                 : null;
         }
+        if (Schema::hasColumn('orders', 'marketplace_dedupe_key') && PosOrderTypes::isMarketplace($orderType)) {
+            $order->marketplace_dedupe_key = PosCheckoutIdempotency::marketplaceKey(
+                (int) auth('branch')->id(),
+                PosOrderTypes::salesChannel($orderType),
+                $request->input('platform_order_number')
+            );
+        }
         $order->delivery_address_id = PosOrderTypes::isDelivery($orderType) && $customerAddress ? $customerAddress->id : null;
         if (Schema::hasColumn('orders', 'rider_name')) {
             $order->rider_name = $this->posRiderName($request, $orderType);
@@ -715,13 +749,7 @@ class POSController extends Controller
                 }
                 OrderDetail::insert($orderDetails);
 
-                if (PosOrderTypes::isImmediatePosPayment($paymentMethod)) {
-                    $orderChangeAmount = new OrderChangeAmount();
-                    $orderChangeAmount->order_id = $order->id;
-                    $orderChangeAmount->order_amount = $order->order_amount;
-                    $orderChangeAmount->paid_amount = $order->order_amount;
-                    $orderChangeAmount->save();
-                }
+                $this->persistPosTender($order, $paymentMethod);
             });
 
             if (! PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel)
@@ -813,19 +841,25 @@ class POSController extends Controller
             }
 
             return back();
+        } catch (UniqueConstraintViolationException $e) {
+            $existing = $this->recoverExistingPosOrder($request, $e);
+            if ($existing) {
+                return response()->json($this->posPlacedOrderJson($existing, [
+                    'duplicate' => true,
+                    'idempotent' => true,
+                    'message' => translate('order_placed_successfully'),
+                ]));
+            }
+            info($e);
         } catch (\Exception $e) {
             info($e);
-            $clientUuid = $this->posClientUuid($request);
-            if ($this->isJsonPosOrder($request) && $clientUuid) {
-                $existing = $this->order
-                    ->where('branch_id', auth('branch')->id())
-                    ->where('client_uuid', $clientUuid)
-                    ->first();
-                if ($existing) {
-                    $this->dispatchPosDeliveryCustomerSms($existing);
-
-                    return response()->json($this->posPlacedOrderJson($existing, ['duplicate' => true]));
-                }
+            $existing = $this->recoverExistingPosOrder($request);
+            if ($existing) {
+                return response()->json($this->posPlacedOrderJson($existing, [
+                    'duplicate' => true,
+                    'idempotent' => true,
+                    'message' => translate('order_placed_successfully'),
+                ]));
             }
         }
 
@@ -1272,17 +1306,13 @@ class POSController extends Controller
      */
     private function prepareJsonPosOrder(Request $request): ?JsonResponse
     {
-        $clientUuid = $this->posClientUuid($request);
-        if ($clientUuid !== null) {
-            $existing = $this->order
-                ->where('branch_id', auth('branch')->id())
-                ->where('client_uuid', $clientUuid)
-                ->first();
-            if ($existing) {
-                $this->dispatchPosDeliveryCustomerSms($existing);
-
-                return response()->json($this->posPlacedOrderJson($existing, ['duplicate' => true]));
-            }
+        $existing = $this->existingJsonPosOrder($request);
+        if ($existing) {
+            return response()->json($this->posPlacedOrderJson($existing, [
+                'duplicate' => true,
+                'idempotent' => true,
+                'message' => translate('order_placed_successfully'),
+            ]));
         }
 
         return $this->hydrateJsonPosCart($request);
@@ -1459,9 +1489,78 @@ class POSController extends Controller
 
     private function posClientUuid(Request $request): ?string
     {
-        $clientUuid = trim((string) $request->input('client_uuid', ''));
+        return PosCheckoutIdempotency::normalizeUuid($request->input('client_uuid'));
+    }
 
-        return $clientUuid === '' ? null : $clientUuid;
+    private function existingJsonPosOrder(Request $request): ?Order
+    {
+        $branchId = (int) auth('branch')->id();
+        $byUuid = PosCheckoutIdempotency::findByClientUuid($branchId, $this->posClientUuid($request));
+        if ($byUuid) {
+            PosCheckoutIdempotency::logDuplicate($this->posClientUuid($request), $byUuid, 'pre_insert_lookup');
+
+            return $byUuid;
+        }
+
+        $orderType = PosOrderTypes::normalize((string) $request->input('order_type', ''));
+        if (! PosOrderTypes::isMarketplace($orderType)) {
+            return null;
+        }
+
+        $byTicket = PosCheckoutIdempotency::findByMarketplaceTicket(
+            $branchId,
+            PosOrderTypes::salesChannel($orderType),
+            $request->input('platform_order_number')
+        );
+        if ($byTicket) {
+            PosCheckoutIdempotency::logDuplicate($this->posClientUuid($request), $byTicket, 'marketplace_lookup');
+        }
+
+        return $byTicket;
+    }
+
+    private function recoverExistingPosOrder(Request $request, ?\Throwable $exception = null): ?Order
+    {
+        if (! $this->isJsonPosOrder($request)) {
+            return null;
+        }
+
+        $branchId = (int) auth('branch')->id();
+        $orderType = PosOrderTypes::normalize((string) (
+            $request->input('order_type') ?: session()->get('order_type') ?: ''
+        ));
+        if ($exception) {
+            $recovered = PosCheckoutIdempotency::recoverFromException(
+                $branchId,
+                $this->posClientUuid($request),
+                PosOrderTypes::salesChannel($orderType),
+                $request->input('platform_order_number'),
+                $exception
+            );
+            if ($recovered) {
+                return $recovered;
+            }
+        }
+
+        return $this->existingJsonPosOrder($request);
+    }
+
+    private function persistPosTender(Order $order, string $paymentMethod): void
+    {
+        if (! PosOrderTypes::isImmediatePosPayment($paymentMethod) || ! Schema::hasTable('order_change_amounts')) {
+            return;
+        }
+
+        $values = [
+            'order_amount' => $order->order_amount,
+            'paid_amount' => $order->order_amount,
+        ];
+
+        try {
+            OrderChangeAmount::query()->updateOrInsert(['order_id' => $order->id], $values);
+        } catch (UniqueConstraintViolationException) {
+            OrderChangeAmount::query()->where('order_id', $order->id)->update($values);
+        }
     }
 
     private function resolvePosDeliveryCharge(Request $request, string $orderType, mixed $distance, mixed $areaId, float $orderAmount): float

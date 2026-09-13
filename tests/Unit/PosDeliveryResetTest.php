@@ -79,7 +79,7 @@ class PosDeliveryResetTest extends TestCase
         $start = strpos($submit, 'if (body && body.success === 1)');
         $this->assertNotFalse($start, 'online success branch not found');
 
-        return substr($submit, $start, 400);
+        return substr($submit, $start, 800);
     }
 
     private function functionBody(string $source, string $needle): string

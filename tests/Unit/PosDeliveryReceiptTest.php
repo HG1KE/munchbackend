@@ -54,7 +54,8 @@ class PosDeliveryReceiptTest extends TestCase
 
         $this->assertStringContainsString('if (body && body.order)', $app);
         $this->assertStringContainsString('return printJobFromOrder(body.order)', $app);
-        $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body), { offline: false, payload: payload })', $app);
+        $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body), {', $app);
+        $this->assertStringContainsString('duplicate: !!body.duplicate', $app);
         $this->assertStringContainsString(', payload)', $this->functionBody($app, 'function finishQueuedOrder'));
         $this->assertStringContainsString('printJobFromOrder(order)', $app);
         $this->assertStringNotContainsString("rider_name: state.cart.orderType === 'delivery'", $app);

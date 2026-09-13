@@ -221,6 +221,35 @@ function run() {
             });
         })
         .then(function () {
+            return test('queued payload is branch-scoped', function () {
+                var payload = { client_uuid: 'br-1', placed_at: 't1', branch_id: 14 };
+                var first = guard.enqueueUnique([], payload);
+                assert(first.inserted === true, 'first insert should succeed');
+                assert(first.row.branch_id === 14, 'queued branch missing');
+                assert(first.row.payload.branch_id === 14, 'payload branch missing');
+                assert(guard.queueBranchMismatch(payload, { branchId: 14 }) === false, 'same branch should sync');
+                assert(guard.queueBranchMismatch(payload, { branchId: 3 }) === true, 'other branch must reject');
+                assert(guard.queueBranchMismatch({ client_uuid: 'legacy' }, { branchId: 3 }) === false, 'legacy rows without branch_id must still replay');
+            });
+        })
+        .then(function () {
+            return test('refresh recovery reuses the same uuid', function () {
+                var stored = { client_uuid: 'persist-1', placed_at: 't-persist' };
+                var keys = guard.nextAttemptKeys(stored, 'fresh-uuid', 'fresh-time');
+                assert(keys.reused === true, 'stored attempt should reuse');
+                assert(keys.client_uuid === 'persist-1', 'refresh minted a new uuid');
+                assert(keys.placed_at === 't-persist', 'refresh changed placed_at');
+            });
+        })
+        .then(function () {
+            return test('idempotent retry is distinct from a fresh post', function () {
+                assert(guard.shouldReuseClientUuid('timeout') === true, 'timeout reuse');
+                assert(guard.shouldReuseClientUuid('network') === true, 'network reuse');
+                assert(guard.shouldClearAttempt('success') === true, 'success clear');
+                assert(guard.shouldClearAttempt('queued') === true, 'queued clear');
+            });
+        })
+        .then(function () {
             console.log(passed + ' passed, ' + failed + ' failed');
             process.exit(failed ? 1 : 0);
         });

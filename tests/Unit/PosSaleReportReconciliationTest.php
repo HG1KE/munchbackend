@@ -299,7 +299,7 @@ class PosSaleReportReconciliationTest extends TestCase
         $this->assertStringContainsString('OrderPlacementTime::applyToOrder($order, $placedAt)', $pos);
         $this->assertStringNotContainsString('setRawAttributes', $placement);
         $this->assertStringContainsString("getAttributes()['placed_at']", $placement);
-        $this->assertStringContainsString('buildPayload(uuid(), new Date().toISOString())', $js);
+        $this->assertStringContainsString('nextAttemptKeys', $js);
         $this->assertStringContainsString('placed_at: placedAt', $js);
         $this->assertStringContainsString('createdAt: payload.placed_at', $js);
     }

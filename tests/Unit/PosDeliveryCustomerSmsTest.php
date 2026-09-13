@@ -230,7 +230,7 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertNotFalse($transaction);
         $this->assertNotFalse($sms);
         $this->assertGreaterThan($transaction, $sms);
-        $this->assertStringContainsString('dispatchPosDeliveryCustomerSms($existing)', $controller);
+        $this->assertStringNotContainsString('dispatchPosDeliveryCustomerSms($existing)', $controller);
         $this->assertStringContainsString('SendPosDeliveryCustomerSmsJob::dispatch', $controller);
         $this->assertStringContainsString('afterResponse()', $controller);
         $this->assertStringNotContainsString('PosDeliveryCustomerSms::dispatch($fresh', $controller);
