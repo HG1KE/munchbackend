@@ -40,7 +40,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertSame(400.0, $summary['net_sales']);
     }
 
-    public function test_munch_sales_is_cash_card_and_mpesa(): void
+    public function test_munch_sales_is_cash_card_mpesa_and_paystack(): void
     {
         $groups = AdminSaleReportSummary::fromPaymentTotals([
             'cash' => 100,
@@ -55,7 +55,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertSame(150.0, $groups['marketplace_sales']);
     }
 
-    public function test_paystack_is_not_included_in_munch_or_marketplace_sales(): void
+    public function test_paystack_is_included_in_munch_sales_not_marketplace(): void
     {
         $groups = AdminSaleReportSummary::fromPaymentTotals([
             'cash' => 100,
@@ -67,9 +67,9 @@ class AdminSaleReportSummaryTest extends TestCase
             'bolt_food' => 30,
         ]);
 
-        $this->assertSame(350.0, $groups['munch_sales']);
+        $this->assertSame(5350.0, $groups['munch_sales']);
         $this->assertSame(150.0, $groups['marketplace_sales']);
-        $this->assertNotEquals(5350.0, $groups['munch_sales']);
+        $this->assertNotEquals(350.0, $groups['munch_sales']);
     }
 
     public function test_payment_groups_do_not_change_total_sales(): void
@@ -114,6 +114,8 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("'paystack' => Helpers::set_symbol(\$paymentTotals['paystack'])", $controller);
         $this->assertStringContainsString("input('payment_method', 'all')", $controller);
         $this->assertStringContainsString('PosOrderTypes::constrainSaleReportChannel($query, $channel)', $controller);
+        $this->assertStringContainsString('PosSaleTime::constrainBusinessPeriod', $controller);
+        $this->assertStringContainsString('$this->order->pos()', $controller);
         $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided(', $controller);
         $this->assertStringContainsString('AdminDashboardSalesKpis::constrainVoided(', $controller);
         $this->assertStringContainsString("'cancelled_orders' => \$cancelledOrders", $controller);

@@ -23,7 +23,7 @@
             </td>
             <td>{{ $row['sales_channel_label'] ?? '' }}</td>
             <td>{{ $row['platform_order_number'] ?? '' }}</td>
-            <td>{{date('d M Y',strtotime($row['date']))}}</td>
+            <td>{{ !empty($isSaleReport ?? false) ? $row['date'] : date('d M Y', strtotime($row['date'])) }}</td>
             <td>{{$row['quantity']}}</td>
             <td>{{ \App\CentralLogics\Helpers::set_symbol($row['price']) }}</td>
         </tr>

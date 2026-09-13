@@ -8,6 +8,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\AdminSaleReportExport;
 use App\Support\AdminSaleReportSummary;
 use App\Support\PosOrderTypes;
+use App\Support\PosSaleTime;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -103,13 +104,17 @@ class AdminSaleReportPosFilterTest extends TestCase
         $this->assertSame([3], $this->filteredIds('uber', 1, $from, $to));
         $this->assertSame([4], $this->filteredIds('takeaway', 1, $from, $to));
         $this->assertSame([5], $this->filteredIds('dine_in', 1, $from, $to));
-        $this->assertSame([1, 2, 3, 4, 5], $this->filteredIds('all', 1, $from, $to));
+        $this->assertSame([1, 3, 4, 5], $this->filteredIds('all', 1, $from, $to));
+        $this->assertNotContains(2, $this->filteredIds('all', 1, $from, $to), 'website delivery must stay out of All POS');
     }
 
     public function test_sale_report_controller_uses_the_pos_family_constraint(): void
     {
         $controller = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
         $this->assertStringContainsString('PosOrderTypes::constrainSaleReportChannel($query, $channel)', $controller);
+        $this->assertStringContainsString('$this->order->pos()', $controller);
+        $this->assertStringContainsString('PosSaleTime::constrainBusinessPeriod', $controller);
+        $this->assertStringContainsString('PosSaleTime::orderBySaleInstant', $controller);
         $this->assertStringContainsString('$this->saleReportOrderQuery($request, $fromDate, $toDate)', $controller);
         $this->assertStringContainsString("session()->put('export_sale_data', \$data)", $controller);
         $this->assertStringContainsString("session()->put('export_sale_summary', \$summaryDisplay)", $controller);
@@ -272,7 +277,7 @@ class AdminSaleReportPosFilterTest extends TestCase
      */
     private function filteredIds(string $channel, int|string $branchId, Carbon $from, Carbon $to): array
     {
-        $query = Order::query()->whereBetween('created_at', [$from, $to]);
+        $query = PosSaleTime::constrainBusinessPeriod(Order::query()->pos(), $from, $to);
         if ($branchId !== 'all') {
             $query->where('branch_id', $branchId);
         }

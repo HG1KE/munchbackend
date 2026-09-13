@@ -162,7 +162,7 @@ class AdminDashboardSalesKpisTest extends TestCase
 
         $this->assertStringContainsString("partials._dashboard-sales-kpis", $page);
         $this->assertStringContainsString('munch-dashboard-kpis.js', $page);
-        $this->assertStringContainsString("munch-dashboard-kpis.js') }}?v=1.1", $page);
+        $this->assertStringContainsString("munch-dashboard-kpis.js') }}?v=1.2", $page);
         $this->assertStringContainsString("summarize(null, 'today')", $controller);
         $this->assertStringContainsString("value=\"all\" selected", $partial);
         $this->assertStringContainsString("value=\"today\" selected", $partial);

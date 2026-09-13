@@ -36,7 +36,7 @@
                         <div class="col-sm-6 col-lg-2">
                             <label class="input-label" for="sales_channel">{{ translate('Sales Channel') }}</label>
                             <select class="custom-select" name="sales_channel" id="sales_channel">
-                                <option value="all">{{ translate('All') }} {{ translate('Sales Channel') }}</option>
+                                <option value="all">{{ translate('All POS') }}</option>
                                 <option value="delivery">{{ translate('Delivery') }}</option>
                                 <option value="takeaway">{{ translate('Take Away') }}</option>
                                 <option value="dine_in">{{ translate('Dine In') }}</option>

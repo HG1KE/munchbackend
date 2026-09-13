@@ -156,22 +156,20 @@ class PosOrderTypes
     }
 
     /**
-     * Sale Report channel filter. "POS" is the whole Branch POS family
+     * Sale Report channel filter. "All" and "POS" are the Branch POS family
      * (`order_type=pos` plus POS sales channels), not `sales_channel=pos`.
-     * Other values still match `orders.sales_channel` exactly.
+     * Online Next.js orders stay out. Other values still match
+     * `orders.sales_channel` exactly, after the POS-family constraint.
      */
     public static function constrainSaleReportChannel($query, string $channel): void
     {
-        if ($channel === '' || $channel === 'all') {
-            return;
-        }
-        if ($channel === 'pos') {
+        if ($channel === '' || $channel === 'all' || $channel === 'pos') {
             $query->pos();
 
             return;
         }
 
-        $query->where('sales_channel', $channel);
+        $query->pos()->where('sales_channel', $channel);
     }
 
     /**

@@ -94,15 +94,14 @@ class OrderPlacementTime
                 return;
             }
 
-            $rawPlaced = $order->getRawOriginal('placed_at');
-            if ($rawPlaced !== null && trim((string) $rawPlaced) !== '') {
+            $current = $order->getAttributes()['placed_at'] ?? $order->getRawOriginal('placed_at');
+            if ($current !== null && trim((string) $current) !== '') {
                 return;
             }
 
-            $utcString = ($placedAt ?? self::utcNow())->utc()->format('Y-m-d H:i:s');
-            $order->setRawAttributes(
-                array_merge($order->getAttributes(), ['placed_at' => $utcString]),
-                true
+            $order->setAttribute(
+                'placed_at',
+                ($placedAt ?? self::utcNow())->utc()->format('Y-m-d H:i:s')
             );
         } catch (\Throwable $e) {
             Log::error('order_placed_at_apply_failed', [

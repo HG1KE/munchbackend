@@ -11,6 +11,8 @@ use App\Support\AdminDashboardSalesKpis;
 use App\Support\AdminSaleReportExport;
 use App\Support\AdminSaleReportSummary;
 use App\Support\PosOrderTypes;
+use App\Support\PosSaleTime;
+use App\Support\TimezoneDisplay;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
@@ -263,15 +265,15 @@ class ReportController extends Controller
      */
     public function saleFilter(Request $request): JsonResponse
     {
-        $fromDate = Carbon::parse($request->from)->startOfDay();
-        $toDate = Carbon::parse($request->to)->endOfDay();
+        $fromDate = Carbon::parse((string) $request->from, TimezoneDisplay::businessTimezone())->startOfDay();
+        $toDate = Carbon::parse((string) $request->to, TimezoneDisplay::businessTimezone())->endOfDay();
 
         $orderQuery = $this->saleReportOrderQuery($request, $fromDate, $toDate);
         $cancelledQuery = $this->saleReportCancelledQuery($request, $fromDate, $toDate);
 
-        $validOrders = (clone $orderQuery)->orderBy('created_at')->get();
+        $validOrders = PosSaleTime::orderBySaleInstant(clone $orderQuery)->get();
         $orders = $validOrders->pluck('id')->all();
-        $cancelledOrders = (clone $cancelledQuery)->orderBy('created_at')->get();
+        $cancelledOrders = PosSaleTime::orderBySaleInstant(clone $cancelledQuery)->get();
         $paymentTotals = [
             'cash' => 0.0,
             'card' => 0.0,
@@ -402,16 +404,17 @@ class ReportController extends Controller
         $channel = (string) $request->input('sales_channel', 'all');
         $paymentMethod = (string) $request->input('payment_method', 'all');
 
-        return $this->order->whereBetween('created_at', [$fromDate, $toDate])
+        $query = PosSaleTime::constrainBusinessPeriod($this->order->pos(), $fromDate, $toDate)
             ->when($request['branch_id'] !== 'all', function ($query) use ($request) {
                 $query->where('branch_id', $request['branch_id']);
-            })
-            ->when($channel !== '' && $channel !== 'all', function ($query) use ($channel) {
-                PosOrderTypes::constrainSaleReportChannel($query, $channel);
             })
             ->when($paymentMethod !== '' && $paymentMethod !== 'all', function ($query) use ($paymentMethod) {
                 $query->where('payment_method', $paymentMethod);
             });
+
+        PosOrderTypes::constrainSaleReportChannel($query, $channel);
+
+        return $query;
     }
 
     private function saleReportOrderQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder

@@ -48,6 +48,8 @@ class AdminSaleReportSummary
 
     /**
      * Derived payment groups. Does not replace Total Sales.
+     * Munch Sales is Cash + Card + M-PESA + Paystack. Marketplace stays
+     * Glovo + Uber + Bolt Food.
      *
      * @param  array<string, float|int|string>  $totals
      * @return array{munch_sales: float, marketplace_sales: float}
@@ -57,7 +59,8 @@ class AdminSaleReportSummary
         return [
             'munch_sales' => self::money($totals['cash'] ?? 0)
                 + self::money($totals['card'] ?? 0)
-                + self::money($totals['mpesa'] ?? 0),
+                + self::money($totals['mpesa'] ?? 0)
+                + self::money($totals['paystack'] ?? 0),
             'marketplace_sales' => self::money($totals['glovo'] ?? 0)
                 + self::money($totals['uber'] ?? 0)
                 + self::money($totals['bolt_food'] ?? 0),

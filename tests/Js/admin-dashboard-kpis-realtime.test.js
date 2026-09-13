@@ -76,6 +76,31 @@ function run() {
             });
         })
         .then(function () {
+            return test('Nairobi business date wins over later sync created_at', function () {
+                var event = {
+                    branch_id: 1,
+                    placed_at: '2026-09-12T20:59:00Z',
+                    created_at: '2026-09-12 21:05:00',
+                    date: '2026-09-12',
+                    category: 'munch',
+                    order_id: 8,
+                    version: 8
+                };
+                assert(kpis.eventAffectsFilters(event, {
+                    branch_id: 'all',
+                    timeframe: 'custom',
+                    from: '2026-09-12',
+                    to: '2026-09-12'
+                }), 'original sale date must match');
+                assert(!kpis.eventAffectsFilters(event, {
+                    branch_id: 'all',
+                    timeframe: 'custom',
+                    from: '2026-09-13',
+                    to: '2026-09-13'
+                }), 'sync date must not match');
+            });
+        })
+        .then(function () {
             return test('duplicate events are ignored before refetch', function () {
                 var seen = {};
                 var event = { order_id: 10, version: 8 };

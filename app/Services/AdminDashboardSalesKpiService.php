@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Model\Order;
 use App\Support\AdminDashboardSalesKpis;
+use App\Support\PosSaleTime;
 use Illuminate\Http\Request;
 
 class AdminDashboardSalesKpiService
@@ -64,11 +65,14 @@ class AdminDashboardSalesKpiService
      */
     public function aggregatedQuery(?int $branchId, array $period): \Illuminate\Database\Eloquent\Builder
     {
-        return AdminDashboardSalesKpis::constrainQualifying(Order::query())
-            ->when($branchId !== null, function ($query) use ($branchId) {
-                $query->where('branch_id', $branchId);
-            })
-            ->whereBetween('created_at', [$period['from'], $period['to']])
+        return PosSaleTime::constrainBusinessPeriod(
+            AdminDashboardSalesKpis::constrainQualifying(Order::query())
+                ->when($branchId !== null, function ($query) use ($branchId) {
+                    $query->where('branch_id', $branchId);
+                }),
+            $period['from'],
+            $period['to']
+        )
             ->selectRaw('order_type, payment_method, sales_channel, COALESCE(SUM(order_amount), 0) as total')
             ->groupBy('order_type', 'payment_method', 'sales_channel');
     }

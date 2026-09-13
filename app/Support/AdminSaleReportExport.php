@@ -673,14 +673,12 @@ class AdminSaleReportExport
      */
     private static function orderRow(object|array $order, string $category, bool $includeDate = false, array $quantities = []): array
     {
-        $createdAt = self::value($order, 'created_at');
-        $sortAt = $createdAt instanceof CarbonInterface
-            ? $createdAt->copy()->utc()->toIso8601String()
-            : (string) ($createdAt ?? '');
+        $saleAt = PosSaleTime::instant($order);
+        $sortAt = PosSaleTime::sortKey($order);
         $salesCategory = in_array($category, self::MARKETPLACE_CATEGORIES, true)
             ? self::categoryLabel($category)
             : 'Munch Sales';
-        $time = self::formatTime($createdAt, $includeDate);
+        $time = self::formatTime($saleAt, $includeDate);
         $id = self::orderId($order);
 
         return [
@@ -724,7 +722,7 @@ class AdminSaleReportExport
                 continue;
             }
             $seen[$id] = true;
-            $createdAt = self::value($order, 'created_at');
+            $saleAt = PosSaleTime::instant($order);
             $rows[] = [
                 'order_id' => $id,
                 'order_display_id' => self::orderNumber($order),
@@ -735,9 +733,7 @@ class AdminSaleReportExport
                     self::value($order, 'sales_channel') !== null ? (string) self::value($order, 'sales_channel') : null,
                     self::value($order, 'order_type') !== null ? (string) self::value($order, 'order_type') : null
                 ),
-                'date' => $createdAt instanceof CarbonInterface
-                    ? $createdAt->toDateTimeString()
-                    : $createdAt,
+                'date' => self::formatTime($saleAt, true),
                 'price' => self::money(self::value($order, 'order_amount') ?? 0),
                 'quantity' => self::quantityFor($order, $quantities),
             ];

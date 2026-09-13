@@ -38,7 +38,8 @@ class AdminDashboardSalesKpis
      */
     public static function period(string $timeframe, ?string $from = null, ?string $to = null, ?Carbon $now = null): array
     {
-        $now = ($now ?? Carbon::now())->copy();
+        $tz = TimezoneDisplay::businessTimezone();
+        $now = ($now ?? Carbon::now($tz))->copy()->timezone($tz);
 
         return match ($timeframe) {
             'yesterday' => [
@@ -237,8 +238,9 @@ class AdminDashboardSalesKpis
      */
     private static function customPeriod(?string $from, ?string $to, Carbon $now): array
     {
-        $start = $from ? Carbon::parse($from)->startOfDay() : $now->copy()->startOfDay();
-        $end = $to ? Carbon::parse($to)->endOfDay() : $now->copy()->endOfDay();
+        $tz = TimezoneDisplay::businessTimezone();
+        $start = $from ? Carbon::parse($from, $tz)->startOfDay() : $now->copy()->timezone($tz)->startOfDay();
+        $end = $to ? Carbon::parse($to, $tz)->endOfDay() : $now->copy()->timezone($tz)->endOfDay();
         if ($start->gt($end)) {
             [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
         }
@@ -352,14 +354,18 @@ class AdminDashboardSalesKpis
         $created = $order->created_at instanceof Carbon
             ? $order->created_at
             : Carbon::parse($order->created_at ?? Carbon::now());
+        $saleUtc = TimezoneDisplay::parseStoredUtc(PosSaleTime::instant($order))
+            ?? ($created instanceof Carbon ? $created->copy()->utc() : Carbon::now('UTC'));
+        $saleLocal = $saleUtc->copy()->timezone(TimezoneDisplay::businessTimezone());
 
         return [
             'event' => AdminDashboardSaleRecorded::NAME,
             'channel' => AdminDashboardSaleRecorded::CHANNEL,
             'order_id' => (int) $order->id,
             'branch_id' => (int) $order->branch_id,
+            'placed_at' => $saleUtc->toIso8601String(),
             'created_at' => $created->format('Y-m-d H:i:s'),
-            'date' => $created->toDateString(),
+            'date' => $saleLocal->toDateString(),
             'order_status' => (string) $order->order_status,
             'payment_method' => (string) $order->payment_method,
             'payment_status' => (string) $order->payment_status,
@@ -388,13 +394,12 @@ class AdminDashboardSalesKpis
             return false;
         }
 
-        if (empty($event['created_at'])) {
+        $period = self::period($timeframe !== '' ? $timeframe : 'today', $from, $to, $now);
+        $stamp = $event['placed_at'] ?? $event['created_at'] ?? null;
+        if ($stamp === null || $stamp === '') {
             return true;
         }
 
-        $created = Carbon::parse($event['created_at']);
-        $period = self::period($timeframe !== '' ? $timeframe : 'today', $from, $to, $now);
-
-        return $created->betweenIncluded($period['from'], $period['to']);
+        return PosSaleTime::matchesPeriod($stamp, $period['from'], $period['to']);
     }
 }

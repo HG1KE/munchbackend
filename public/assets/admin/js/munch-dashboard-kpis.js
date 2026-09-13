@@ -52,10 +52,19 @@
                 return false;
             }
         }
-        if (!event.created_at && !event.date) {
+        if (event.date) {
+            if (filters.from && event.date < filters.from) {
+                return false;
+            }
+            if (filters.to && event.date > filters.to) {
+                return false;
+            }
             return true;
         }
-        var created = Date.parse(String(event.created_at || event.date).replace(' ', 'T'));
+        if (!event.placed_at && !event.created_at) {
+            return true;
+        }
+        var created = Date.parse(String(event.placed_at || event.created_at).replace(' ', 'T'));
         if (isNaN(created)) {
             return true;
         }

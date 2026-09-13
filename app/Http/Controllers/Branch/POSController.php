@@ -19,6 +19,7 @@ use App\Services\PosOrderCancellationService;
 use App\Services\OrderReadableIdService;
 use App\Support\OrderPlacementTime;
 use App\Support\PosOrderTypes;
+use App\Support\TimezoneDisplay;
 use App\Model\OrderDetail;
 use App\Model\ProductByBranch;
 use App\Models\OrderChangeAmount;
@@ -573,12 +574,11 @@ class POSController extends Controller
         if (Schema::hasColumn('orders', 'rider_phone')) {
             $order->rider_phone = $this->posRiderPhone($request, $orderType);
         }
-        $order->delivery_date = $placedAt->format('Y-m-d');
-        $order->delivery_time = $placedAt->format('H:i:s');
+        $saleLocal = $placedAt->copy()->timezone(TimezoneDisplay::businessTimezone());
+        $order->delivery_date = $saleLocal->format('Y-m-d');
+        $order->delivery_time = $saleLocal->format('H:i:s');
         $order->order_note = $request->filled('order_note') ? $request->input('order_note') : null;
         $order->checked = 1;
-        $order->created_at = $placedAt;
-        $order->updated_at = $placedAt;
 
         foreach ($cart as $c) {
             if (is_array($c)) {
@@ -1219,13 +1219,12 @@ class POSController extends Controller
             return now();
         }
 
-        try {
-            $placedAt = Carbon::parse($raw);
-        } catch (\Throwable) {
+        $placedAt = TimezoneDisplay::parseStoredUtc($raw);
+        if ($placedAt === null) {
             return now();
         }
 
-        if ($placedAt->isFuture()) {
+        if ($placedAt->gt(now()->addMinutes(5))) {
             return now();
         }
 

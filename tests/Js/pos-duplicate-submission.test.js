@@ -115,6 +115,21 @@ function run() {
             });
         })
         .then(function () {
+            return test('queued payload keeps the original placed_at', function () {
+                var payload = { client_uuid: 'offline-1', placed_at: '2026-09-12T10:20:00.000Z' };
+                var first = guard.enqueueUnique([], payload);
+                assert(first.inserted === true, 'first insert should succeed');
+                assert(first.row.payload.placed_at === '2026-09-12T10:20:00.000Z', 'queued placed_at changed');
+                assert(first.row.createdAt === '2026-09-12T10:20:00.000Z', 'queue createdAt should be the sale time');
+                var retry = guard.enqueueUnique([first.row], {
+                    client_uuid: 'offline-1',
+                    placed_at: '2026-09-12T21:05:00.000Z'
+                });
+                assert(retry.inserted === false, 'retry must stay idempotent');
+                assert(retry.row.payload.placed_at === '2026-09-12T10:20:00.000Z', 'retry overwrote placed_at');
+            });
+        })
+        .then(function () {
             return test('duplicate UUID ignored', function () {
                 var payload = { client_uuid: 'same-uuid', placed_at: 't1' };
                 var first = guard.enqueueUnique([], payload);

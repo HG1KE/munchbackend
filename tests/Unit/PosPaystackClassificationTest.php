@@ -77,7 +77,7 @@ class PosPaystackClassificationTest extends TestCase
             'uber' => 6,
             'bolt_food' => 7,
         ]);
-        $this->assertSame(60.0, $groups['munch_sales']);
+        $this->assertSame(460.0, $groups['munch_sales']);
         $this->assertSame(18.0, $groups['marketplace_sales']);
     }
 }
