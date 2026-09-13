@@ -91,6 +91,9 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertSame(950.0, $report['totals']['uber']);
         $this->assertSame(1300.0, $report['totals']['bolt_food']);
         $this->assertArrayNotHasKey('total_sales', $report['totals']);
+        $this->assertArrayNotHasKey('cancelled', $report['totals']);
+        $this->assertSame(0.0, $report['cancelled']['total']);
+        $this->assertSame(0, $report['cancelled']['order_count']);
         $this->assertSame($report['sections']['munch_sales']['total'], $report['totals']['munch_sales']);
         $this->assertSame($report['sections']['glovo']['total'], $report['totals']['glovo']);
         $this->assertSame($report['sections']['uber']['total'], $report['totals']['uber']);
@@ -315,6 +318,12 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertSame('Glovo Order #', AdminSaleReportExport::marketplaceOrderColumn('glovo'));
         $this->assertSame('Uber Order #', AdminSaleReportExport::marketplaceOrderColumn('uber'));
         $this->assertSame('Bolt Food Order #', AdminSaleReportExport::marketplaceOrderColumn('bolt_food'));
+        $this->assertSame(
+            ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Amount'],
+            AdminSaleReportExport::sectionColumnLabels(AdminSaleReportExport::CANCELLED_SECTION)
+        );
+        $this->assertSame('', AdminSaleReportExport::marketplaceOrderColumn(AdminSaleReportExport::CANCELLED_SECTION));
+        $this->assertNotContains('Marketplace Order #', AdminSaleReportExport::sectionColumnLabels(AdminSaleReportExport::CANCELLED_SECTION));
     }
 
     public function test_branch_and_sales_date_appear_in_every_export_format(): void
@@ -352,17 +361,23 @@ class AdminSaleReportExportTest extends TestCase
         $columns = $this->rowsByType($rows, 'columns');
         $totals = $this->cellsByType($rows, 'total');
 
-        $this->assertSame(['MUNCH SALES', 'GLOVO', 'UBER', 'BOLT FOOD'], $headings);
+        $this->assertSame(['MUNCH SALES', 'GLOVO', 'UBER', 'BOLT FOOD', 'CANCELLED'], $headings);
         $this->assertSame(['Time', 'Munch Order #', 'Type', 'Amount'], $columns['munch_sales']);
         $this->assertSame(['Time', 'Munch Order #', 'Glovo Order #', 'Type', 'Amount'], $columns['glovo']);
         $this->assertSame(['Time', 'Munch Order #', 'Uber Order #', 'Type', 'Amount'], $columns['uber']);
         $this->assertSame(['Time', 'Munch Order #', 'Bolt Food Order #', 'Type', 'Amount'], $columns['bolt_food']);
+        $this->assertSame(
+            ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Amount'],
+            $columns['cancelled']
+        );
         $this->assertNotContains('Marketplace Order #', $columns['munch_sales']);
         $this->assertNotContains('Timestamp', $columns['munch_sales']);
         $this->assertContains('Munch Sales Total', $totals);
         $this->assertContains('Glovo Total', $totals);
         $this->assertContains('Uber Total', $totals);
         $this->assertContains('Bolt Food Total', $totals);
+        $this->assertContains('Cancelled Total', $totals);
+        $this->assertContains('Cancelled Orders: 0', $totals);
         $this->assertContains('Total Orders: 3', $totals);
         $this->assertContains('Total Orders: 1', $totals);
         $this->assertNotContains('TOTAL SALES', $totals);
@@ -531,7 +546,23 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertNotContains('7', array_keys($report['assigned_order_ids']));
         $this->assertNotContains('8', array_keys($report['assigned_order_ids']));
         $this->assertNotContains('9', array_keys($report['assigned_order_ids']));
-        $this->assertStringNotContainsString('A10329', AdminSaleReportExport::csvString($report));
+
+        $cancelled = Order::query()->where('id', 9)->get();
+        $withCancelled = AdminSaleReportExport::build($filtered, [
+            'branch_name' => 'Munch Bamburi',
+            'from' => $from,
+            'to' => $to,
+            'payment_totals' => ['cash' => 650],
+            'cancelled_orders' => $cancelled,
+        ]);
+        $this->assertSame(600.0, $withCancelled['totals']['munch_sales']);
+        $this->assertSame(3, $withCancelled['order_counts']['munch_sales']);
+        $this->assertSame(850.0, $withCancelled['cancelled']['total']);
+        $this->assertSame(1, $withCancelled['cancelled']['order_count']);
+        $this->assertContains('9', $this->idKeys($withCancelled['cancelled_order_ids']));
+        $this->assertNotContains('9', $this->idKeys($withCancelled['assigned_order_ids']));
+        $this->assertStringContainsString('A10329', AdminSaleReportExport::csvString($withCancelled));
+        $this->assertStringContainsString('CANCELLED', AdminSaleReportExport::csvString($withCancelled));
     }
 
     public function test_shared_payload_generates_openable_pdf_csv_and_xlsx(): void
@@ -573,6 +604,10 @@ class AdminSaleReportExportTest extends TestCase
             'Glovo Total',
             'Uber Total',
             'Bolt Food Total',
+            'CANCELLED',
+            'Not included in sales',
+            'Cancelled Orders: 0',
+            'Cancelled Total',
             'PAYMENT METHODS',
             'Time',
             'Munch Order #',
@@ -589,6 +624,7 @@ class AdminSaleReportExportTest extends TestCase
             '#FFC244',
             '#06C167',
             '#34D186',
+            '#4B5563',
         ] as $needle) {
             $this->assertStringContainsString($needle, $html, $needle);
         }
@@ -631,6 +667,7 @@ class AdminSaleReportExportTest extends TestCase
             'GLOVO',
             'UBER',
             'BOLT FOOD',
+            'CANCELLED',
             'Time',
             'Munch Order #',
             'Glovo Order #',
@@ -655,6 +692,296 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertStringContainsString('FFC244', $styles);
         $this->assertStringContainsString('06C167', $styles);
         $this->assertStringContainsString('34D186', $styles);
+        $this->assertStringContainsString('4B5563', $styles);
+    }
+
+    public function test_cancelled_orders_are_listed_separately_and_never_added_to_sales(): void
+    {
+        $day = Carbon::parse('2026-09-12 10:00:00', 'Africa/Nairobi');
+        $validMunch = $this->order([
+            'id' => 1,
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
+            'order_amount' => 49620,
+            'readable_order_id' => 'A10001',
+            'payment_method' => 'cash',
+            'order_status' => 'delivered',
+            'created_at' => $day->copy()->setTime(10, 0),
+        ]);
+        $cancelledMunch = $this->order([
+            'id' => 114739,
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
+            'order_amount' => 850,
+            'readable_order_id' => 'A10329',
+            'payment_method' => 'mpesa',
+            'order_status' => 'canceled',
+            'cancelled_at' => $day->copy()->setTime(12, 53),
+            'created_at' => $day->copy()->setTime(12, 53),
+        ]);
+        $cancelledGlovo = $this->order([
+            'id' => 20,
+            'order_type' => 'pos',
+            'sales_channel' => 'glovo',
+            'order_amount' => 400,
+            'readable_order_id' => 'A10330',
+            'platform_order_number' => 'GLV-999',
+            'payment_method' => 'glovo',
+            'order_status' => 'cancelled',
+            'created_at' => $day->copy()->setTime(13, 10),
+        ]);
+        $cancelledUber = $this->order([
+            'id' => 21,
+            'order_type' => 'pos',
+            'sales_channel' => 'uber',
+            'order_amount' => 300,
+            'readable_order_id' => 'A10331',
+            'platform_order_number' => 'UBER-999',
+            'payment_method' => 'uber',
+            'order_status' => 'failed',
+            'created_at' => $day->copy()->setTime(13, 20),
+        ]);
+        $cancelledBolt = $this->order([
+            'id' => 22,
+            'order_type' => 'pos',
+            'sales_channel' => 'bolt_food',
+            'order_amount' => 200,
+            'readable_order_id' => 'A10332',
+            'platform_order_number' => 'BOLT-999',
+            'payment_method' => 'bolt_food',
+            'order_status' => 'returned',
+            'created_at' => $day->copy()->setTime(13, 30),
+        ]);
+        $refunded = $this->order([
+            'id' => 23,
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
+            'order_amount' => 150,
+            'readable_order_id' => 'A10333',
+            'payment_method' => 'card',
+            'order_status' => 'refunded',
+            'created_at' => $day->copy()->setTime(13, 40),
+        ]);
+
+        $payments = [
+            'cash' => 49620,
+            'card' => 0,
+            'mpesa' => 0,
+            'paystack' => 0,
+            'glovo' => 0,
+            'uber' => 0,
+            'bolt_food' => 0,
+        ];
+        $report = AdminSaleReportExport::build([$validMunch], [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-12',
+            'to' => '2026-09-12',
+            'payment_totals' => $payments,
+            'cancelled_orders' => [$cancelledMunch, $cancelledGlovo, $cancelledUber, $cancelledBolt, $refunded],
+        ]);
+
+        $this->assertSame(['1'], $this->idsIn($report, 'munch_sales'));
+        $this->assertSame(['114739', '20', '21', '22', '23'], $this->idsIn($report, 'cancelled'));
+        $this->assertSame(49620.0, $report['totals']['munch_sales']);
+        $this->assertSame(1, $report['order_counts']['munch_sales']);
+        $this->assertSame(0.0, $report['totals']['glovo']);
+        $this->assertSame(0.0, $report['totals']['uber']);
+        $this->assertSame(0.0, $report['totals']['bolt_food']);
+        $this->assertSame(0, $report['order_counts']['glovo']);
+        $this->assertSame(0, $report['order_counts']['uber']);
+        $this->assertSame(0, $report['order_counts']['bolt_food']);
+        $this->assertSame(1900.0, $report['cancelled']['total']);
+        $this->assertSame(5, $report['cancelled']['order_count']);
+        $this->assertSame(0.0, $report['payment_totals']['mpesa']);
+        $this->assertSame(49620.0, $report['payment_totals']['cash']);
+        $this->assertArrayNotHasKey('total_sales', $report['totals']);
+        $this->assertEmpty(array_intersect(
+            array_keys($report['assigned_order_ids']),
+            array_keys($report['cancelled_order_ids'])
+        ));
+        $this->assertNotContains('114739', array_keys($report['assigned_order_ids']));
+        $this->assertNotContains('20', array_keys($report['assigned_order_ids']));
+        $this->assertNotContains('21', array_keys($report['assigned_order_ids']));
+        $this->assertNotContains('22', array_keys($report['assigned_order_ids']));
+
+        $cancelledRows = array_values(array_filter(
+            $report['sections']['cancelled']['orders'],
+            static fn (array $order): bool => $order['order_number'] === 'A10329'
+        ));
+        $this->assertCount(1, $cancelledRows);
+        $this->assertSame('12:53 PM', $cancelledRows[0]['time']);
+        $this->assertStringNotContainsString('Sep', $cancelledRows[0]['time']);
+        $this->assertSame('Take Away', $cancelledRows[0]['order_type']);
+        $this->assertSame(PosOrderTypes::paymentDisplayLabel('mpesa'), $cancelledRows[0]['payment_method']);
+        $this->assertSame('Cancelled', $cancelledRows[0]['status']);
+        $this->assertSame(850.0, $cancelledRows[0]['amount']);
+
+        $byNumber = [];
+        foreach ($report['sections']['cancelled']['orders'] as $order) {
+            $byNumber[$order['order_number']] = $order;
+        }
+        $this->assertSame('Failed', $byNumber['A10331']['status']);
+        $this->assertSame('Returned', $byNumber['A10332']['status']);
+        $this->assertSame('Refunded', $byNumber['A10333']['status']);
+        $this->assertSame('Glovo', $byNumber['A10330']['order_type']);
+        $this->assertSame('GLV-999', $byNumber['A10330']['platform_order_number']);
+        $this->assertSame('UBER-999', $byNumber['A10331']['platform_order_number']);
+        $this->assertSame('BOLT-999', $byNumber['A10332']['platform_order_number']);
+
+        $cancelledCells = AdminSaleReportExport::orderCells($byNumber['A10330'], AdminSaleReportExport::CANCELLED_SECTION);
+        $this->assertSame('Glovo / GLV-999', $cancelledCells[2]);
+        $this->assertNotContains('Marketplace Order #', $cancelledCells);
+
+        $mixed = AdminSaleReportExport::build([$validMunch, $cancelledMunch], [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-12',
+            'to' => '2026-09-12',
+            'payment_totals' => $payments,
+        ]);
+        $this->assertSame(['1'], $this->idsIn($mixed, 'munch_sales'));
+        $this->assertSame(['114739'], $this->idsIn($mixed, 'cancelled'));
+        $this->assertSame(49620.0, $mixed['totals']['munch_sales']);
+        $this->assertSame(850.0, $mixed['cancelled']['total']);
+
+        $csv = AdminSaleReportExport::csvString($report);
+        $html = view('admin-views.report.partials._sale-report-export', compact('report'))->render();
+        $screen = view('admin-views.report.partials._sale-report-cancelled', compact('report'))->render();
+        $xlsxPath = sys_get_temp_dir().'/munch-sale-report-cancelled.xlsx';
+        AdminSaleReportExport::writeXlsx($xlsxPath, $report);
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($xlsxPath) === true);
+        $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
+        $styles = (string) $zip->getFromName('xl/styles.xml');
+        $zip->close();
+        unlink($xlsxPath);
+
+        foreach ([$csv, $html, $sheet] as $output) {
+            $this->assertStringContainsString('A10329', $output);
+            $this->assertStringContainsString('CANCELLED', $output);
+            $this->assertStringContainsString('Cancelled Total', $output);
+            $this->assertStringContainsString('GLV-999', $output);
+            $this->assertStringContainsString('UBER-999', $output);
+            $this->assertStringContainsString('BOLT-999', $output);
+            $this->assertStringNotContainsString('Marketplace Order #', $output);
+        }
+        $this->assertStringContainsString('A10329', $screen);
+        $this->assertStringContainsString('Cancelled', $screen);
+        $this->assertStringContainsString('Cancelled Total', $screen);
+        $this->assertStringContainsString('GLV-999', $screen);
+        $this->assertStringContainsString('UBER-999', $screen);
+        $this->assertStringContainsString('BOLT-999', $screen);
+        $this->assertStringContainsString('Not included in sales', $screen);
+        $this->assertStringNotContainsString('Marketplace Order #', $screen);
+        $this->assertStringContainsString('12:53 PM', $csv);
+        $this->assertStringNotContainsString('12 Sep 2026 12:53 PM', $csv);
+        $this->assertStringContainsString('Not included in sales', $csv);
+        $this->assertStringContainsString('Cancelled Orders: 5', $csv);
+        $this->assertStringContainsString('#4B5563', $html);
+        $this->assertStringContainsString('#E7032D', $html);
+        $this->assertStringContainsString('4B5563', $styles);
+        $pdf = Pdf::loadView('admin-views.report.partials._sale-report-export', compact('report'))->output();
+        $this->assertSame('%PDF', substr($pdf, 0, 4));
+        $this->assertGreaterThan(1000, strlen($pdf));
+    }
+
+    public function test_bamburi_12_september_keeps_valid_munch_sales_and_shows_cancelled_a10329(): void
+    {
+        $day = Carbon::parse('2026-09-12 12:48:48', 'Africa/Nairobi');
+        $remaining = 49620.0;
+        $valid = [];
+        for ($i = 1; $i <= 75; $i++) {
+            $amount = ($i === 75) ? $remaining : 660.0;
+            $remaining -= $amount;
+            $valid[] = $this->order([
+                'id' => $i,
+                'order_type' => 'pos',
+                'sales_channel' => 'takeaway',
+                'order_amount' => $amount,
+                'readable_order_id' => 'A'.(10000 + $i),
+                'payment_method' => 'cash',
+                'order_status' => 'delivered',
+                'created_at' => $day,
+            ]);
+        }
+        $cancelled = $this->order([
+            'id' => 114739,
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
+            'order_amount' => 850,
+            'readable_order_id' => 'A10329',
+            'payment_method' => 'mpesa',
+            'order_status' => 'canceled',
+            'cancelled_at' => Carbon::parse('2026-09-12 12:53:50', 'Africa/Nairobi'),
+            'created_at' => Carbon::parse('2026-09-12 12:53:50', 'Africa/Nairobi'),
+        ]);
+
+        $report = AdminSaleReportExport::build($valid, [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-12',
+            'to' => '2026-09-12',
+            'payment_totals' => [
+                'cash' => 49620,
+                'card' => 0,
+                'mpesa' => 0,
+                'paystack' => 0,
+                'glovo' => 0,
+                'uber' => 0,
+                'bolt_food' => 0,
+            ],
+            'cancelled_orders' => [$cancelled],
+        ]);
+
+        $this->assertSame(49620.0, $report['totals']['munch_sales']);
+        $this->assertSame(75, $report['order_counts']['munch_sales']);
+        $this->assertSame(850.0, $report['cancelled']['total']);
+        $this->assertSame(1, $report['cancelled']['order_count']);
+        $this->assertSame(['114739'], $this->idsIn($report, 'cancelled'));
+        $this->assertNotContains('114739', $this->idsIn($report, 'munch_sales'));
+        $this->assertSame(0.0, $report['payment_totals']['mpesa']);
+        $this->assertSame(49620.0, $report['payment_totals']['cash']);
+        $this->assertArrayNotHasKey('total_sales', $report['totals']);
+
+        $csv = AdminSaleReportExport::csvString($report);
+        $html = view('admin-views.report.partials._sale-report-export', compact('report'))->render();
+        $this->assertStringContainsString('A10329', $csv);
+        $this->assertStringContainsString('A10329', $html);
+        $this->assertStringContainsString('Cancelled Orders: 1', $csv);
+        $this->assertStringContainsString(AdminSaleReportExport::formatAmount(49620), $csv);
+        $this->assertStringContainsString(AdminSaleReportExport::formatAmount(850), $csv);
+        $this->assertStringNotContainsString('Marketplace Order #', $csv);
+    }
+
+    public function test_cancelled_section_respects_branch_and_date_filters(): void
+    {
+        $today = Carbon::parse('2026-09-12 12:53:50', 'Africa/Nairobi');
+        $yesterday = Carbon::parse('2026-09-11 12:53:50', 'Africa/Nairobi');
+
+        $this->insert(114739, 'pos', 'takeaway', 850, 10, $today, 'A10329', '', 'canceled', $today);
+        $this->insert(200, 'pos', 'takeaway', 400, 2, $today, 'A20001', '', 'canceled', $today);
+        $this->insert(201, 'pos', 'takeaway', 300, 10, $yesterday, 'A10300', '', 'canceled', $yesterday);
+        $this->insert(1, 'pos', 'takeaway', 660, 10, $today, 'A10001');
+
+        $from = $today->copy()->startOfDay();
+        $to = $today->copy()->endOfDay();
+        $valid = Order::query()->whereBetween('created_at', [$from, $to])->where('branch_id', 10);
+        AdminDashboardSalesKpis::constrainNotVoided($valid);
+        $cancelled = Order::query()->whereBetween('created_at', [$from, $to])->where('branch_id', 10);
+        AdminDashboardSalesKpis::constrainVoided($cancelled);
+
+        $report = AdminSaleReportExport::build($valid->get(), [
+            'branch_name' => 'Munch Bamburi',
+            'from' => $from,
+            'to' => $to,
+            'payment_totals' => ['cash' => 660],
+            'cancelled_orders' => $cancelled->get(),
+        ]);
+
+        $this->assertSame(['1'], $this->idsIn($report, 'munch_sales'));
+        $this->assertSame(['114739'], $this->idsIn($report, 'cancelled'));
+        $this->assertSame(660.0, $report['totals']['munch_sales']);
+        $this->assertSame(850.0, $report['cancelled']['total']);
+        $this->assertNotContains('200', $this->idsIn($report, 'cancelled'));
+        $this->assertNotContains('201', $this->idsIn($report, 'cancelled'));
     }
 
     /**
@@ -769,6 +1096,15 @@ class AdminSaleReportExportTest extends TestCase
             'order_amount' => 0,
             'created_at' => Carbon::parse('2026-09-11 10:00:00', 'Africa/Nairobi'),
         ], $overrides);
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $map
+     * @return list<string>
+     */
+    private function idKeys(array $map): array
+    {
+        return array_map(static fn (int|string $id): string => (string) $id, array_keys($map));
     }
 
     /**

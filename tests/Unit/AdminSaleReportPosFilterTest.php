@@ -13,6 +13,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
+use ZipArchive;
 
 class AdminSaleReportPosFilterTest extends TestCase
 {
@@ -114,11 +115,14 @@ class AdminSaleReportPosFilterTest extends TestCase
         $this->assertStringContainsString("session()->put('export_sale_summary', \$summaryDisplay)", $controller);
         $this->assertStringContainsString("session()->put('export_sale_report', \$exportReport)", $controller);
         $this->assertStringContainsString('AdminSaleReportExport::build(', $controller);
-        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided($query)', $controller);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided(', $controller);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainVoided(', $controller);
+        $this->assertStringContainsString("'cancelled_orders' => \$cancelledOrders", $controller);
         $this->assertStringNotContainsString('earningReport()', $controller);
         $this->assertTrue(method_exists(PosOrderTypes::class, 'constrainSaleReportChannel'));
         $this->assertTrue(method_exists(Order::class, 'scopePos'));
         $this->assertTrue(method_exists(AdminDashboardSalesKpis::class, 'constrainNotVoided'));
+        $this->assertTrue(method_exists(AdminDashboardSalesKpis::class, 'constrainVoided'));
     }
 
     public function test_cancelled_and_voided_pos_orders_are_excluded_from_sale_report(): void
@@ -170,11 +174,15 @@ class AdminSaleReportPosFilterTest extends TestCase
                 $paymentTotals[$method] += (float) $order->order_amount;
             }
         }
+        $cancelledQuery = Order::query()->whereBetween('created_at', [$from, $to])->where('branch_id', 1);
+        PosOrderTypes::constrainSaleReportChannel($cancelledQuery, 'pos');
+        AdminDashboardSalesKpis::constrainVoided($cancelledQuery);
         $report = AdminSaleReportExport::build($orders, [
             'branch_name' => 'Munch Bamburi',
             'from' => $from,
             'to' => $to,
             'payment_totals' => $paymentTotals,
+            'cancelled_orders' => $cancelledQuery->orderBy('id')->get(),
         ]);
 
         $this->assertSame(2520.0, $report['totals']['munch_sales']);
@@ -186,15 +194,18 @@ class AdminSaleReportPosFilterTest extends TestCase
         $this->assertArrayHasKey(8, $report['assigned_order_ids']);
         $this->assertSame('delivery', $report['assigned_order_ids'][8] ?? $report['assigned_order_ids']['8'] ?? null);
         $this->assertArrayNotHasKey(2, $report['assigned_order_ids']);
+        $this->assertContains('2', array_map('strval', array_keys($report['cancelled_order_ids'])));
         $this->assertSame('glovo', AdminSaleReportExport::classify('pos', 'glovo'));
         $this->assertSame('uber', AdminSaleReportExport::classify('pos', 'uber'));
         $this->assertSame('bolt_food', AdminSaleReportExport::classify('pos', 'bolt_food'));
 
         $csv = AdminSaleReportExport::csvString($report);
-        $this->assertStringNotContainsString('A10329', $csv);
+        $this->assertStringContainsString('A10329', $csv);
+        $this->assertStringContainsString('CANCELLED', $csv);
         $this->assertStringContainsString('Paystack', $csv);
         $html = view('admin-views.report.partials._sale-report-export', compact('report'))->render();
-        $this->assertStringNotContainsString('A10329', $html);
+        $this->assertStringContainsString('A10329', $html);
+        $this->assertStringContainsString('Not included in sales', $html);
         $pdf = Pdf::loadView('admin-views.report.partials._sale-report-export', compact('report'))->output();
         $this->assertSame('%PDF', substr($pdf, 0, 4));
     }
@@ -219,31 +230,41 @@ class AdminSaleReportPosFilterTest extends TestCase
         $this->assertSame(49620.0, $this->amountTotal($ids));
 
         $orders = Order::query()->whereIn('id', $ids)->orderBy('id')->get();
+        $cancelled = Order::query()->where('id', 114739)->get();
         $paymentTotals = ['cash' => 49620.0, 'card' => 0.0, 'mpesa' => 0.0, 'paystack' => 0.0, 'glovo' => 0.0, 'uber' => 0.0, 'bolt_food' => 0.0];
         $report = AdminSaleReportExport::build($orders, [
             'branch_name' => 'Munch Bamburi',
             'from' => $from,
             'to' => $to,
             'payment_totals' => $paymentTotals,
+            'cancelled_orders' => $cancelled,
         ]);
 
         $this->assertSame(49620.0, $report['totals']['munch_sales']);
         $this->assertSame(75, $report['order_counts']['munch_sales']);
+        $this->assertSame(850.0, $report['cancelled']['total']);
+        $this->assertSame(1, $report['cancelled']['order_count']);
         $this->assertSame(49620.0, AdminSaleReportSummary::fromPaymentTotals($paymentTotals)['munch_sales']);
         $this->assertSame(49620.0, AdminDashboardSalesKpis::fromGroupedRows([
             ['payment_method' => 'cash', 'sales_channel' => 'takeaway', 'order_type' => 'pos', 'total' => 49620],
         ])['munch_sales']);
+        $this->assertSame(0.0, $report['payment_totals']['mpesa']);
 
         $csv = AdminSaleReportExport::csvString($report);
         $html = view('admin-views.report.partials._sale-report-export', compact('report'))->render();
         $xlsxPath = sys_get_temp_dir().'/munch-bamburi-sale-report-voided.xlsx';
         AdminSaleReportExport::writeXlsx($xlsxPath, $report);
-        $xlsx = (string) file_get_contents($xlsxPath);
-        @unlink($xlsxPath);
-        $this->assertStringNotContainsString('A10329', $csv);
-        $this->assertStringNotContainsString('A10329', $html);
-        $this->assertSame('PK', substr($xlsx, 0, 2));
-        $this->assertStringNotContainsString('A10329', $xlsx);
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($xlsxPath) === true);
+        $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        unlink($xlsxPath);
+        $this->assertStringContainsString('A10329', $csv);
+        $this->assertStringContainsString('Cancelled Orders: 1', $csv);
+        $this->assertStringContainsString('A10329', $html);
+        $this->assertStringContainsString('A10329', $sheet);
+        $this->assertStringNotContainsString('Marketplace Order #', $csv);
+        $this->assertStringNotContainsString('TOTAL SALES', $csv);
     }
 
     /**

@@ -68,12 +68,32 @@
             ])
             <table class="total-wrap">
                 <tr>
-                    <td>{{ \App\Support\AdminSaleReportExport::formatOrderCount(\App\Support\AdminSaleReportExport::sectionOrderCount($section)) }}</td>
+                    <td>{{ \App\Support\AdminSaleReportExport::formatSectionOrderCount($sectionKey, \App\Support\AdminSaleReportExport::sectionOrderCount($section)) }}</td>
                     <td class="num">{{ $section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total') }}: {{ \App\Support\AdminSaleReportExport::formatAmount($totals[$sectionKey] ?? ($section['total'] ?? 0)) }}</td>
                 </tr>
             </table>
         </div>
     @endforeach
+
+    @php
+        $cancelledKey = \App\Support\AdminSaleReportExport::CANCELLED_SECTION;
+        $cancelled = $report['sections'][$cancelledKey] ?? [];
+        $cancelledTotal = $report['cancelled']['total'] ?? ($cancelled['total'] ?? 0);
+    @endphp
+    <div class="section section-{{ $cancelledKey }}">
+        <div class="section-head">{{ $cancelled['heading'] ?? 'CANCELLED' }}</div>
+        <p class="empty" style="font-style:normal;border:0;padding:4px 0 8px;">Not included in sales</p>
+        @include('admin-views.report.partials._sale-report-export-orders', [
+            'orders' => \App\Support\AdminSaleReportExport::sectionOrders($cancelled),
+            'sectionKey' => $cancelledKey,
+        ])
+        <table class="total-wrap">
+            <tr>
+                <td>{{ \App\Support\AdminSaleReportExport::formatSectionOrderCount($cancelledKey, \App\Support\AdminSaleReportExport::sectionOrderCount($cancelled)) }}</td>
+                <td class="num">{{ $cancelled['total_label'] ?? 'Cancelled Total' }}: {{ \App\Support\AdminSaleReportExport::formatAmount($cancelledTotal) }}</td>
+            </tr>
+        </table>
+    </div>
 
     <div class="payments">
         <h2>PAYMENT METHODS</h2>

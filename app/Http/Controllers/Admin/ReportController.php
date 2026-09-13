@@ -267,8 +267,10 @@ class ReportController extends Controller
         $toDate = Carbon::parse($request->to)->endOfDay();
 
         $orderQuery = $this->saleReportOrderQuery($request, $fromDate, $toDate);
+        $cancelledQuery = $this->saleReportCancelledQuery($request, $fromDate, $toDate);
 
         $orders = (clone $orderQuery)->pluck('id')->toArray();
+        $cancelledOrders = (clone $cancelledQuery)->orderBy('created_at')->get();
         $paymentTotals = [
             'cash' => 0.0,
             'card' => 0.0,
@@ -327,8 +329,10 @@ class ReportController extends Controller
                 'from' => $fromDate,
                 'to' => $toDate,
                 'payment_totals' => $paymentTotals,
+                'cancelled_orders' => $cancelledOrders,
             ]
         );
+        $cancelledSummary = $exportReport['cancelled'] ?? ['total' => 0.0, 'order_count' => 0];
 
         session()->put('export_sale_data', $data);
         session()->put('export_sale_summary', $summaryDisplay);
@@ -348,7 +352,14 @@ class ReportController extends Controller
                 'uber' => Helpers::set_symbol($paymentTotals['uber']),
                 'bolt_food' => Helpers::set_symbol($paymentTotals['bolt_food']),
             ],
+            'cancelled' => [
+                'order_count' => (int) ($cancelledSummary['order_count'] ?? 0),
+                'total' => Helpers::set_symbol($cancelledSummary['total'] ?? 0),
+            ],
             'view' => view('admin-views.report.partials._table', ['data' => $data, 'summary' => $summaryDisplay, 'isSaleReport' => true])->render(),
+            'cancelled_view' => view('admin-views.report.partials._sale-report-cancelled', [
+                'report' => $exportReport,
+            ])->render(),
         ]);
     }
 
@@ -395,12 +406,12 @@ class ReportController extends Controller
         return is_string($name) && trim($name) !== '' ? $name : 'Branch';
     }
 
-    private function saleReportOrderQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder
+    private function saleReportScopedQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder
     {
         $channel = (string) $request->input('sales_channel', 'all');
         $paymentMethod = (string) $request->input('payment_method', 'all');
 
-        $query = $this->order->whereBetween('created_at', [$fromDate, $toDate])
+        return $this->order->whereBetween('created_at', [$fromDate, $toDate])
             ->when($request['branch_id'] !== 'all', function ($query) use ($request) {
                 $query->where('branch_id', $request['branch_id']);
             })
@@ -410,8 +421,20 @@ class ReportController extends Controller
             ->when($paymentMethod !== '' && $paymentMethod !== 'all', function ($query) use ($paymentMethod) {
                 $query->where('payment_method', $paymentMethod);
             });
+    }
 
-        return AdminDashboardSalesKpis::constrainNotVoided($query);
+    private function saleReportOrderQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder
+    {
+        return AdminDashboardSalesKpis::constrainNotVoided(
+            $this->saleReportScopedQuery($request, $fromDate, $toDate)
+        );
+    }
+
+    private function saleReportCancelledQuery(Request $request, Carbon $fromDate, Carbon $toDate): Builder
+    {
+        return AdminDashboardSalesKpis::constrainVoided(
+            $this->saleReportScopedQuery($request, $fromDate, $toDate)
+        );
     }
 
     /**

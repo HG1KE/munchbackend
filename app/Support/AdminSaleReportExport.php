@@ -33,6 +33,8 @@ class AdminSaleReportExport
 
     public const SECTION_KEYS = ['munch_sales', 'glovo', 'uber', 'bolt_food'];
 
+    public const CANCELLED_SECTION = 'cancelled';
+
     /** Exact Munch brand red. */
     public const COLOR_MUNCH = '#E7032D';
 
@@ -52,6 +54,11 @@ class AdminSaleReportExport
     public const TINT_UBER = '#E8F9F0';
 
     public const TINT_BOLT_FOOD = '#E9F9F2';
+
+    /** Neutral slate so Cancelled is never read as a sales brand. */
+    public const COLOR_CANCELLED = '#4B5563';
+
+    public const TINT_CANCELLED = '#F3F4F6';
 
     /**
      * @return list<string>
@@ -85,7 +92,8 @@ class AdminSaleReportExport
      *     branch_name?: string,
      *     from?: CarbonInterface|string,
      *     to?: CarbonInterface|string,
-     *     payment_totals?: array<string, float|int|string>
+     *     payment_totals?: array<string, float|int|string>,
+     *     cancelled_orders?: iterable<int, object|array<string, mixed>>
      * }  $context
      * @return array<string, mixed>
      */
@@ -100,30 +108,14 @@ class AdminSaleReportExport
 
         $sections = self::emptySections();
         $seen = [];
+        $cancelledSeen = [];
         $includeDate = ! $from->isSameDay($to);
 
         foreach ($orders as $order) {
-            $id = self::orderId($order);
-            if ($id !== '' && isset($seen[$id])) {
-                continue;
-            }
-            $category = self::classify(
-                self::value($order, 'order_type'),
-                self::value($order, 'sales_channel')
-            );
-            if ($category === null) {
-                continue;
-            }
-            if ($id !== '') {
-                $seen[$id] = $category;
-            }
-
-            $row = self::orderRow($order, $category, $includeDate);
-            $sectionKey = self::sectionKey($category);
-            $sections[$sectionKey]['categories'][$category]['orders'][] = $row;
-            $sections[$sectionKey]['categories'][$category]['total'] += $row['amount'];
-            $sections[$sectionKey]['orders'][] = $row;
-            $sections[$sectionKey]['total'] += $row['amount'];
+            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate);
+        }
+        foreach ($context['cancelled_orders'] ?? [] as $order) {
+            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, true);
         }
 
         foreach ($sections as &$section) {
@@ -155,6 +147,10 @@ class AdminSaleReportExport
             'uber' => $sections['uber']['order_count'],
             'bolt_food' => $sections['bolt_food']['order_count'],
         ];
+        $cancelled = [
+            'total' => $sections[self::CANCELLED_SECTION]['total'],
+            'order_count' => $sections[self::CANCELLED_SECTION]['order_count'],
+        ];
 
         $salesDateLabel = self::salesDateLabel($from, $to);
 
@@ -168,8 +164,10 @@ class AdminSaleReportExport
             'sections' => $sections,
             'totals' => $totals,
             'order_counts' => $orderCounts,
+            'cancelled' => $cancelled,
             'payment_totals' => self::normalizePaymentTotals($context['payment_totals'] ?? []),
             'assigned_order_ids' => $seen,
+            'cancelled_order_ids' => $cancelledSeen,
             'filename_base' => self::filenameBase($branchName, $salesDateLabel),
         ];
     }
@@ -276,6 +274,13 @@ class AdminSaleReportExport
         return 'Total Orders: '.$count;
     }
 
+    public static function formatSectionOrderCount(string $sectionKey, int $count): string
+    {
+        return $sectionKey === self::CANCELLED_SECTION
+            ? 'Cancelled Orders: '.$count
+            : self::formatOrderCount($count);
+    }
+
     /**
      * @param  array<string, mixed>  $section
      */
@@ -313,6 +318,10 @@ class AdminSaleReportExport
      */
     public static function sectionColumnLabels(string $sectionKey): array
     {
+        if ($sectionKey === self::CANCELLED_SECTION) {
+            return ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Amount'];
+        }
+
         if ($sectionKey === 'munch_sales') {
             return ['Time', 'Munch Order #', 'Type', 'Amount'];
         }
@@ -368,6 +377,21 @@ class AdminSaleReportExport
             $rows[] = self::exportRow('total', $sectionKey, self::sectionTotalCells($section, $sectionKey, $report));
             $rows[] = self::exportRow('blank', null, ['']);
         }
+
+        $cancelled = $report['sections'][self::CANCELLED_SECTION] ?? [];
+        $rows[] = self::exportRow('section', self::CANCELLED_SECTION, [(string) ($cancelled['heading'] ?? 'CANCELLED')]);
+        $rows[] = self::exportRow('note', self::CANCELLED_SECTION, ['Not included in sales']);
+        $rows[] = self::exportRow('columns', self::CANCELLED_SECTION, self::sectionColumnLabels(self::CANCELLED_SECTION));
+        $cancelledOrders = self::sectionOrders($cancelled);
+        if ($cancelledOrders === []) {
+            $rows[] = self::exportRow('empty', self::CANCELLED_SECTION, ['No cancelled orders']);
+        } else {
+            foreach ($cancelledOrders as $order) {
+                $rows[] = self::exportRow('order', self::CANCELLED_SECTION, self::orderCells($order, self::CANCELLED_SECTION));
+            }
+        }
+        $rows[] = self::exportRow('total', self::CANCELLED_SECTION, self::sectionTotalCells($cancelled, self::CANCELLED_SECTION, $report));
+        $rows[] = self::exportRow('blank', null, ['']);
 
         $rows[] = self::exportRow('payment_heading', 'payments', ['PAYMENT METHODS']);
         foreach (self::paymentMethodLabels() as $key => $label) {
@@ -484,6 +508,11 @@ class AdminSaleReportExport
                 'tint' => self::TINT_BOLT_FOOD,
                 'header_ink' => '#111111',
             ],
+            self::CANCELLED_SECTION => [
+                'color' => self::COLOR_CANCELLED,
+                'tint' => self::TINT_CANCELLED,
+                'header_ink' => '#FFFFFF',
+            ],
         ];
     }
 
@@ -565,7 +594,72 @@ class AdminSaleReportExport
                     'bolt_food' => ['label' => 'Bolt Food', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
                 ],
             ],
+            self::CANCELLED_SECTION => [
+                'label' => 'Cancelled',
+                'heading' => 'CANCELLED',
+                'total_label' => 'Cancelled Total',
+                'total' => 0.0,
+                'order_count' => 0,
+                'orders' => [],
+                'color' => $themes[self::CANCELLED_SECTION]['color'],
+                'tint' => $themes[self::CANCELLED_SECTION]['tint'],
+                'header_ink' => $themes[self::CANCELLED_SECTION]['header_ink'],
+                'categories' => [
+                    self::CANCELLED_SECTION => ['label' => 'Cancelled', 'orders' => [], 'total' => 0.0, 'order_count' => 0],
+                ],
+            ],
         ];
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $order
+     * @param  array<string, array<string, mixed>>  $sections
+     * @param  array<string, string>  $seen
+     * @param  array<string, string>  $cancelledSeen
+     */
+    private static function assignExportOrder(
+        object|array $order,
+        array &$sections,
+        array &$seen,
+        array &$cancelledSeen,
+        bool $includeDate,
+        bool $forceCancelled = false
+    ): void {
+        $id = self::orderId($order);
+        if ($id !== '' && (isset($seen[$id]) || isset($cancelledSeen[$id]))) {
+            return;
+        }
+
+        $category = self::classify(
+            self::value($order, 'order_type'),
+            self::value($order, 'sales_channel')
+        );
+        if ($category === null) {
+            return;
+        }
+
+        $voided = $forceCancelled || AdminDashboardSalesKpis::isVoidedOrder($order);
+        $row = self::orderRow($order, $category, $includeDate);
+        if ($voided) {
+            if ($id !== '') {
+                $cancelledSeen[$id] = $category;
+            }
+            $sections[self::CANCELLED_SECTION]['categories'][self::CANCELLED_SECTION]['orders'][] = $row;
+            $sections[self::CANCELLED_SECTION]['categories'][self::CANCELLED_SECTION]['total'] += $row['amount'];
+            $sections[self::CANCELLED_SECTION]['orders'][] = $row;
+            $sections[self::CANCELLED_SECTION]['total'] += $row['amount'];
+
+            return;
+        }
+
+        if ($id !== '') {
+            $seen[$id] = $category;
+        }
+        $sectionKey = self::sectionKey($category);
+        $sections[$sectionKey]['categories'][$category]['orders'][] = $row;
+        $sections[$sectionKey]['categories'][$category]['total'] += $row['amount'];
+        $sections[$sectionKey]['orders'][] = $row;
+        $sections[$sectionKey]['total'] += $row['amount'];
     }
 
     /**
@@ -595,6 +689,13 @@ class AdminSaleReportExport
             'sales_category' => $salesCategory,
             'order_type' => self::categoryLabel($category),
             'category' => $category,
+            'payment_method' => PosOrderTypes::paymentDisplayLabel(
+                (string) (self::value($order, 'payment_method') ?? '')
+            ),
+            'status' => AdminDashboardSalesKpis::voidStatusLabel(
+                self::value($order, 'order_status'),
+                self::value($order, 'cancelled_at')
+            ),
             'amount' => self::money(self::value($order, 'order_amount') ?? 0),
         ];
     }
@@ -664,17 +765,32 @@ class AdminSaleReportExport
      * @param  array<string, mixed>  $order
      * @return list<string>
      */
-    private static function orderCells(array $order, string $sectionKey): array
+    public static function orderCells(array $order, string $sectionKey): array
     {
         $time = (string) ($order['time'] ?? $order['timestamp'] ?? '');
         $number = (string) ($order['order_number'] ?? '');
         $type = (string) ($order['order_type'] ?? '');
+        $platform = (string) ($order['platform_order_number'] ?? '');
         $amount = self::formatAmount($order['amount'] ?? 0);
+        if ($sectionKey === self::CANCELLED_SECTION) {
+            if ($platform !== '') {
+                $type = $type === '' ? $platform : $type.' / '.$platform;
+            }
+
+            return [
+                $time,
+                $number,
+                $type,
+                (string) ($order['payment_method'] ?? ''),
+                (string) ($order['status'] ?? ''),
+                $amount,
+            ];
+        }
         if (self::marketplaceOrderColumn($sectionKey) === '') {
             return [$time, $number, $type, $amount];
         }
 
-        return [$time, $number, (string) ($order['platform_order_number'] ?? ''), $type, $amount];
+        return [$time, $number, $platform, $type, $amount];
     }
 
     /**
@@ -687,9 +803,12 @@ class AdminSaleReportExport
         $columns = self::sectionColumnLabels($sectionKey);
         $width = max(count($columns), 2);
         $cells = array_fill(0, $width, '');
-        $cells[0] = self::formatOrderCount(self::sectionOrderCount($section));
+        $cells[0] = self::formatSectionOrderCount($sectionKey, self::sectionOrderCount($section));
         $cells[$width - 2] = (string) ($section['total_label'] ?? (($section['label'] ?? $sectionKey).' Total'));
-        $cells[$width - 1] = self::formatAmount($report['totals'][$sectionKey] ?? ($section['total'] ?? 0));
+        $amount = $sectionKey === self::CANCELLED_SECTION
+            ? ($report['cancelled']['total'] ?? $section['total'] ?? 0)
+            : ($report['totals'][$sectionKey] ?? $section['total'] ?? 0);
+        $cells[$width - 1] = self::formatAmount($amount);
 
         return $cells;
     }

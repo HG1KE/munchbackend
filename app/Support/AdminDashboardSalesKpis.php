@@ -92,6 +92,52 @@ class AdminDashboardSalesKpis
     }
 
     /**
+     * Inverse of {@see constrainNotVoided()} for the Sale Report Cancelled section.
+     *
+     * @param  Builder<\App\Model\Order>  $query
+     * @return Builder<\App\Model\Order>
+     */
+    public static function constrainVoided(Builder $query): Builder
+    {
+        $query->where(function ($inner) {
+            $inner->whereIn('order_status', self::EXCLUDED_STATUSES);
+            if (Schema::hasColumn((new Order())->getTable(), 'cancelled_at')) {
+                $inner->orWhereNotNull('cancelled_at');
+            }
+        });
+
+        return $query;
+    }
+
+    public static function isVoided(mixed $status, mixed $cancelledAt = null): bool
+    {
+        if (in_array((string) $status, self::EXCLUDED_STATUSES, true)) {
+            return true;
+        }
+
+        return $cancelledAt !== null && $cancelledAt !== '';
+    }
+
+    public static function isVoidedOrder(object|array $order): bool
+    {
+        $status = is_array($order) ? ($order['order_status'] ?? null) : ($order->order_status ?? null);
+        $cancelledAt = is_array($order) ? ($order['cancelled_at'] ?? null) : ($order->cancelled_at ?? null);
+
+        return self::isVoided($status, $cancelledAt);
+    }
+
+    public static function voidStatusLabel(mixed $status, mixed $cancelledAt = null): string
+    {
+        return match ((string) $status) {
+            'canceled', 'cancelled' => 'Cancelled',
+            'failed' => 'Failed',
+            'returned' => 'Returned',
+            'refunded' => 'Refunded',
+            default => self::isVoided($status, $cancelledAt) ? 'Cancelled' : (string) $status,
+        };
+    }
+
+    /**
      * @param  Builder<\App\Model\Order>  $query
      * @return Builder<\App\Model\Order>
      */

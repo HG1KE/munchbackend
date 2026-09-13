@@ -3,7 +3,7 @@
 @section('title', translate('Sale Report'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.1">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.2">
 @endpush
 
 @section('content')
@@ -103,6 +103,18 @@
             </article>
         </div>
 
+        <h3 class="munch-sale-report__section">{{ translate('Cancelled') }}</h3>
+        <div class="munch-sale-report__grid munch-sale-report__grid--cancelled">
+            <article class="munch-sale-report__card munch-sale-report__card--cancelled">
+                <span class="munch-sale-report__label">{{ translate('Cancelled Orders') }}</span>
+                <p class="munch-sale-report__value" id="sum-cancelled-orders">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--cancelled">
+                <span class="munch-sale-report__label">{{ translate('Cancelled Total') }}</span>
+                <p class="munch-sale-report__value" id="sum-cancelled-total">—</p>
+            </article>
+        </div>
+
         <div class="munch-sale-report__grid munch-sale-report__grid--secondary">
             <article class="munch-sale-report__card munch-sale-report__card--compact">
                 <span class="munch-sale-report__label">{{ translate('tax') }}</span>
@@ -161,6 +173,12 @@
                 </div>
             </div>
         </div>
+
+        <div class="card munch-sale-report__table-card munch-sale-report__table-card--cancelled">
+            <div class="card-body" id="set-cancelled-rows">
+                @include('admin-views.report.partials._sale-report-cancelled', ['report' => []])
+            </div>
+        </div>
     </div>
 @endsection
 
@@ -198,7 +216,14 @@
                         $('#pay-uber').html(data.payment_totals.uber);
                         $('#pay-bolt_food').html(data.payment_totals.bolt_food);
                     }
+                    if (data.cancelled) {
+                        $('#sum-cancelled-orders').html(data.cancelled.order_count);
+                        $('#sum-cancelled-total').html(data.cancelled.total);
+                    }
                     $('#set-rows').html(data.view);
+                    if (data.cancelled_view) {
+                        $('#set-cancelled-rows').html(data.cancelled_view);
+                    }
                     $('.card-footer').hide();
                 },
                 complete: function () {

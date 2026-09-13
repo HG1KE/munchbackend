@@ -112,7 +112,9 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("'paystack' => Helpers::set_symbol(\$paymentTotals['paystack'])", $controller);
         $this->assertStringContainsString("input('payment_method', 'all')", $controller);
         $this->assertStringContainsString('PosOrderTypes::constrainSaleReportChannel($query, $channel)', $controller);
-        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided($query)', $controller);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided(', $controller);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainVoided(', $controller);
+        $this->assertStringContainsString("'cancelled_orders' => \$cancelledOrders", $controller);
         $this->assertStringNotContainsString("\$query->where('sales_channel', \$channel)", $controller);
         $this->assertStringContainsString('fromPaymentTotals($paymentTotals)', $controller);
         $this->assertStringContainsString("\$summaryDisplay['munch_sales']", $controller);
@@ -134,6 +136,11 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('id="sum-tax"', $page);
         $this->assertStringContainsString('id="sum-delivery-fees"', $page);
         $this->assertStringContainsString('id="sum-total-sales"', $page);
+        $this->assertStringContainsString('id="sum-cancelled-orders"', $page);
+        $this->assertStringContainsString('id="sum-cancelled-total"', $page);
+        $this->assertStringContainsString('id="set-cancelled-rows"', $page);
+        $this->assertStringContainsString('data.cancelled.order_count', $page);
+        $this->assertStringContainsString('data.cancelled.total', $page);
         $this->assertStringContainsString('id="pay-cash"', $page);
         $this->assertStringContainsString('id="pay-paystack"', $page);
         $this->assertStringContainsString("data.payment_totals.paystack", $page);
@@ -156,8 +163,10 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('section-head', $pdf);
         $this->assertStringContainsString('SECTION_KEYS', $pdf);
         $this->assertStringContainsString('total_label', $pdf);
-        $this->assertStringContainsString('formatOrderCount', $pdf);
+        $this->assertStringContainsString('formatSectionOrderCount', $pdf);
         $this->assertStringContainsString('sectionOrderCount', $pdf);
+        $this->assertStringContainsString('CANCELLED_SECTION', $pdf);
+        $this->assertStringContainsString('Not included in sales', $pdf);
         $this->assertStringContainsString('sectionThemes()', $pdf);
         $this->assertStringNotContainsString('MARKETPLACE SALES', $pdf);
         $this->assertStringNotContainsString('TOTAL SALES', $pdf);
@@ -167,6 +176,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("COLOR_GLOVO = '#FFC244'", $export);
         $this->assertStringContainsString("COLOR_UBER = '#06C167'", $export);
         $this->assertStringContainsString("COLOR_BOLT_FOOD = '#34D186'", $export);
+        $this->assertStringContainsString("COLOR_CANCELLED = '#4B5563'", $export);
         $this->assertStringContainsString('Branch:', $pdf);
         $this->assertStringContainsString('Sales Date:', $pdf);
     }

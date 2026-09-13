@@ -246,7 +246,8 @@ class PosOrderCancellationTest extends TestCase
 
         $report = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
         $this->assertStringContainsString("where(['order_status' => 'delivered'])", $report);
-        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided($query)', $report);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided(', $report);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainVoided(', $report);
 
         $orderModel = file_get_contents(app_path('Model/Order.php'));
         $this->assertStringContainsString("whereIn('order_status', ['delivered', 'completed'])", $orderModel);
