@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\CentralLogics\AbandonedCheckoutService;
 use App\CentralLogics\CustomerLogic;
-use App\CentralLogics\CustomerOrderStatusSms;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
+use App\Jobs\SendOnlineOrderPlacementNotificationsJob;
+use App\Support\OnlineCheckoutIdempotency;
 use App\Http\Controllers\Controller;
 use App\Model\AddOn;
 use App\Model\Branch;
@@ -21,7 +22,6 @@ use App\Model\ProductByBranch;
 use App\Support\OrderPlacementTime;
 use App\Support\StorefrontVisibilitySchedule;
 use App\Model\TimeSchedule;
-use App\Models\GuestUser;
 use App\Models\OfflinePayment;
 use App\Models\OrderPartialPayment;
 use App\Models\OrderArea;
@@ -31,9 +31,10 @@ use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use function App\CentralLogics\translate;
 
@@ -103,6 +104,18 @@ class OrderController extends Controller
             return response()->json(['errors' => Helpers::error_processor($validator)], 403);
         }
 
+        $checkoutUuid = OnlineCheckoutIdempotency::resolveFromRequest($request);
+        if ($checkoutUuid === null) {
+            OnlineCheckoutIdempotency::logMissingUuid((string) $request->payment_method);
+        } else {
+            $existingCheckoutOrder = OnlineCheckoutIdempotency::findOrder($checkoutUuid);
+            if ($existingCheckoutOrder) {
+                OnlineCheckoutIdempotency::logDuplicate($checkoutUuid, $existingCheckoutOrder, 'pre_insert_lookup');
+
+                return OnlineCheckoutIdempotency::successResponse($existingCheckoutOrder);
+            }
+        }
+
         $paystackReference = trim((string) ($request->transaction_reference ?? ''));
         if ((string) $request->payment_method === 'paystack' && $paystackReference !== '') {
             $existingPaystackOrder = $this->order->newQuery()
@@ -111,12 +124,7 @@ class OrderController extends Controller
                 ->orderByDesc('id')
                 ->first();
             if ($existingPaystackOrder) {
-                return response()->json([
-                    'message' => translate('order_success'),
-                    'order_id' => $existingPaystackOrder->id,
-                    'readable_order_id' => $existingPaystackOrder->readable_order_id,
-                    'order_display_id' => Helpers::order_display_id($existingPaystackOrder),
-                ], 200);
+                return OnlineCheckoutIdempotency::successResponse($existingPaystackOrder);
             }
         }
 
@@ -321,6 +329,7 @@ class OrderController extends Controller
                 'created_at' => now(),
                 'updated_at' => now()
             ];
+            $or = OnlineCheckoutIdempotency::applyToOrderAttributes($or, $checkoutUuid);
 
             $totalTaxAmount = 0;
             $totalProductPrice = 0;
@@ -522,8 +531,7 @@ class OrderController extends Controller
 
             DB::commit();
 
-            // Send Email & Notification
-            $this->orderEmailAndNotification(request: $request, or : $or, order_id: $order_id);
+            $this->finishOnlineOrderPlacement($order_id, $request);
 
             return response()->json([
                 'message' => translate('order_success'),
@@ -532,29 +540,55 @@ class OrderController extends Controller
                 'order_display_id' => $readableOrderId,
             ], 200);
 
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (UniqueConstraintViolationException $e) {
             DB::rollBack();
-            if ((string) $request->payment_method === 'paystack' && $paystackReference !== '') {
-                $existingPaystackOrder = $this->order->newQuery()
-                    ->where('payment_method', 'paystack')
-                    ->where('transaction_reference', $paystackReference)
-                    ->orderByDesc('id')
-                    ->first();
-                if ($existingPaystackOrder) {
-                    return response()->json([
-                        'message' => translate('order_success'),
-                        'order_id' => $existingPaystackOrder->id,
-                        'readable_order_id' => $existingPaystackOrder->readable_order_id,
-                        'order_display_id' => Helpers::order_display_id($existingPaystackOrder),
-                    ], 200);
-                }
+            $existingCheckoutOrder = OnlineCheckoutIdempotency::recoverExistingFromException($checkoutUuid, $e);
+            if ($existingCheckoutOrder) {
+                return OnlineCheckoutIdempotency::successResponse($existingCheckoutOrder);
             }
 
-            return response()->json([$e], 403);
+            return $this->existingPaystackOrderResponse($request, $paystackReference) ?? response()->json([$e], 403);
+        } catch (QueryException $e) {
+            DB::rollBack();
+            $existingCheckoutOrder = OnlineCheckoutIdempotency::recoverExistingFromException($checkoutUuid, $e);
+            if ($existingCheckoutOrder) {
+                return OnlineCheckoutIdempotency::successResponse($existingCheckoutOrder);
+            }
+
+            return $this->existingPaystackOrderResponse($request, $paystackReference) ?? response()->json([$e], 403);
         } catch (\Exception $e) {
-            DB::rollBack(); // Rollback transaction on failure
+            DB::rollBack();
             return response()->json([$e], 403);
         }
+    }
+
+    private function finishOnlineOrderPlacement(int $orderId, Request $request): void
+    {
+        $persisted = Order::query()->find($orderId);
+        if ($persisted) {
+            AbandonedCheckoutService::linkOrderConversion($persisted);
+        }
+
+        SendOnlineOrderPlacementNotificationsJob::dispatch(
+            $orderId,
+            isset($request['guest_id']) ? (int) $request['guest_id'] : null,
+            auth('api')->id()
+        );
+    }
+
+    private function existingPaystackOrderResponse(Request $request, string $paystackReference): ?\Illuminate\Http\JsonResponse
+    {
+        if ((string) $request->payment_method !== 'paystack' || $paystackReference === '') {
+            return null;
+        }
+
+        $existingPaystackOrder = $this->order->newQuery()
+            ->where('payment_method', 'paystack')
+            ->where('transaction_reference', $paystackReference)
+            ->orderByDesc('id')
+            ->first();
+
+        return $existingPaystackOrder ? OnlineCheckoutIdempotency::successResponse($existingPaystackOrder) : null;
     }
 
     public function sendNotificationToReferralUser($referredUser)
@@ -593,143 +627,6 @@ class OrderController extends Controller
                 //
             }
         }
-    }
-
-    private function orderEmailAndNotification($request, $or, $order_id)
-    {
-        if ((bool)auth('api')->user()){
-            $fcmToken = auth('api')->user()?->cm_firebase_token;
-            $local = auth('api')->user()?->language_code;
-            $customerName = auth('api')->user()?->f_name . ' '. auth('api')->user()?->l_name;
-            }else{
-                $guest = GuestUser::find($request['guest_id']);
-                $fcmToken = $guest ? $guest->fcm_token : '';
-                $local = 'en';
-                $customerName = 'Guest User';
-            }
-
-            $message = Helpers::order_status_update_message($or['order_status']);
-
-            if ($local != 'en'){
-                $statusKey = Helpers::order_status_message_key($or['order_status']);
-                $translatedMessage = $this->business_setting->with('translations')->where(['key' => $statusKey])->first();
-                if (isset($translatedMessage->translations)){
-                    foreach ($translatedMessage->translations as $translation){
-                        if ($local == $translation->locale){
-                            $message = $translation->value;
-                        }
-                    }
-                }
-            }
-            $restaurantName = Helpers::get_business_settings('restaurant_name');
-            $displayOrderId = Helpers::order_display_id($or);
-            $value = Helpers::text_variable_data_format(value:$message, user_name: $customerName, restaurant_name: $restaurantName,  order_id: $displayOrderId);
-
-            try {
-                if ($value && isset($fcmToken)) {
-                    $data = [
-                        'title' => translate('Order'),
-                        'description' => $value,
-                        'order_id' => (bool)auth('api')->user() ? $order_id : null,
-                        'image' => '',
-                        'type' => 'order_status',
-                    ];
-                    Helpers::send_push_notif_to_device($fcmToken, $data);
-                }
-            } catch (\Exception $e) {
-                //
-            }
-
-            try {
-                $emailServices = Helpers::get_business_settings('mail_config');
-                $orderMailStatus = Helpers::get_business_settings('place_order_mail_status_user');
-                if (isset($emailServices['status']) && $emailServices['status'] == 1 && $orderMailStatus == 1 && (bool)auth('api')->user()) {
-                    Mail::to(auth('api')->user()->email)->send(new \App\Mail\OrderPlaced($order_id));
-                }
-            }catch (\Exception $e) {
-                //
-            }
-
-                if (in_array($or['order_status'], ['pending', 'confirmed'], true)) {
-                $data = [
-                    'title' => translate('You have a new order - (Order Confirmed).'),
-                    'description' => $displayOrderId,
-                    'order_id' => $order_id,
-                    'readable_order_id' => $or['readable_order_id'] ?? null,
-                    'order_display_id' => $displayOrderId,
-                    'image' => '',
-                    'order_status' => $or['order_status'],
-                ];
-
-                try {
-                    Helpers::send_push_notif_to_topic(data: $data, topic: "kitchen-{$or['branch_id']}", type: 'general', isNotificationPayloadRemove: true);
-
-                } catch (\Exception $e) {
-                    //
-                }
-            }
-
-            if (in_array($or['order_status'], ['pending', 'confirmed'], true)) {
-                $persisted = Order::with(['customer', 'branch'])->find($order_id);
-                if ($persisted) {
-                    CustomerOrderStatusSms::dispatchPlacement($persisted);
-                    AbandonedCheckoutService::linkOrderConversion($persisted);
-                }
-            }
-
-            try {
-                $data = [
-                    'title' => translate('New Order Notification'),
-                    'description' => translate('You have new order, Check Please'),
-                    'order_id' => $order_id,
-                    'image' => '',
-                    'type' => 'new_order_admin',
-                ];
-
-                // Send the original push notifications without any changes
-                Helpers::send_push_notif_to_topic(data: $data, topic: 'admin_message', type: 'order_request', web_push_link: route('admin.orders.list',['status'=>'all']));
-                Helpers::send_push_notif_to_topic(data: $data, topic: 'branch-order-'. $or['branch_id'] .'-message', type: 'order_request', web_push_link: route('branch.orders.list',['status'=>'all']));
-                
-                // Send SMS notification to branch if textsms_ke_not is enabled
-                // This is completely separate from the order creation process
-                try {
-                    // Check if the SMS gateway is enabled
-                    $config = \App\CentralLogics\SMS_module::get_settings('textsms_ke_not');
-                    if (isset($config) && $config['status'] == 1) {
-                        $branch = \App\Model\Branch::find($or['branch_id']);
-                        if ($branch && !empty($branch->phone)) {
-                            // Get customer name
-                            $customer_name = '';
-                            if ($or['is_guest'] == 0 && isset($or['user_id'])) {
-                                $customer = \App\User::find($or['user_id']);
-                                if ($customer) {
-                                    $customer_name = $customer->f_name . ' ' . $customer->l_name;
-                                }
-                            } elseif ($or['is_guest'] == 1 && isset($or['guest_id'])) {
-                                $guest = \App\Model\Guest::find($or['guest_id']);
-                                if ($guest) {
-                                    $customer_name = $guest->name;
-                                }
-                            }
-                            
-                            // Add customer name and order amount to the data
-                            $sms_data = $data;
-                            $sms_data['customer_name'] = $customer_name;
-                            // Calculate total amount including delivery charge
-                            $total_amount = $or['order_amount'] + $or['delivery_charge'];
-                            $sms_data['order_amount'] = number_format($total_amount, 2);
-                            
-                            // Send SMS directly using SMS_module without creating any new orders
-                            \App\CentralLogics\SMS_module::textsms_ke_not($branch->phone, $sms_data);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    // Log error but don't interrupt the order process
-                    \Illuminate\Support\Facades\Log::error('SMS Notification Error: ' . $e->getMessage());
-                }
-            } catch (\Exception $exception) {
-                //
-            }
     }
 
     /**

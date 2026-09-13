@@ -9,6 +9,7 @@ use App\Library\Payment as PaymentInfo;
 use App\Library\Receiver;
 use App\Model\CustomerAddress;
 use App\Services\Payments\Intent\Support\PaymentInitiationResponder;
+use App\Support\OnlineCheckoutIdempotency;
 use App\Traits\CalculateOrderDataTrait;
 use App\Traits\Payment;
 use App\User;
@@ -204,6 +205,12 @@ class DigitalPaymentController extends Controller
             'checkout_guest_id' => $is_guest ? $customer_id : null,
             'checkout_amount' => (float) $order_amount,
         ];
+
+        $checkoutUuid = OnlineCheckoutIdempotency::resolveFromRequest($request);
+        if ($checkoutUuid !== null) {
+            $additional_data['online_checkout_uuid'] = $checkoutUuid;
+            $additional_data['place_order_draft']['online_checkout_uuid'] = $checkoutUuid;
+        }
 
 
         //order place

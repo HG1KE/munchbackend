@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\OrderController;
 use App\Model\Order;
 use App\Models\PaymentRequest;
 use App\Services\PaystackService;
+use App\Support\OnlineCheckoutIdempotency;
 use App\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,20 +25,30 @@ class PaystackOrderProtectionService
     ) {
     }
 
-    public function findExistingOrderId(string $transactionReference): ?int
+    public function findExistingOrderId(string $transactionReference, ?string $checkoutUuid = null): ?int
     {
         $reference = trim($transactionReference);
-        if ($reference === '') {
-            return null;
+        if ($reference !== '') {
+            $order = Order::query()
+                ->where('payment_method', 'paystack')
+                ->where('transaction_reference', $reference)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($order) {
+                return (int) $order->id;
+            }
         }
 
-        $order = Order::query()
-            ->where('payment_method', 'paystack')
-            ->where('transaction_reference', $reference)
-            ->orderByDesc('id')
-            ->first();
+        $uuid = OnlineCheckoutIdempotency::normalize($checkoutUuid);
+        if ($uuid !== null) {
+            $byCheckout = OnlineCheckoutIdempotency::findOrder($uuid);
+            if ($byCheckout) {
+                return (int) $byCheckout->id;
+            }
+        }
 
-        return $order ? (int) $order->id : null;
+        return null;
     }
 
     /**
@@ -121,10 +132,14 @@ class PaystackOrderProtectionService
             }
 
             $reference = trim((string) ($paymentRequest->transaction_id ?? ''));
+            $additional = $this->decodeAdditionalData($paymentRequest->additional_data);
+            $draft = $this->resolvePlaceOrderDraft($paymentRequest) ?? [];
+            $checkoutUuid = OnlineCheckoutIdempotency::normalize($additional['online_checkout_uuid'] ?? null)
+                ?? OnlineCheckoutIdempotency::resolveFromArray($draft);
 
             $existingOrderId = $paymentRequest->placed_order_id
                 ? (int) $paymentRequest->placed_order_id
-                : ($reference !== '' ? $this->findExistingOrderId($reference) : null);
+                : $this->findExistingOrderId($reference, $checkoutUuid);
 
             if ($existingOrderId !== null) {
                 $this->markPlacementSuccess($paymentRequest, $existingOrderId);
@@ -168,8 +183,8 @@ class PaystackOrderProtectionService
                 return $this->buildResult(null, false, PaymentRequest::PLACEMENT_FAILED, $error);
             }
 
-            $draft = $this->resolvePlaceOrderDraft($paymentRequest);
-            if ($draft === null) {
+            $draft = $draft !== [] ? $draft : $this->resolvePlaceOrderDraft($paymentRequest);
+            if ($draft === null || $draft === []) {
                 $error = $this->buildPlacementError(
                     code: 'missing_place_order_draft',
                     message: 'Checkout draft is missing on the payment session.',
@@ -190,7 +205,6 @@ class PaystackOrderProtectionService
                 return $this->buildResult(null, false, PaymentRequest::PLACEMENT_FAILED_TERMINAL, $error);
             }
 
-            $additional = $this->decodeAdditionalData($paymentRequest->additional_data);
             $isGuest = (int) ($additional['checkout_is_guest'] ?? 0);
             $customerId = $additional['checkout_customer_id'] ?? $paymentRequest->payer_id;
             $guestId = $additional['checkout_guest_id'] ?? ($isGuest ? $customerId : null);
@@ -200,6 +214,9 @@ class PaystackOrderProtectionService
                 'payment_method' => 'paystack',
                 'transaction_reference' => $reference,
             ]);
+            if ($checkoutUuid !== null) {
+                $payload['online_checkout_uuid'] = $checkoutUuid;
+            }
 
             if ($isGuest && $guestId !== null && $guestId !== '') {
                 $payload['guest_id'] = $guestId;

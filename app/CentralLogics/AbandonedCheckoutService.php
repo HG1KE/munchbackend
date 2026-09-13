@@ -4,6 +4,7 @@ namespace App\CentralLogics;
 
 use App\Model\AbandonedCheckout;
 use App\Model\Order;
+use App\Support\OnlineCheckoutIdempotency;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -129,6 +130,29 @@ class AbandonedCheckoutService
     public static function linkOrderConversion(Order $order): void
     {
         try {
+            $checkoutUuid = OnlineCheckoutIdempotency::normalize($order->online_checkout_uuid ?? null);
+            if ($checkoutUuid !== null) {
+                $byCheckout = AbandonedCheckout::query()
+                    ->whereNull('converted_at')
+                    ->where('client_token', $checkoutUuid)
+                    ->orderByDesc('id')
+                    ->first();
+                if ($byCheckout) {
+                    $byCheckout->forceFill([
+                        'converted_at' => now(),
+                        'converted_order_id' => $order->id,
+                    ])->save();
+
+                    Log::info('abandoned_cart.converted', [
+                        'id' => $byCheckout->id,
+                        'order_id' => $order->id,
+                        'match' => 'online_checkout_uuid',
+                    ]);
+
+                    return;
+                }
+            }
+
             $deliveryAddress = is_array($order->delivery_address) ? $order->delivery_address : [];
             $candidatePhone = (string) ($deliveryAddress['contact_person_number'] ?? $deliveryAddress['phone'] ?? '');
             if ($candidatePhone === '' && (int) $order->is_guest === 0 && $order->user_id) {
