@@ -54,15 +54,15 @@ class PosSaleTime
             return $query->whereBetween('created_at', [$fromLocal, $toLocal]);
         }
 
+        // TIMESTAMP columns reject '' (MySQL error 1525) and then match nothing.
+        // New POS rows use UTC placed_at; legacy NULL placed_at falls back to created_at.
         return $query->where(function (Builder $outer) use ($fromUtc, $toUtc, $fromLocal, $toLocal) {
             $outer->where(function (Builder $inner) use ($fromUtc, $toUtc) {
                 $inner->whereNotNull('placed_at')
-                    ->where('placed_at', '!=', '')
                     ->whereBetween('placed_at', [$fromUtc, $toUtc]);
             })->orWhere(function (Builder $inner) use ($fromLocal, $toLocal) {
-                $inner->where(function (Builder $missing) {
-                    $missing->whereNull('placed_at')->orWhere('placed_at', '');
-                })->whereBetween('created_at', [$fromLocal, $toLocal]);
+                $inner->whereNull('placed_at')
+                    ->whereBetween('created_at', [$fromLocal, $toLocal]);
             });
         });
     }
@@ -78,7 +78,7 @@ class PosSaleTime
             return $query->orderBy('created_at');
         }
 
-        return $query->orderByRaw("CASE WHEN placed_at IS NULL OR placed_at = '' THEN created_at ELSE placed_at END");
+        return $query->orderByRaw('CASE WHEN placed_at IS NULL THEN created_at ELSE placed_at END');
     }
 
     public static function matchesPeriod(mixed $instant, CarbonInterface|string $from, CarbonInterface|string $to): bool

@@ -133,6 +133,8 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertStringContainsString('order_status', $allSql);
         $this->assertStringContainsString('payment_status', $allSql);
         $this->assertStringContainsString('order_type', $allSql);
+        $this->assertStringNotContainsString("placed_at` !=", $allSql);
+        $this->assertStringNotContainsString("placed_at != ''", $allSql);
 
         $one = $service->aggregatedQuery(7, $period);
         $this->assertStringContainsString('branch_id', $one->toSql());
