@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Model\Branch;
 use App\Model\Order;
 use App\Model\OrderDetail;
+use App\Support\AdminDashboardSalesKpis;
 use App\Support\AdminSaleReportExport;
 use App\Support\AdminSaleReportSummary;
 use App\Support\PosOrderTypes;
@@ -399,7 +400,7 @@ class ReportController extends Controller
         $channel = (string) $request->input('sales_channel', 'all');
         $paymentMethod = (string) $request->input('payment_method', 'all');
 
-        return $this->order->whereBetween('created_at', [$fromDate, $toDate])
+        $query = $this->order->whereBetween('created_at', [$fromDate, $toDate])
             ->when($request['branch_id'] !== 'all', function ($query) use ($request) {
                 $query->where('branch_id', $request['branch_id']);
             })
@@ -409,6 +410,8 @@ class ReportController extends Controller
             ->when($paymentMethod !== '' && $paymentMethod !== 'all', function ($query) use ($paymentMethod) {
                 $query->where('payment_method', $paymentMethod);
             });
+
+        return AdminDashboardSalesKpis::constrainNotVoided($query);
     }
 
     /**

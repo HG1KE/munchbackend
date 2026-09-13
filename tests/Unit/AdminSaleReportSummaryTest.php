@@ -112,6 +112,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("'paystack' => Helpers::set_symbol(\$paymentTotals['paystack'])", $controller);
         $this->assertStringContainsString("input('payment_method', 'all')", $controller);
         $this->assertStringContainsString('PosOrderTypes::constrainSaleReportChannel($query, $channel)', $controller);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided($query)', $controller);
         $this->assertStringNotContainsString("\$query->where('sales_channel', \$channel)", $controller);
         $this->assertStringContainsString('fromPaymentTotals($paymentTotals)', $controller);
         $this->assertStringContainsString("\$summaryDisplay['munch_sales']", $controller);

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Model\Order;
+use App\Support\AdminDashboardSalesKpis;
 use App\Support\AdminSaleReportExport;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
@@ -38,6 +39,8 @@ class AdminSaleReportExportTest extends TestCase
             $table->string('readable_order_id')->nullable();
             $table->string('platform_order_number')->nullable();
             $table->string('payment_method')->nullable();
+            $table->string('order_status')->default('delivered');
+            $table->timestamp('cancelled_at')->nullable();
             $table->decimal('order_amount', 12, 2)->default(0);
             $table->timestamps();
         });
@@ -497,11 +500,13 @@ class AdminSaleReportExportTest extends TestCase
         $this->insert(6, 'take_away', null, 888, 1, $today, 'W2');
         $this->insert(7, 'pos', 'takeaway', 15, 2, $today, 'A20124');
         $this->insert(8, 'pos', 'takeaway', 25, 1, $yesterday, 'A10100');
+        $this->insert(9, 'pos', 'takeaway', 850, 1, $today, 'A10329', '', 'canceled', $today);
 
         $from = $today->copy()->startOfDay();
         $to = $today->copy()->endOfDay();
         $query = Order::query()->whereBetween('created_at', [$from, $to])->where('branch_id', 1);
         PosOrderTypes::constrainSaleReportChannel($query, 'pos');
+        AdminDashboardSalesKpis::constrainNotVoided($query);
         $filtered = $query->orderBy('created_at')->get();
 
         $report = AdminSaleReportExport::build($filtered, [
@@ -525,6 +530,8 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertNotContains('6', array_keys($report['assigned_order_ids']));
         $this->assertNotContains('7', array_keys($report['assigned_order_ids']));
         $this->assertNotContains('8', array_keys($report['assigned_order_ids']));
+        $this->assertNotContains('9', array_keys($report['assigned_order_ids']));
+        $this->assertStringNotContainsString('A10329', AdminSaleReportExport::csvString($report));
     }
 
     public function test_shared_payload_generates_openable_pdf_csv_and_xlsx(): void
@@ -837,7 +844,9 @@ class AdminSaleReportExportTest extends TestCase
         int $branchId,
         Carbon $createdAt,
         string $readableId,
-        string $platform = ''
+        string $platform = '',
+        string $status = 'delivered',
+        ?Carbon $cancelledAt = null
     ): void {
         DB::table('orders')->insert([
             'id' => $id,
@@ -847,7 +856,9 @@ class AdminSaleReportExportTest extends TestCase
             'readable_order_id' => $readableId,
             'platform_order_number' => $platform,
             'payment_method' => 'cash',
+            'order_status' => $status,
             'order_amount' => $amount,
+            'cancelled_at' => $cancelledAt,
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
         ]);

@@ -74,20 +74,32 @@ class AdminDashboardSalesKpis
     }
 
     /**
+     * Cancelled / failed / returned / refunded rows are not sales.
+     * Confirmed paid POS Dine In and POS Delivery stay eligible.
+     *
      * @param  Builder<\App\Model\Order>  $query
      * @return Builder<\App\Model\Order>
      */
-    public static function constrainQualifying(Builder $query): Builder
+    public static function constrainNotVoided(Builder $query): Builder
     {
-        $query->pos()
-            ->where('payment_status', 'paid')
-            ->whereNotIn('order_status', self::EXCLUDED_STATUSES);
+        $query->whereNotIn('order_status', self::EXCLUDED_STATUSES);
 
         if (Schema::hasColumn((new Order())->getTable(), 'cancelled_at')) {
             $query->whereNull('cancelled_at');
         }
 
         return $query;
+    }
+
+    /**
+     * @param  Builder<\App\Model\Order>  $query
+     * @return Builder<\App\Model\Order>
+     */
+    public static function constrainQualifying(Builder $query): Builder
+    {
+        return self::constrainNotVoided(
+            $query->pos()->where('payment_status', 'paid')
+        );
     }
 
     /**

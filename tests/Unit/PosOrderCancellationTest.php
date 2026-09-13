@@ -237,7 +237,7 @@ class PosOrderCancellationTest extends TestCase
         $this->assertNull(PosCancellationNotificationSettings::validationError('0712345678', true));
     }
 
-    public function test_reports_still_include_cancelled_pos_orders_and_revenue_rules_are_unchanged(): void
+    public function test_today_orders_still_list_cancelled_and_sale_report_excludes_them(): void
     {
         $today = file_get_contents(app_path('Services/BranchPosTodayOrdersService.php'));
         $this->assertStringContainsString("whereIn('order_status', ['canceled', 'cancelled', 'failed', 'returned'])", $today);
@@ -246,6 +246,7 @@ class PosOrderCancellationTest extends TestCase
 
         $report = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
         $this->assertStringContainsString("where(['order_status' => 'delivered'])", $report);
+        $this->assertStringContainsString('AdminDashboardSalesKpis::constrainNotVoided($query)', $report);
 
         $orderModel = file_get_contents(app_path('Model/Order.php'));
         $this->assertStringContainsString("whereIn('order_status', ['delivered', 'completed'])", $orderModel);
