@@ -573,7 +573,7 @@ class OrderController extends Controller
             $orderId,
             isset($request['guest_id']) ? (int) $request['guest_id'] : null,
             auth('api')->id()
-        );
+        )->afterResponse();
     }
 
     private function existingPaystackOrderResponse(Request $request, string $paystackReference): ?\Illuminate\Http\JsonResponse

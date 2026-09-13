@@ -309,6 +309,23 @@ class OnlineOrderIdempotencyTest extends TestCase
         $this->assertStringContainsString('OnlineCheckoutIdempotency::recoverExistingFromException', $controller);
         $this->assertStringContainsString('UniqueConstraintViolationException', $controller);
         $this->assertStringContainsString('SendOnlineOrderPlacementNotificationsJob::dispatch', $controller);
+        $this->assertMatchesRegularExpression(
+            '/SendOnlineOrderPlacementNotificationsJob::dispatch\(\s*\$orderId,[\s\S]*?\)->afterResponse\(\)/',
+            $controller
+        );
+        $this->assertTrue(
+            strpos($controller, 'DB::commit()') < strpos($controller, '$this->finishOnlineOrderPlacement($order_id, $request)'),
+            'notifications must start only after the order is committed'
+        );
+        $this->assertTrue(
+            strpos($controller, '$this->finishOnlineOrderPlacement($order_id, $request)')
+                < strpos($controller, "'order_display_id' => \$readableOrderId"),
+            'the success JSON must still be built after notification dispatch is scheduled'
+        );
+        $this->assertStringContainsString("'message' => translate('order_success')", $controller);
+        $this->assertStringContainsString("'order_id' => \$order_id", $controller);
+        $this->assertStringContainsString("'readable_order_id' => \$readableOrderId", $controller);
+        $this->assertStringContainsString("'order_display_id' => \$readableOrderId", $controller);
         $this->assertStringContainsString('AbandonedCheckoutService::linkOrderConversion', $controller);
         $this->assertStringNotContainsString('orderEmailAndNotification', $controller);
         $this->assertStringNotContainsString('CustomerOrderStatusSms::dispatchPlacement', $controller);
