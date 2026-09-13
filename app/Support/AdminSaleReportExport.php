@@ -5,6 +5,8 @@ namespace App\Support;
 use App\CentralLogics\Helpers;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Writer\XLSX\Options as XlsxOptions;
@@ -93,7 +95,8 @@ class AdminSaleReportExport
      *     from?: CarbonInterface|string,
      *     to?: CarbonInterface|string,
      *     payment_totals?: array<string, float|int|string>,
-     *     cancelled_orders?: iterable<int, object|array<string, mixed>>
+     *     cancelled_orders?: iterable<int, object|array<string, mixed>>,
+     *     quantities?: array<int|string, int>
      * }  $context
      * @return array<string, mixed>
      */
@@ -110,12 +113,13 @@ class AdminSaleReportExport
         $seen = [];
         $cancelledSeen = [];
         $includeDate = ! $from->isSameDay($to);
+        $quantities = self::resolveQuantities($orders, $context);
 
         foreach ($orders as $order) {
-            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate);
+            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, false, $quantities);
         }
         foreach ($context['cancelled_orders'] ?? [] as $order) {
-            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, true);
+            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, true, $quantities);
         }
 
         foreach ($sections as &$section) {
@@ -319,19 +323,19 @@ class AdminSaleReportExport
     public static function sectionColumnLabels(string $sectionKey): array
     {
         if ($sectionKey === self::CANCELLED_SECTION) {
-            return ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Amount'];
+            return ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Qty', 'Amount'];
         }
 
         if ($sectionKey === 'munch_sales') {
-            return ['Time', 'Munch Order #', 'Type', 'Amount'];
+            return ['Time', 'Munch Order #', 'Type', 'Qty', 'Amount'];
         }
 
         $platform = self::marketplaceOrderColumn($sectionKey);
         if ($platform === '') {
-            return ['Time', 'Munch Order #', 'Type', 'Amount'];
+            return ['Time', 'Munch Order #', 'Type', 'Qty', 'Amount'];
         }
 
-        return ['Time', 'Munch Order #', $platform, 'Type', 'Amount'];
+        return ['Time', 'Munch Order #', $platform, 'Type', 'Qty', 'Amount'];
     }
 
     public static function marketplaceOrderColumn(string $sectionKey): string
@@ -623,7 +627,8 @@ class AdminSaleReportExport
         array &$seen,
         array &$cancelledSeen,
         bool $includeDate,
-        bool $forceCancelled = false
+        bool $forceCancelled = false,
+        array $quantities = []
     ): void {
         $id = self::orderId($order);
         if ($id !== '' && (isset($seen[$id]) || isset($cancelledSeen[$id]))) {
@@ -639,7 +644,7 @@ class AdminSaleReportExport
         }
 
         $voided = $forceCancelled || AdminDashboardSalesKpis::isVoidedOrder($order);
-        $row = self::orderRow($order, $category, $includeDate);
+        $row = self::orderRow($order, $category, $includeDate, $quantities);
         if ($voided) {
             if ($id !== '') {
                 $cancelledSeen[$id] = $category;
@@ -666,7 +671,7 @@ class AdminSaleReportExport
      * @param  object|array<string, mixed>  $order
      * @return array<string, mixed>
      */
-    private static function orderRow(object|array $order, string $category, bool $includeDate = false): array
+    private static function orderRow(object|array $order, string $category, bool $includeDate = false, array $quantities = []): array
     {
         $createdAt = self::value($order, 'created_at');
         $sortAt = $createdAt instanceof CarbonInterface
@@ -676,9 +681,10 @@ class AdminSaleReportExport
             ? self::categoryLabel($category)
             : 'Munch Sales';
         $time = self::formatTime($createdAt, $includeDate);
+        $id = self::orderId($order);
 
         return [
-            'order_id' => self::orderId($order),
+            'order_id' => $id,
             'time' => $time,
             'timestamp' => $time,
             'sort_at' => $sortAt,
@@ -696,8 +702,77 @@ class AdminSaleReportExport
                 self::value($order, 'order_status'),
                 self::value($order, 'cancelled_at')
             ),
+            'quantity' => self::quantityFor($order, $quantities),
             'amount' => self::money(self::value($order, 'order_amount') ?? 0),
         ];
+    }
+
+    /**
+     * One on-screen Sale Report row per unique order.
+     *
+     * @param  iterable<int, object|array<string, mixed>>  $orders
+     * @param  array<int|string, int>  $quantities
+     * @return list<array<string, mixed>>
+     */
+    public static function listingRows(iterable $orders, array $quantities = []): array
+    {
+        $rows = [];
+        $seen = [];
+        foreach ($orders as $order) {
+            $id = self::orderId($order);
+            if ($id === '' || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $createdAt = self::value($order, 'created_at');
+            $rows[] = [
+                'order_id' => $id,
+                'order_display_id' => self::orderNumber($order),
+                'platform_order_number' => PosOrderTypes::normalizePlatformOrderNumber(
+                    (string) (self::value($order, 'platform_order_number') ?? '')
+                ),
+                'sales_channel_label' => PosOrderTypes::channelLabel(
+                    self::value($order, 'sales_channel') !== null ? (string) self::value($order, 'sales_channel') : null,
+                    self::value($order, 'order_type') !== null ? (string) self::value($order, 'order_type') : null
+                ),
+                'date' => $createdAt instanceof CarbonInterface
+                    ? $createdAt->toDateTimeString()
+                    : $createdAt,
+                'price' => self::money(self::value($order, 'order_amount') ?? 0),
+                'quantity' => self::quantityFor($order, $quantities),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<int|string>  $orderIds
+     * @return array<string, int>
+     */
+    public static function quantitiesByOrderId(array $orderIds): array
+    {
+        $ids = [];
+        foreach ($orderIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids === [] || ! Schema::hasTable('order_details')) {
+            return [];
+        }
+
+        $map = [];
+        foreach (DB::table('order_details')
+            ->whereIn('order_id', array_values($ids))
+            ->selectRaw('order_id, COALESCE(SUM(quantity), 0) as qty')
+            ->groupBy('order_id')
+            ->get() as $row) {
+            $map[(string) $row->order_id] = (int) $row->qty;
+        }
+
+        return $map;
     }
 
     /**
@@ -771,6 +846,7 @@ class AdminSaleReportExport
         $number = (string) ($order['order_number'] ?? '');
         $type = (string) ($order['order_type'] ?? '');
         $platform = (string) ($order['platform_order_number'] ?? '');
+        $qty = (string) (int) ($order['quantity'] ?? 0);
         $amount = self::formatAmount($order['amount'] ?? 0);
         if ($sectionKey === self::CANCELLED_SECTION) {
             if ($platform !== '') {
@@ -783,14 +859,15 @@ class AdminSaleReportExport
                 $type,
                 (string) ($order['payment_method'] ?? ''),
                 (string) ($order['status'] ?? ''),
+                $qty,
                 $amount,
             ];
         }
         if (self::marketplaceOrderColumn($sectionKey) === '') {
-            return [$time, $number, $type, $amount];
+            return [$time, $number, $type, $qty, $amount];
         }
 
-        return [$time, $number, $platform, $type, $amount];
+        return [$time, $number, $platform, $type, $qty, $amount];
     }
 
     /**
@@ -917,5 +994,73 @@ class AdminSaleReportExport
     private static function money(mixed $value): float
     {
         return round((float) $value, 2);
+    }
+
+    /**
+     * @param  iterable<int, object|array<string, mixed>>  $orders
+     * @param  array<string, mixed>  $context
+     * @return array<string, int>
+     */
+    private static function resolveQuantities(iterable $orders, array $context): array
+    {
+        $quantities = [];
+        foreach ($context['quantities'] ?? [] as $id => $qty) {
+            $quantities[(string) $id] = (int) $qty;
+        }
+
+        $lookupIds = [];
+        foreach ($orders as $order) {
+            self::collectQuantity($order, $quantities, $lookupIds);
+        }
+        foreach ($context['cancelled_orders'] ?? [] as $order) {
+            self::collectQuantity($order, $quantities, $lookupIds);
+        }
+        foreach (self::quantitiesByOrderId($lookupIds) as $id => $qty) {
+            if (! isset($quantities[(string) $id])) {
+                $quantities[(string) $id] = (int) $qty;
+            }
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $order
+     * @param  array<string, int>  $quantities
+     * @param  list<int|string>  $lookupIds
+     */
+    private static function collectQuantity(object|array $order, array &$quantities, array &$lookupIds): void
+    {
+        $id = self::orderId($order);
+        if ($id === '' || isset($quantities[$id])) {
+            return;
+        }
+        $explicit = self::value($order, 'quantity');
+        if ($explicit !== null && $explicit !== '') {
+            $quantities[$id] = (int) $explicit;
+
+            return;
+        }
+        $lookupIds[] = $id;
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $order
+     * @param  array<int|string, int>  $quantities
+     */
+    private static function quantityFor(object|array $order, array $quantities): int
+    {
+        $id = self::orderId($order);
+        if ($id !== '') {
+            if (isset($quantities[$id])) {
+                return (int) $quantities[$id];
+            }
+            if (isset($quantities[(int) $id])) {
+                return (int) $quantities[(int) $id];
+            }
+        }
+        $explicit = self::value($order, 'quantity');
+
+        return $explicit === null || $explicit === '' ? 0 : (int) $explicit;
     }
 }

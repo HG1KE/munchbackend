@@ -107,6 +107,8 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString('SUM(coupon_discount_amount)', $controller);
         $this->assertStringContainsString('SUM(referral_discount)', $controller);
         $this->assertStringContainsString("\$price = \$detail['price'] - \$detail['discount_on_product']", $controller);
+        $this->assertStringContainsString('AdminSaleReportExport::listingRows($validOrders, $quantities)', $controller);
+        $this->assertStringContainsString("'quantities' => \$quantities", $controller);
         $this->assertStringContainsString("'order_sum' => Helpers::set_symbol(\$totalSold)", $controller);
         $this->assertStringContainsString("'cash' => Helpers::set_symbol(\$paymentTotals['cash'])", $controller);
         $this->assertStringContainsString("'paystack' => Helpers::set_symbol(\$paymentTotals['paystack'])", $controller);

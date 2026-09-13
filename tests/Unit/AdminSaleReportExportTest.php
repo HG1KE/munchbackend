@@ -299,19 +299,19 @@ class AdminSaleReportExportTest extends TestCase
     public function test_section_columns_are_specific_and_never_use_a_generic_marketplace_heading(): void
     {
         $this->assertSame(
-            ['Time', 'Munch Order #', 'Type', 'Amount'],
+            ['Time', 'Munch Order #', 'Type', 'Qty', 'Amount'],
             AdminSaleReportExport::sectionColumnLabels('munch_sales')
         );
         $this->assertSame(
-            ['Time', 'Munch Order #', 'Glovo Order #', 'Type', 'Amount'],
+            ['Time', 'Munch Order #', 'Glovo Order #', 'Type', 'Qty', 'Amount'],
             AdminSaleReportExport::sectionColumnLabels('glovo')
         );
         $this->assertSame(
-            ['Time', 'Munch Order #', 'Uber Order #', 'Type', 'Amount'],
+            ['Time', 'Munch Order #', 'Uber Order #', 'Type', 'Qty', 'Amount'],
             AdminSaleReportExport::sectionColumnLabels('uber')
         );
         $this->assertSame(
-            ['Time', 'Munch Order #', 'Bolt Food Order #', 'Type', 'Amount'],
+            ['Time', 'Munch Order #', 'Bolt Food Order #', 'Type', 'Qty', 'Amount'],
             AdminSaleReportExport::sectionColumnLabels('bolt_food')
         );
         $this->assertSame('', AdminSaleReportExport::marketplaceOrderColumn('munch_sales'));
@@ -319,7 +319,7 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertSame('Uber Order #', AdminSaleReportExport::marketplaceOrderColumn('uber'));
         $this->assertSame('Bolt Food Order #', AdminSaleReportExport::marketplaceOrderColumn('bolt_food'));
         $this->assertSame(
-            ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Amount'],
+            ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Qty', 'Amount'],
             AdminSaleReportExport::sectionColumnLabels(AdminSaleReportExport::CANCELLED_SECTION)
         );
         $this->assertSame('', AdminSaleReportExport::marketplaceOrderColumn(AdminSaleReportExport::CANCELLED_SECTION));
@@ -362,12 +362,12 @@ class AdminSaleReportExportTest extends TestCase
         $totals = $this->cellsByType($rows, 'total');
 
         $this->assertSame(['MUNCH SALES', 'GLOVO', 'UBER', 'BOLT FOOD', 'CANCELLED'], $headings);
-        $this->assertSame(['Time', 'Munch Order #', 'Type', 'Amount'], $columns['munch_sales']);
-        $this->assertSame(['Time', 'Munch Order #', 'Glovo Order #', 'Type', 'Amount'], $columns['glovo']);
-        $this->assertSame(['Time', 'Munch Order #', 'Uber Order #', 'Type', 'Amount'], $columns['uber']);
-        $this->assertSame(['Time', 'Munch Order #', 'Bolt Food Order #', 'Type', 'Amount'], $columns['bolt_food']);
+        $this->assertSame(['Time', 'Munch Order #', 'Type', 'Qty', 'Amount'], $columns['munch_sales']);
+        $this->assertSame(['Time', 'Munch Order #', 'Glovo Order #', 'Type', 'Qty', 'Amount'], $columns['glovo']);
+        $this->assertSame(['Time', 'Munch Order #', 'Uber Order #', 'Type', 'Qty', 'Amount'], $columns['uber']);
+        $this->assertSame(['Time', 'Munch Order #', 'Bolt Food Order #', 'Type', 'Qty', 'Amount'], $columns['bolt_food']);
         $this->assertSame(
-            ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Amount'],
+            ['Time', 'Munch Order #', 'Type', 'Payment Method', 'Status', 'Qty', 'Amount'],
             $columns['cancelled']
         );
         $this->assertNotContains('Marketplace Order #', $columns['munch_sales']);
@@ -382,11 +382,11 @@ class AdminSaleReportExportTest extends TestCase
         $this->assertContains('Total Orders: 1', $totals);
         $this->assertNotContains('TOTAL SALES', $totals);
         $this->assertSame(
-            ['Total Orders: 3', '', 'Munch Sales Total', AdminSaleReportExport::formatAmount(3550)],
+            ['Total Orders: 3', '', '', 'Munch Sales Total', AdminSaleReportExport::formatAmount(3550)],
             $this->rowsByType($rows, 'total')['munch_sales']
         );
         $this->assertSame(
-            ['Total Orders: 1', '', '', 'Glovo Total', AdminSaleReportExport::formatAmount(1100)],
+            ['Total Orders: 1', '', '', '', 'Glovo Total', AdminSaleReportExport::formatAmount(1100)],
             $this->rowsByType($rows, 'total')['glovo']
         );
         $this->assertStringContainsString('Time', $csv);
@@ -410,14 +410,14 @@ class AdminSaleReportExportTest extends TestCase
             static fn (array $row): bool => $row['type'] === 'order' && $row['section'] === 'munch_sales'
         ));
         $this->assertCount(3, $munchOrderRows);
-        $this->assertSame(['10:42 AM', 'A10123', 'Dine In', AdminSaleReportExport::formatAmount(1250)], $munchOrderRows[0]['cells']);
-        $this->assertCount(4, $munchOrderRows[0]['cells']);
+        $this->assertSame(['10:42 AM', 'A10123', 'Dine In', '0', AdminSaleReportExport::formatAmount(1250)], $munchOrderRows[0]['cells']);
+        $this->assertCount(5, $munchOrderRows[0]['cells']);
 
         $glovoOrderRows = array_values(array_filter(
             $rows,
             static fn (array $row): bool => $row['type'] === 'order' && $row['section'] === 'glovo'
         ));
-        $this->assertSame(['2:31 PM', 'A10126', 'GLV-12345', 'Glovo', AdminSaleReportExport::formatAmount(1100)], $glovoOrderRows[0]['cells']);
+        $this->assertSame(['2:31 PM', 'A10126', 'GLV-12345', 'Glovo', '0', AdminSaleReportExport::formatAmount(1100)], $glovoOrderRows[0]['cells']);
     }
 
     public function test_multi_day_filename_and_single_day_filename_use_branch_and_date(): void

@@ -269,7 +269,8 @@ class ReportController extends Controller
         $orderQuery = $this->saleReportOrderQuery($request, $fromDate, $toDate);
         $cancelledQuery = $this->saleReportCancelledQuery($request, $fromDate, $toDate);
 
-        $orders = (clone $orderQuery)->pluck('id')->toArray();
+        $validOrders = (clone $orderQuery)->orderBy('created_at')->get();
+        $orders = $validOrders->pluck('id')->all();
         $cancelledOrders = (clone $cancelledQuery)->orderBy('created_at')->get();
         $paymentTotals = [
             'cash' => 0.0,
@@ -280,7 +281,7 @@ class ReportController extends Controller
             'uber' => 0.0,
             'bolt_food' => 0.0,
         ];
-        foreach ((clone $orderQuery)->get(['payment_method', 'order_amount']) as $order) {
+        foreach ($validOrders as $order) {
             $method = (string) $order->payment_method;
             $amount = (float) $order->order_amount;
             if (array_key_exists($method, $paymentTotals)) {
@@ -288,33 +289,22 @@ class ReportController extends Controller
             }
         }
 
-        $data = [];
         $totalSold = 0;
         $totalQuantity = 0;
-
-        $orderMeta = $this->order->whereIn('id', $orders)->get()
-            ->mapWithKeys(fn ($order) => [$order->id => [
-                'display_id' => Helpers::order_display_id($order),
-                'platform_order_number' => trim((string) ($order->platform_order_number ?? '')),
-                'sales_channel_label' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
-            ]]);
+        $quantities = [];
 
         foreach ($this->orderDetail->whereIn('order_id', $orders)->latest()->get() as $detail) {
             $price = $detail['price'] - $detail['discount_on_product'];
             $orderTotal = $price * $detail['quantity'];
-            $meta = $orderMeta[$detail['order_id']] ?? [];
-            $data[] = [
-                'order_id' => $detail['order_id'],
-                'order_display_id' => $meta['display_id'] ?? $detail['order_id'],
-                'platform_order_number' => $meta['platform_order_number'] ?? '',
-                'sales_channel_label' => $meta['sales_channel_label'] ?? '',
-                'date' => $detail['created_at'],
-                'price' => $orderTotal,
-                'quantity' => $detail['quantity'],
-            ];
             $totalSold += $orderTotal;
             $totalQuantity += $detail['quantity'];
+            $orderId = (string) $detail['order_id'];
+            $quantities[$orderId] = ($quantities[$orderId] ?? 0) + (int) $detail['quantity'];
         }
+
+        $cancelledQuantities = AdminSaleReportExport::quantitiesByOrderId($cancelledOrders->pluck('id')->all());
+        $quantities = $quantities + $cancelledQuantities;
+        $data = AdminSaleReportExport::listingRows($validOrders, $quantities);
 
         $summary = $this->saleReportSummary($orders, (float) $totalSold);
         $summaryDisplay = $this->formatSaleReportSummary($summary);
@@ -323,13 +313,14 @@ class ReportController extends Controller
         $summaryDisplay['marketplace_sales'] = Helpers::set_symbol($paymentGroups['marketplace_sales']);
 
         $exportReport = AdminSaleReportExport::build(
-            (clone $orderQuery)->orderBy('created_at')->get(),
+            $validOrders,
             [
                 'branch_name' => $this->saleReportBranchName($request['branch_id'] ?? 'all'),
                 'from' => $fromDate,
                 'to' => $toDate,
                 'payment_totals' => $paymentTotals,
                 'cancelled_orders' => $cancelledOrders,
+                'quantities' => $quantities,
             ]
         );
         $cancelledSummary = $exportReport['cancelled'] ?? ['total' => 0.0, 'order_count' => 0];
