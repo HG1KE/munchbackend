@@ -2,11 +2,15 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\Admin\ProductPricingController;
+use App\Model\Product;
+use App\Services\ProductBranchPricingCopyService;
 use App\Services\ProductBulkPricingService;
 use App\Services\ProductChannelPricingService;
 use App\Services\ProductPricingAuditLogger;
 use App\Support\ProductVariationPricing;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -320,6 +324,77 @@ class ProductVariationBulkPricingTest extends TestCase
         $regularUber = collect($variationRows)->first(fn ($row) => $row['variation_id'] === $this->regular && $row['channel'] === 'uber');
         $this->assertSame(250.0, $regularUber['current_price']);
         $this->assertSame('Regular', $regularUber['variation_name']);
+    }
+
+    public function test_search_products_returns_variations_to_bulk_price_edit(): void
+    {
+        $payload = $this->searchProducts('Nuggets');
+        $nuggets = collect($payload)->firstWhere('id', 10);
+        $fries = collect($this->searchProducts('Fries'))->firstWhere('id', 11);
+
+        $this->assertNotNull($nuggets);
+        $this->assertCount(2, $nuggets['variations']);
+        $this->assertSame('Regular', $nuggets['variations'][0]['label']);
+        $this->assertSame('Large', $nuggets['variations'][1]['label']);
+        $this->assertEquals(250, $nuggets['variations'][0]['channel_prices']['uber']);
+        $this->assertEquals(260, $nuggets['variations'][0]['channel_prices']['glovo']);
+        $this->assertEquals(270, $nuggets['variations'][0]['channel_prices']['bolt_food']);
+        $this->assertSame([], $fries['variations'] ?? null);
+    }
+
+    public function test_search_products_falls_back_to_branch_variations_when_catalog_is_empty(): void
+    {
+        $now = now();
+        $branchOnly = $this->variationPayload([
+            'Regular' => ['optionPrice' => 100, 'channelPrices' => ['uber' => 120]],
+        ]);
+        DB::table('products')->insert([
+            'id' => 13,
+            'name' => 'Branch Only Wings',
+            'price' => 150,
+            'discount_type' => 'amount',
+            'discount' => 0,
+            'variations' => '[]',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('product_by_branches')->insert([
+            'product_id' => 13,
+            'branch_id' => 1,
+            'price' => 150,
+            'discount_type' => 'amount',
+            'discount' => 0,
+            'is_available' => 1,
+            'variations' => json_encode($branchOnly),
+            'stock_type' => 'unlimited',
+            'stock' => 0,
+        ]);
+
+        $row = collect($this->searchProducts('Branch Only Wings'))->firstWhere('id', 13);
+        $this->assertNotNull($row);
+        $this->assertCount(1, $row['variations']);
+        $this->assertSame('Regular', $row['variations'][0]['label']);
+        $this->assertEquals(120, $row['variations'][0]['channel_prices']['uber']);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function searchProducts(string $search): array
+    {
+        $pricing = new ProductChannelPricingService(new ProductPricingAuditLogger());
+        $controller = new ProductPricingController(
+            $pricing,
+            $this->bulk,
+            new ProductBranchPricingCopyService(new ProductPricingAuditLogger(), $pricing),
+            new Product()
+        );
+
+        $response = $controller->searchProducts(Request::create('/admin/product/pricing/products', 'GET', [
+            'search' => $search,
+        ]));
+
+        return $response->getData(true)['data'] ?? [];
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Model\Product;
+use App\Model\ProductByBranch;
 use App\Services\ProductBranchPricingCopyService;
 use App\Services\ProductBulkPricingService;
 use App\Services\ProductChannelPricingService;
@@ -11,6 +12,7 @@ use App\Support\ProductPricingChannels;
 use App\Support\ProductVariationPricing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class ProductPricingController extends Controller
 {
@@ -82,9 +84,12 @@ class ProductPricingController extends Controller
         }
 
         $products = $query->paginate(40);
+        $branchVariations = $this->branchVariationsByProduct(
+            $products->getCollection()->pluck('id')->all()
+        );
 
         return $this->noStoreJson([
-            'data' => $products->getCollection()->map(function (Product $product) {
+            'data' => $products->getCollection()->map(function (Product $product) use ($branchVariations) {
                 $category = $product->category;
 
                 return [
@@ -93,7 +98,7 @@ class ProductPricingController extends Controller
                     'price' => $this->pricing->defaultPrice($product),
                     'selling_price' => $this->pricing->defaultSellingPrice($product),
                     'category' => is_array($category) ? (string) ($category['name'] ?? '') : '',
-                    'variations' => ProductVariationPricing::flatOptions($product->getRawOriginal('variations')),
+                    'variations' => $this->bulkSearchVariations($product, $branchVariations),
                 ];
             })->values(),
             'next_page' => $products->hasMorePages() ? $products->currentPage() + 1 : null,
@@ -319,6 +324,48 @@ class ProductPricingController extends Controller
         }
 
         return [[$parsed[0]], $parsed[1]];
+    }
+
+    /**
+     * @param  list<int>  $productIds
+     * @return Collection<int, Collection<int, ProductByBranch>>
+     */
+    private function branchVariationsByProduct(array $productIds): Collection
+    {
+        if ($productIds === []) {
+            return collect();
+        }
+
+        return ProductByBranch::query()
+            ->whereIn('product_id', $productIds)
+            ->orderBy('branch_id')
+            ->get(['product_id', 'variations'])
+            ->groupBy('product_id');
+    }
+
+    /**
+     * Catalog variations first so Bulk Price Edit can render rows before a branch
+     * is chosen. Fall back to the first non-empty branch JSON when the catalog
+     * row is empty.
+     *
+     * @param  Collection<int, Collection<int, ProductByBranch>>  $branchVariations
+     * @return list<array<string, mixed>>
+     */
+    private function bulkSearchVariations(Product $product, Collection $branchVariations): array
+    {
+        $fromCatalog = ProductVariationPricing::flatOptions($product->getRawOriginal('variations'));
+        if ($fromCatalog !== []) {
+            return $fromCatalog;
+        }
+
+        foreach ($branchVariations->get($product->id, []) as $row) {
+            $fromBranch = ProductVariationPricing::flatOptions($row->variations);
+            if ($fromBranch !== []) {
+                return $fromBranch;
+            }
+        }
+
+        return [];
     }
 
     private function noStoreJson(array $data, int $status = 200): JsonResponse

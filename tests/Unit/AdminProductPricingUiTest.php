@@ -81,8 +81,8 @@ class AdminProductPricingUiTest extends TestCase
         $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
 
         $this->assertStringContainsString('data-current-price-url', $list);
-        $this->assertStringContainsString("munch-product-pricing.js') }}?v=2.0", $list);
-        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.5", $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=2.1", $list);
+        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.6", $list);
         $this->assertStringContainsString("cache: 'no-store'", $js);
         $this->assertStringContainsString('bulkProductSeq', $js);
         $this->assertStringContainsString('bulkPriceSeq', $js);
@@ -109,6 +109,10 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('product_values', $js);
         $this->assertStringContainsString('renderProductEditors', $js);
         $this->assertStringContainsString('renderVariationEditors', $js);
+        $this->assertStringContainsString('renderInlineVariationEditors', $js);
+        $this->assertStringContainsString('data-bulk-product-variations', $js);
+        $this->assertStringContainsString('renderProductListItem', $js);
+        $this->assertStringContainsString('munch-pricing-variation-badge', $js);
         $this->assertStringContainsString('variation_values', $js);
         $this->assertStringContainsString('Variation level', $js);
         $this->assertStringContainsString('Current Selling Price', $js);
@@ -119,6 +123,8 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('munch-pricing-product-editor', $css);
         $this->assertStringContainsString('munch-pricing-product-editor.is-invalid', $css);
         $this->assertStringContainsString('munch-pricing-variation-table', $css);
+        $this->assertStringContainsString('#bulk-product-list.munch-pricing-checklist', $css);
+        $this->assertStringContainsString('munch-pricing-product-item.is-selected', $css);
         $this->assertStringContainsString("input('action', 'set_exact')", $controller);
         $this->assertStringContainsString('bulkProductValues', $controller);
         $this->assertStringContainsString('bulkVariationValues', $controller);
@@ -183,5 +189,59 @@ class AdminProductPricingUiTest extends TestCase
         $logger = file_get_contents(app_path('Services/ProductPricingAuditLogger.php'));
         $this->assertStringContainsString('actor_type', $logger);
         $this->assertStringContainsString('ip_address', $logger);
+    }
+
+    public function test_bulk_price_edit_exposes_variation_fields_under_the_product(): void
+    {
+        $js = file_get_contents(public_path('assets/admin/js/munch-product-pricing.js'));
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/ProductPricingController.php'));
+
+        $editors = $this->functionBody($js, 'function renderProductEditors');
+        $this->assertStringContainsString('data-bulk-product-value', $editors);
+        $this->assertStringNotContainsString('renderVariationEditors(p)', $editors);
+
+        $listItem = $this->functionBody($js, 'function renderProductListItem');
+        $this->assertStringContainsString('data-bulk-product-variations', $listItem);
+        $this->assertStringContainsString('munch-pricing-variation-badge', $listItem);
+
+        $inline = $this->functionBody($js, 'function renderInlineVariationEditors');
+        $this->assertStringContainsString('renderVariationEditors(product)', $inline);
+
+        $variationTable = $this->functionBody($js, 'function renderVariationEditors');
+        $this->assertStringContainsString('Uber', $js);
+        $this->assertStringContainsString('Glovo', $js);
+        $this->assertStringContainsString('Bolt Food', $js);
+        $this->assertStringContainsString('data-bulk-variation-value', $variationTable);
+        $this->assertStringContainsString('selectedMarketplaceChannels()', $variationTable);
+        $this->assertStringContainsString('munch-pricing-variation-name', $variationTable);
+
+        $this->assertStringContainsString('bulkSearchVariations', $controller);
+        $this->assertStringContainsString("'variations' => \$this->bulkSearchVariations", $controller);
+
+        $node = trim((string) shell_exec('command -v node'));
+        if ($node === '') {
+            $this->markTestSkipped('node is required for Bulk Price Edit variation UI scenarios');
+        }
+
+        $script = base_path('tests/Js/bulk-variation-pricing.test.js');
+        $output = [];
+        $code = 0;
+        exec(escapeshellcmd($node).' '.escapeshellarg($script).' 2>&1', $output, $code);
+        $this->assertSame(0, $code, implode("\n", $output));
+        $combined = implode("\n", $output);
+        $this->assertStringContainsString('variation rows render under the product', $combined);
+        $this->assertStringContainsString('uber variation price field renders', $combined);
+        $this->assertStringContainsString('glovo variation price field renders', $combined);
+        $this->assertStringContainsString('bolt food variation price field renders', $combined);
+        $this->assertStringContainsString('channel selection controls marketplace columns', $combined);
+        $this->assertStringContainsString('products without variations keep the product editor', $combined);
+    }
+
+    private function functionBody(string $source, string $needle, int $length = 2500): string
+    {
+        $start = strpos($source, $needle);
+        $this->assertNotFalse($start, $needle.' not found');
+
+        return substr($source, $start, $length);
     }
 }
