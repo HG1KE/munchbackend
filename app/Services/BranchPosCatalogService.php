@@ -11,6 +11,7 @@ use App\Model\ProductByBranch;
 use App\Models\DeliveryChargeByArea;
 use App\Support\PosOrderTypes;
 use App\Support\ProductPricingChannels;
+use App\Support\ProductVariationPricing;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -147,6 +148,7 @@ class BranchPosCatalogService
             'pos-catalog-popularity-1',
             'pos-mpesa-settings-1',
             'pos-channel-pricing-1',
+            'pos-variation-channel-1',
             'pos-allow-addon-on-pos-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
@@ -318,6 +320,7 @@ class BranchPosCatalogService
                 $values[] = [
                     'label' => (string) ($option['label'] ?? ''),
                     'optionPrice' => (float) ($option['optionPrice'] ?? 0),
+                    'channel_prices' => ProductVariationPricing::channelPricesFromOption($option),
                 ];
             }
             $out[] = [

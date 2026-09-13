@@ -267,13 +267,32 @@
 
     function variationPrice(product, selections) {
         var extra = 0;
+        var ch = pricingChannel(state.cart.orderType);
+        var productPrice = resolvedProductPrice(product);
         (product.variations || []).forEach(function (group, gi) {
             var picked = (selections[gi] && selections[gi].values && selections[gi].values.label) || [];
             (group.values || []).forEach(function (opt) {
-                if (picked.indexOf(opt.label) !== -1) extra += Number(opt.optionPrice || 0);
+                if (picked.indexOf(opt.label) === -1) return;
+                extra += variationOptionExtra(opt, ch, productPrice);
             });
         });
         return extra;
+    }
+
+    function variationOptionExtra(opt, channel, productPrice) {
+        var prices = (opt && (opt.channel_prices || opt.channelPrices)) || {};
+        if (channel && channel !== 'pos' && prices[channel] != null && prices[channel] !== '') {
+            return Number(prices[channel]) - Number(productPrice || 0);
+        }
+        return Number(opt.optionPrice || 0);
+    }
+
+    function variationOptionDisplayPrice(opt, channel) {
+        var prices = (opt && (opt.channel_prices || opt.channelPrices)) || {};
+        if (channel && channel !== 'pos' && prices[channel] != null && prices[channel] !== '') {
+            return Number(prices[channel]);
+        }
+        return Number(opt.optionPrice || 0);
     }
 
     function pricingChannel(orderType) {
@@ -812,7 +831,7 @@
             html += '<div><strong>' + escapeHtml(group.name) + '</strong> <small>' + escapeHtml(group.required === 'on' ? CFG.labels.required : CFG.labels.optional) + '</small>';
             (group.values || []).forEach(function (opt) {
                 var type = group.type === 'multi' ? 'checkbox' : 'radio';
-                html += '<label class="munch-pos-choice"><span><input type="' + type + '" name="g' + gi + '" value="' + escapeAttr(opt.label) + '" data-g="' + gi + '"> ' + escapeHtml(opt.label) + '</span><span>' + money(opt.optionPrice) + '</span></label>';
+                html += '<label class="munch-pos-choice"><span><input type="' + type + '" name="g' + gi + '" value="' + escapeAttr(opt.label) + '" data-g="' + gi + '"> ' + escapeHtml(opt.label) + '</span><span>' + money(variationOptionDisplayPrice(opt, pricingChannel(state.cart.orderType))) + '</span></label>';
             });
             html += '</div>';
         });

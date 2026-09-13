@@ -239,6 +239,12 @@ test('cards show a flavour badge only when variations exist', function () {
     assert(js.indexOf('escapeHtml(modifierBadge(product))') !== -1, 'badge must render on the card');
 });
 
+test('marketplace variation prices can replace option extras', function () {
+    assert(js.indexOf('function variationOptionExtra') !== -1, 'marketplace extra helper missing');
+    assert(js.indexOf('function variationOptionDisplayPrice') !== -1, 'marketplace display helper missing');
+    assert(js.indexOf('opt.channel_prices || opt.channelPrices') !== -1, 'catalog channel prices unused');
+});
+
 test('checkout, pricing, discounts, reports and kitchen printing remain unchanged', function () {
     assert(js.indexOf('function placeOrder') !== -1, 'checkout missing');
     assert(js.indexOf('function buildPayload') !== -1, 'order payload missing');

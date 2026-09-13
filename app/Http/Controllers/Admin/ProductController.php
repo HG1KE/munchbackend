@@ -11,6 +11,7 @@ use App\Model\Review;
 use App\Model\Tag;
 use App\Model\Translation;
 use App\Models\Cuisine;
+use App\Support\ProductVariationPricing;
 use App\Support\StorefrontVisibilitySchedule;
 use Box\Spout\Common\Exception\InvalidArgumentException;
 use Box\Spout\Common\Exception\IOException;
@@ -291,11 +292,7 @@ class ProductController extends Controller
                 $temp_value = [];
 
                 foreach (array_values($option['values']) as $value) {
-                    if (isset($value['label'])) {
-                        $temp_option['label'] = $value['label'];
-                    }
-                    $temp_option['optionPrice'] = $value['optionPrice'];
-                    $temp_value[] = $temp_option;
+                    $temp_value[] = ProductVariationPricing::optionFromInput($value);
                 }
                 $temp_variation['values'] = $temp_value;
                 $variations[] = $temp_variation;
@@ -530,11 +527,7 @@ class ProductController extends Controller
                 $temp_value = [];
 
                 foreach (array_values($option['values']) as $value) {
-                    if (isset($value['label'])) {
-                        $temp_option['label'] = $value['label'];
-                    }
-                    $temp_option['optionPrice'] = $value['optionPrice'];
-                    $temp_value[] = $temp_option;
+                    $temp_value[] = ProductVariationPricing::optionFromInput($value);
                 }
                 $temp_variation['values'] = $temp_value;
                 $variations[] = $temp_variation;
@@ -554,32 +547,15 @@ class ProductController extends Controller
                 $variation_array['min'] = $variation['min'];
                 $variation_array['max'] = $variation['max'];
                 $variation_array['required'] = $variation['required'];
-                $variation_array['values'] = array_map(function ($value) use ($branch_product, $variation) {
-                    $option_array = [];
-                    $option_array['label'] = $value['label'];
-
-                    $price = $value['optionPrice'];
-                    foreach ($branch_product['variations'] as $branch_variation) {
-                        if ($branch_variation['name'] == $variation['name']) {
-                            foreach ($branch_variation['values'] as $branch_value) {
-                                if ($branch_value['label'] == $value['label']) {
-                                    $price = $branch_value['optionPrice'];
-                                }
-                            }
-                        }
-                    }
-                    $option_array['optionPrice'] = $price;
-
-                    return $option_array;
+                $branchVariations = is_array($branch_product['variations']) ? $branch_product['variations'] : [];
+                $variation_array['values'] = array_map(function ($value) use ($branchVariations, $variation) {
+                    return ProductVariationPricing::preserveBranchOption($value, $branchVariations, (string) $variation['name']);
                 }, $variation['values']);
                 return $variation_array;
             }, $variations);
 
-            $data = [
-                'variations' => $mapped,
-            ];
-
-            $this->productByBranch->whereIn('product_id', [$id])->update($data);
+            $branch_product->variations = $mapped;
+            $branch_product->save();
         }
 
         // branch variation update end

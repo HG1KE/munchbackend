@@ -84,19 +84,20 @@
                     @if (isset($item['values']))
                         @foreach ($item['values'] as $key_value => $value)
                             <div class="row add_new_view_row_class mb-3 position-relative pt-3 pt-md-0">
-                                <div class="col-md-4 col-sm-6">
+                                <div class="col-md-3 col-sm-6">
                                     <label for="">{{ translate('Option_name') }}</label>
                                     <input class="form-control" required type="text"
                                            name="options[{{ $key }}][values][{{ $key_value }}][label]"
                                            value="{{ $value['label'] }}">
                                 </div>
-                                <div class="col-md-4 col-sm-6">
+                                <div class="col-md-2 col-sm-6">
                                     <label for="">{{ translate('Additional_price') }}</label>
                                     <input class="form-control" required type="number" min="0" step="0.01"
                                            name="options[{{ $key }}][values][{{ $key_value }}][optionPrice]"
                                            value="{{ $value['optionPrice'] }}">
                                 </div>
-                                <div class="col-sm-2 max-sm-absolute">
+                                @include('admin-views.product.partials._variation-marketplace-prices', ['key' => $key, 'key_value' => $key_value, 'value' => $value])
+                                <div class="col-sm-1 max-sm-absolute">
                                     <label class="d-none d-md-block">&nbsp;</label>
                                     <div class="mt-1">
                                         <button type="button" class="btn btn-danger btn-sm" onclick="deleteRow(this)"

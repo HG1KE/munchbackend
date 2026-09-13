@@ -21,6 +21,7 @@
     };
 
     var CHANNELS = ['pos', 'uber', 'glovo', 'bolt_food'];
+    var MARKETPLACE_CHANNELS = ['uber', 'glovo', 'bolt_food'];
     var CHANNEL_LABELS = { pos: 'POS', uber: 'Uber', glovo: 'Glovo', bolt_food: 'Bolt Food', default: 'Default' };
     var metaCache = null;
     var drawer = {
@@ -47,6 +48,7 @@
         value: '',
         fillAll: '',
         productValues: {},
+        variationValues: {},
         channelOps: {
             pos: { action: 'set_exact', value: '' },
             uber: { action: 'set_exact', value: '' },
@@ -354,6 +356,7 @@
         bulk.value = '';
         bulk.fillAll = '';
         bulk.productValues = {};
+        bulk.variationValues = {};
         bulk.pricesLoading = false;
         bulkProductSeq += 1;
         bulkPriceSeq += 1;
@@ -432,7 +435,7 @@
                 escapeAttr(bulk.fillAll) + '" placeholder="e.g. 850">' +
                 '<button type="button" class="btn btn-outline-primary" id="bulk-fill-all-apply">Fill</button>' +
                 '</div>' +
-                '<p class="munch-pricing-simple-hint">Fills every selected product. Change any row afterwards.</p></div>' +
+                '<p class="munch-pricing-simple-hint">Fills every selected product. Marketplace prices can also be edited at variation level.</p></div>' +
                 '<div id="bulk-product-editors" class="munch-pricing-product-editors"></div></div>';
         } else if (bulk.perChannel) {
             priceControls += '<label class="munch-pricing-advanced-toggle">' +
@@ -564,7 +567,8 @@
                         ? money(row.current_price)
                         : money(row.current_price) + ' → ' + money(row.new_price);
                     return '<div class="munch-pricing-preview-line">' +
-                        '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) + '</span>' +
+                        '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) +
+                        (row.variation_name ? ' · ' + escapeHtml(row.variation_name) : '') + '</span>' +
                         '<span class="' + cls + '">' + amount + '</span></div>';
                 }
                 return '<div class="munch-pricing-preview-line">' +
@@ -599,6 +603,56 @@
         return out;
     }
 
+    function selectedMarketplaceChannels() {
+        return selectedChannels(bulk.channels).filter(function (ch) {
+            return MARKETPLACE_CHANNELS.indexOf(ch) !== -1;
+        });
+    }
+
+    function variationValueKey(productId, variationId, channel) {
+        return productId + '|' + variationId + '|' + channel;
+    }
+
+    function variationValuesPayload() {
+        var out = [];
+        selectedIds(bulk.selectedProducts).forEach(function (productId) {
+            selectedMarketplaceChannels().forEach(function (channel) {
+                (productVariationOptions(productId) || []).forEach(function (option) {
+                    var key = variationValueKey(productId, option.id, channel);
+                    var raw = bulk.variationValues[key];
+                    if (raw == null || String(raw).trim() === '') return;
+                    var value = Number(raw);
+                    if (isFinite(value) && value > 0) {
+                        out.push({
+                            product_id: productId,
+                            variation_id: option.id,
+                            channel: channel,
+                            value: value
+                        });
+                    }
+                });
+            });
+        });
+        return out;
+    }
+
+    function productVariationOptions(productId) {
+        var product = (bulk.products || []).find(function (p) { return Number(p.id) === Number(productId); });
+        if (product && product.variations && product.variations.length) return product.variations;
+        var seen = {};
+        var options = [];
+        (bulk.currentRows || []).forEach(function (row) {
+            if (Number(row.product_id) !== Number(productId) || !row.variation_id || seen[row.variation_id]) return;
+            seen[row.variation_id] = true;
+            options.push({
+                id: row.variation_id,
+                group: row.variation_group || '',
+                label: row.variation_name || row.variation_id
+            });
+        });
+        return options;
+    }
+
     function bulkApplyShouldDisable() {
         if (bulk.applying) return true;
         return bulk.tab === 'availability' && !(bulk.preview && bulk.preview.count);
@@ -628,7 +682,7 @@
         els.modalBody.querySelectorAll('.munch-pricing-product-editor.is-invalid').forEach(function (el) {
             el.classList.remove('is-invalid');
         });
-        els.modalBody.querySelectorAll('[data-bulk-product-value].is-invalid, #bulk-value.is-invalid').forEach(function (el) {
+        els.modalBody.querySelectorAll('[data-bulk-product-value].is-invalid, [data-bulk-variation-value].is-invalid, #bulk-value.is-invalid').forEach(function (el) {
             el.classList.remove('is-invalid');
         });
     }
@@ -675,10 +729,21 @@
                     markProductEditorInvalid(id);
                 }
             });
+            els.modalBody.querySelectorAll('[data-bulk-variation-value]').forEach(function (input) {
+                var raw = input.value;
+                if (raw == null || String(raw).trim() === '') return;
+                var value = Number(raw);
+                if (!isFinite(value) || value <= 0) {
+                    invalid = true;
+                    input.classList.add('is-invalid');
+                    var row = input.closest('.munch-pricing-product-editor');
+                    if (row) row.classList.add('is-invalid');
+                }
+            });
             if (invalid) {
                 return { message: 'Enter a valid new price for the highlighted products' };
             }
-            if (!Object.keys(productValuesPayload()).length) {
+            if (!Object.keys(productValuesPayload()).length && !variationValuesPayload().length) {
                 return { message: 'No price changes to apply.' };
             }
             return null;
@@ -717,13 +782,54 @@
             var current = productCurrentPriceLabel(p);
             return '<article class="munch-pricing-product-editor">' +
                 '<h4>' + escapeHtml(p.name) + '</h4>' +
+                '<p class="munch-pricing-level-label">Product level</p>' +
                 '<div class="munch-pricing-current-selling"><span>Current Selling Price</span>' +
                 '<strong data-bulk-editor-price="' + p.id + '">' + escapeHtml(current) + '</strong></div>' +
                 '<label>New Price</label>' +
                 '<input class="form-control" data-bulk-product-value="' + p.id + '" type="number" min="0" step="0.01" value="' +
                 escapeAttr(bulk.productValues[p.id] != null ? bulk.productValues[p.id] : '') + '" placeholder="e.g. 900">' +
+                renderVariationEditors(p) +
                 '</article>';
         }).join('');
+    }
+
+    function variationCurrentPrice(productId, variationId, channel) {
+        var match = (bulk.currentRows || []).find(function (row) {
+            return Number(row.product_id) === Number(productId)
+                && row.variation_id === variationId
+                && row.channel === channel;
+        });
+        return match ? money(match.current_price) : '—';
+    }
+
+    function renderVariationEditors(product) {
+        var options = productVariationOptions(product.id);
+        if (!options.length) return '';
+        var channels = selectedMarketplaceChannels();
+        if (!channels.length) {
+            return '<div class="munch-pricing-variations"><p class="munch-pricing-level-label">Variation level</p>' +
+                '<p class="text-muted mb-0">Select Uber, Glovo or Bolt Food to edit variation marketplace prices.</p></div>';
+        }
+        var head = '<th>Variation</th>' + channels.map(function (ch) {
+            return '<th>' + escapeHtml(CHANNEL_LABELS[ch] || ch) + '</th>';
+        }).join('');
+        var body = options.map(function (option) {
+            var cells = channels.map(function (ch) {
+                var key = variationValueKey(product.id, option.id, ch);
+                var current = variationCurrentPrice(product.id, option.id, ch);
+                return '<td><span class="munch-pricing-variation-current">' + escapeHtml(current) + '</span>' +
+                    '<input class="form-control" data-bulk-variation-value="' + escapeAttr(key) + '" data-product-id="' + product.id +
+                    '" data-variation-id="' + escapeAttr(option.id) + '" data-channel="' + ch +
+                    '" type="number" min="0" step="0.01" value="' +
+                    escapeAttr(bulk.variationValues[key] != null ? bulk.variationValues[key] : '') +
+                    '" placeholder="—"></td>';
+            }).join('');
+            var name = (option.group ? option.group + ' · ' : '') + (option.label || option.id);
+            return '<tr><th>' + escapeHtml(name) + '</th>' + cells + '</tr>';
+        }).join('');
+        return '<div class="munch-pricing-variations"><p class="munch-pricing-level-label">Variation level</p>' +
+            '<div class="table-responsive"><table class="munch-pricing-variation-table"><thead><tr>' + head +
+            '</tr></thead><tbody>' + body + '</tbody></table></div></div>';
     }
 
     function fillAllSelectedProductValues() {
@@ -738,14 +844,20 @@
     function bulkPricePayload() {
         var channels = selectedChannels(bulk.channels);
         var values = usesPerProductPrices() ? productValuesPayload() : {};
-        var productIds = Object.keys(values).length
-            ? Object.keys(values).map(Number)
-            : selectedIds(bulk.selectedProducts);
+        var variations = usesPerProductPrices() ? variationValuesPayload() : [];
+        var productIds = selectedIds(bulk.selectedProducts);
+        if (!productIds.length && Object.keys(values).length) {
+            productIds = Object.keys(values).map(Number);
+        }
         var body = {
             product_ids: productIds,
             branch_ids: selectedIds(bulk.selectedBranches)
         };
         if (Object.keys(values).length) body.product_values = values;
+        if (variations.length) body.variation_values = variations;
+        if (usesPerProductPrices() && !Object.keys(values).length) {
+            return body;
+        }
         if (bulk.advanced && bulk.perChannel) {
             body.operations = channels.map(function (ch) {
                 var op = ensureChannelOp(ch);
@@ -772,11 +884,13 @@
         var url;
         if (bulk.tab === 'price') {
             body = bulkPricePayload();
-            if (usesPerProductPrices() && !Object.keys(productValuesPayload()).length) {
-                return showToast(false, 'Enter a new price for at least one product');
+            if (usesPerProductPrices() && !Object.keys(productValuesPayload()).length && !variationValuesPayload().length) {
+                return showToast(false, 'Enter a new price for at least one product or variation');
             }
             if (!body.product_ids.length) return showToast(false, 'Choose products first');
-            if (!(body.channels || []).length && !(body.operations || []).length) return showToast(false, 'Choose at least one channel');
+            if (!(body.channels || []).length && !(body.operations || []).length && !(body.variation_values || []).length) {
+                return showToast(false, 'Choose at least one channel');
+            }
             if (!body.branch_ids.length) return showToast(false, 'Choose branches first');
             url = CFG.previewPrice;
         } else {
@@ -861,6 +975,7 @@
         bulk.value = '';
         bulk.fillAll = '';
         bulk.productValues = {};
+        bulk.variationValues = {};
         bulk.preview = null;
         CHANNELS.forEach(function (ch) {
             if (bulk.channelOps[ch]) bulk.channelOps[ch].value = '';
@@ -1119,8 +1234,15 @@
             var editor = ev.target.closest('.munch-pricing-product-editor');
             if (editor) editor.classList.remove('is-invalid');
         }
+        var variationValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-variation-value');
+        if (variationValue) {
+            bulk.variationValues[variationValue] = ev.target.value;
+            ev.target.classList.remove('is-invalid');
+            var variationEditor = ev.target.closest('.munch-pricing-product-editor');
+            if (variationEditor) variationEditor.classList.remove('is-invalid');
+        }
         if (ev.target.id === 'bulk-value') ev.target.classList.remove('is-invalid');
-        if (ev.target.id === 'bulk-value' || opValue || productValue) {
+        if (ev.target.id === 'bulk-value' || opValue || productValue || variationValue) {
             bulk.preview = null;
             schedulePriceRefresh();
         }
@@ -1187,6 +1309,7 @@
             if (chip) chip.classList.toggle('is-on', ev.target.checked);
             if (channelMap === 'channels') {
                 if (bulk.advanced && bulk.perChannel) renderBulk();
+                else if (!bulk.advanced) renderProductEditors();
                 refreshBulkPrices();
             }
             return;
@@ -1200,6 +1323,9 @@
                 }
             } else {
                 delete bulk.productValues[productId];
+                Object.keys(bulk.variationValues).forEach(function (key) {
+                    if (key.indexOf(productId + '|') === 0) delete bulk.variationValues[key];
+                });
             }
             dropUnselectedCurrentRows();
             bulk.preview = null;
@@ -1334,7 +1460,7 @@
 
     function productCurrentPriceLabel(product) {
         var rows = (bulk.currentRows || []).filter(function (row) {
-            return Number(row.product_id) === Number(product.id);
+            return Number(row.product_id) === Number(product.id) && !row.variation_id;
         });
         var channels = selectedChannels(bulk.channels);
         if (channels.length) {
@@ -1371,6 +1497,10 @@
         });
         Object.keys(bulk.productValues).forEach(function (id) {
             if (!visible[id] || !bulk.selectedProducts[id]) delete bulk.productValues[id];
+        });
+        Object.keys(bulk.variationValues).forEach(function (key) {
+            var productId = key.split('|')[0];
+            if (!visible[productId] || !bulk.selectedProducts[productId]) delete bulk.variationValues[key];
         });
     }
 
@@ -1416,6 +1546,22 @@
                 el.textContent = label;
             });
         });
+        if (els.modalBody && !els.modalBody.querySelector('.munch-pricing-variation-table') && selectedProductModels().some(function (p) {
+            return productVariationOptions(p.id).length;
+        })) {
+            renderProductEditors();
+        }
+        if (els.modalBody) {
+            els.modalBody.querySelectorAll('[data-bulk-variation-value]').forEach(function (input) {
+                var label = input.previousElementSibling;
+                if (!label || !label.classList.contains('munch-pricing-variation-current')) return;
+                label.textContent = variationCurrentPrice(
+                    input.getAttribute('data-product-id'),
+                    input.getAttribute('data-variation-id'),
+                    input.getAttribute('data-channel')
+                );
+            });
+        }
         var panel = document.getElementById('bulk-preview-panel');
         if (panel) panel.innerHTML = renderPreview(bulk.preview);
         syncBulkApplyButton();
@@ -1486,7 +1632,9 @@
         if (!selectedIds(bulk.selectedProducts).length) return false;
         if (!selectedIds(bulk.selectedBranches).length) return false;
         if (!selectedChannels(bulk.channels).length) return false;
-        if (usesPerProductPrices()) return Object.keys(productValuesPayload()).length > 0;
+        if (usesPerProductPrices()) {
+            return Object.keys(productValuesPayload()).length > 0 || variationValuesPayload().length > 0;
+        }
         if (bulk.advanced && bulk.perChannel) {
             return selectedChannels(bulk.channels).some(function (ch) {
                 var op = ensureChannelOp(ch);

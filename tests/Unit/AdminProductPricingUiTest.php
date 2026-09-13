@@ -81,8 +81,8 @@ class AdminProductPricingUiTest extends TestCase
         $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
 
         $this->assertStringContainsString('data-current-price-url', $list);
-        $this->assertStringContainsString("munch-product-pricing.js') }}?v=1.9", $list);
-        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.4", $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=2.0", $list);
+        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.5", $list);
         $this->assertStringContainsString("cache: 'no-store'", $js);
         $this->assertStringContainsString('bulkProductSeq', $js);
         $this->assertStringContainsString('bulkPriceSeq', $js);
@@ -108,6 +108,9 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('data-bulk-product-value', $js);
         $this->assertStringContainsString('product_values', $js);
         $this->assertStringContainsString('renderProductEditors', $js);
+        $this->assertStringContainsString('renderVariationEditors', $js);
+        $this->assertStringContainsString('variation_values', $js);
+        $this->assertStringContainsString('Variation level', $js);
         $this->assertStringContainsString('Current Selling Price', $js);
         $this->assertStringContainsString('New Price', $js);
         $this->assertStringContainsString("id=\"bulk-advanced\"", $js);
@@ -115,13 +118,32 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringNotContainsString('product.price', $js);
         $this->assertStringContainsString('munch-pricing-product-editor', $css);
         $this->assertStringContainsString('munch-pricing-product-editor.is-invalid', $css);
+        $this->assertStringContainsString('munch-pricing-variation-table', $css);
         $this->assertStringContainsString("input('action', 'set_exact')", $controller);
         $this->assertStringContainsString('bulkProductValues', $controller);
+        $this->assertStringContainsString('bulkVariationValues', $controller);
+        $this->assertStringContainsString('variation_values', $controller);
         $this->assertStringContainsString('normalizeProductValues', $bulk);
         $this->assertStringContainsString('no-store, no-cache, must-revalidate', $controller);
         $this->assertStringContainsString('function currentPrices', $bulk);
         $this->assertStringContainsString('defaultSellingPrice', $bulk);
         $this->assertStringContainsString('effectiveSellingPrice', $bulk);
+    }
+
+    public function test_product_edit_exposes_variation_marketplace_prices(): void
+    {
+        $edit = file_get_contents(resource_path('views/admin-views/product/edit.blade.php'));
+        $partial = file_get_contents(resource_path('views/admin-views/product/partials/_new_variations.blade.php'));
+        $fields = file_get_contents(resource_path('views/admin-views/product/partials/_variation-marketplace-prices.blade.php'));
+
+        $this->assertStringContainsString('_variation-marketplace-prices', $partial);
+        $this->assertStringContainsString('Uber Price', $fields);
+        $this->assertStringContainsString('Glovo Price', $fields);
+        $this->assertStringContainsString('Bolt Food Price', $fields);
+        $this->assertStringContainsString('channelPrices][uber]', $fields);
+        $this->assertStringContainsString('channelPrices][bolt_food]', $fields);
+        $this->assertStringContainsString('channelPrices][uber]', $edit);
+        $this->assertStringContainsString('optionFromInput', file_get_contents(app_path('Http/Controllers/Admin/ProductController.php')));
     }
 
     public function test_pos_catalog_and_checkout_use_channel_hierarchy(): void
@@ -130,6 +152,8 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('channel_prices', $catalog);
         $this->assertStringContainsString('channel_available', $catalog);
         $this->assertStringContainsString('pos-channel-pricing-1', $catalog);
+        $this->assertStringContainsString('pos-variation-channel-1', $catalog);
+        $this->assertStringContainsString('channelPricesFromOption', $catalog);
         $this->assertStringContainsString('anyChannelAvailable', $catalog);
 
         $pos = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));

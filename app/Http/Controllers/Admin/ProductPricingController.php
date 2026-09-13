@@ -8,6 +8,7 @@ use App\Services\ProductBranchPricingCopyService;
 use App\Services\ProductBulkPricingService;
 use App\Services\ProductChannelPricingService;
 use App\Support\ProductPricingChannels;
+use App\Support\ProductVariationPricing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -92,6 +93,7 @@ class ProductPricingController extends Controller
                     'price' => $this->pricing->defaultPrice($product),
                     'selling_price' => $this->pricing->defaultSellingPrice($product),
                     'category' => is_array($category) ? (string) ($category['name'] ?? '') : '',
+                    'variations' => ProductVariationPricing::flatOptions($product->getRawOriginal('variations')),
                 ];
             })->values(),
             'next_page' => $products->hasMorePages() ? $products->currentPage() + 1 : null,
@@ -120,7 +122,8 @@ class ProductPricingController extends Controller
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
             $this->bulkPriceOperations($request),
-            $this->bulkProductValues($request)
+            $this->bulkProductValues($request),
+            $this->bulkVariationValues($request)
         );
 
         if (! empty($result['error'])) {
@@ -143,7 +146,8 @@ class ProductPricingController extends Controller
             $request->input('product_ids', []),
             $request->input('branch_ids', []),
             $this->bulkPriceOperations($request),
-            $this->bulkProductValues($request)
+            $this->bulkProductValues($request),
+            $this->bulkVariationValues($request)
         );
 
         if (! empty($result['error'])) {
@@ -283,6 +287,16 @@ class ProductPricingController extends Controller
         }
 
         return $this->bulk->normalizeProductValues($raw);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function bulkVariationValues(Request $request): array
+    {
+        $raw = $request->input('variation_values', []);
+
+        return is_array($raw) ? array_values($raw) : [];
     }
 
     /**

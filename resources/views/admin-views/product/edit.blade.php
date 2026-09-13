@@ -705,13 +705,25 @@
                     <div class="border rounded p-3 pb-0 mt-3">
                         <div  id="option_price_view_` + count + `">
                             <div class="row g-3 add_new_view_row_class mb-3">
-                                <div class="col-md-4 col-sm-6">
+                                <div class="col-md-3 col-sm-6">
                                     <label for="">{{ translate('Option_name') }}</label>
                                     <input class="form-control" required type="text" name="options[` + count +`][values][0][label]" id="">
                                 </div>
-                                <div class="col-md-4 col-sm-6">
+                                <div class="col-md-2 col-sm-6">
                                     <label for="">{{ translate('Additional_price') }}</label>
                                     <input class="form-control" required type="number" min="0" step="0.01" name="options[` + count + `][values][0][optionPrice]" id="">
+                                </div>
+                                <div class="col-md-2 col-4">
+                                    <label for="">Uber Price</label>
+                                    <input class="form-control" type="number" min="0" step="0.01" name="options[` + count + `][values][0][channelPrices][uber]" placeholder="—">
+                                </div>
+                                <div class="col-md-2 col-4">
+                                    <label for="">Glovo Price</label>
+                                    <input class="form-control" type="number" min="0" step="0.01" name="options[` + count + `][values][0][channelPrices][glovo]" placeholder="—">
+                                </div>
+                                <div class="col-md-2 col-4">
+                                    <label for="">Bolt Food Price</label>
+                                    <input class="form-control" type="number" min="0" step="0.01" name="options[` + count + `][values][0][channelPrices][bolt_food]" placeholder="—">
                                 </div>
                             </div>
                         </div>
@@ -753,13 +765,25 @@
             countRow = 1 + $('#option_price_view_'+data).children('.add_new_view_row_class').length;
             var add_new_row_view = `
                 <div class="row add_new_view_row_class mb-3 position-relative pt-3 pt-md-0">
-                    <div class="col-md-4 col-sm-5">
+                    <div class="col-md-3 col-sm-5">
                             <label for="">{{translate('Option_name')}}</label>
                             <input class="form-control" required type="text" name="options[`+count+`][values][`+countRow+`][label]" id="">
                         </div>
-                        <div class="col-md-4 col-sm-5">
+                        <div class="col-md-2 col-sm-5">
                             <label for="">{{translate('Additional_price')}}</label>
                             <input class="form-control"  required type="number" min="0" step="0.01" name="options[`+count+`][values][`+countRow+`][optionPrice]" id="">
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <label for="">Uber Price</label>
+                            <input class="form-control" type="number" min="0" step="0.01" name="options[`+count+`][values][`+countRow+`][channelPrices][uber]" placeholder="—">
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <label for="">Glovo Price</label>
+                            <input class="form-control" type="number" min="0" step="0.01" name="options[`+count+`][values][`+countRow+`][channelPrices][glovo]" placeholder="—">
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <label for="">Bolt Food Price</label>
+                            <input class="form-control" type="number" min="0" step="0.01" name="options[`+count+`][values][`+countRow+`][channelPrices][bolt_food]" placeholder="—">
                         </div>
                         <div class="col-sm-2 max-sm-absolute">
                             <label class="d-none d-md-block">&nbsp;</label>

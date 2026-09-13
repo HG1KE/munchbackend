@@ -587,6 +587,55 @@
     border-color: #dc2626;
 }
 
+.munch-pricing-level-label {
+    margin: 0.85rem 0 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--mp-muted);
+}
+
+.munch-pricing-variations {
+    margin-top: 0.75rem;
+}
+
+.munch-pricing-variation-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+.munch-pricing-variation-table th,
+.munch-pricing-variation-table td {
+    padding: 0.4rem 0.35rem;
+    vertical-align: top;
+    font-size: 0.85rem;
+}
+
+.munch-pricing-variation-table thead th {
+    color: var(--mp-muted);
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--mp-border);
+}
+
+.munch-pricing-variation-table tbody th {
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+    padding-top: 1.15rem;
+}
+
+.munch-pricing-variation-current {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--mp-muted);
+    margin-bottom: 0.2rem;
+}
+
 body.munch-pricing-open {
     overflow: hidden;
 }
