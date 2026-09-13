@@ -16,6 +16,10 @@
             <span class="munch-pos-badge munch-pos-badge--queue" id="pos-queue-badge" hidden>0</span>
             <span class="munch-pos-badge munch-pos-badge--sync" id="pos-sync-badge" hidden></span>
         </div>
+        <div class="munch-pos-stale" id="pos-stale-banner" hidden>
+            <span>{{ translate('New POS version available. Please refresh before placing new orders.') }}</span>
+            <button type="button" id="pos-stale-refresh">{{ translate('Refresh') }}</button>
+        </div>
         <div class="munch-pos-topbar__total" id="pos-top-total"></div>
         <a class="munch-pos-topbar__link" href="{{ route('branch.pos.orders') }}">{{ translate('orders') }}</a>
     </header>
@@ -79,7 +83,7 @@
             </label>
             <label class="munch-pos-delivery-modal__field">
                 <span>{{ translate('Customer Phone') }}</span>
-                <input type="tel" id="pos-del-phone" placeholder="0712345678" autocomplete="off" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" data-del-field>
+                <input type="tel" id="pos-del-phone" placeholder="0712345678" autocomplete="off" inputmode="numeric" pattern="[0-9]*" maxlength="16" data-del-field>
             </label>
             <label class="munch-pos-delivery-modal__field">
                 <span>{{ translate('Delivery Address') }}</span>
@@ -94,7 +98,7 @@
             </label>
         </div>
         <div class="munch-pos-dialog__actions">
-            <button type="button" class="munch-pos-place" id="pos-delivery-confirm">{{ translate('Confirm Delivery') }}</button>
+            <button type="button" class="munch-pos-place" id="pos-delivery-confirm" data-label="{{ translate('Confirm Delivery') }}">{{ translate('Confirm Delivery') }}</button>
             <button type="button" class="munch-pos-clear" id="pos-delivery-cancel">{{ translate('Close') }}</button>
         </div>
     </div>
@@ -162,6 +166,7 @@
         <div class="munch-pos-success__body">
             <p class="munch-pos-success__mark" aria-hidden="true">✅</p>
             <h2 id="pos-success-title">{{ translate('Order Placed Successfully') }}</h2>
+            <p class="munch-pos-success__message" id="pos-success-message" hidden></p>
             <dl class="munch-pos-success__meta">
                 <div>
                     <dt>{{ translate('Order') }} #</dt>
@@ -199,6 +204,7 @@
         cashierName: @json($branchName),
         restaurantName: @json(\App\CentralLogics\Helpers::get_business_settings('restaurant_name') ?: 'MUNCH'),
         csrf: @json(csrf_token()),
+        assetVersion: @json(\App\Support\PosClientVersion::ASSET),
         urls: {
             catalog: @json(route('branch.pos.catalog')),
             heartbeat: @json(route('branch.pos.heartbeat')),
@@ -288,6 +294,16 @@
             payment: @json(translate('Payment')),
             paymentStatus: @json(translate('Payment_Status')),
             invalidPhone: @json(translate('Enter a valid 10-digit phone number.')),
+            orderNotPosted: @json(translate('Order not posted')),
+            postingOrder: @json(translate('Posting order...')),
+            postedNumber: @json(translate('Order {n} posted successfully.')),
+            queuedSavedDetail: @json(translate('Order saved offline. It will sync automatically.')),
+            queuedSavedNumber: @json(translate('Order {n} saved offline. It will sync automatically.')),
+            confirmTimeout: @json(translate('Unable to confirm order. Please check your connection and try again.')),
+            submitFailed: @json(translate('Please try again.')),
+            staleClient: @json(translate('New POS version available. Please refresh before placing new orders.')),
+            postedPrintFailed: @json(translate('Order {n} posted successfully, but receipt printing failed.')),
+            printFailedPosted: @json(translate('Order posted successfully, but receipt printing failed.')),
             glovoOrderNumber: @json(translate('Enter Glovo Order Number')),
             uberOrderNumber: @json(translate('Enter Uber Order Number')),
             boltFoodOrderNumber: @json(translate('Enter Bolt Food Order Number')),
@@ -325,7 +341,7 @@
     };
 </script>
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.1"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=5.0" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.1"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.0" defer></script>
 @endpush

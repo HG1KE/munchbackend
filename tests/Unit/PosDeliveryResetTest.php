@@ -39,7 +39,7 @@ class PosDeliveryResetTest extends TestCase
 
         $submit = $this->functionBody($app, 'function submitPlacedOrder');
         $this->assertTrue(
-            strpos($submit, 'openSuccessModal(snapshotPrintJob(body))') < strpos($submit, 'clearCart()'),
+            strpos($submit, 'openSuccessModal(snapshotPrintJob(body)') < strpos($submit, 'clearCart()'),
             'online success must snapshot delivery details before clearing the form'
         );
         $this->assertStringContainsString('clearCart()', $this->successBranch($submit));
@@ -87,6 +87,6 @@ class PosDeliveryResetTest extends TestCase
         $start = strpos($source, $needle);
         $this->assertNotFalse($start, $needle.' not found');
 
-        return substr($source, $start, 1600);
+        return substr($source, $start, 4000);
     }
 }

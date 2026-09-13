@@ -769,6 +769,42 @@
     margin: 0 0 0.75rem;
     color: #b42318;
     font-weight: 600;
+    white-space: pre-line;
+}
+
+.munch-pos-stale {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin: 0 0.75rem 0 0;
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+
+.munch-pos-stale[hidden] {
+    display: none;
+}
+
+.munch-pos-stale button {
+    border: 0;
+    border-radius: 999px;
+    background: #9a3412;
+    color: #fff;
+    font-weight: 800;
+    min-height: 36px;
+    padding: 0.25rem 0.8rem;
+    cursor: pointer;
+}
+
+.munch-pos-success__message {
+    margin: 0 0 0.75rem;
+    font-weight: 700;
+    color: var(--munch-pos-ink);
 }
 
 .munch-pos-delivery-modal .munch-pos-dialog__actions .munch-pos-place {

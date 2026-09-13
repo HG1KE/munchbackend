@@ -95,6 +95,19 @@ test('IndexedDB leftover delivery is not restored with in-progress lines', funct
     assertBlankDelivery(next, 'draft hydrate');
 });
 
+test('delivery phone normalizes spaces and rejects +254', function () {
+    assert(delivery.normalizePosDeliveryPhone('0712 345 678') === '0712345678', 'spaces');
+    assert(delivery.canonicalPosDeliveryPhone('0712-345-678') === '0712345678', 'dashes');
+    assert(delivery.isValidPosDeliveryPhone('0712345678') === true, 'plain 10');
+    assert(delivery.isValidPosDeliveryPhone('0712 345 678') === true, 'spaced 10');
+    assert(delivery.isValidPosDeliveryPhone('071234567') === false, '9 digits');
+    assert(delivery.isValidPosDeliveryPhone('07123456789') === false, '11 digits');
+    assert(delivery.isValidPosDeliveryPhone('+254712345678') === false, '+254');
+    assert(delivery.canonicalPosDeliveryPhone('+254712345678') === '', 'must not coerce country format');
+    assert(delivery.posDeliveryPhoneError('') === delivery.PHONE_REQUIRED, 'empty required');
+    assert(delivery.posDeliveryPhoneError('071234567') === delivery.PHONE_ERROR, 'invalid message');
+});
+
 test('offline queue payload is independent of the cleared form snapshot', function () {
     var cart = dirtyCart();
     var queued = {

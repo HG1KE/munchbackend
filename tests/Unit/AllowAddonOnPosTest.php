@@ -106,7 +106,12 @@ class AllowAddonOnPosTest extends TestCase
         $this->assertStringContainsString('addon_id: line.addon_id || []', $js);
         $this->assertStringContainsString('function lineAddonTotal', $js);
         $this->assertStringContainsString('function addonSelectionKey', $js);
-        $this->assertStringNotContainsString('window.location.reload()', $js);
+        $this->assertStringContainsString("els.staleRefresh.addEventListener('click'", $js);
+        $addonAdd = strpos($js, 'function addSelectedVariations');
+        $reload = strpos($js, 'window.location.reload()');
+        $this->assertNotFalse($addonAdd);
+        $this->assertNotFalse($reload);
+        $this->assertGreaterThan($addonAdd, $reload, 'addon add must not reload the POS');
     }
 
     public function test_online_product_formatting_does_not_use_the_pos_addon_toggle(): void

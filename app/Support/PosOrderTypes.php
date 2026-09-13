@@ -335,16 +335,36 @@ class PosOrderTypes
     }
 
     /**
+     * Strip formatting so `0712 345 678` and `0712345678` are the same value.
+     * Does not convert country prefixes; `+254…` stays 12 digits and is invalid.
+     */
+    public static function normalizePosDeliveryPhone(?string $phone): string
+    {
+        return preg_replace('/\D+/', '', (string) $phone) ?? '';
+    }
+
+    /**
+     * 10-digit Kenyan local number after stripping separators, or empty.
+     */
+    public static function canonicalPosDeliveryPhone(?string $phone): string
+    {
+        $digits = self::normalizePosDeliveryPhone($phone);
+
+        return strlen($digits) === 10 ? $digits : '';
+    }
+
+    /**
      * POS Delivery customer phones must be exactly 10 digits. Other POS
      * channels and admin notification numbers do not use this rule.
      */
     public static function posDeliveryPhoneError(?string $phone): ?string
     {
-        $phone = trim((string) $phone);
-        if ($phone === '') {
+        $raw = trim((string) $phone);
+        $digits = self::normalizePosDeliveryPhone($phone);
+        if ($raw === '' && $digits === '') {
             return 'Customer Phone';
         }
-        if (! preg_match('/^\d{10}$/', $phone)) {
+        if (strlen($digits) !== 10) {
             return 'Enter a valid 10-digit phone number.';
         }
 

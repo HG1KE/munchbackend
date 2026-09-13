@@ -122,6 +122,10 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '07123456789'])));
         $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '07123ABC78'])));
         $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '+254712345678'])));
+        $this->assertSame('0712345678', PosOrderTypes::canonicalPosDeliveryPhone('0712 345 678'));
+        $this->assertSame('0712345678', PosOrderTypes::normalizePosDeliveryPhone('0712-345-678'));
+        $this->assertSame('', PosOrderTypes::canonicalPosDeliveryPhone('+254712345678'));
+        $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '0712 345 678'])));
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '0798765432'])));
         $this->assertNull(PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '0112345678'])));
 

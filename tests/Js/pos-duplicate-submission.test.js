@@ -169,6 +169,58 @@ function run() {
             });
         })
         .then(function () {
+            return test('422 unlocks and is not queued', function () {
+                var flow = guard.createSubmitFlow();
+                return Promise.resolve(flow.submit({ http422: true, uuid: 'v422' })).then(function (result) {
+                    assert(result.rejected === true, '422 should reject');
+                    assert(result.queued === false, '422 must not queue');
+                    assert(result.modalKeptOpen === true, '422 should keep the modal open');
+                    assert(flow.state.orderSubmitting === false, 'lock lingered after 422');
+                    return Promise.resolve(flow.submit({ offline: true, uuid: 'after-422' }));
+                }).then(function () {
+                    assert(flow.stats().queueLength === 1, 'retry after 422 should queue');
+                });
+            });
+        })
+        .then(function () {
+            return test('timeout unlocks and reuses client_uuid', function () {
+                var flow = guard.createSubmitFlow();
+                return flow.submit({ timeout: true, uuid: 'to-1' }).then(function (result) {
+                    assert(result.timedOut === true, 'timeout flag missing');
+                    assert(result.queued === false, 'timeout must not auto-queue');
+                    assert(result.reuseUuid === true, 'timeout must reuse uuid');
+                    assert(flow.state.orderSubmitting === false, 'lock lingered after timeout');
+                    var keys = guard.nextAttemptKeys({ client_uuid: 'to-1', placed_at: 't1' }, 'new', 't2');
+                    assert(keys.reused === true, 'retry keys should reuse');
+                    assert(keys.client_uuid === 'to-1', 'retry changed uuid');
+                    assert(keys.placed_at === 't1', 'retry changed placed_at');
+                });
+            });
+        })
+        .then(function () {
+            return test('sync throw unlocks without queueing', function () {
+                var flow = guard.createSubmitFlow();
+                return Promise.resolve(flow.submit({ syncThrow: true })).then(function (result) {
+                    assert(result.error === true, 'sync throw should error');
+                    assert(result.queued === false, 'sync throw must not queue');
+                    assert(flow.state.orderSubmitting === false, 'lock lingered after throw');
+                });
+            });
+        })
+        .then(function () {
+            return test('uncertain failures reuse uuid and 422 clears', function () {
+                assert(guard.shouldReuseClientUuid('timeout') === true, 'timeout reuse');
+                assert(guard.shouldReuseClientUuid('network') === true, 'network reuse');
+                assert(guard.shouldReuseClientUuid('http_5xx') === true, '5xx reuse');
+                assert(guard.shouldClearAttempt('http_422') === true, '422 clear');
+                assert(guard.shouldClearAttempt('success') === true, 'success clear');
+                assert(guard.POST_TIMEOUT_MS === 15000, 'timeout should be 15s');
+                var fresh = guard.nextAttemptKeys(null, 'n1', 'p1');
+                assert(fresh.reused === false, 'first attempt is new');
+                assert(fresh.client_uuid === 'n1', 'first uuid');
+            });
+        })
+        .then(function () {
             console.log(passed + ' passed, ' + failed + ' failed');
             process.exit(failed ? 1 : 0);
         });

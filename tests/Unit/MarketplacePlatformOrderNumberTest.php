@@ -64,7 +64,12 @@ class MarketplacePlatformOrderNumberTest extends TestCase
         $this->assertStringContainsString('isMarketplaceChannel', $partial);
         $this->assertStringContainsString('platformOrderNumberLabel', $partial);
 
-        $this->assertStringNotContainsString('window.location.reload()', file_get_contents(public_path('assets/admin/js/munch-pos-app.js')));
+        $posJs = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+        $this->assertStringContainsString("els.staleRefresh.addEventListener('click'", $posJs);
+        $this->assertTrue(
+            strpos($posJs, "els.staleRefresh.addEventListener('click'") < strpos($posJs, 'window.location.reload()'),
+            'reload is only for a stale POS tab'
+        );
         $this->assertFalse(PosOrderTypes::isMarketplace('delivery'));
         $this->assertFalse(PosOrderTypes::isMarketplace('take_away'));
         $this->assertFalse(PosOrderTypes::isMarketplace('dine_in'));

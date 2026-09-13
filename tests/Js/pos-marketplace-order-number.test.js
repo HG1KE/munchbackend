@@ -182,6 +182,7 @@ test('delivery phone must be exactly 10 digits', function () {
     assert(invalidPhone('0712345678') === false, '10 digits valid');
     assert(invalidPhone('0798765432') === false, '10 digits valid');
     assert(invalidPhone('0112345678') === false, '01 numbers valid');
+    assert(invalidPhone('0712 345 678') === false, 'formatted 10 digits valid');
     assert(invalidPhone('071234567') === true, '9 digits invalid');
     assert(invalidPhone('07123456789') === true, '11 digits invalid');
     assert(invalidPhone('07123ABC78') === true, 'letters invalid');
@@ -190,11 +191,13 @@ test('delivery phone must be exactly 10 digits', function () {
     state.cart.orderType = 'delivery';
     state.cart.address = { contact_person_name: 'Jane', contact_person_number: '071234567', address: 'Nyali' };
     assert(validateDeliveryDetails() === 'Enter a valid 10-digit phone number.', '9 digits rejected before submit');
+    state.cart.address.contact_person_number = '0712 345 678';
+    assert(validateDeliveryDetails() === null, 'formatted 10 digits accepted');
     state.cart.address.contact_person_number = '0712345678';
     assert(validateDeliveryDetails() === null, '10 digits accepted');
-    assert(page.indexOf('maxlength="10"') !== -1, 'phone field should advertise 10 digits');
+    assert(page.indexOf('maxlength="16"') !== -1, 'phone field must allow formatted paste');
     assert(page.indexOf('inputmode="numeric"') !== -1, 'numeric keypad');
-    assert(js.indexOf('window.location.reload()') === -1, 'must not reload');
+    assert(js.indexOf('els.staleRefresh') !== -1, 'stale refresh missing');
 });
 
 test('receipts and offline payload keep the platform number', function () {

@@ -51,7 +51,7 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('var syncRunning = false', $sw);
         $this->assertStringContainsString("if (event.tag !== 'munch-pos-sync') return", $sw);
         $this->assertStringContainsString('if (syncRunning) return', $sw);
-        $this->assertStringContainsString('munch-pos-shell-v29', $sw);
+        $this->assertStringContainsString('munch-pos-shell-v30', $sw);
     }
 
     public function test_validation_and_queue_failure_unlock(): void
@@ -114,6 +114,8 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('Enter spam', implode("\n", $output));
         $this->assertStringContainsString('touch spam', implode("\n", $output));
         $this->assertStringContainsString('duplicate UUID', implode("\n", $output));
+        $this->assertStringContainsString('422 unlocks', implode("\n", $output));
+        $this->assertStringContainsString('timeout unlocks', implode("\n", $output));
     }
 
     private function functionBody(string $source, string $needle): string

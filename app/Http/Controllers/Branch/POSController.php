@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Branch;
 
 use App\CentralLogics\CustomerOrderStatusSms;
-use App\CentralLogics\PosDeliveryCustomerSms;
 use App\CentralLogics\Helpers;
+use App\Jobs\SendPosDeliveryCustomerSmsJob;
 use App\Http\Controllers\Controller;
 use App\Model\AddOn;
 use App\Model\Branch;
@@ -18,6 +18,7 @@ use App\Services\BranchPosTodayOrdersService;
 use App\Services\PosOrderCancellationService;
 use App\Services\OrderReadableIdService;
 use App\Support\OrderPlacementTime;
+use App\Support\PosClientVersion;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
 use App\Model\OrderDetail;
@@ -88,6 +89,7 @@ class POSController extends Controller
             'authenticated' => true,
             'csrf' => csrf_token(),
             'catalog_version' => $this->posCatalog->versionForBranch($branchId),
+            'pos_asset_version' => PosClientVersion::ASSET,
         ]);
     }
 
@@ -1296,6 +1298,11 @@ class POSController extends Controller
 
         $address = $request->input('address');
         if (is_array($address) && PosOrderTypes::isDelivery($request->input('order_type'))) {
+            $canonicalPhone = PosOrderTypes::canonicalPosDeliveryPhone($address['contact_person_number'] ?? '');
+            if ($canonicalPhone !== '') {
+                $address['contact_person_number'] = $canonicalPhone;
+                $request->merge(['address' => $address]);
+            }
             $request->session()->put('address', $address);
         } else {
             $request->session()->forget('address');
@@ -1489,8 +1496,11 @@ class POSController extends Controller
 
     private function dispatchPosDeliveryCustomerSms(Order $order): void
     {
-        $fresh = $order->fresh(['customer', 'branch', 'details', 'customer_delivery_address']);
-        PosDeliveryCustomerSms::dispatch($fresh ?: $order);
+        if (! $order->id) {
+            return;
+        }
+
+        SendPosDeliveryCustomerSmsJob::dispatch((int) $order->id)->afterResponse();
     }
 
     private function posRiderName(Request $request, string $orderType): ?string

@@ -231,6 +231,9 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $this->assertNotFalse($sms);
         $this->assertGreaterThan($transaction, $sms);
         $this->assertStringContainsString('dispatchPosDeliveryCustomerSms($existing)', $controller);
+        $this->assertStringContainsString('SendPosDeliveryCustomerSmsJob::dispatch', $controller);
+        $this->assertStringContainsString('afterResponse()', $controller);
+        $this->assertStringNotContainsString('PosDeliveryCustomerSms::dispatch($fresh', $controller);
         $this->assertStringContainsString('customer_pos_delivery_sms_sent_at', file_get_contents(app_path('CentralLogics/PosDeliveryCustomerSms.php')));
 
         $this->assertStringNotContainsString('SMS', $js);

@@ -20,6 +20,7 @@
         syncKind: '',
         placing: false,
         orderSubmitting: false,
+        staleClient: false,
         productMap: {}
     };
     var SubmitGuard = window.MunchPosSubmitGuard || null;
@@ -56,6 +57,8 @@
         opener: null
     };
     var cancelQueuedIds = {};
+    var pendingAttempt = null;
+    var POST_TIMEOUT_MS = (SubmitGuard && SubmitGuard.POST_TIMEOUT_MS) || 15000;
 
     function uuid() {
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -508,6 +511,9 @@
                 els.sync.hidden = true;
             }
         }
+        if (els.staleBanner) {
+            els.staleBanner.hidden = !state.staleClient;
+        }
     }
 
     function renderTabs() {
@@ -907,7 +913,7 @@
             platform_order_number: isMarketplaceOrderType() ? readMarketplaceOrderNumber() : '',
             address: state.cart.orderType === 'delivery' ? {
                 contact_person_name: state.cart.address.contact_person_name || '',
-                contact_person_number: state.cart.address.contact_person_number || '',
+                contact_person_number: canonicalDeliveryPhone(state.cart.address.contact_person_number) || phoneDigits(state.cart.address.contact_person_number),
                 address: state.cart.address.address || '',
                 distance: 0
             } : null,
@@ -929,11 +935,54 @@
     }
 
     function phoneDigits(value) {
-        return String(value || '').replace(/\D+/g, '');
+        return Delivery && Delivery.normalizePosDeliveryPhone
+            ? Delivery.normalizePosDeliveryPhone(value)
+            : String(value || '').replace(/\D+/g, '');
+    }
+
+    function canonicalDeliveryPhone(value) {
+        return Delivery && Delivery.canonicalPosDeliveryPhone
+            ? Delivery.canonicalPosDeliveryPhone(value)
+            : (phoneDigits(value).length === 10 ? phoneDigits(value) : '');
     }
 
     function invalidPhone(value) {
-        return !/^\d{10}$/.test(String(value || '').trim());
+        return String(value == null ? '' : value).replace(/\D+/g, '').length !== 10;
+    }
+
+    function isDeliveryModalOpen() {
+        return !!(els.deliveryModal && !els.deliveryModal.hidden);
+    }
+
+    function isPosClientStale() {
+        return !!state.staleClient;
+    }
+
+    function applyStaleClient(serverVersion) {
+        if (!serverVersion || !CFG.assetVersion) {
+            state.staleClient = false;
+            return;
+        }
+        state.staleClient = String(serverVersion) !== String(CFG.assetVersion);
+        renderStatus();
+    }
+
+    function bindDeliveryPhoneField(input) {
+        if (!input || input.getAttribute('data-phone-bound')) return;
+        input.setAttribute('data-phone-bound', '1');
+        var sync = function () {
+            var digits = phoneDigits(input.value);
+            if (input.value !== digits) input.value = digits;
+        };
+        ['input', 'change', 'blur', 'paste'].forEach(function (evt) {
+            input.addEventListener(evt, function () {
+                if (evt === 'paste') {
+                    setTimeout(sync, 0);
+                    return;
+                }
+                sync();
+            });
+        });
     }
 
     function normalizePlatformOrderNumber(value) {
@@ -962,7 +1011,7 @@
     function validateDeliveryDetails() {
         if (!String(state.cart.address.contact_person_name || '').trim()) return CFG.labels.customerName || 'Customer Name';
         if (!String(state.cart.address.contact_person_number || '').trim()) return CFG.labels.customerPhone || 'Customer Phone';
-        if (invalidPhone(state.cart.address.contact_person_number)) return CFG.labels.invalidPhone || 'Invalid phone number';
+        if (invalidPhone(state.cart.address.contact_person_number)) return CFG.labels.invalidPhone || 'Enter a valid 10-digit phone number.';
         if (!String(state.cart.address.address || '').trim()) return CFG.labels.deliveryAddress || CFG.labels.address;
         return null;
     }
@@ -974,7 +1023,11 @@
         var address = document.getElementById('pos-del-address');
         var fee = document.getElementById('pos-del-fee');
         if (name) state.cart.address.contact_person_name = name.value;
-        if (phone) state.cart.address.contact_person_number = phone.value;
+        if (phone) {
+            var digits = phoneDigits(phone.value);
+            phone.value = digits;
+            state.cart.address.contact_person_number = canonicalDeliveryPhone(digits) || digits;
+        }
         if (address) state.cart.address.address = address.value;
         if (fee) {
             var amount = Number(fee.value);
@@ -998,7 +1051,7 @@
         var address = document.getElementById('pos-del-address');
         var fee = document.getElementById('pos-del-fee');
         if (name) name.value = state.cart.address.contact_person_name || '';
-        if (phone) phone.value = state.cart.address.contact_person_number || '';
+        if (phone) phone.value = phoneDigits(state.cart.address.contact_person_number || '');
         if (address) address.value = state.cart.address.address || '';
         if (fee) fee.value = Number(state.cart.deliveryFee || 0);
         var error = document.getElementById('pos-delivery-error');
@@ -1008,22 +1061,32 @@
         }
     }
 
-    function showDeliveryError(message) {
+    function showDeliveryError(message, title) {
         var error = document.getElementById('pos-delivery-error');
+        var text = title ? (title + (message ? '\n' + message : '')) : (message || '');
         if (!error) {
-            toast(message);
+            toast(text);
             return;
         }
-        error.hidden = false;
-        error.textContent = message;
+        error.hidden = !text;
+        error.textContent = text;
+    }
+
+    function showDeliveryFailure(reason) {
+        showDeliveryError(reason, CFG.labels.orderNotPosted || 'Order not posted');
+        openDeliveryModalKeepFields();
+    }
+
+    function openDeliveryModalKeepFields() {
+        if (els.deliveryModal) els.deliveryModal.hidden = false;
+        syncPosOverlayState();
     }
 
     function openDeliveryModal() {
         fillDeliveryModal();
-        if (els.deliveryModal) els.deliveryModal.hidden = false;
-        syncPosOverlayState();
+        openDeliveryModalKeepFields();
         var name = document.getElementById('pos-del-name');
-        if (name) {
+        if (name && !state.orderSubmitting) {
             requestAnimationFrame(function () {
                 name.focus();
                 try { name.select(); } catch (err) {}
@@ -1031,7 +1094,8 @@
         }
     }
 
-    function closeDeliveryModal() {
+    function closeDeliveryModal(force) {
+        if (state.orderSubmitting && !force) return;
         if (els.deliveryModal) els.deliveryModal.hidden = true;
         syncPosOverlayState();
     }
@@ -1114,6 +1178,7 @@
             return res.json().then(function (json) {
                 if (json && json.csrf) setCsrf(json.csrf);
                 state.authRequired = false;
+                if (json && json.pos_asset_version) applyStaleClient(json.pos_asset_version);
                 if (json && json.catalog_version && json.catalog_version !== (state.catalog.version || '')) {
                     return refreshCatalog(true).then(function () { return true; });
                 }
@@ -1123,6 +1188,13 @@
     }
 
     function postOrder(payload, retried) {
+        var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var timer = 0;
+        if (controller) {
+            timer = setTimeout(function () {
+                try { controller.abort(); } catch (err) {}
+            }, POST_TIMEOUT_MS);
+        }
         return fetch(CFG.urls.order, {
             method: 'POST',
             credentials: 'same-origin',
@@ -1132,8 +1204,10 @@
                 'X-CSRF-TOKEN': csrfToken(),
                 'X-Munch-POS': '1'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller ? controller.signal : undefined
         }).then(function (res) {
+            if (timer) clearTimeout(timer);
             if (res.status === 419 && !retried) {
                 return refreshHeartbeat().then(function (ok) {
                     if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
@@ -1144,6 +1218,14 @@
             return res.json().catch(function () { return {}; }).then(function (body) {
                 return parsePosResponse(res, body);
             });
+        }).catch(function (err) {
+            if (timer) clearTimeout(timer);
+            if (err && err.name === 'AbortError') {
+                var timeoutErr = new Error('timeout');
+                timeoutErr.code = 'timeout';
+                throw timeoutErr;
+            }
+            throw err;
         });
     }
 
@@ -1441,14 +1523,40 @@
         };
     }
 
-    function openSuccessModal(job) {
+    function successOutcomeCopy(job, extras) {
+        extras = extras || {};
+        var number = (job && job.number) || '';
+        if (extras.offline) {
+        return {
+            title: L('queuedSaved', 'Order saved offline'),
+            detail: number
+                    ? (CFG.labels.queuedSavedNumber || 'Order {n} saved offline. It will sync automatically.').replace('{n}', number)
+                    : (CFG.labels.queuedSavedDetail || 'Order saved offline. It will sync automatically.')
+            };
+        }
+        return {
+            title: CFG.labels.placedSuccess || 'Order Placed Successfully',
+            detail: number
+                ? (CFG.labels.postedNumber || 'Order {n} posted successfully.').replace('{n}', number)
+                : (CFG.labels.placed || 'order_placed_successfully')
+        };
+    }
+
+    function openSuccessModal(job, extras) {
         if (successJob) return;
         successJob = job;
+        extras = extras || {};
+        var copy = successOutcomeCopy(job, extras);
         if (!els.successModal) {
-            toast(CFG.labels.placed);
+            toast(copy.detail);
             successJob = null;
             clearCart();
             return;
+        }
+        if (els.successTitle) els.successTitle.textContent = copy.title;
+        if (els.successMessage) {
+            els.successMessage.hidden = !copy.detail;
+            els.successMessage.textContent = copy.detail;
         }
         if (els.successNumber) els.successNumber.textContent = job.number || '';
         if (els.successTotal) els.successTotal.textContent = money(job.grand_total);
@@ -1748,6 +1856,18 @@
         if (!successJob) return;
         printOneTicket(successJob, kind).then(function () {
             applyPrintButtonState(successJob);
+        }).catch(function () {
+            applyPrintButtonState(successJob);
+            var number = successJob.number || '';
+            var message = number
+                ? (CFG.labels.postedPrintFailed || 'Order {n} posted successfully, but receipt printing failed.').replace('{n}', number)
+                : (CFG.labels.printFailedPosted || 'Order posted successfully, but receipt printing failed.');
+            if (els.successMessage) {
+                els.successMessage.hidden = false;
+                els.successMessage.textContent = message;
+            } else {
+                toast(message);
+            }
         });
     }
 
@@ -1892,7 +2012,7 @@
             els.place.innerHTML = '<span class="munch-pos-place__spin" aria-hidden="true"></span>' +
                 escapeHtml(navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...'));
         }
-        if (els.deliveryConfirm) els.deliveryConfirm.disabled = true;
+        setDeliveryFormBusy(true);
         if (els.platformConfirm) els.platformConfirm.disabled = true;
     }
 
@@ -1902,9 +2022,52 @@
             els.place.classList.remove('is-submitting');
             els.place.textContent = L('placeOrder', els.place.getAttribute('data-label') || 'Place Order');
         }
-        if (els.deliveryConfirm) els.deliveryConfirm.disabled = false;
+        setDeliveryFormBusy(false);
         if (els.platformConfirm) els.platformConfirm.disabled = false;
     }
+
+    function deliveryFieldEls() {
+        return [
+            document.getElementById('pos-del-name'),
+            document.getElementById('pos-del-phone'),
+            document.getElementById('pos-del-address'),
+            document.getElementById('pos-del-fee')
+        ];
+    }
+
+    function setDeliveryFormBusy(busy) {
+        deliveryFieldEls().forEach(function (field) {
+            if (field) field.disabled = !!busy;
+        });
+        if (els.deliveryCancel) els.deliveryCancel.disabled = !!busy;
+        if (!els.deliveryConfirm) return;
+        els.deliveryConfirm.disabled = !!busy;
+        if (busy) {
+            els.deliveryConfirm.setAttribute('aria-busy', 'true');
+            els.deliveryConfirm.classList.add('is-submitting');
+            els.deliveryConfirm.innerHTML = '<span class="munch-pos-place__spin" aria-hidden="true"></span>' +
+                escapeHtml(L('postingOrder', 'Posting order...'));
+        } else {
+            els.deliveryConfirm.removeAttribute('aria-busy');
+            els.deliveryConfirm.classList.remove('is-submitting');
+            els.deliveryConfirm.textContent = L('confirmDelivery', els.deliveryConfirm.getAttribute('data-label') || 'Confirm Delivery');
+        }
+    }
+
+    function clearPendingAttempt() {
+        pendingAttempt = null;
+    }
+
+    function buildAttemptPayload() {
+        var keys = SubmitGuard && SubmitGuard.nextAttemptKeys
+            ? SubmitGuard.nextAttemptKeys(pendingAttempt, uuid(), new Date().toISOString())
+            : (pendingAttempt && pendingAttempt.client_uuid
+                ? { client_uuid: pendingAttempt.client_uuid, placed_at: pendingAttempt.placed_at, reused: true }
+                : { client_uuid: uuid(), placed_at: new Date().toISOString(), reused: false });
+        pendingAttempt = { client_uuid: keys.client_uuid, placed_at: keys.placed_at };
+        return buildPayload(keys.client_uuid, keys.placed_at);
+    }
+
 
     function ignoreIfSubmitting(ev) {
         if (!state.orderSubmitting && !successJob) return false;
@@ -1936,6 +2099,11 @@
     function placeOrder(ev) {
         if (state.orderSubmitting) return;
         if (ignoreIfSubmitting(ev)) return;
+        if (isPosClientStale()) {
+            toast(CFG.labels.staleClient || 'New POS version available. Please refresh before placing new orders.');
+            renderStatus();
+            return;
+        }
         if (!beginOrderSubmit()) return;
         var error = validateCart();
         if (error) {
@@ -1958,6 +2126,10 @@
 
     function confirmMarketplaceAndPlace(ev) {
         if (ignoreIfSubmitting(ev)) return;
+        if (isPosClientStale()) {
+            toast(CFG.labels.staleClient || 'New POS version available. Please refresh before placing new orders.');
+            return;
+        }
         if (!beginOrderSubmit()) return;
         var input = document.getElementById('pos-platform-number');
         if (input) input.value = normalizePlatformOrderNumber(input.value);
@@ -1973,82 +2145,128 @@
 
     function confirmDeliveryAndPlace(ev) {
         if (ignoreIfSubmitting(ev)) return;
-        if (!beginOrderSubmit()) return;
-        readDeliveryModal();
-        var error = validateDeliveryDetails();
-        if (error) {
-            endOrderSubmit();
-            showDeliveryError(error);
+        if (isPosClientStale()) {
+            showDeliveryFailure(CFG.labels.staleClient || 'New POS version available. Please refresh before placing new orders.');
             return;
         }
-        persistCart();
-        closeDeliveryModal();
-        renderTotals();
-        submitPlacedOrder();
+        if (!beginOrderSubmit()) return;
+        try {
+            readDeliveryModal();
+            var error = validateDeliveryDetails();
+            if (error) {
+                clearPendingAttempt();
+                endOrderSubmit();
+                showDeliveryError(error, CFG.labels.orderNotPosted || 'Order not posted');
+                return;
+            }
+            persistCart();
+            renderTotals();
+            submitPlacedOrder();
+        } catch (err) {
+            console.error('munch-pos-submit', err && err.message ? err.message : 'confirm');
+            clearPendingAttempt();
+            endOrderSubmit();
+            showDeliveryFailure(CFG.labels.submitFailed || 'Please try again.');
+        }
+    }
+
+    function queuedSuccessLabel(payload, extraToast) {
+        if (extraToast) return extraToast;
+        return CFG.labels.queuedSavedDetail || 'Order saved offline. It will sync automatically.';
     }
 
     function finishQueuedOrder(payload, extraToast) {
         return enqueue(payload).then(function () {
+            clearPendingAttempt();
+            closeDeliveryModal(true);
             openSuccessModal(snapshotPrintJob({
-                order_display_id: extraToast || L('queuedSaved', 'Order saved offline')
-            }, payload));
+                order_display_id: queuedSuccessLabel(payload, extraToast)
+            }, payload), { offline: true });
             clearCart();
             endOrderSubmit();
             requestBackgroundSync();
         }).catch(function () {
             endOrderSubmit();
-            toast(L('queueFailed', 'Could not save offline. Please try again.'));
+            var message = L('queueFailed', 'Could not save offline. Please try again.');
+            if (state.cart.orderType === 'delivery') showDeliveryFailure(message);
+            else toast(message);
         });
     }
 
-    function submitPlacedOrder() {
+    function timeoutMessage() {
+        return CFG.labels.confirmTimeout || 'Unable to confirm order. Please check your connection and try again.';
+    }
+
+    function reportSubmitFailure(reason, keepPending) {
+        if (!keepPending) clearPendingAttempt();
+        endOrderSubmit();
         if (state.cart.orderType === 'delivery') {
-            var deliveryError = validateDeliveryDetails();
-            if (deliveryError) {
-                endOrderSubmit();
-                showDeliveryError(deliveryError);
-                openDeliveryModal();
-                return;
-            }
-        }
-        if (isMarketplaceOrderType()) {
-            var platformError = validateMarketplaceOrderNumber();
-            if (platformError) {
-                endOrderSubmit();
-                showMarketplaceError(platformError);
-                openMarketplaceModal();
-                return;
-            }
-        }
-        var payload = buildPayload(uuid(), new Date().toISOString());
-        if (!navigator.onLine) {
-            finishQueuedOrder(payload);
+            showDeliveryFailure(reason);
             return;
         }
-        renderTotals();
-        postOrder(payload).then(function (body) {
-            if (body && body.success === 1) {
-                openSuccessModal(snapshotPrintJob(body));
-                clearCart();
-                endOrderSubmit();
+        toast((CFG.labels.orderNotPosted || 'Order not posted') + ' — ' + reason);
+    }
+
+    function submitPlacedOrder() {
+        try {
+            if (state.cart.orderType === 'delivery') {
+                var deliveryError = validateDeliveryDetails();
+                if (deliveryError) {
+                    clearPendingAttempt();
+                    endOrderSubmit();
+                    showDeliveryError(deliveryError, CFG.labels.orderNotPosted || 'Order not posted');
+                    openDeliveryModalKeepFields();
+                    return;
+                }
+            }
+            if (isMarketplaceOrderType()) {
+                var platformError = validateMarketplaceOrderNumber();
+                if (platformError) {
+                    clearPendingAttempt();
+                    endOrderSubmit();
+                    showMarketplaceError(platformError);
+                    openMarketplaceModal();
+                    return;
+                }
+            }
+            var payload = buildAttemptPayload();
+            if (!navigator.onLine) {
+                finishQueuedOrder(payload);
                 return;
             }
-            if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
-                state.authRequired = true;
-                return finishQueuedOrder(payload, CFG.labels.sessionExpired);
-            }
-            if (body && body._http === 422) {
-                endOrderSubmit();
-                toast((body && body.message) || CFG.labels.syncFailed);
-                return;
-            }
-            return finishQueuedOrder(payload);
-        }).catch(function () {
-            return finishQueuedOrder(payload);
-        }).then(function () {
-            renderStatus();
-            renderQueue();
-        });
+            renderTotals();
+            postOrder(payload).then(function (body) {
+                if (body && body.success === 1) {
+                    clearPendingAttempt();
+                    closeDeliveryModal(true);
+                    openSuccessModal(snapshotPrintJob(body), { offline: false });
+                    clearCart();
+                    endOrderSubmit();
+                    return;
+                }
+                if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
+                    state.authRequired = true;
+                    return finishQueuedOrder(payload, CFG.labels.sessionExpired);
+                }
+                if (body && body._http === 422) {
+                    reportSubmitFailure((body && body.message) || CFG.labels.validationFailed || CFG.labels.syncFailed, false);
+                    return;
+                }
+                return finishQueuedOrder(payload);
+            }).catch(function (err) {
+                if (err && err.code === 'timeout') {
+                    reportSubmitFailure(timeoutMessage(), true);
+                    return;
+                }
+                return finishQueuedOrder(payload);
+            }).then(function () {
+                renderStatus();
+                renderQueue();
+            });
+        } catch (err) {
+            console.error('munch-pos-submit', err && err.message ? err.message : 'submit');
+            reportSubmitFailure(CFG.labels.submitFailed || 'Please try again.', false);
+        }
     }
 
     function refreshCatalog(force) {
@@ -2337,7 +2555,11 @@
         els.place = document.getElementById('pos-place');
         els.clear = document.getElementById('pos-clear');
         els.toast = document.getElementById('pos-toast');
+        els.staleBanner = document.getElementById('pos-stale-banner');
+        els.staleRefresh = document.getElementById('pos-stale-refresh');
         els.successModal = document.getElementById('pos-success-modal');
+        els.successTitle = document.getElementById('pos-success-title');
+        els.successMessage = document.getElementById('pos-success-message');
         els.successNumber = document.getElementById('pos-success-number');
         els.successTotal = document.getElementById('pos-success-total');
         els.successPay = document.getElementById('pos-success-pay');
@@ -2437,10 +2659,21 @@
             scheduleRender();
         });
         bindSubmitControl(els.deliveryConfirm, confirmDeliveryAndPlace);
-        if (els.deliveryCancel) els.deliveryCancel.addEventListener('click', closeDeliveryModal);
+        if (els.deliveryCancel) {
+            els.deliveryCancel.addEventListener('click', function () {
+                if (state.orderSubmitting) return;
+                closeDeliveryModal();
+            });
+        }
         if (els.deliveryModal) {
             els.deliveryModal.addEventListener('click', function (ev) {
+                if (state.orderSubmitting) return;
                 if (ev.target.id === 'pos-delivery-modal') closeDeliveryModal();
+            });
+        }
+        if (els.staleRefresh) {
+            els.staleRefresh.addEventListener('click', function () {
+                window.location.reload();
             });
         }
         bindSubmitControl(els.platformConfirm, confirmMarketplaceAndPlace);
@@ -2462,12 +2695,7 @@
             });
         }
         var deliveryPhone = document.getElementById('pos-del-phone');
-        if (deliveryPhone) {
-            deliveryPhone.addEventListener('input', function () {
-                var next = String(this.value || '').replace(/\D+/g, '');
-                if (next !== this.value) this.value = next;
-            });
-        }
+        if (deliveryPhone) bindDeliveryPhoneField(deliveryPhone);
         els.discount.addEventListener('input', function () {
             state.cart.discount = Number(els.discount.value || 0);
             persistCart();
@@ -2688,12 +2916,21 @@
                 idbPut('catalog', CFG.catalog, 'latest');
             }
             if (results[1] && Array.isArray(results[1].lines)) {
+                var keepLiveDelivery = isDeliveryModalOpen() || state.orderSubmitting;
+                var liveAddress = keepLiveDelivery ? state.cart.address : null;
+                var liveFee = keepLiveDelivery ? state.cart.deliveryFee : null;
                 state.cart = Delivery
                     ? Delivery.hydrateCart(state.cart, results[1])
                     : Object.assign(state.cart, results[1]);
                 if (!state.cart.address) state.cart.address = {};
+                if (keepLiveDelivery && liveAddress) {
+                    state.cart.address = liveAddress;
+                    state.cart.deliveryFee = liveFee;
+                }
             }
-            resetDelivery();
+            if (!isDeliveryModalOpen() && !state.orderSubmitting) {
+                resetDelivery();
+            }
             persistCart();
             return refreshQueueCount();
         }).then(function () {

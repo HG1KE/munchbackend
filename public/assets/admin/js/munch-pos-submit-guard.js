@@ -8,6 +8,31 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    var POST_TIMEOUT_MS = 15000;
+
+    function shouldReuseClientUuid(reason) {
+        return reason === 'timeout' || reason === 'network' || reason === 'http_5xx' || reason === 'malformed';
+    }
+
+    function shouldClearAttempt(reason) {
+        return reason === 'success' || reason === 'queued' || reason === 'validation' || reason === 'http_422' || reason === 'sync-error-before-request';
+    }
+
+    function nextAttemptKeys(existing, freshUuid, freshPlacedAt) {
+        if (existing && existing.client_uuid && existing.placed_at) {
+            return {
+                client_uuid: String(existing.client_uuid),
+                placed_at: String(existing.placed_at),
+                reused: true
+            };
+        }
+        return {
+            client_uuid: String(freshUuid || ''),
+            placed_at: String(freshPlacedAt || ''),
+            reused: false
+        };
+    }
+
     function tryAcquire(state) {
         if (!state || state.orderSubmitting || state.successOpen) return false;
         state.orderSubmitting = true;
@@ -99,6 +124,14 @@
                 end('validation');
                 return { ignored: false, validation: true };
             }
+            if (options.http422) {
+                end('http_422');
+                return { ignored: false, rejected: true, queued: false, modalKeptOpen: true };
+            }
+            if (options.syncThrow) {
+                end('sync-error-before-request');
+                return { ignored: false, error: true, queued: false };
+            }
             var payload = options.payload || { client_uuid: options.uuid || 'u1', placed_at: 't' };
             if (options.offline || options.forceQueue) {
                 return writeQueue(payload, options.queueWriteFails).then(function (result) {
@@ -106,6 +139,15 @@
                 });
             }
             posts += 1;
+            if (options.timeout) {
+                end('timeout');
+                return Promise.resolve({
+                    timedOut: true,
+                    reuseUuid: shouldReuseClientUuid('timeout'),
+                    queued: false,
+                    unlocked: true
+                });
+            }
             if (options.onlineSuccess) {
                 showModalOnce();
                 end('online-success');
@@ -169,10 +211,14 @@
     }
 
     return {
+        POST_TIMEOUT_MS: POST_TIMEOUT_MS,
         tryAcquire: tryAcquire,
         release: release,
         enqueueUnique: enqueueUnique,
         createSyncOnce: createSyncOnce,
-        createSubmitFlow: createSubmitFlow
+        createSubmitFlow: createSubmitFlow,
+        shouldReuseClientUuid: shouldReuseClientUuid,
+        shouldClearAttempt: shouldClearAttempt,
+        nextAttemptKeys: nextAttemptKeys
     };
 }));

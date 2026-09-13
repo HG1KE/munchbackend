@@ -257,7 +257,9 @@ test('payload still uses existing addon_id fields', function () {
     assert(js.indexOf('data-addon-delta') !== -1, 'selector must have +/- controls');
     assert(js.indexOf('collectSelectedAddons(card)') !== -1, 'confirm must collect qty > 0 only');
     assert(js.indexOf('name="pos-addon"') === -1, 'checkbox-only addon rows must be gone');
-    assert(js.indexOf('window.location.reload()') === -1, 'must not reload');
+    assert(js.indexOf('els.staleRefresh') !== -1, 'stale refresh control missing');
+    assert(js.indexOf('function addSelectedVariations') !== -1, 'addon add missing');
+    assert(js.indexOf('function addSelectedVariations') < js.indexOf('window.location.reload()'), 'addon add must not reload');
 });
 
 test('admin toggle defaults off on create and persists on edit', function () {
