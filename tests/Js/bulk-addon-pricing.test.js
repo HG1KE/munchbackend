@@ -75,17 +75,22 @@ function makeUi() {
         products: [
             {
                 id: 10,
-                name: '4 Piece Wings',
+                name: 'Chicken Burger',
                 variations: [
-                    { id: 'Wings%20Type::BBQ', group: 'Wings Type', label: 'BBQ', option_price: 0, channel_prices: { uber: 250, glovo: 260, bolt_food: 270 } },
-                    { id: 'Wings%20Type::Sweet%20Chilli', group: 'Wings Type', label: 'Sweet Chilli', option_price: 0, channel_prices: { uber: 350, glovo: 360, bolt_food: 370 } }
+                    { id: 'Size::Small', group: 'Size', label: 'Small', option_price: 0, channel_prices: { uber: 550, glovo: 560, bolt_food: 570 } },
+                    { id: 'Size::Large', group: 'Size', label: 'Large', option_price: 200, channel_prices: { uber: 750, glovo: 760, bolt_food: 770 } }
+                ],
+                addons: [
+                    { id: 8, name: 'Extra Cheese', price: 100, channel_prices: { uber: 150, glovo: 160, bolt_food: 170 } },
+                    { id: 9, name: 'Extra Sauce', price: 40, channel_prices: { uber: 50, glovo: 55, bolt_food: 60 } }
                 ]
             },
-            { id: 11, name: 'Fries', variations: [] }
+            { id: 11, name: 'Fries', variations: [], addons: [] }
         ],
         selectedProducts: { 10: true },
         channels: { pos: false, uber: true, glovo: true, bolt_food: true },
         variationValues: {},
+        addonValues: {},
         productValues: {},
         currentRows: []
     };
@@ -106,13 +111,18 @@ function makeUi() {
         'selectedChannels',
         'selectedMarketplaceChannels',
         'variationValueKey',
+        'addonValueKey',
         'productVariationOptions',
         'productAddonOptions',
         'variationOptionChannelPrice',
         'variationCurrentAmount',
         'variationCurrentPrice',
         'findVariationOption',
+        'addonOptionChannelPrice',
+        'addonCurrentAmount',
+        'findAddonOption',
         'renderVariationEditors',
+        'renderAddonEditors',
         'renderProductListItem',
         'usesPerProductPrices',
         'productCurrentPriceLabel'
@@ -130,58 +140,69 @@ function makeUi() {
         'escapeHtml',
         'escapeAttr',
         'money',
-        source + '\nreturn { renderVariationEditors: renderVariationEditors, renderProductListItem: renderProductListItem, productVariationOptions: productVariationOptions, usesPerProductPrices: usesPerProductPrices };'
+        source + '\nreturn { renderVariationEditors: renderVariationEditors, renderAddonEditors: renderAddonEditors, renderProductListItem: renderProductListItem, productAddonOptions: productAddonOptions, usesPerProductPrices: usesPerProductPrices };'
     )(bulk, CHANNELS, MARKETPLACE_CHANNELS, CHANNEL_LABELS, CFG, els, escapeHtml, escapeAttr, money);
 
     return {
         bulk: bulk,
         renderVariationEditors: api.renderVariationEditors,
+        renderAddonEditors: api.renderAddonEditors,
         renderProductListItem: api.renderProductListItem,
-        productVariationOptions: api.productVariationOptions,
+        productAddonOptions: api.productAddonOptions,
         usesPerProductPrices: api.usesPerProductPrices
     };
 }
 
-test('variation rows render under the product', function () {
+test('addon rows render in a separate ADDON PRICES section', function () {
     var ui = makeUi();
     var item = ui.renderProductListItem(ui.bulk.products[0]);
-    assert(item.indexOf('data-bulk-product-item="10"') !== -1, 'product item missing');
-    assert(item.indexOf('data-bulk-product-variations="10"') !== -1, 'variation mount missing');
-    assert(item.indexOf('2 variations') !== -1, 'variation badge missing');
+    assert(item.indexOf('2 addons') !== -1, 'addon badge missing');
+    assert(item.indexOf('2 variations') !== -1, 'variation badge should remain');
 
-    var table = ui.renderVariationEditors(ui.bulk.products[0]);
-    assert(table.indexOf('munch-pricing-variation-table') !== -1, 'variation table missing');
-    assert(table.indexOf('BBQ') !== -1, 'BBQ row missing');
-    assert(table.indexOf('Sweet Chilli') !== -1, 'Sweet Chilli row missing');
-    assert(table.indexOf('Variation') !== -1, 'Variation column missing');
+    var table = ui.renderAddonEditors(ui.bulk.products[0]);
+    assert(table.indexOf('Addon prices') !== -1, 'Addon prices label missing');
+    assert(table.indexOf('Extra Cheese') !== -1, 'Extra Cheese row missing');
+    assert(table.indexOf('Extra Sauce') !== -1, 'Extra Sauce row missing');
+    assert(table.indexOf('munch-pricing-addon-table') !== -1, 'addon table missing');
+    assert(table.indexOf('Variation level') === -1, 'addon table must not mix variation rows');
 });
 
-test('uber variation price field renders', function () {
+test('variations and addons stay in separate sections', function () {
     var ui = makeUi();
-    var table = ui.renderVariationEditors(ui.bulk.products[0]);
+    var variations = ui.renderVariationEditors(ui.bulk.products[0]);
+    var addons = ui.renderAddonEditors(ui.bulk.products[0]);
+    assert(variations.indexOf('Small') !== -1, 'Small variation missing');
+    assert(variations.indexOf('Extra Cheese') === -1, 'addon must not appear in variation table');
+    assert(addons.indexOf('Small') === -1, 'variation must not appear in addon table');
+});
+
+test('uber addon price field renders', function () {
+    var ui = makeUi();
+    var table = ui.renderAddonEditors(ui.bulk.products[0]);
     assert(table.indexOf('>Uber<') !== -1, 'Uber header missing');
     assert(table.indexOf('data-channel="uber"') !== -1, 'Uber input missing');
+    assert(table.indexOf('data-bulk-addon-value') !== -1, 'addon input missing');
 });
 
-test('glovo variation price field renders', function () {
+test('glovo addon price field renders', function () {
     var ui = makeUi();
-    var table = ui.renderVariationEditors(ui.bulk.products[0]);
+    var table = ui.renderAddonEditors(ui.bulk.products[0]);
     assert(table.indexOf('>Glovo<') !== -1, 'Glovo header missing');
     assert(table.indexOf('data-channel="glovo"') !== -1, 'Glovo input missing');
 });
 
-test('bolt food variation price field renders', function () {
+test('bolt food addon price field renders', function () {
     var ui = makeUi();
-    var table = ui.renderVariationEditors(ui.bulk.products[0]);
+    var table = ui.renderAddonEditors(ui.bulk.products[0]);
     assert(table.indexOf('>Bolt Food<') !== -1, 'Bolt Food header missing');
     assert(table.indexOf('data-channel="bolt_food"') !== -1, 'Bolt Food input missing');
 });
 
-test('channel selection controls marketplace columns', function () {
+test('channel selection controls addon marketplace columns', function () {
     var ui = makeUi();
     ui.bulk.channels.glovo = false;
     ui.bulk.channels.bolt_food = false;
-    var table = ui.renderVariationEditors(ui.bulk.products[0]);
+    var table = ui.renderAddonEditors(ui.bulk.products[0]);
     assert(table.indexOf('>Uber<') !== -1, 'Uber should remain');
     assert(table.indexOf('>Glovo<') === -1, 'Glovo should be hidden');
     assert(table.indexOf('>Bolt Food<') === -1, 'Bolt Food should be hidden');
@@ -189,30 +210,25 @@ test('channel selection controls marketplace columns', function () {
     assert(table.indexOf('data-channel="glovo"') === -1, 'Glovo input should be hidden');
 
     ui.bulk.channels.uber = false;
-    ui.bulk.channels.glovo = false;
-    ui.bulk.channels.bolt_food = false;
-    var hint = ui.renderVariationEditors(ui.bulk.products[0]);
+    var hint = ui.renderAddonEditors(ui.bulk.products[0]);
     assert(hint.indexOf('Select Uber, Glovo or Bolt Food') !== -1, 'missing channel hint');
-    assert(hint.indexOf('munch-pricing-variation-table') === -1, 'table should hide without marketplace channels');
+    assert(hint.indexOf('munch-pricing-addon-table') === -1, 'table should hide without marketplace channels');
 });
 
-test('products without variations keep the product editor', function () {
+test('products without addons do not show an empty addon section', function () {
     var ui = makeUi();
-    assert(ui.productVariationOptions(11).length === 0, 'plain product should have no variations');
-    assert(ui.renderVariationEditors(ui.bulk.products[1]) === '', 'plain product should not render a variation table');
+    assert(ui.productAddonOptions(11).length === 0, 'plain product should have no addons');
+    assert(ui.renderAddonEditors(ui.bulk.products[1]) === '', 'plain product should not render an addon table');
     var item = ui.renderProductListItem(ui.bulk.products[1]);
-    assert(item.indexOf('variation-badge') === -1, 'plain product should not show a variation badge');
-    assert(item.indexOf('data-bulk-product-variations="11"') !== -1, 'plain product still has a mount');
-    assert(js.indexOf('data-bulk-product-value') !== -1, 'product-level New Price remains');
-    assert(ui.usesPerProductPrices() === true, 'default Set Exact mode keeps per-product prices');
+    assert(item.indexOf('addon-badge') === -1, 'plain product should not show an addon badge');
 });
 
-test('search payload channel_prices become visible placeholders', function () {
+test('search payload channel_prices become visible addon placeholders', function () {
     var ui = makeUi();
-    var table = ui.renderVariationEditors(ui.bulk.products[0]);
-    assert(table.indexOf('placeholder="250"') !== -1, 'Uber current price should be the placeholder');
-    assert(table.indexOf('placeholder="260"') !== -1, 'Glovo current price should be the placeholder');
-    assert(table.indexOf('placeholder="270"') !== -1, 'Bolt Food current price should be the placeholder');
+    var table = ui.renderAddonEditors(ui.bulk.products[0]);
+    assert(table.indexOf('placeholder="150"') !== -1, 'Uber current price should be the placeholder');
+    assert(table.indexOf('placeholder="160"') !== -1, 'Glovo current price should be the placeholder');
+    assert(table.indexOf('placeholder="170"') !== -1, 'Bolt Food current price should be the placeholder');
 });
 
 if (failed) {

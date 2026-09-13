@@ -354,5 +354,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.1"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.1" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.2" defer></script>
 @endpush

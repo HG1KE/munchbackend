@@ -681,6 +681,30 @@
     margin-bottom: 0.2rem;
 }
 
+.munch-pricing-addons {
+    margin-top: 0.85rem;
+}
+
+.munch-pricing-addon-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: #eef6ff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #1d4f91;
+}
+
+.munch-pricing-addon-name {
+    display: block;
+    font-weight: 700;
+}
+
+.munch-pricing-addon-table tbody th {
+    padding-top: 0.7rem;
+}
+
 body.munch-pricing-open {
     overflow: hidden;
 }

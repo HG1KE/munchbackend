@@ -18,6 +18,7 @@ use App\Services\BranchPosTodayOrdersService;
 use App\Services\PosOrderCancellationService;
 use App\Services\PosOrderEditService;
 use App\Services\OrderReadableIdService;
+use App\Support\AddonChannelPricing;
 use App\Support\OrderPlacementTime;
 use App\Support\PosClientVersion;
 use App\Support\PosOrderTypes;
@@ -1567,7 +1568,7 @@ class POSController extends Controller
         $data['addon_price'] = 0;
         $data['addon_total_tax'] = 0;
         $data['discount_data'] = $discountData;
-        $this->attachPosAddons($data, $product, $input);
+        $this->attachPosAddons($data, $product, $input, $orderType);
 
         return ['ok' => true, 'data' => $data];
     }
@@ -1579,7 +1580,7 @@ class POSController extends Controller
      * @param  array<string, mixed>  $data
      * @param  array<string, mixed>  $input
      */
-    private function attachPosAddons(array &$data, Product $product, array $input): void
+    private function attachPosAddons(array &$data, Product $product, array $input, string $orderType = PosOrderTypes::TAKE_AWAY): void
     {
         if (! $product->allowsAddonOnPos()) {
             return;
@@ -1595,16 +1596,26 @@ class POSController extends Controller
             return;
         }
 
-        $qtyMap = is_array($input['addon_quantities'] ?? null) ? $input['addon_quantities'] : [];
-        $addonPrice = 0.0;
-        $addonTotalTax = 0.0;
-
+        $ids = [];
         foreach ($requested as $rawId) {
             $id = (int) $rawId;
             if ($id < 1 || ! in_array($id, $allowed, true)) {
                 continue;
             }
-            $addon = AddOn::query()->find($id);
+            $ids[] = $id;
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        $addons = AddOn::query()->whereIn('id', $ids)->get()->keyBy('id');
+        $unitPrices = AddonChannelPricing::unitPrices($addons->all(), $orderType);
+        $qtyMap = is_array($input['addon_quantities'] ?? null) ? $input['addon_quantities'] : [];
+        $addonPrice = 0.0;
+        $addonTotalTax = 0.0;
+
+        foreach ($ids as $id) {
+            $addon = $addons->get($id);
             if (! $addon) {
                 continue;
             }
@@ -1612,7 +1623,7 @@ class POSController extends Controller
             if ($qty < 1) {
                 $qty = 1;
             }
-            $price = (float) $addon->price;
+            $price = $unitPrices[$id] ?? (float) $addon->price;
             $tax = ((float) ($addon->tax ?? 0) / 100) * $price;
             $data['add_ons'][] = $id;
             $data['add_on_qtys'][] = $qty;

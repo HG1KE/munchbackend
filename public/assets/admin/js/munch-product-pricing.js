@@ -49,6 +49,7 @@
         fillAll: '',
         productValues: {},
         variationValues: {},
+        addonValues: {},
         channelOps: {
             pos: { action: 'set_exact', value: '' },
             uber: { action: 'set_exact', value: '' },
@@ -357,6 +358,7 @@
         bulk.fillAll = '';
         bulk.productValues = {};
         bulk.variationValues = {};
+        bulk.addonValues = {};
         bulk.pricesLoading = false;
         bulkProductSeq += 1;
         bulkPriceSeq += 1;
@@ -503,13 +505,18 @@
     function renderProductListItem(product) {
         var selected = !!bulk.selectedProducts[product.id];
         var options = productVariationOptions(product.id);
-        var badge = options.length
-            ? '<span class="munch-pricing-variation-badge">' + options.length + ' variation' + (options.length === 1 ? '' : 's') + '</span>'
-            : '';
+        var addons = productAddonOptions(product.id);
+        var badges = '';
+        if (options.length) {
+            badges += '<span class="munch-pricing-variation-badge">' + options.length + ' variation' + (options.length === 1 ? '' : 's') + '</span>';
+        }
+        if (addons.length) {
+            badges += '<span class="munch-pricing-addon-badge">' + addons.length + ' addon' + (addons.length === 1 ? '' : 's') + '</span>';
+        }
         return '<div class="munch-pricing-product-item' + (selected ? ' is-selected' : '') + '" data-bulk-product-item="' + product.id + '">' +
             '<label><input type="checkbox" data-bulk-product="' + product.id + '"' + (selected ? ' checked' : '') + '> ' +
             escapeHtml(product.name) + ' <span class="text-muted" data-bulk-product-price="' + product.id + '">' +
-            escapeHtml(productCurrentPriceLabel(product)) + '</span>' + badge + '</label>' +
+            escapeHtml(productCurrentPriceLabel(product)) + '</span>' + badges + '</label>' +
             '<div class="munch-pricing-product-variations" data-bulk-product-variations="' + product.id + '"></div></div>';
     }
 
@@ -582,7 +589,8 @@
                         : money(row.current_price) + ' → ' + money(row.new_price);
                     return '<div class="munch-pricing-preview-line">' +
                         '<span class="munch-pricing-preview-channel">' + escapeHtml(CHANNEL_LABELS[row.channel] || row.channel) +
-                        (row.variation_name ? ' · ' + escapeHtml(row.variation_name) : '') + '</span>' +
+                        (row.variation_name ? ' · ' + escapeHtml(row.variation_name) : '') +
+                        (row.addon_name ? ' · Addon · ' + escapeHtml(row.addon_name) : '') + '</span>' +
                         '<span class="' + cls + '">' + amount + '</span></div>';
                 }
                 return '<div class="munch-pricing-preview-line">' +
@@ -650,6 +658,51 @@
         return out;
     }
 
+    function addonValueKey(productId, addonId, channel) {
+        return productId + '|' + addonId + '|' + channel;
+    }
+
+    function addonValuesPayload() {
+        var out = [];
+        selectedIds(bulk.selectedProducts).forEach(function (productId) {
+            selectedMarketplaceChannels().forEach(function (channel) {
+                (productAddonOptions(productId) || []).forEach(function (addon) {
+                    var key = addonValueKey(productId, addon.id, channel);
+                    var raw = bulk.addonValues[key];
+                    if (raw == null || String(raw).trim() === '') return;
+                    var value = Number(raw);
+                    if (isFinite(value) && value > 0) {
+                        out.push({
+                            product_id: productId,
+                            addon_id: addon.id,
+                            channel: channel,
+                            value: value
+                        });
+                    }
+                });
+            });
+        });
+        return out;
+    }
+
+    function productAddonOptions(productId) {
+        var product = (bulk.products || []).find(function (p) { return Number(p.id) === Number(productId); });
+        if (product && product.addons && product.addons.length) return product.addons;
+        var seen = {};
+        var options = [];
+        (bulk.currentRows || []).forEach(function (row) {
+            if (Number(row.product_id) !== Number(productId) || !row.addon_id || seen[row.addon_id]) return;
+            seen[row.addon_id] = true;
+            options.push({
+                id: row.addon_id,
+                name: row.addon_name || ('Addon ' + row.addon_id),
+                price: row.current_price,
+                channel_prices: {}
+            });
+        });
+        return options;
+    }
+
     function productVariationOptions(productId) {
         var product = (bulk.products || []).find(function (p) { return Number(p.id) === Number(productId); });
         if (product && product.variations && product.variations.length) return product.variations;
@@ -696,7 +749,7 @@
         els.modalBody.querySelectorAll('.munch-pricing-product-editor.is-invalid').forEach(function (el) {
             el.classList.remove('is-invalid');
         });
-        els.modalBody.querySelectorAll('[data-bulk-product-value].is-invalid, [data-bulk-variation-value].is-invalid, #bulk-value.is-invalid').forEach(function (el) {
+        els.modalBody.querySelectorAll('[data-bulk-product-value].is-invalid, [data-bulk-variation-value].is-invalid, [data-bulk-addon-value].is-invalid, #bulk-value.is-invalid').forEach(function (el) {
             el.classList.remove('is-invalid');
         });
     }
@@ -743,7 +796,7 @@
                     markProductEditorInvalid(id);
                 }
             });
-            els.modalBody.querySelectorAll('[data-bulk-variation-value]').forEach(function (input) {
+            els.modalBody.querySelectorAll('[data-bulk-variation-value], [data-bulk-addon-value]').forEach(function (input) {
                 var raw = input.value;
                 if (raw == null || String(raw).trim() === '') return;
                 var value = Number(raw);
@@ -757,7 +810,7 @@
             if (invalid) {
                 return { message: 'Enter a valid new price for the highlighted products' };
             }
-            if (!Object.keys(productValuesPayload()).length && !variationValuesPayload().length) {
+            if (!Object.keys(productValuesPayload()).length && !variationValuesPayload().length && !addonValuesPayload().length) {
                 return { message: 'No price changes to apply.' };
             }
             return null;
@@ -819,7 +872,7 @@
                 return;
             }
             if (item) item.classList.add('is-selected');
-            mount.innerHTML = renderVariationEditors(product);
+            mount.innerHTML = renderVariationEditors(product) + renderAddonEditors(product);
         });
     }
 
@@ -886,6 +939,65 @@
             '</tr></thead><tbody>' + body + '</tbody></table></div></div>';
     }
 
+    function addonOptionChannelPrice(addon, channel) {
+        var prices = (addon && (addon.channel_prices || addon.channelPrices)) || {};
+        if (prices[channel] == null || prices[channel] === '') return null;
+        var amount = Number(prices[channel]);
+        return isFinite(amount) ? amount : null;
+    }
+
+    function addonCurrentAmount(productId, addonId, channel, addon) {
+        var match = (bulk.currentRows || []).find(function (row) {
+            return Number(row.product_id) === Number(productId)
+                && Number(row.addon_id) === Number(addonId)
+                && row.channel === channel;
+        });
+        if (match && match.current_price != null && match.current_price !== '') {
+            return Number(match.current_price);
+        }
+        var override = addonOptionChannelPrice(addon, channel);
+        if (override != null) return override;
+        var master = addon && addon.price != null ? Number(addon.price) : null;
+        return master != null && isFinite(master) ? master : null;
+    }
+
+    function findAddonOption(productId, addonId) {
+        return (productAddonOptions(productId) || []).find(function (addon) {
+            return String(addon.id) === String(addonId);
+        }) || null;
+    }
+
+    function renderAddonEditors(product) {
+        var addons = productAddonOptions(product.id);
+        if (!addons.length) return '';
+        var channels = selectedMarketplaceChannels();
+        if (!channels.length) {
+            return '<div class="munch-pricing-addons"><p class="munch-pricing-level-label">Addon prices</p>' +
+                '<p class="text-muted mb-0">Select Uber, Glovo or Bolt Food to edit addon marketplace prices.</p></div>';
+        }
+        var head = '<th>Addon</th>' + channels.map(function (ch) {
+            return '<th>' + escapeHtml(CHANNEL_LABELS[ch] || ch) + '</th>';
+        }).join('');
+        var body = addons.map(function (addon) {
+            var cells = channels.map(function (ch) {
+                var key = addonValueKey(product.id, addon.id, ch);
+                var currentAmount = addonCurrentAmount(product.id, addon.id, ch, addon);
+                var current = currentAmount == null || !isFinite(currentAmount) ? '—' : money(currentAmount);
+                var placeholder = currentAmount == null || !isFinite(currentAmount) ? '—' : String(currentAmount);
+                return '<td><span class="munch-pricing-variation-current">' + escapeHtml(current) + '</span>' +
+                    '<input class="form-control" data-bulk-addon-value="' + escapeAttr(key) + '" data-product-id="' + product.id +
+                    '" data-addon-id="' + escapeAttr(addon.id) + '" data-channel="' + ch +
+                    '" type="number" min="0" step="0.01" value="' +
+                    escapeAttr(bulk.addonValues[key] != null ? bulk.addonValues[key] : '') +
+                    '" placeholder="' + escapeAttr(placeholder) + '"></td>';
+            }).join('');
+            return '<tr><th><span class="munch-pricing-addon-name">' + escapeHtml(addon.name || ('Addon ' + addon.id)) + '</span></th>' + cells + '</tr>';
+        }).join('');
+        return '<div class="munch-pricing-addons"><p class="munch-pricing-level-label">Addon prices</p>' +
+            '<div class="table-responsive"><table class="munch-pricing-variation-table munch-pricing-addon-table"><thead><tr>' + head +
+            '</tr></thead><tbody>' + body + '</tbody></table></div></div>';
+    }
+
     function fillAllSelectedProductValues() {
         selectedIds(bulk.selectedProducts).forEach(function (id) {
             bulk.productValues[id] = bulk.fillAll;
@@ -899,6 +1011,7 @@
         var channels = selectedChannels(bulk.channels);
         var values = usesPerProductPrices() ? productValuesPayload() : {};
         var variations = usesPerProductPrices() ? variationValuesPayload() : [];
+        var addons = usesPerProductPrices() ? addonValuesPayload() : [];
         var productIds = selectedIds(bulk.selectedProducts);
         if (!productIds.length && Object.keys(values).length) {
             productIds = Object.keys(values).map(Number);
@@ -909,6 +1022,7 @@
         };
         if (Object.keys(values).length) body.product_values = values;
         if (variations.length) body.variation_values = variations;
+        if (addons.length) body.addon_values = addons;
         if (usesPerProductPrices() && !Object.keys(values).length) {
             return body;
         }
@@ -938,11 +1052,11 @@
         var url;
         if (bulk.tab === 'price') {
             body = bulkPricePayload();
-            if (usesPerProductPrices() && !Object.keys(productValuesPayload()).length && !variationValuesPayload().length) {
-                return showToast(false, 'Enter a new price for at least one product or variation');
+            if (usesPerProductPrices() && !Object.keys(productValuesPayload()).length && !variationValuesPayload().length && !addonValuesPayload().length) {
+                return showToast(false, 'Enter a new price for at least one product, variation or addon');
             }
             if (!body.product_ids.length) return showToast(false, 'Choose products first');
-            if (!(body.channels || []).length && !(body.operations || []).length && !(body.variation_values || []).length) {
+            if (!(body.channels || []).length && !(body.operations || []).length && !(body.variation_values || []).length && !(body.addon_values || []).length) {
                 return showToast(false, 'Choose at least one channel');
             }
             if (!body.branch_ids.length) return showToast(false, 'Choose branches first');
@@ -1030,6 +1144,7 @@
         bulk.fillAll = '';
         bulk.productValues = {};
         bulk.variationValues = {};
+        bulk.addonValues = {};
         bulk.preview = null;
         CHANNELS.forEach(function (ch) {
             if (bulk.channelOps[ch]) bulk.channelOps[ch].value = '';
@@ -1295,8 +1410,15 @@
             var variationEditor = ev.target.closest('.munch-pricing-product-editor, .munch-pricing-product-item');
             if (variationEditor) variationEditor.classList.remove('is-invalid');
         }
+        var addonValue = ev.target.getAttribute && ev.target.getAttribute('data-bulk-addon-value');
+        if (addonValue) {
+            bulk.addonValues[addonValue] = ev.target.value;
+            ev.target.classList.remove('is-invalid');
+            var addonEditor = ev.target.closest('.munch-pricing-product-editor, .munch-pricing-product-item');
+            if (addonEditor) addonEditor.classList.remove('is-invalid');
+        }
         if (ev.target.id === 'bulk-value') ev.target.classList.remove('is-invalid');
-        if (ev.target.id === 'bulk-value' || opValue || productValue || variationValue) {
+        if (ev.target.id === 'bulk-value' || opValue || productValue || variationValue || addonValue) {
             bulk.preview = null;
             schedulePriceRefresh();
         }
@@ -1565,6 +1687,10 @@
             var productId = key.split('|')[0];
             if (!visible[productId] || !bulk.selectedProducts[productId]) delete bulk.variationValues[key];
         });
+        Object.keys(bulk.addonValues).forEach(function (key) {
+            var productId = key.split('|')[0];
+            if (!visible[productId] || !bulk.selectedProducts[productId]) delete bulk.addonValues[key];
+        });
     }
 
     function priceProductIds() {
@@ -1610,9 +1736,9 @@
             });
         });
         if (els.modalBody && selectedProductModels().some(function (p) {
-            return productVariationOptions(p.id).length;
+            return productVariationOptions(p.id).length || productAddonOptions(p.id).length;
         })) {
-            if (!els.modalBody.querySelector('.munch-pricing-variation-table')) {
+            if (!els.modalBody.querySelector('.munch-pricing-variation-table') && !els.modalBody.querySelector('.munch-pricing-addon-table')) {
                 renderInlineVariationEditors();
             }
         }
@@ -1629,6 +1755,24 @@
                     input.getAttribute('data-variation-id'),
                     input.getAttribute('data-channel'),
                     option
+                );
+                label.textContent = amount == null || !isFinite(amount) ? '—' : money(amount);
+                if (!String(input.value || '').trim() && amount != null && isFinite(amount)) {
+                    input.setAttribute('placeholder', String(amount));
+                }
+            });
+            els.modalBody.querySelectorAll('[data-bulk-addon-value]').forEach(function (input) {
+                var label = input.previousElementSibling;
+                if (!label || !label.classList.contains('munch-pricing-variation-current')) return;
+                var addon = findAddonOption(
+                    input.getAttribute('data-product-id'),
+                    input.getAttribute('data-addon-id')
+                );
+                var amount = addonCurrentAmount(
+                    input.getAttribute('data-product-id'),
+                    input.getAttribute('data-addon-id'),
+                    input.getAttribute('data-channel'),
+                    addon
                 );
                 label.textContent = amount == null || !isFinite(amount) ? '—' : money(amount);
                 if (!String(input.value || '').trim() && amount != null && isFinite(amount)) {
@@ -1707,7 +1851,7 @@
         if (!selectedIds(bulk.selectedBranches).length) return false;
         if (!selectedChannels(bulk.channels).length) return false;
         if (usesPerProductPrices()) {
-            return Object.keys(productValuesPayload()).length > 0 || variationValuesPayload().length > 0;
+            return Object.keys(productValuesPayload()).length > 0 || variationValuesPayload().length > 0 || addonValuesPayload().length > 0;
         }
         if (bulk.advanced && bulk.perChannel) {
             return selectedChannels(bulk.channels).some(function (ch) {

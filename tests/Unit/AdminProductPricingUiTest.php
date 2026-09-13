@@ -81,8 +81,8 @@ class AdminProductPricingUiTest extends TestCase
         $bulk = file_get_contents(app_path('Services/ProductBulkPricingService.php'));
 
         $this->assertStringContainsString('data-current-price-url', $list);
-        $this->assertStringContainsString("munch-product-pricing.js') }}?v=2.1", $list);
-        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.6", $list);
+        $this->assertStringContainsString("munch-product-pricing.js') }}?v=2.2", $list);
+        $this->assertStringContainsString("munch-product-pricing.css') }}?v=1.7", $list);
         $this->assertStringContainsString("cache: 'no-store'", $js);
         $this->assertStringContainsString('bulkProductSeq', $js);
         $this->assertStringContainsString('bulkPriceSeq', $js);
@@ -130,6 +130,10 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('bulkVariationValues', $controller);
         $this->assertStringContainsString('variation_values', $controller);
         $this->assertStringContainsString('normalizeProductValues', $bulk);
+        $this->assertStringContainsString('normalizeAddonValues', $bulk);
+        $this->assertStringContainsString('addon_values', $controller);
+        $this->assertStringContainsString('bulkAddonValues', $controller);
+        $this->assertStringContainsString('Addon prices', $js);
         $this->assertStringContainsString('no-store, no-cache, must-revalidate', $controller);
         $this->assertStringContainsString('function currentPrices', $bulk);
         $this->assertStringContainsString('defaultSellingPrice', $bulk);
@@ -150,6 +154,14 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('channelPrices][bolt_food]', $fields);
         $this->assertStringContainsString('channelPrices][uber]', $edit);
         $this->assertStringContainsString('optionFromInput', file_get_contents(app_path('Http/Controllers/Admin/ProductController.php')));
+        $this->assertStringContainsString('_addon-marketplace-prices', $edit);
+        $this->assertStringContainsString('_addon-marketplace-prices', file_get_contents(resource_path('views/admin-views/product/index.blade.php')));
+        $addonFields = file_get_contents(resource_path('views/admin-views/product/partials/_addon-marketplace-prices.blade.php'));
+        $this->assertStringContainsString('addon_channel_prices', $addonFields);
+        $this->assertStringContainsString('Uber Price', $addonFields);
+        $this->assertStringContainsString('Glovo Price', $addonFields);
+        $this->assertStringContainsString('Bolt Food Price', $addonFields);
+        $this->assertStringContainsString('saveAddonChannelPrices', file_get_contents(app_path('Http/Controllers/Admin/ProductController.php')));
     }
 
     public function test_pos_catalog_and_checkout_use_channel_hierarchy(): void
@@ -168,9 +180,13 @@ class AdminProductPricingUiTest extends TestCase
 
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $this->assertStringContainsString('function resolvedProductPrice', $js);
+        $this->assertStringContainsString('function resolvedAddonPrice', $js);
         $this->assertStringContainsString('function productChannelAvailable', $js);
         $this->assertStringContainsString('channel_prices', $js);
         $this->assertStringContainsString('channel_available', $js);
+        $this->assertStringContainsString('pos-addon-channel-1', $catalog);
+        $this->assertStringContainsString('AddonChannelPricing', $catalog);
+        $this->assertStringContainsString('AddonChannelPricing::unitPrices', $pos);
     }
 
     public function test_audit_log_captures_who_when_old_new_branch_channel_product(): void
@@ -206,6 +222,12 @@ class AdminProductPricingUiTest extends TestCase
 
         $inline = $this->functionBody($js, 'function renderInlineVariationEditors');
         $this->assertStringContainsString('renderVariationEditors(product)', $inline);
+        $this->assertStringContainsString('renderAddonEditors(product)', $inline);
+
+        $addonTable = $this->functionBody($js, 'function renderAddonEditors');
+        $this->assertStringContainsString('Addon prices', $addonTable);
+        $this->assertStringContainsString('data-bulk-addon-value', $addonTable);
+        $this->assertStringContainsString('selectedMarketplaceChannels()', $addonTable);
 
         $variationTable = $this->functionBody($js, 'function renderVariationEditors');
         $this->assertStringContainsString('Uber', $js);
@@ -235,6 +257,17 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('bolt food variation price field renders', $combined);
         $this->assertStringContainsString('channel selection controls marketplace columns', $combined);
         $this->assertStringContainsString('products without variations keep the product editor', $combined);
+
+        $addonScript = base_path('tests/Js/bulk-addon-pricing.test.js');
+        $addonOutput = [];
+        $addonCode = 0;
+        exec(escapeshellcmd($node).' '.escapeshellarg($addonScript).' 2>&1', $addonOutput, $addonCode);
+        $this->assertSame(0, $addonCode, implode("\n", $addonOutput));
+        $addonCombined = implode("\n", $addonOutput);
+        $this->assertStringContainsString('addon rows render in a separate ADDON PRICES section', $addonCombined);
+        $this->assertStringContainsString('variations and addons stay in separate sections', $addonCombined);
+        $this->assertStringContainsString('channel selection controls addon marketplace columns', $addonCombined);
+        $this->assertStringContainsString('products without addons do not show an empty addon section', $addonCombined);
     }
 
     private function functionBody(string $source, string $needle, int $length = 2500): string

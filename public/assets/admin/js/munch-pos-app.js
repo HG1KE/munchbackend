@@ -340,6 +340,16 @@
         return unit;
     }
 
+    function resolvedAddonPrice(addon) {
+        var channel = pricingChannel(state.cart.orderType);
+        var prices = (addon && (addon.channel_prices || addon.channelPrices)) || {};
+        if (channel && channel !== 'pos' && prices[channel] != null && prices[channel] !== '') {
+            var amount = Number(prices[channel]);
+            if (isFinite(amount)) return amount;
+        }
+        return Number(addon && addon.price || 0);
+    }
+
     function lineAddonTotal(line) {
         var product = state.productMap[line.productId];
         var selected = line.addon_id || [];
@@ -347,7 +357,7 @@
         var extra = 0;
         posAddons(product).forEach(function (addon) {
             if (selected.indexOf(addon.id) === -1 && selected.indexOf(String(addon.id)) === -1) return;
-            extra += Number(addon.price || 0) * Number(qtys[addon.id] || qtys[String(addon.id)] || 1);
+            extra += resolvedAddonPrice(addon) * Number(qtys[addon.id] || qtys[String(addon.id)] || 1);
         });
         return extra;
     }
@@ -856,7 +866,7 @@
                 html += '<div><strong>' + escapeHtml((CFG.labels && CFG.labels.addons) || 'Addons') + '</strong> <small>' + escapeHtml(CFG.labels.optional || 'optional') + '</small>';
             }
             html += '<div class="munch-pos-addon" data-addon-id="' + escapeAttr(addon.id) + '" data-addon-qty="0">';
-            html += '<div class="munch-pos-addon__meta"><strong>' + escapeHtml(addon.name) + '</strong><span>' + money(addon.price) + '</span></div>';
+            html += '<div class="munch-pos-addon__meta"><strong>' + escapeHtml(addon.name) + '</strong><span>' + money(resolvedAddonPrice(addon)) + '</span></div>';
             html += '<div class="munch-pos-qty munch-pos-addon__qty">';
             html += '<button type="button" data-addon-delta="-1" aria-label="−">−</button>';
             html += '<span data-addon-count>0</span>';

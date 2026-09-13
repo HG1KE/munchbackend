@@ -87,6 +87,8 @@ function makeEngine() {
     var addSimple;
     var adjustProductQty;
     var lineUnit;
+    var pricingChannel;
+    var resolvedAddonPrice;
     var lineAddonTotal;
     var lineSubtotal;
     var addonLabels;
@@ -103,6 +105,8 @@ function makeEngine() {
     eval('addSimple = ' + extractFn(js, 'addSimple'));
     eval('adjustProductQty = ' + extractFn(js, 'adjustProductQty'));
     eval('lineUnit = ' + extractFn(js, 'lineUnit'));
+    eval('pricingChannel = ' + extractFn(js, 'pricingChannel'));
+    eval('resolvedAddonPrice = ' + extractFn(js, 'resolvedAddonPrice'));
     eval('lineAddonTotal = ' + extractFn(js, 'lineAddonTotal'));
     eval('lineSubtotal = ' + extractFn(js, 'lineSubtotal'));
     eval('addonLabels = ' + extractFn(js, 'addonLabels'));
@@ -125,8 +129,8 @@ function makeEngine() {
     };
 }
 
-var cheese = { id: 8, name: 'Extra Cheese', price: 50, tax: 0 };
-var sauce = { id: 9, name: 'Extra Sauce', price: 30, tax: 0 };
+var cheese = { id: 8, name: 'Extra Cheese', price: 50, tax: 0, channel_prices: { uber: 175, glovo: 160, bolt_food: 170 } };
+var sauce = { id: 9, name: 'Extra Sauce', price: 30, tax: 0, channel_prices: { uber: 55, glovo: 45, bolt_food: 60 } };
 
 var burgerOff = {
     id: 41,
@@ -260,6 +264,23 @@ test('payload still uses existing addon_id fields', function () {
     assert(js.indexOf('els.staleRefresh') !== -1, 'stale refresh control missing');
     assert(js.indexOf('function addSelectedVariations') !== -1, 'addon add missing');
     assert(js.indexOf('function addSelectedVariations') < js.indexOf('window.location.reload()'), 'addon add must not reload');
+});
+
+test('marketplace addon prices use channel overrides and munch stays on master', function () {
+    var engine = makeEngine();
+    engine.state.productMap[burgerOn.id] = burgerOn;
+    engine.addSelectedVariations(burgerOn, [], 1, [cheese.id], { 8: 1 });
+    var line = engine.state.cart.lines[0];
+    engine.state.cart.orderType = 'take_away';
+    assert(engine.lineAddonTotal(line) === 50, 'Munch/POS must keep the master addon price');
+    engine.state.cart.orderType = 'uber';
+    assert(engine.lineAddonTotal(line) === 175, 'Uber must use the addon override');
+    engine.state.cart.orderType = 'glovo';
+    assert(engine.lineAddonTotal(line) === 160, 'Glovo must use the addon override');
+    engine.state.cart.orderType = 'bolt_food';
+    assert(engine.lineAddonTotal(line) === 170, 'Bolt Food must use the addon override');
+    engine.state.cart.orderType = 'dine_in';
+    assert(engine.lineAddonTotal(line) === 50, 'dine-in must keep the master addon price');
 });
 
 test('admin toggle defaults off on create and persists on edit', function () {

@@ -11,6 +11,7 @@ use App\Model\Review;
 use App\Model\Tag;
 use App\Model\Translation;
 use App\Models\Cuisine;
+use App\Support\AddonChannelPricing;
 use App\Support\ProductVariationPricing;
 use App\Support\StorefrontVisibilitySchedule;
 use Box\Spout\Common\Exception\InvalidArgumentException;
@@ -209,6 +210,7 @@ class ProductController extends Controller
 
         $this->validateStorefrontVisibilitySchedule($request, $validator);
         $this->validateRecurringVisibilityRules($request, $validator);
+        $this->validateAddonChannelPrices($request, $validator);
 
         if ($request['price'] <= $discount || (in_array(request('stock_type'), ['daily', 'fixed']) && $request->product_stock < 1) || $validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)]);
@@ -322,6 +324,7 @@ class ProductController extends Controller
         $product->is_recommended = $request->is_recommended == 'on' ? 1 : 0;
         $product->allow_addon_on_pos = $request->input('allow_addon_on_pos') == 'on';
         $product->save();
+        $this->saveAddonChannelPrices($request);
 
         $product->tags()->sync($tagIds);
         $product->cuisines()->sync($request->cuisines);
@@ -454,6 +457,7 @@ class ProductController extends Controller
 
         $this->validateStorefrontVisibilitySchedule($request, $validator);
         $this->validateRecurringVisibilityRules($request, $validator);
+        $this->validateAddonChannelPrices($request, $validator);
 
         if ($request['price'] <= $discount || (in_array(request('stock_type'), ['daily', 'fixed']) && $request->product_stock < 1) || $validator->fails()) {
             return response()->json(['errors' => Helpers::error_processor($validator)]);
@@ -581,6 +585,7 @@ class ProductController extends Controller
         $product->is_recommended = $request->is_recommended == 'on' ? 1 : 0;
         $product->allow_addon_on_pos = $request->input('allow_addon_on_pos') == 'on';
         $product->save();
+        $this->saveAddonChannelPrices($request);
 
         $product->tags()->sync($tagIds);
         $product->cuisines()->sync($request->cuisines);
@@ -1122,5 +1127,24 @@ class ProductController extends Controller
         }
 
         return count($out) ? $out : null;
+    }
+
+    private function validateAddonChannelPrices(Request $request, \Illuminate\Validation\Validator $validator): void
+    {
+        $error = AddonChannelPricing::validateProductForm(
+            $request->input('addon_channel_prices'),
+            $request->input('addon_ids', [])
+        );
+        if ($error !== null) {
+            $validator->getMessageBag()->add('addon_channel_prices', translate($error));
+        }
+    }
+
+    private function saveAddonChannelPrices(Request $request): void
+    {
+        AddonChannelPricing::saveProductForm(
+            $request->input('addon_channel_prices'),
+            $request->input('addon_ids', [])
+        );
     }
 }

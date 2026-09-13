@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Model\Product;
 use App\Model\ProductByBranch;
+use App\Support\AddonChannelPricing;
 use App\Support\ProductPricingChannels;
 use App\Support\ProductVariationPricing;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ProductBulkPricingService
 {
@@ -88,7 +90,11 @@ class ProductBulkPricingService
             }
         }
 
-        return $this->truncate(array_merge($rows, $this->variationCurrentRows($productIds, $branchIds, $channels, $pairsByChannel)));
+        return $this->truncate(array_merge(
+            $rows,
+            $this->variationCurrentRows($productIds, $branchIds, $channels, $pairsByChannel),
+            $this->addonCurrentRows($productIds, $branchIds, $channels)
+        ));
     }
 
     /**
@@ -97,9 +103,10 @@ class ProductBulkPricingService
      * @param  list<array<string, mixed>>  $operations
      * @param  array<int|string, mixed>  $productValues
      * @param  list<array<string, mixed>>  $variationValues
+     * @param  list<array<string, mixed>>  $addonValues
      * @return array{rows: list<array<string, mixed>>, count: int, truncated: bool, error?: string}
      */
-    public function previewPrices(array $productIds, array $branchIds, array $operations, array $productValues = [], array $variationValues = []): array
+    public function previewPrices(array $productIds, array $branchIds, array $operations, array $productValues = [], array $variationValues = [], array $addonValues = []): array
     {
         $operations = $this->normalizePriceOperations($operations);
         $productValues = $this->normalizeProductValues($productValues);
@@ -107,17 +114,21 @@ class ProductBulkPricingService
         if (! empty($variation['error'])) {
             return ['rows' => [], 'count' => 0, 'truncated' => false, 'error' => $variation['error']];
         }
-        if ($productValues === [] && $variation['values'] !== []) {
+        $addons = $this->normalizeAddonValues($addonValues, $productIds, $branchIds);
+        if (! empty($addons['error'])) {
+            return ['rows' => [], 'count' => 0, 'truncated' => false, 'error' => $addons['error']];
+        }
+        if ($productValues === [] && ($variation['values'] !== [] || $addons['values'] !== [])) {
             $operations = array_values(array_filter(
                 $operations,
                 fn ($op) => ! ($op['action'] === 'set_exact' && $op['value'] <= 0)
             ));
         }
-        if ($operations === [] && $variation['values'] === []) {
+        if ($operations === [] && $variation['values'] === [] && $addons['values'] === []) {
             return ['rows' => [], 'count' => 0, 'truncated' => false, 'error' => 'Select at least one channel'];
         }
 
-        $needsBranches = $this->operationsNeedBranches($operations) || $variation['values'] !== [];
+        $needsBranches = $this->operationsNeedBranches($operations) || $variation['values'] !== [] || $addons['values'] !== [];
         if ($needsBranches && $branchIds === []) {
             return ['rows' => [], 'count' => 0, 'truncated' => false, 'error' => 'Choose branches first'];
         }
@@ -155,7 +166,11 @@ class ProductBulkPricingService
             }
         }
 
-        return $this->truncate(array_merge($rows, $this->variationPreviewRows($productIds, $branchIds, $variation['values'])));
+        return $this->truncate(array_merge(
+            $rows,
+            $this->variationPreviewRows($productIds, $branchIds, $variation['values']),
+            $this->addonPreviewRows($productIds, $branchIds, $addons['values'])
+        ));
     }
 
     /**
@@ -164,16 +179,21 @@ class ProductBulkPricingService
      * @param  list<array<string, mixed>>  $operations
      * @param  array<int|string, mixed>  $productValues
      * @param  list<array<string, mixed>>  $variationValues
+     * @param  list<array<string, mixed>>  $addonValues
      * @return array{saved: int, error?: string}
      */
-    public function applyPrices(array $productIds, array $branchIds, array $operations, array $productValues = [], array $variationValues = []): array
+    public function applyPrices(array $productIds, array $branchIds, array $operations, array $productValues = [], array $variationValues = [], array $addonValues = []): array
     {
         $variation = $this->normalizeVariationValues($variationValues, $productIds, $branchIds);
         if (! empty($variation['error'])) {
             return ['saved' => 0, 'error' => $variation['error']];
         }
+        $addons = $this->normalizeAddonValues($addonValues, $productIds, $branchIds);
+        if (! empty($addons['error'])) {
+            return ['saved' => 0, 'error' => $addons['error']];
+        }
 
-        $preview = $this->previewPrices($productIds, $branchIds, $operations, $productValues, $variationValues);
+        $preview = $this->previewPrices($productIds, $branchIds, $operations, $productValues, $variationValues, $addonValues);
         if (! empty($preview['error'])) {
             return ['saved' => 0, 'error' => $preview['error']];
         }
@@ -181,10 +201,10 @@ class ProductBulkPricingService
         $saved = 0;
 
         try {
-            DB::transaction(function () use ($preview, $productIds, $branchIds, $variation, &$saved) {
+            DB::transaction(function () use ($preview, $productIds, $branchIds, $variation, $addons, &$saved) {
                 $byProduct = [];
                 foreach ($preview['rows'] as $row) {
-                    if (! empty($row['variation_id'])) {
+                    if (! empty($row['variation_id']) || ! empty($row['addon_id'])) {
                         continue;
                     }
                     $byProduct[(int) $row['product_id']][] = $row;
@@ -221,6 +241,7 @@ class ProductBulkPricingService
                 }
 
                 $saved += $this->applyVariationUpdates($productIds, $branchIds, $variation['values']);
+                $saved += $this->applyAddonUpdates($addons['values']);
             });
         } catch (\Throwable $e) {
             return ['saved' => 0, 'error' => $e->getMessage()];
@@ -422,6 +443,60 @@ class ProductBulkPricingService
             $out[] = [
                 'product_id' => $productId,
                 'variation_id' => $variationId,
+                'channel' => $channel,
+                'value' => $amount,
+            ];
+        }
+
+        if ($out !== [] && $branchIds === []) {
+            return ['values' => [], 'error' => 'Choose branches first'];
+        }
+
+        return ['values' => $out];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $raw
+     * @param  list<int>  $productIds
+     * @param  list<int>  $branchIds
+     * @return array{values: list<array{product_id: int, addon_id: int, channel: string, value: float}>, error?: string}
+     */
+    public function normalizeAddonValues(array $raw, array $productIds = [], array $branchIds = []): array
+    {
+        $productIds = array_values(array_unique(array_filter(array_map('intval', $productIds))));
+        $branchIds = array_values(array_unique(array_filter(array_map('intval', $branchIds))));
+        $allowed = $this->allowedAddonIds($productIds, $branchIds);
+        $out = [];
+
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $productId = (int) ($row['product_id'] ?? 0);
+            $addonId = (int) ($row['addon_id'] ?? $row['id'] ?? 0);
+            $channel = (string) ($row['channel'] ?? '');
+            if ($productId < 1 || $addonId < 1) {
+                return ['values' => [], 'error' => 'Addon does not belong to the selected products'];
+            }
+            if ($productIds !== [] && ! in_array($productId, $productIds, true)) {
+                return ['values' => [], 'error' => 'Addon does not belong to the selected products'];
+            }
+            if (! ProductPricingChannels::isMarketplace($channel)) {
+                return ['values' => [], 'error' => 'Addon marketplace prices are only supported for Uber, Glovo and Bolt Food'];
+            }
+            if (! isset($allowed[$productId][$addonId])) {
+                return ['values' => [], 'error' => 'Addon does not belong to the selected products'];
+            }
+            [$amount, $error] = AddonChannelPricing::parseSubmittedPrice($row['value'] ?? $row['price'] ?? null);
+            if ($error !== null) {
+                return ['values' => [], 'error' => $error];
+            }
+            if ($amount === null) {
+                continue;
+            }
+            $out[] = [
+                'product_id' => $productId,
+                'addon_id' => $addonId,
                 'channel' => $channel,
                 'value' => $amount,
             ];
@@ -806,6 +881,213 @@ class ProductBulkPricingService
                 $options = $out[(int) $row->product_id][0] ?? [];
             }
             $out[(int) $row->product_id][(int) $row->branch_id] = $options;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<int>  $productIds
+     * @param  list<int>  $branchIds
+     * @param  list<string>  $channels
+     * @return list<array<string, mixed>>
+     */
+    private function addonCurrentRows(array $productIds, array $branchIds, array $channels): array
+    {
+        $marketplace = array_values(array_filter(
+            $channels,
+            fn ($channel) => ProductPricingChannels::isMarketplace($channel)
+        ));
+        if ($marketplace === [] || $branchIds === []) {
+            return [];
+        }
+
+        $addonsByProduct = $this->addonsByProduct($productIds, $branchIds);
+        $rows = [];
+        foreach ($addonsByProduct as $productId => $payload) {
+            foreach ($payload['addons'] as $addon) {
+                foreach ($marketplace as $channel) {
+                    $rows[] = [
+                        'product_id' => $productId,
+                        'product_name' => $payload['product_name'],
+                        'branch_id' => 0,
+                        'branch_name' => 'All branches',
+                        'channel' => $channel,
+                        'current_price' => AddonChannelPricing::resolve(
+                            (float) $addon['price'],
+                            $addon['channel_prices'][$channel] ?? null
+                        ),
+                        'addon_id' => $addon['id'],
+                        'addon_name' => $addon['name'],
+                    ];
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<int>  $productIds
+     * @param  list<int>  $branchIds
+     * @param  list<array{product_id: int, addon_id: int, channel: string, value: float}>  $values
+     * @return list<array<string, mixed>>
+     */
+    private function addonPreviewRows(array $productIds, array $branchIds, array $values): array
+    {
+        if ($values === [] || $branchIds === []) {
+            return [];
+        }
+
+        $addonsByProduct = $this->addonsByProduct($productIds, $branchIds);
+        $indexed = [];
+        foreach ($values as $value) {
+            $indexed[$value['product_id'].'|'.$value['addon_id'].'|'.$value['channel']] = $value;
+        }
+
+        $rows = [];
+        foreach ($indexed as $value) {
+            $payload = $addonsByProduct[$value['product_id']] ?? null;
+            if ($payload === null) {
+                continue;
+            }
+            $addon = null;
+            foreach ($payload['addons'] as $candidate) {
+                if ((int) $candidate['id'] === $value['addon_id']) {
+                    $addon = $candidate;
+                    break;
+                }
+            }
+            if ($addon === null) {
+                continue;
+            }
+            $current = AddonChannelPricing::resolve(
+                (float) $addon['price'],
+                $addon['channel_prices'][$value['channel']] ?? null
+            );
+            $next = $value['value'];
+            if (abs($next - $current) <= 0.009) {
+                continue;
+            }
+            $rows[] = [
+                'product_id' => $value['product_id'],
+                'product_name' => $payload['product_name'],
+                'branch_id' => 0,
+                'branch_name' => 'All branches',
+                'channel' => $value['channel'],
+                'current_price' => $current,
+                'new_price' => $next,
+                'difference' => $this->pricing->money($next - $current),
+                'addon_id' => $addon['id'],
+                'addon_name' => $addon['name'],
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<array{product_id: int, addon_id: int, channel: string, value: float}>  $values
+     */
+    private function applyAddonUpdates(array $values): int
+    {
+        return AddonChannelPricing::upsertMany(array_map(fn ($value) => [
+            'addon_id' => $value['addon_id'],
+            'channel' => $value['channel'],
+            'value' => $value['value'],
+        ], $values));
+    }
+
+    /**
+     * @param  list<int>  $productIds
+     * @param  list<int>  $branchIds
+     * @return array<int, array<int, true>>
+     */
+    private function allowedAddonIds(array $productIds, array $branchIds): array
+    {
+        $out = [];
+        foreach ($this->addonsByProduct($productIds, $branchIds) as $productId => $payload) {
+            foreach ($payload['addons'] as $addon) {
+                $out[$productId][(int) $addon['id']] = true;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<int>  $productIds
+     * @param  list<int>  $branchIds
+     * @return array<int, array{product_name: string, addons: list<array{id: int, name: string, price: float, channel_prices: array<string, float>}>}>
+     */
+    private function addonsByProduct(array $productIds, array $branchIds): array
+    {
+        $productIds = array_values(array_unique(array_filter(array_map('intval', $productIds))));
+        if ($productIds === [] || ! Schema::hasColumn('products', 'add_ons')) {
+            return [];
+        }
+
+        $scopedIds = $productIds;
+        if ($branchIds !== [] && Schema::hasTable('product_by_branches')) {
+            $scopedIds = ProductByBranch::query()
+                ->whereIn('product_id', $productIds)
+                ->whereIn('branch_id', $branchIds)
+                ->pluck('product_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+        if ($scopedIds === []) {
+            return [];
+        }
+
+        $products = Product::query()->whereIn('id', $scopedIds)->get(['id', 'name', 'add_ons']);
+        $idsByProduct = [];
+        $allIds = [];
+        foreach ($products as $product) {
+            $ids = $product->addonIds();
+            if ($ids === []) {
+                continue;
+            }
+            $idsByProduct[(int) $product->id] = [
+                'product_name' => (string) $product->name,
+                'ids' => $ids,
+            ];
+            foreach ($ids as $id) {
+                $allIds[] = $id;
+            }
+        }
+        if ($allIds === []) {
+            return [];
+        }
+
+        $addons = Schema::hasTable('add_ons')
+            ? DB::table('add_ons')->whereIn('id', array_values(array_unique($allIds)))->get()->keyBy('id')
+            : collect();
+        $prices = AddonChannelPricing::mapForIds($allIds);
+        $out = [];
+        foreach ($idsByProduct as $productId => $payload) {
+            $rows = [];
+            foreach ($payload['ids'] as $id) {
+                $addon = $addons->get($id);
+                if (! $addon) {
+                    continue;
+                }
+                $rows[] = [
+                    'id' => (int) $addon->id,
+                    'name' => (string) $addon->name,
+                    'price' => (float) $addon->price,
+                    'channel_prices' => $prices[(int) $addon->id] ?? [],
+                ];
+            }
+            if ($rows === []) {
+                continue;
+            }
+            $out[$productId] = [
+                'product_name' => $payload['product_name'],
+                'addons' => $rows,
+            ];
         }
 
         return $out;

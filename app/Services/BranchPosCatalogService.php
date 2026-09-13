@@ -9,6 +9,7 @@ use App\Model\Category;
 use App\Model\Product;
 use App\Model\ProductByBranch;
 use App\Models\DeliveryChargeByArea;
+use App\Support\AddonChannelPricing;
 use App\Support\PosOrderTypes;
 use App\Support\ProductPricingChannels;
 use App\Support\ProductVariationPricing;
@@ -150,6 +151,7 @@ class BranchPosCatalogService
             'pos-channel-pricing-1',
             'pos-variation-channel-1',
             'pos-allow-addon-on-pos-1',
+            'pos-addon-channel-1',
             (string) ($branch->u ?? ''),
             (string) ($branch->c ?? 0),
             (string) ($branch->a ?? 0),
@@ -160,6 +162,7 @@ class BranchPosCatalogService
             (string) $categoryCount,
             (string) $this->posSoldStamp($branchId),
             (string) $this->channelPriceStamp($branchId),
+            (string) $this->addonChannelPriceStamp(),
             $this->branchPosMpesaEnabled($branchSettings) ? '1' : '0',
             trim((string) ($branchSettings?->mpesa_till ?? '')),
             'pos-receipt-templates-5',
@@ -194,6 +197,23 @@ class BranchPosCatalogService
             (string) ($row->c ?? 0),
             (string) ($row->p ?? 0),
             (string) ($row->a ?? 0),
+        ]);
+    }
+
+    private function addonChannelPriceStamp(): string
+    {
+        if (! Schema::hasTable('addon_channel_prices')) {
+            return '';
+        }
+
+        $row = DB::table('addon_channel_prices')
+            ->selectRaw('MAX(updated_at) as u, COUNT(*) as c, SUM(price) as p')
+            ->first();
+
+        return implode(':', [
+            (string) ($row->u ?? ''),
+            (string) ($row->c ?? 0),
+            (string) ($row->p ?? 0),
         ]);
     }
 
@@ -249,7 +269,7 @@ class BranchPosCatalogService
      * Compact addon payloads only for products that allow POS addons.
      *
      * @param  \Illuminate\Support\Collection<int, Product>  $products
-     * @return array<int, list<array{id: int, name: string, price: float, tax: float}>>
+     * @return array<int, list<array{id: int, name: string, price: float, tax: float, channel_prices: array<string, float>}>>
      */
     private function addonMapForProducts($products): array
     {
@@ -276,6 +296,7 @@ class BranchPosCatalogService
             ->whereIn('id', array_values(array_unique($allIds)))
             ->get()
             ->keyBy('id');
+        $channelPrices = AddonChannelPricing::mapForIds($allIds);
 
         $out = [];
         foreach ($idsByProduct as $productId => $ids) {
@@ -290,6 +311,7 @@ class BranchPosCatalogService
                     'name' => (string) ($addon->getRawOriginal('name') ?: $addon->name),
                     'price' => (float) $addon->price,
                     'tax' => (float) ($addon->tax ?? 0),
+                    'channel_prices' => $channelPrices[(int) $addon->id] ?? [],
                 ];
             }
             $out[$productId] = $rows;

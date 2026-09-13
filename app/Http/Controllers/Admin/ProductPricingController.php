@@ -8,11 +8,13 @@ use App\Model\ProductByBranch;
 use App\Services\ProductBranchPricingCopyService;
 use App\Services\ProductBulkPricingService;
 use App\Services\ProductChannelPricingService;
+use App\Support\AddonChannelPricing;
 use App\Support\ProductPricingChannels;
 use App\Support\ProductVariationPricing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ProductPricingController extends Controller
 {
@@ -84,12 +86,12 @@ class ProductPricingController extends Controller
         }
 
         $products = $query->paginate(40);
-        $branchVariations = $this->branchVariationsByProduct(
-            $products->getCollection()->pluck('id')->all()
-        );
+        $productIds = $products->getCollection()->pluck('id')->all();
+        $branchVariations = $this->branchVariationsByProduct($productIds);
+        $addonsByProduct = $this->bulkSearchAddonsByProduct($products->getCollection());
 
         return $this->noStoreJson([
-            'data' => $products->getCollection()->map(function (Product $product) use ($branchVariations) {
+            'data' => $products->getCollection()->map(function (Product $product) use ($branchVariations, $addonsByProduct) {
                 $category = $product->category;
 
                 return [
@@ -99,6 +101,7 @@ class ProductPricingController extends Controller
                     'selling_price' => $this->pricing->defaultSellingPrice($product),
                     'category' => is_array($category) ? (string) ($category['name'] ?? '') : '',
                     'variations' => $this->bulkSearchVariations($product, $branchVariations),
+                    'addons' => $addonsByProduct[(int) $product->id] ?? [],
                 ];
             })->values(),
             'next_page' => $products->hasMorePages() ? $products->currentPage() + 1 : null,
@@ -128,7 +131,8 @@ class ProductPricingController extends Controller
             $request->input('branch_ids', []),
             $this->bulkPriceOperations($request),
             $this->bulkProductValues($request),
-            $this->bulkVariationValues($request)
+            $this->bulkVariationValues($request),
+            $this->bulkAddonValues($request)
         );
 
         if (! empty($result['error'])) {
@@ -152,7 +156,8 @@ class ProductPricingController extends Controller
             $request->input('branch_ids', []),
             $this->bulkPriceOperations($request),
             $this->bulkProductValues($request),
-            $this->bulkVariationValues($request)
+            $this->bulkVariationValues($request),
+            $this->bulkAddonValues($request)
         );
 
         if (! empty($result['error'])) {
@@ -305,6 +310,16 @@ class ProductPricingController extends Controller
     }
 
     /**
+     * @return list<array<string, mixed>>
+     */
+    private function bulkAddonValues(Request $request): array
+    {
+        $raw = $request->input('addon_values', []);
+
+        return is_array($raw) ? array_values($raw) : [];
+    }
+
+    /**
      * @return array{0: list<string>, 1: bool}
      */
     private function bulkAvailabilitySelection(Request $request): array
@@ -366,6 +381,54 @@ class ProductPricingController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * @param  Collection<int, Product>  $products
+     * @return array<int, list<array{id: int, name: string, price: float, channel_prices: array<string, float>}>>
+     */
+    private function bulkSearchAddonsByProduct(Collection $products): array
+    {
+        $idsByProduct = [];
+        $allIds = [];
+        foreach ($products as $product) {
+            $ids = $product->addonIds();
+            if ($ids === []) {
+                continue;
+            }
+            $idsByProduct[(int) $product->id] = $ids;
+            foreach ($ids as $id) {
+                $allIds[] = $id;
+            }
+        }
+        if ($allIds === []) {
+            return [];
+        }
+
+        $addons = DB::table('add_ons')
+            ->whereIn('id', array_values(array_unique($allIds)))
+            ->get()
+            ->keyBy('id');
+        $prices = AddonChannelPricing::mapForIds($allIds);
+        $out = [];
+        foreach ($idsByProduct as $productId => $ids) {
+            $rows = [];
+            foreach ($ids as $id) {
+                $addon = $addons->get($id);
+                if (! $addon) {
+                    continue;
+                }
+                $rows[] = [
+                    'id' => (int) $addon->id,
+                    'name' => (string) $addon->name,
+                    'price' => (float) $addon->price,
+                    'channel_prices' => $prices[(int) $addon->id] ?? [],
+                ];
+            }
+            $out[$productId] = $rows;
+        }
+
+        return $out;
     }
 
     private function noStoreJson(array $data, int $status = 200): JsonResponse

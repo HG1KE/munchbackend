@@ -367,6 +367,7 @@
                                                     </label>
                                                 </div>
                                             </div>
+                                            @include('admin-views.product.partials._addon-marketplace-prices')
                                         </div>
                                     </div>
                                 </div>
