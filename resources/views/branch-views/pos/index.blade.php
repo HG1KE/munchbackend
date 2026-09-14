@@ -104,6 +104,16 @@
     </div>
 </div>
 
+<div class="munch-pos-modal" id="pos-munch-type-modal" hidden>
+    <div class="munch-pos-modal__card munch-pos-delivery-modal" role="dialog" aria-modal="true" aria-labelledby="pos-munch-type-title">
+        <h2 id="pos-munch-type-title">{{ translate('Are you sure this is a Munch X order?') }}</h2>
+        <div class="munch-pos-dialog__actions">
+            <button type="button" class="munch-pos-place" id="pos-munch-type-yes">{{ translate('Yes') }}</button>
+            <button type="button" class="munch-pos-clear" id="pos-munch-type-no">{{ translate('No') }}</button>
+        </div>
+    </div>
+</div>
+
 <div class="munch-pos-modal" id="pos-platform-modal" hidden>
     <div class="munch-pos-modal__card munch-pos-delivery-modal" role="dialog" aria-modal="true" aria-labelledby="pos-platform-title">
         <h2 id="pos-platform-title">{{ translate('Enter Glovo Order Number') }}</h2>
@@ -225,6 +235,9 @@
             delivery: @json(translate('Delivery')),
             takeAway: @json(translate('Take Away')),
             dineIn: @json(translate('Dine In')),
+            munchTypeConfirm: @json(translate('Are you sure this is a Munch X order?')),
+            yes: @json(translate('Yes')),
+            no: @json(translate('No')),
             glovo: 'Glovo',
             uber: 'Uber',
             boltFood: 'Bolt Food',
@@ -359,5 +372,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.3" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.4" defer></script>
 @endpush

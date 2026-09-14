@@ -52,6 +52,7 @@
     var successJob = null;
     var lastPosted = null;
     var editingOrder = null;
+    var pendingMunchOrderType = '';
     var printBusy = false;
     var cancelUi = {
         open: false,
@@ -608,6 +609,48 @@
         els.types.innerHTML = types.map(function (row) {
             return '<button type="button" class="munch-pos-type' + (state.cart.orderType === row[0] ? ' is-active' : '') + '" data-type="' + row[0] + '">' + escapeHtml(row[1]) + '</button>';
         }).join('');
+    }
+
+    function shouldConfirmMunchWalkInType(type) {
+        return type === 'dine_in' || type === 'take_away';
+    }
+
+    function applyOrderType(type) {
+        state.cart.orderType = type;
+        state.cart.lines = state.cart.lines.filter(function (line) {
+            return productChannelAvailable(state.productMap[line.productId]);
+        });
+        lastGridKey = '';
+        persistCart();
+        scheduleRender();
+    }
+
+    function openMunchTypeConfirm(type) {
+        pendingMunchOrderType = type;
+        if (els.munchTypeModal) els.munchTypeModal.hidden = false;
+        syncPosOverlayState();
+        if (els.munchTypeYes) {
+            requestAnimationFrame(function () {
+                try { els.munchTypeYes.focus(); } catch (err) {}
+            });
+        }
+    }
+
+    function closeMunchTypeConfirm() {
+        pendingMunchOrderType = '';
+        if (els.munchTypeModal) els.munchTypeModal.hidden = true;
+        syncPosOverlayState();
+    }
+
+    function confirmMunchWalkInType() {
+        var type = pendingMunchOrderType;
+        closeMunchTypeConfirm();
+        if (!type) return;
+        applyOrderType(type);
+    }
+
+    function rejectMunchWalkInType() {
+        closeMunchTypeConfirm();
     }
 
     function renderExtras() {
@@ -1805,7 +1848,8 @@
             (els.ordersModal && !els.ordersModal.hidden) ||
             (els.successModal && !els.successModal.hidden) ||
             (els.deliveryModal && !els.deliveryModal.hidden) ||
-            (els.platformModal && !els.platformModal.hidden)
+            (els.platformModal && !els.platformModal.hidden) ||
+            (els.munchTypeModal && !els.munchTypeModal.hidden)
         );
         document.documentElement.classList.toggle('munch-pos-overlay-open', overlayOpen);
     }
@@ -2812,6 +2856,9 @@
         els.platformConfirm = document.getElementById('pos-platform-confirm');
         els.platformCancel = document.getElementById('pos-platform-cancel');
         els.platformNumber = document.getElementById('pos-platform-number');
+        els.munchTypeModal = document.getElementById('pos-munch-type-modal');
+        els.munchTypeYes = document.getElementById('pos-munch-type-yes');
+        els.munchTypeNo = document.getElementById('pos-munch-type-no');
         els.fee = document.getElementById('pos-del-fee');
         els.feeCurrency = document.getElementById('pos-del-fee-currency');
         els.lines = document.getElementById('pos-lines');
@@ -2892,14 +2939,21 @@
             var btn = ev.target.closest('[data-type]');
             if (!btn) return;
             if (editingOrder) return;
-            state.cart.orderType = btn.getAttribute('data-type');
-            state.cart.lines = state.cart.lines.filter(function (line) {
-                return productChannelAvailable(state.productMap[line.productId]);
-            });
-            lastGridKey = '';
-            persistCart();
-            scheduleRender();
+            var type = btn.getAttribute('data-type');
+            if (type === state.cart.orderType) return;
+            if (shouldConfirmMunchWalkInType(type)) {
+                openMunchTypeConfirm(type);
+                return;
+            }
+            applyOrderType(type);
         });
+        if (els.munchTypeYes) els.munchTypeYes.addEventListener('click', confirmMunchWalkInType);
+        if (els.munchTypeNo) els.munchTypeNo.addEventListener('click', rejectMunchWalkInType);
+        if (els.munchTypeModal) {
+            els.munchTypeModal.addEventListener('click', function (ev) {
+                if (ev.target.id === 'pos-munch-type-modal') rejectMunchWalkInType();
+            });
+        }
         els.lines.addEventListener('click', function (ev) {
             var qtyBtn = ev.target.closest('[data-qty]');
             if (qtyBtn) {

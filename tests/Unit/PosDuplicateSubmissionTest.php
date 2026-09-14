@@ -51,7 +51,7 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('var syncRunning = false', $sw);
         $this->assertStringContainsString("if (event.tag !== 'munch-pos-sync') return", $sw);
         $this->assertStringContainsString('if (syncRunning) return', $sw);
-        $this->assertStringContainsString('munch-pos-shell-v31', $sw);
+        $this->assertStringContainsString('munch-pos-shell-v32', $sw);
         $this->assertStringContainsString('persistPendingAttempt', $js);
         $this->assertStringContainsString('queueBranchMismatch', $js);
         $this->assertStringContainsString('branch_id: currentBranchId()', $js);

@@ -58,7 +58,7 @@ class PosDeliverySubmitAuditTest extends TestCase
         $this->assertStringContainsString('PosDeliveryCustomerSms::dispatch($order)', $job);
         $this->assertStringContainsString('implements ShouldQueue', $job);
 
-        $this->assertSame('6.3', PosClientVersion::ASSET);
+        $this->assertSame('6.4', PosClientVersion::ASSET);
         $this->assertTrue(is_a(SendPosDeliveryCustomerSmsJob::class, \Illuminate\Contracts\Queue\ShouldQueue::class, true));
     }
 
@@ -92,6 +92,7 @@ class PosDeliverySubmitAuditTest extends TestCase
             'tests/Js/pos-delivery-reset.test.js',
             'tests/Js/pos-duplicate-submission.test.js',
             'tests/Js/pos-marketplace-order-number.test.js',
+            'tests/Js/pos-munch-type-confirm.test.js',
         ] as $relative) {
             $output = [];
             $code = 0;
