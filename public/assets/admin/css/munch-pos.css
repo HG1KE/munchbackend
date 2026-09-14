@@ -772,33 +772,19 @@
     white-space: pre-line;
 }
 
-.munch-pos-stale {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    flex-wrap: wrap;
-    margin: 0 0.75rem 0 0;
-    padding: 0.45rem 0.7rem;
-    border-radius: 999px;
-    background: #fff7ed;
-    color: #9a3412;
-    font-weight: 700;
-    font-size: 0.82rem;
+.munch-pos-stale-modal {
+    z-index: 50;
 }
 
-.munch-pos-stale[hidden] {
-    display: none;
+.munch-pos-stale-modal .munch-pos-dialog__actions {
+    grid-template-columns: 1fr;
 }
 
-.munch-pos-stale button {
-    border: 0;
-    border-radius: 999px;
-    background: #9a3412;
-    color: #fff;
-    font-weight: 800;
-    min-height: 36px;
-    padding: 0.25rem 0.8rem;
-    cursor: pointer;
+.munch-pos-stale-modal .munch-pos-dialog__body p {
+    margin: 0 0 0.15rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.4;
 }
 
 .munch-pos-success__message {

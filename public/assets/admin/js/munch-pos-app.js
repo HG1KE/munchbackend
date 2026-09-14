@@ -526,9 +526,7 @@
                 els.sync.hidden = true;
             }
         }
-        if (els.staleBanner) {
-            els.staleBanner.hidden = !state.staleClient;
-        }
+        syncStaleModal();
     }
 
     function renderTabs() {
@@ -1054,12 +1052,31 @@
         return !!state.staleClient;
     }
 
+    function isStaleModalOpen() {
+        return !!(els.staleModal && !els.staleModal.hidden);
+    }
+
+    function syncStaleModal() {
+        if (!els.staleModal) return;
+        var open = isPosClientStale();
+        var wasOpen = !els.staleModal.hidden;
+        els.staleModal.hidden = !open;
+        syncPosOverlayState();
+        if (open && !wasOpen && els.staleRefresh) {
+            requestAnimationFrame(function () {
+                try { els.staleRefresh.focus(); } catch (err) {}
+            });
+        }
+    }
+
     function applyStaleClient(serverVersion) {
         if (!serverVersion || !CFG.assetVersion) {
             state.staleClient = false;
+            syncStaleModal();
             return;
         }
         state.staleClient = String(serverVersion) !== String(CFG.assetVersion);
+        syncStaleModal();
         renderStatus();
     }
 
@@ -1857,7 +1874,8 @@
             (els.successModal && !els.successModal.hidden) ||
             (els.deliveryModal && !els.deliveryModal.hidden) ||
             (els.platformModal && !els.platformModal.hidden) ||
-            (els.munchTypeModal && !els.munchTypeModal.hidden)
+            (els.munchTypeModal && !els.munchTypeModal.hidden) ||
+            (els.staleModal && !els.staleModal.hidden)
         );
         document.documentElement.classList.toggle('munch-pos-overlay-open', overlayOpen);
     }
@@ -2407,8 +2425,7 @@
         if (state.orderSubmitting) return;
         if (ignoreIfSubmitting(ev)) return;
         if (isPosClientStale()) {
-            toast(CFG.labels.staleClient || 'New POS version available. Please refresh before placing new orders.');
-            renderStatus();
+            syncStaleModal();
             return;
         }
         if (!beginOrderSubmit()) return;
@@ -2434,7 +2451,7 @@
     function confirmMarketplaceAndPlace(ev) {
         if (ignoreIfSubmitting(ev)) return;
         if (isPosClientStale()) {
-            toast(CFG.labels.staleClient || 'New POS version available. Please refresh before placing new orders.');
+            syncStaleModal();
             return;
         }
         if (!beginOrderSubmit()) return;
@@ -2453,7 +2470,7 @@
     function confirmDeliveryAndPlace(ev) {
         if (ignoreIfSubmitting(ev)) return;
         if (isPosClientStale()) {
-            showDeliveryFailure(CFG.labels.staleClient || 'New POS version available. Please refresh before placing new orders.');
+            syncStaleModal();
             return;
         }
         if (!beginOrderSubmit()) return;
@@ -2879,7 +2896,7 @@
         els.place = document.getElementById('pos-place');
         els.clear = document.getElementById('pos-clear');
         els.toast = document.getElementById('pos-toast');
-        els.staleBanner = document.getElementById('pos-stale-banner');
+        els.staleModal = document.getElementById('pos-stale-modal');
         els.staleRefresh = document.getElementById('pos-stale-refresh');
         els.successModal = document.getElementById('pos-success-modal');
         els.successTitle = document.getElementById('pos-success-title');
@@ -3162,6 +3179,11 @@
         }
         document.addEventListener('keydown', function (ev) {
             if (ev.key === 'Escape') {
+                if (isStaleModalOpen()) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    return;
+                }
                 if (cancelUi.open) {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -3190,6 +3212,7 @@
             if (els.cancelModal && !els.cancelModal.hidden) return;
             if (els.ordersModal && !els.ordersModal.hidden) return;
             if (els.successModal && !els.successModal.hidden) return;
+            if (isStaleModalOpen()) return;
             var tag = ev.target && ev.target.tagName;
             if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
             if (els.place && !els.place.disabled) {

@@ -16,10 +16,6 @@
             <span class="munch-pos-badge munch-pos-badge--queue" id="pos-queue-badge" hidden>0</span>
             <span class="munch-pos-badge munch-pos-badge--sync" id="pos-sync-badge" hidden></span>
         </div>
-        <div class="munch-pos-stale" id="pos-stale-banner" hidden>
-            <span>{{ translate('New POS version available. Please refresh before placing new orders.') }}</span>
-            <button type="button" id="pos-stale-refresh">{{ translate('Refresh') }}</button>
-        </div>
         <div class="munch-pos-topbar__total" id="pos-top-total"></div>
         <a class="munch-pos-topbar__link" href="{{ route('branch.pos.orders') }}">{{ translate('orders') }}</a>
     </header>
@@ -203,6 +199,18 @@
     </div>
 </div>
 
+<div class="munch-pos-modal munch-pos-stale-modal" id="pos-stale-modal" hidden>
+    <div class="munch-pos-modal__card munch-pos-delivery-modal" role="dialog" aria-modal="true" aria-labelledby="pos-stale-title" aria-describedby="pos-stale-message">
+        <h2 id="pos-stale-title">{{ translate('New POS version available') }}</h2>
+        <div class="munch-pos-dialog__body">
+            <p id="pos-stale-message">{{ translate('A new version of the POS is available. Please refresh before placing new orders.') }}</p>
+        </div>
+        <div class="munch-pos-dialog__actions">
+            <button type="button" class="munch-pos-place" id="pos-stale-refresh">{{ translate('Refresh POS') }}</button>
+        </div>
+    </div>
+</div>
+
 <iframe id="pos-print-frame" class="munch-pos-print-frame" title="{{ translate('Print') }}"></iframe>
 
 <div class="munch-pos-toast" id="pos-toast" hidden></div>
@@ -323,7 +331,9 @@
             branchMismatch: @json(translate('This queued order belongs to another branch.')),
             confirmTimeout: @json(translate('Unable to confirm order. Please check your connection and try again.')),
             submitFailed: @json(translate('Please try again.')),
-            staleClient: @json(translate('New POS version available. Please refresh before placing new orders.')),
+            staleClient: @json(translate('A new version of the POS is available. Please refresh before placing new orders.')),
+            staleTitle: @json(translate('New POS version available')),
+            refreshPos: @json(translate('Refresh POS')),
             postedPrintFailed: @json(translate('Order {n} posted successfully, but receipt printing failed.')),
             printFailedPosted: @json(translate('Order posted successfully, but receipt printing failed.')),
             glovoOrderNumber: @json(translate('Enter Glovo Order Number')),
@@ -373,5 +383,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.5" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.6" defer></script>
 @endpush
