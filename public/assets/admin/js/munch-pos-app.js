@@ -615,6 +615,13 @@
         return type === 'dine_in' || type === 'take_away';
     }
 
+    function munchWalkInConfirmMessage(type) {
+        if (type === 'dine_in') {
+            return L('munchDineInConfirm', 'Are you sure this is a Munch Dine In order?');
+        }
+        return L('munchTakeawayConfirm', 'Are you sure this is a Munch Takeaway order?');
+    }
+
     function applyOrderType(type) {
         state.cart.orderType = type;
         state.cart.lines = state.cart.lines.filter(function (line) {
@@ -627,6 +634,7 @@
 
     function openMunchTypeConfirm(type) {
         pendingMunchOrderType = type;
+        if (els.munchTypeTitle) els.munchTypeTitle.textContent = munchWalkInConfirmMessage(type);
         if (els.munchTypeModal) els.munchTypeModal.hidden = false;
         syncPosOverlayState();
         if (els.munchTypeYes) {
@@ -2857,6 +2865,7 @@
         els.platformCancel = document.getElementById('pos-platform-cancel');
         els.platformNumber = document.getElementById('pos-platform-number');
         els.munchTypeModal = document.getElementById('pos-munch-type-modal');
+        els.munchTypeTitle = document.getElementById('pos-munch-type-title');
         els.munchTypeYes = document.getElementById('pos-munch-type-yes');
         els.munchTypeNo = document.getElementById('pos-munch-type-no');
         els.fee = document.getElementById('pos-del-fee');

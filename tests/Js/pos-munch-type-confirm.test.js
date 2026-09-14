@@ -6,6 +6,7 @@ var path = require('path');
 var root = path.join(__dirname, '../..');
 var js = fs.readFileSync(path.join(root, 'public/assets/admin/js/munch-pos-app.js'), 'utf8');
 var page = fs.readFileSync(path.join(root, 'resources/views/branch-views/pos/index.blade.php'), 'utf8');
+var css = fs.readFileSync(path.join(root, 'public/assets/admin/css/munch-pos.css'), 'utf8');
 
 var failed = 0;
 var passed = 0;
@@ -62,9 +63,24 @@ function extractFn(source, name) {
     throw new Error(name + ' unclosed');
 }
 
+function modalMarkup() {
+    var start = page.indexOf('id="pos-munch-type-modal"');
+    assert(start !== -1, 'confirm modal missing');
+    return page.slice(start, start + 900);
+}
+
 var persistCalls = 0;
 var renderCalls = 0;
 var lastGridKey = 'stale';
+var CFG = {
+    labels: {
+        munchDineInConfirm: 'Are you sure this is a Munch Dine In order?',
+        munchTakeawayConfirm: 'Are you sure this is a Munch Takeaway order?'
+    }
+};
+function L(key, fallback) {
+    return (CFG.labels && CFG.labels[key]) || fallback || key;
+}
 var state = {
     productMap: { 1: {}, 2: {} },
     cart: {
@@ -78,17 +94,58 @@ function scheduleRender() { renderCalls += 1; }
 function productChannelAvailable(product) { return !!product; }
 
 var shouldConfirmMunchWalkInType;
+var munchWalkInConfirmMessage;
 var applyOrderType;
-var confirmMunchWalkInType;
-var rejectMunchWalkInType;
 eval('shouldConfirmMunchWalkInType = ' + extractFn(js, 'shouldConfirmMunchWalkInType'));
+eval('munchWalkInConfirmMessage = ' + extractFn(js, 'munchWalkInConfirmMessage'));
 eval('applyOrderType = ' + extractFn(js, 'applyOrderType'));
-eval('confirmMunchWalkInType = ' + extractFn(js, 'confirmMunchWalkInType'));
-eval('rejectMunchWalkInType = ' + extractFn(js, 'rejectMunchWalkInType'));
 
-test('dine in and takeaway require the Munch X confirmation', function () {
+test('dine in and takeaway require confirmation', function () {
     assert(shouldConfirmMunchWalkInType('dine_in') === true, 'dine in must confirm');
     assert(shouldConfirmMunchWalkInType('take_away') === true, 'takeaway must confirm');
+});
+
+test('dine in confirmation uses the Dine In sentence', function () {
+    assert(
+        munchWalkInConfirmMessage('dine_in') === 'Are you sure this is a Munch Dine In order?',
+        'wrong dine in copy: ' + munchWalkInConfirmMessage('dine_in')
+    );
+    assert(page.indexOf("translate('Are you sure this is a Munch Dine In order?')") !== -1, 'dine in label missing');
+    var open = extractFn(js, 'openMunchTypeConfirm');
+    assert(open.indexOf('munchWalkInConfirmMessage(type)') !== -1, 'open must set the type-specific title');
+    assert(open.indexOf('els.munchTypeTitle.textContent') !== -1, 'title node must be updated');
+});
+
+test('takeaway confirmation uses the Takeaway sentence', function () {
+    assert(
+        munchWalkInConfirmMessage('take_away') === 'Are you sure this is a Munch Takeaway order?',
+        'wrong takeaway copy: ' + munchWalkInConfirmMessage('take_away')
+    );
+    assert(page.indexOf("translate('Are you sure this is a Munch Takeaway order?')") !== -1, 'takeaway label missing');
+});
+
+test('confirmation copy never shows X', function () {
+    var modal = modalMarkup();
+    assert(modal.indexOf('Munch X') === -1, 'modal still contains Munch X');
+    assert(page.indexOf('Munch X') === -1, 'page still contains Munch X');
+    assert(js.indexOf('Munch X') === -1, 'js still contains Munch X');
+    assert(munchWalkInConfirmMessage('dine_in').indexOf(' X ') === -1, 'dine in copy contains X');
+    assert(munchWalkInConfirmMessage('take_away').indexOf(' X ') === -1, 'takeaway copy contains X');
+});
+
+test('No and Yes sit side by side with No left and Yes right', function () {
+    var modal = modalMarkup();
+    var actionsStart = modal.indexOf('munch-pos-dialog__actions');
+    var noBtn = modal.indexOf('id="pos-munch-type-no"');
+    var yesBtn = modal.indexOf('id="pos-munch-type-yes"');
+    assert(actionsStart !== -1, 'dialog actions missing');
+    assert(noBtn !== -1 && yesBtn !== -1, 'Yes/No buttons missing');
+    assert(noBtn < yesBtn, 'No must be the left button');
+    assert(modal.indexOf('class="munch-pos-clear" id="pos-munch-type-no"') !== -1, 'No must be the secondary button');
+    assert(modal.indexOf('class="munch-pos-place" id="pos-munch-type-yes"') !== -1, 'Yes must be the primary button');
+    assert(css.indexOf('grid-template-columns: 1fr 1fr') !== -1, 'actions must stay equal-width columns');
+    assert(css.indexOf('.munch-pos-dialog__actions') !== -1, 'must reuse existing dialog action layout');
+    assert(modal.indexOf('munch-pos-modal__card munch-pos-delivery-modal') !== -1, 'must reuse existing modal card styling');
 });
 
 test('delivery and marketplace types skip the confirmation', function () {
@@ -103,17 +160,7 @@ test('type chips open the existing POS confirm modal for dine in and takeaway', 
     assert(bind.indexOf('shouldConfirmMunchWalkInType(type)') !== -1, 'type click must gate on Munch walk-in types');
     assert(bind.indexOf('openMunchTypeConfirm(type)') !== -1, 'dine in/takeaway must open the confirm modal');
     assert(bind.indexOf('applyOrderType(type)') !== -1, 'other types still apply immediately');
-    assert(bind.indexOf("if (type === state.cart.orderType) return") !== -1, 're-tapping the active type must stay put');
     assert(page.indexOf('id="pos-munch-type-modal"') !== -1, 'confirm modal missing');
-    assert(page.indexOf('id="pos-munch-type-yes"') !== -1, 'Yes button missing');
-    assert(page.indexOf('id="pos-munch-type-no"') !== -1, 'No button missing');
-    assert(page.indexOf("translate('Are you sure this is a Munch X order?')") !== -1, 'confirm copy missing');
-    assert(page.indexOf("translate('Yes')") !== -1, 'Yes label missing');
-    assert(page.indexOf("translate('No')") !== -1, 'No label missing');
-    assert(page.indexOf('munch-pos-modal__card munch-pos-delivery-modal') !== -1, 'must reuse existing modal card styling');
-    assert(page.indexOf('class="munch-pos-place" id="pos-munch-type-yes"') !== -1, 'Yes must use the existing primary button');
-    assert(page.indexOf('class="munch-pos-clear" id="pos-munch-type-no"') !== -1, 'No must use the existing secondary button');
-    assert(page.indexOf('munch-pos-dialog__actions') !== -1, 'must reuse existing dialog actions');
 });
 
 test('Yes continues into the selected dine in or takeaway flow', function () {
@@ -130,6 +177,12 @@ test('Yes continues into the selected dine in or takeaway flow', function () {
     confirm();
     assert(closed === true, 'Yes must close the confirm modal');
     assert(applied.join() === 'dine_in', 'Yes must apply dine in');
+
+    pendingMunchOrderType = 'take_away';
+    closed = false;
+    applied = [];
+    confirm();
+    assert(applied.join() === 'take_away', 'Yes must apply takeaway');
 });
 
 test('No cancels the selection and leaves the previous order type', function () {

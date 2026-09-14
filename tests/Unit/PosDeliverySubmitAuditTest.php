@@ -58,7 +58,7 @@ class PosDeliverySubmitAuditTest extends TestCase
         $this->assertStringContainsString('PosDeliveryCustomerSms::dispatch($order)', $job);
         $this->assertStringContainsString('implements ShouldQueue', $job);
 
-        $this->assertSame('6.4', PosClientVersion::ASSET);
+        $this->assertSame('6.5', PosClientVersion::ASSET);
         $this->assertTrue(is_a(SendPosDeliveryCustomerSmsJob::class, \Illuminate\Contracts\Queue\ShouldQueue::class, true));
     }
 
