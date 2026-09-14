@@ -21,9 +21,26 @@
             padding: 5px 7px;
             border: 1px solid #cfcfcf;
             color: #111;
+            vertical-align: top;
         }
         table.report-table th { font-size: 11px; text-transform: uppercase; }
         .num { text-align: right; white-space: nowrap; }
+        .order-cell { width: 30%; }
+        .order-cell__number { font-size: 11px; font-weight: bold; line-height: 1.2; }
+        .order-cell__items {
+            font-size: 7.5pt;
+            line-height: 1.15;
+            margin: 2px 0 0;
+            color: #222;
+        }
+        .order-cell__item { margin: 0 0 2px; }
+        .order-cell__line { font-weight: 600; word-wrap: break-word; overflow-wrap: break-word; }
+        .order-cell__meta {
+            padding: 0 0 0 7px;
+            color: #333;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
         .total-wrap { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
         .total-wrap td { padding: 6px 8px; font-weight: bold; border: 1px solid #cfcfcf; }
         .empty { color: #555; font-style: italic; padding: 6px 8px; border: 1px solid #cfcfcf; }

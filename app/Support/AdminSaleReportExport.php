@@ -96,7 +96,8 @@ class AdminSaleReportExport
      *     to?: CarbonInterface|string,
      *     payment_totals?: array<string, float|int|string>,
      *     cancelled_orders?: iterable<int, object|array<string, mixed>>,
-     *     quantities?: array<int|string, int>
+     *     quantities?: array<int|string, int>,
+     *     items?: array<int|string, list<array<string, mixed>>>
      * }  $context
      * @return array<string, mixed>
      */
@@ -114,12 +115,13 @@ class AdminSaleReportExport
         $cancelledSeen = [];
         $includeDate = ! $from->isSameDay($to);
         $quantities = self::resolveQuantities($orders, $context);
+        $items = self::resolveItems($orders, $context);
 
         foreach ($orders as $order) {
-            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, false, $quantities);
+            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, false, $quantities, $items);
         }
         foreach ($context['cancelled_orders'] ?? [] as $order) {
-            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, true, $quantities);
+            self::assignExportOrder($order, $sections, $seen, $cancelledSeen, $includeDate, true, $quantities, $items);
         }
 
         foreach ($sections as &$section) {
@@ -628,7 +630,8 @@ class AdminSaleReportExport
         array &$cancelledSeen,
         bool $includeDate,
         bool $forceCancelled = false,
-        array $quantities = []
+        array $quantities = [],
+        array $items = []
     ): void {
         $id = self::orderId($order);
         if ($id !== '' && (isset($seen[$id]) || isset($cancelledSeen[$id]))) {
@@ -644,7 +647,7 @@ class AdminSaleReportExport
         }
 
         $voided = $forceCancelled || AdminDashboardSalesKpis::isVoidedOrder($order);
-        $row = self::orderRow($order, $category, $includeDate, $quantities);
+        $row = self::orderRow($order, $category, $includeDate, $quantities, $items);
         if ($voided) {
             if ($id !== '') {
                 $cancelledSeen[$id] = $category;
@@ -671,7 +674,7 @@ class AdminSaleReportExport
      * @param  object|array<string, mixed>  $order
      * @return array<string, mixed>
      */
-    private static function orderRow(object|array $order, string $category, bool $includeDate = false, array $quantities = []): array
+    private static function orderRow(object|array $order, string $category, bool $includeDate = false, array $quantities = [], array $items = []): array
     {
         $saleAt = PosSaleTime::instant($order);
         $sortAt = PosSaleTime::sortKey($order);
@@ -702,6 +705,7 @@ class AdminSaleReportExport
             ),
             'quantity' => self::quantityFor($order, $quantities),
             'amount' => self::money(self::value($order, 'order_amount') ?? 0),
+            'items' => self::itemsFor($order, $items),
         ];
     }
 
@@ -769,6 +773,106 @@ class AdminSaleReportExport
         }
 
         return $map;
+    }
+
+    /**
+     * Compact item lines for the PDF Order cell. CSV/Excel keep the order number only.
+     *
+     * @param  list<int|string>  $orderIds
+     * @return array<string, list<array{name: string, quantity: int, variations: list<string>, addons: list<string>}>>
+     */
+    public static function itemsByOrderId(array $orderIds): array
+    {
+        $ids = [];
+        foreach ($orderIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids === [] || ! Schema::hasTable('order_details')) {
+            return [];
+        }
+
+        $select = ['id', 'order_id', 'quantity'];
+        foreach (['product_details', 'variation', 'add_on_ids', 'add_on_qtys'] as $column) {
+            if (Schema::hasColumn('order_details', $column)) {
+                $select[] = $column;
+            }
+        }
+
+        $rows = DB::table('order_details')
+            ->whereIn('order_id', array_values($ids))
+            ->orderBy('id')
+            ->get($select);
+
+        $addonNames = self::addonNamesForDetails($rows);
+        $map = [];
+        foreach ($rows as $row) {
+            $item = self::detailToItem($row, $addonNames);
+            if ($item === null) {
+                continue;
+            }
+            $map[(string) $row->order_id][] = $item;
+        }
+
+        return $map;
+    }
+
+    /**
+     * HTML for the existing PDF "Munch Order #" cell. Names are escaped.
+     *
+     * @param  array<string, mixed>  $order
+     */
+    public static function orderCellHtml(array $order): string
+    {
+        $number = e((string) ($order['order_number'] ?? ''));
+        $html = '<div class="order-cell__number">'.$number.'</div>';
+        $items = self::normalizeItemList($order['items'] ?? []);
+        if ($items === []) {
+            return $html;
+        }
+
+        $html .= '<div class="order-cell__items">';
+        foreach ($items as $item) {
+            $html .= '<div class="order-cell__item">';
+            $html .= '<div class="order-cell__line">'.e(self::itemQuantityLine($item)).'</div>';
+            $variationLine = self::itemVariationLine($item);
+            if ($variationLine !== '') {
+                $html .= '<div class="order-cell__meta">'.e($variationLine).'</div>';
+            }
+            $addonLine = self::itemAddonLine($item);
+            if ($addonLine !== '') {
+                $html .= '<div class="order-cell__meta">'.e($addonLine).'</div>';
+            }
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Plain-text Order cell for tests and visual checks.
+     *
+     * @param  array<string, mixed>  $order
+     */
+    public static function orderCellText(array $order): string
+    {
+        $lines = [(string) ($order['order_number'] ?? '')];
+        foreach (self::normalizeItemList($order['items'] ?? []) as $item) {
+            $lines[] = self::itemQuantityLine($item);
+            $variationLine = self::itemVariationLine($item);
+            if ($variationLine !== '') {
+                $lines[] = '   '.$variationLine;
+            }
+            $addonLine = self::itemAddonLine($item);
+            if ($addonLine !== '') {
+                $lines[] = '   '.$addonLine;
+            }
+        }
+
+        return implode("\n", array_filter($lines, static fn (string $line): bool => $line !== ''));
     }
 
     /**
@@ -1058,5 +1162,336 @@ class AdminSaleReportExport
         $explicit = self::value($order, 'quantity');
 
         return $explicit === null || $explicit === '' ? 0 : (int) $explicit;
+    }
+
+    /**
+     * @param  iterable<int, object|array<string, mixed>>  $orders
+     * @param  array<string, mixed>  $context
+     * @return array<string, list<array{name: string, quantity: int, variations: list<string>, addons: list<string>}>>
+     */
+    private static function resolveItems(iterable $orders, array $context): array
+    {
+        $items = [];
+        foreach ($context['items'] ?? [] as $id => $list) {
+            $items[(string) $id] = self::normalizeItemList(is_array($list) ? $list : []);
+        }
+
+        $lookupIds = [];
+        foreach ($orders as $order) {
+            self::collectItems($order, $items, $lookupIds);
+        }
+        foreach ($context['cancelled_orders'] ?? [] as $order) {
+            self::collectItems($order, $items, $lookupIds);
+        }
+        foreach (self::itemsByOrderId($lookupIds) as $id => $list) {
+            if (! isset($items[(string) $id])) {
+                $items[(string) $id] = $list;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $order
+     * @param  array<string, list<array{name: string, quantity: int, variations: list<string>, addons: list<string>}>>  $items
+     * @param  list<int|string>  $lookupIds
+     */
+    private static function collectItems(object|array $order, array &$items, array &$lookupIds): void
+    {
+        $id = self::orderId($order);
+        if ($id === '' || isset($items[$id])) {
+            return;
+        }
+        $explicit = self::value($order, 'items');
+        if (is_array($explicit) && $explicit !== []) {
+            $items[$id] = self::normalizeItemList($explicit);
+
+            return;
+        }
+        $lookupIds[] = $id;
+    }
+
+    /**
+     * @param  object|array<string, mixed>  $order
+     * @param  array<int|string, list<array{name: string, quantity: int, variations: list<string>, addons: list<string>}>>  $items
+     * @return list<array{name: string, quantity: int, variations: list<string>, addons: list<string>}>
+     */
+    private static function itemsFor(object|array $order, array $items): array
+    {
+        $id = self::orderId($order);
+        if ($id !== '') {
+            if (isset($items[$id])) {
+                return $items[$id];
+            }
+            if (isset($items[(int) $id])) {
+                return $items[(int) $id];
+            }
+        }
+        $explicit = self::value($order, 'items');
+
+        return is_array($explicit) ? self::normalizeItemList($explicit) : [];
+    }
+
+    /**
+     * @param  mixed  $list
+     * @return list<array{name: string, quantity: int, variations: list<string>, addons: list<string>}>
+     */
+    private static function normalizeItemList(mixed $list): array
+    {
+        if (! is_array($list)) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($list as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $name = trim((string) ($item['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $items[] = [
+                'name' => $name,
+                'quantity' => max(1, (int) ($item['quantity'] ?? 1)),
+                'variations' => self::stringList($item['variations'] ?? []),
+                'addons' => self::stringList($item['addons'] ?? []),
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $entry) {
+            $label = trim((string) $entry);
+            if ($label !== '') {
+                $out[] = $label;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array{name: string, quantity: int, variations: list<string>, addons: list<string>}  $item
+     */
+    private static function itemQuantityLine(array $item): string
+    {
+        return ((int) $item['quantity']).' × '.$item['name'];
+    }
+
+    /**
+     * @param  array{name: string, quantity: int, variations: list<string>, addons: list<string>}  $item
+     */
+    private static function itemVariationLine(array $item): string
+    {
+        return implode(', ', $item['variations']);
+    }
+
+    /**
+     * @param  array{name: string, quantity: int, variations: list<string>, addons: list<string>}  $item
+     */
+    private static function itemAddonLine(array $item): string
+    {
+        if ($item['addons'] === []) {
+            return '';
+        }
+
+        return implode(', ', array_map(
+            static fn (string $addon): string => '+ '.$addon,
+            $item['addons']
+        ));
+    }
+
+    /**
+     * @param  iterable<int, object>  $rows
+     * @return array<int, string>
+     */
+    private static function addonNamesForDetails(iterable $rows): array
+    {
+        $ids = [];
+        foreach ($rows as $row) {
+            foreach (self::decodeList($row->add_on_ids ?? []) as $id) {
+                $id = (int) $id;
+                if ($id > 0) {
+                    $ids[$id] = $id;
+                }
+            }
+        }
+        if ($ids === [] || ! Schema::hasTable('add_ons')) {
+            return [];
+        }
+
+        $names = [];
+        foreach (DB::table('add_ons')->whereIn('id', array_values($ids))->get(['id', 'name']) as $addon) {
+            $name = trim((string) ($addon->name ?? ''));
+            if ($name !== '') {
+                $names[(int) $addon->id] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * @param  array<int, string>  $addonNames
+     * @return array{name: string, quantity: int, variations: list<string>, addons: list<string>}|null
+     */
+    private static function detailToItem(object $row, array $addonNames): ?array
+    {
+        $product = self::decodeAssoc($row->product_details ?? null);
+        $name = trim((string) ($product['name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+
+        return [
+            'name' => $name,
+            'quantity' => max(1, (int) ($row->quantity ?? 1)),
+            'variations' => self::variationLabels($row->variation ?? null),
+            'addons' => self::addonLabels($row, $product, $addonNames),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function variationLabels(mixed $variation): array
+    {
+        $labels = \App\Services\BranchPosTodayOrdersService::variationOptionLabels($variation);
+        if ($labels !== []) {
+            return $labels;
+        }
+
+        $raw = $variation;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $fallback = [];
+        foreach ($raw as $group) {
+            if (! is_array($group)) {
+                if (is_string($group) && trim($group) !== '') {
+                    $fallback[] = trim($group);
+                }
+                continue;
+            }
+            if (isset($group['type']) && trim((string) $group['type']) !== '') {
+                $fallback[] = trim((string) $group['type']);
+                continue;
+            }
+            if (isset($group['values']) || isset($group['name'])) {
+                continue;
+            }
+            foreach ($group as $key => $value) {
+                if (in_array($key, ['price', 'stock', 'required', 'min', 'max'], true)) {
+                    continue;
+                }
+                if (is_string($value) && trim($value) !== '') {
+                    $fallback[] = trim($value);
+                }
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param  array<string, mixed>  $product
+     * @param  array<int, string>  $addonNames
+     * @return list<string>
+     */
+    private static function addonLabels(object $row, array $product, array $addonNames): array
+    {
+        $ids = self::decodeList($row->add_on_ids ?? []);
+        $qtys = self::decodeList($row->add_on_qtys ?? []);
+        $fromProduct = [];
+        foreach ($product['add_ons'] ?? [] as $addon) {
+            if (! is_array($addon)) {
+                continue;
+            }
+            $id = (int) ($addon['id'] ?? 0);
+            $name = trim((string) ($addon['name'] ?? ''));
+            if ($id > 0 && $name !== '') {
+                $fromProduct[$id] = $name;
+            }
+        }
+
+        $labels = [];
+        if ($ids !== []) {
+            foreach ($ids as $index => $rawId) {
+                $id = (int) $rawId;
+                if ($id < 1) {
+                    continue;
+                }
+                $name = $fromProduct[$id] ?? $addonNames[$id] ?? '';
+                if ($name === '') {
+                    continue;
+                }
+                $qty = (int) ($qtys[$index] ?? 1);
+                $labels[] = $qty > 1 ? $name.' × '.$qty : $name;
+            }
+
+            return $labels;
+        }
+
+        foreach ($product['add_ons'] ?? [] as $addon) {
+            if (! is_array($addon)) {
+                continue;
+            }
+            $name = trim((string) ($addon['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $qty = max(1, (int) ($addon['quantity'] ?? $addon['qty'] ?? 1));
+            $labels[] = $qty > 1 ? $name.' × '.$qty : $name;
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private static function decodeList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values($value);
+        }
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? array_values($decoded) : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function decodeAssoc(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 }

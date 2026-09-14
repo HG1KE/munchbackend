@@ -18,10 +18,19 @@
         </thead>
         <tbody>
         @foreach($orders as $order)
-            @php $cells = \App\Support\AdminSaleReportExport::orderCells($order, $sectionKey); @endphp
+            @php
+                $cells = \App\Support\AdminSaleReportExport::orderCells($order, $sectionKey);
+            @endphp
             <tr>
                 @foreach($cells as $index => $cell)
-                    <td class="{{ $index === count($cells) - 1 ? 'num' : '' }}">{{ $cell }}</td>
+                    @php $isOrderNumber = ($columns[$index] ?? '') === 'Munch Order #'; @endphp
+                    <td class="{{ $index === count($cells) - 1 ? 'num' : '' }}{{ $isOrderNumber ? ' order-cell' : '' }}">
+                        @if($isOrderNumber)
+                            {!! \App\Support\AdminSaleReportExport::orderCellHtml($order) !!}
+                        @else
+                            {{ $cell }}
+                        @endif
+                    </td>
                 @endforeach
             </tr>
         @endforeach
