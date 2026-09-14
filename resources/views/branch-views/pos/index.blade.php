@@ -101,7 +101,7 @@
 </div>
 
 <div class="munch-pos-modal" id="pos-munch-type-modal" hidden>
-    <div class="munch-pos-modal__card munch-pos-delivery-modal" role="dialog" aria-modal="true" aria-labelledby="pos-munch-type-title">
+    <div class="munch-pos-modal__card munch-pos-delivery-modal munch-pos-munch-type-modal" role="dialog" aria-modal="true" aria-labelledby="pos-munch-type-title">
         <h2 id="pos-munch-type-title"></h2>
         <div class="munch-pos-dialog__actions">
             <button type="button" class="munch-pos-clear" id="pos-munch-type-no">{{ translate('No') }}</button>
@@ -383,5 +383,5 @@
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.6" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.7" defer></script>
 @endpush

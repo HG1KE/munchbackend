@@ -797,6 +797,40 @@
     grid-column: 1 / -1;
 }
 
+.munch-pos-munch-type-modal .munch-pos-dialog__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    padding-top: 0.85rem;
+}
+
+.munch-pos-munch-type-modal .munch-pos-dialog__actions .munch-pos-place,
+.munch-pos-munch-type-modal .munch-pos-dialog__actions .munch-pos-clear {
+    grid-column: auto;
+    width: 100%;
+    min-height: 52px;
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: 14px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.2;
+    justify-self: stretch;
+    align-self: stretch;
+}
+
+.munch-pos-munch-type-modal .munch-pos-dialog__actions .munch-pos-clear {
+    border: 1px solid var(--munch-pos-line);
+    background: #fff;
+    color: var(--munch-pos-ink);
+}
+
+.munch-pos-munch-type-modal .munch-pos-dialog__actions .munch-pos-place {
+    border: 1px solid var(--munch-pos-red);
+    background: var(--munch-pos-red);
+    color: #fff;
+}
+
 .munch-pos-choice {
     display: flex;
     justify-content: space-between;

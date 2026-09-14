@@ -156,6 +156,7 @@ test('a newly deployed version is detected without hardcoding the version', func
     assert(apply.indexOf("=== '6.4'") === -1, 'must not hardcode 6.4');
     assert(apply.indexOf("=== '6.5'") === -1, 'must not hardcode 6.5');
     assert(apply.indexOf("=== '6.6'") === -1, 'must not hardcode 6.6');
+    assert(apply.indexOf("=== '6.7'") === -1, 'must not hardcode 6.7');
     assert(js.indexOf('json.pos_asset_version') !== -1, 'heartbeat must still send the live version');
     assert(js.indexOf('applyStaleClient(json.pos_asset_version)') !== -1, 'heartbeat must apply the live version');
     assert(controller.indexOf("'pos_asset_version' => PosClientVersion::ASSET") !== -1, 'server must keep publishing PosClientVersion::ASSET');

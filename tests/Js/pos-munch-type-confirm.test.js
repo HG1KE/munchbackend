@@ -138,14 +138,23 @@ test('No and Yes sit side by side with No left and Yes right', function () {
     var actionsStart = modal.indexOf('munch-pos-dialog__actions');
     var noBtn = modal.indexOf('id="pos-munch-type-no"');
     var yesBtn = modal.indexOf('id="pos-munch-type-yes"');
+    var typeCssStart = css.indexOf('.munch-pos-munch-type-modal .munch-pos-dialog__actions');
+    var typeCss = typeCssStart === -1 ? '' : css.slice(typeCssStart, typeCssStart + 900);
     assert(actionsStart !== -1, 'dialog actions missing');
     assert(noBtn !== -1 && yesBtn !== -1, 'Yes/No buttons missing');
     assert(noBtn < yesBtn, 'No must be the left button');
     assert(modal.indexOf('class="munch-pos-clear" id="pos-munch-type-no"') !== -1, 'No must be the secondary button');
     assert(modal.indexOf('class="munch-pos-place" id="pos-munch-type-yes"') !== -1, 'Yes must be the primary button');
-    assert(css.indexOf('grid-template-columns: 1fr 1fr') !== -1, 'actions must stay equal-width columns');
+    assert(modal.indexOf('munch-pos-modal') !== -1, 'must reuse existing munch-pos-modal');
+    assert(modal.indexOf('munch-pos-modal__card munch-pos-delivery-modal munch-pos-munch-type-modal') !== -1, 'must reuse existing modal card styling');
     assert(css.indexOf('.munch-pos-dialog__actions') !== -1, 'must reuse existing dialog action layout');
-    assert(modal.indexOf('munch-pos-modal__card munch-pos-delivery-modal') !== -1, 'must reuse existing modal card styling');
+    assert(typeCss.indexOf('grid-template-columns: 1fr 1fr') !== -1, 'No and Yes must share one equal-width row');
+    assert(typeCss.indexOf('grid-column: auto') !== -1, 'Yes must not span the full row');
+    assert(typeCss.indexOf('background: #fff') !== -1, 'No must have a visible button background');
+    assert(typeCss.indexOf('background: var(--munch-pos-red)') !== -1, 'Yes must stay the primary red button');
+    assert(typeCss.indexOf('min-height: 52px') !== -1, 'both buttons must be touch-friendly');
+    assert(typeCss.indexOf('border-radius: 14px') !== -1, 'both buttons must share the POS radius');
+    assert(typeCss.indexOf('font-weight: 800') !== -1, 'both buttons must share the POS font treatment');
 });
 
 test('delivery and marketplace types skip the confirmation', function () {
