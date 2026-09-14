@@ -795,7 +795,7 @@ class AdminSaleReportExport
         }
 
         $select = ['id', 'order_id', 'quantity'];
-        foreach (['product_details', 'variation', 'add_on_ids', 'add_on_qtys'] as $column) {
+        foreach (['product_details', 'variation', 'variant', 'add_on_ids', 'add_on_qtys'] as $column) {
             if (Schema::hasColumn('order_details', $column)) {
                 $select[] = $column;
             }
@@ -1358,55 +1358,98 @@ class AdminSaleReportExport
         return [
             'name' => $name,
             'quantity' => max(1, (int) ($row->quantity ?? 1)),
-            'variations' => self::variationLabels($row->variation ?? null),
-            'addons' => self::addonLabels($row, $product, $addonNames),
+            'variations' => self::postedVariationLabels($row),
+            'addons' => self::postedAddonLabels($row, $product, $addonNames),
         ];
+    }
+
+    /**
+     * Labels from the posted order-detail variation snapshot only.
+     * Never reads product_details.variations or the live product catalogue.
+     *
+     * @return list<string>
+     */
+    private static function postedVariationLabels(object $row): array
+    {
+        $labels = self::selectedVariationLabels($row->variation ?? null);
+        if ($labels !== []) {
+            return $labels;
+        }
+
+        return self::selectedVariationLabels($row->variant ?? null);
     }
 
     /**
      * @return list<string>
      */
-    private static function variationLabels(mixed $variation): array
+    private static function selectedVariationLabels(mixed $variation): array
     {
-        $labels = \App\Services\BranchPosTodayOrdersService::variationOptionLabels($variation);
-        if ($labels !== []) {
-            return $labels;
+        if ($variation === null || $variation === '' || $variation === []) {
+            return [];
         }
-
-        $raw = $variation;
-        if (is_string($raw)) {
-            $raw = json_decode($raw, true);
+        if (is_string($variation)) {
+            $trimmed = trim($variation);
+            if ($trimmed === '' || $trimmed === '[]' || strcasecmp($trimmed, 'null') === 0) {
+                return [];
+            }
+            $variation = json_decode($trimmed, true);
         }
-        if (! is_array($raw)) {
+        if (! is_array($variation) || $variation === []) {
             return [];
         }
 
-        $fallback = [];
-        foreach ($raw as $group) {
+        $labels = [];
+        foreach ($variation as $group) {
+            if (is_string($group)) {
+                $label = trim($group);
+                if ($label !== '' && ! self::isVariationGroupType($label)) {
+                    $labels[] = $label;
+                }
+                continue;
+            }
             if (! is_array($group)) {
-                if (is_string($group) && trim($group) !== '') {
-                    $fallback[] = trim($group);
+                continue;
+            }
+
+            $values = $group['values'] ?? null;
+            if (is_array($values) && array_key_exists('label', $values)) {
+                foreach ((array) $values['label'] as $label) {
+                    $label = trim((string) $label);
+                    if ($label !== '') {
+                        $labels[] = $label;
+                    }
                 }
                 continue;
             }
-            if (isset($group['type']) && trim((string) $group['type']) !== '') {
-                $fallback[] = trim((string) $group['type']);
-                continue;
-            }
-            if (isset($group['values']) || isset($group['name'])) {
-                continue;
-            }
-            foreach ($group as $key => $value) {
-                if (in_array($key, ['price', 'stock', 'required', 'min', 'max'], true)) {
-                    continue;
+            if (is_array($values)) {
+                foreach ($values as $value) {
+                    if (is_array($value) && isset($value['label'])) {
+                        $label = trim((string) $value['label']);
+                        if ($label !== '') {
+                            $labels[] = $label;
+                        }
+                    } elseif (is_string($value) && trim($value) !== '') {
+                        $labels[] = trim($value);
+                    }
                 }
-                if (is_string($value) && trim($value) !== '') {
-                    $fallback[] = trim($value);
+                continue;
+            }
+
+            // Legacy selected flavour stored as type, never "single"/"multi".
+            if (isset($group['type']) && is_string($group['type']) && ! self::isVariationGroupType($group['type'])) {
+                $label = trim($group['type']);
+                if ($label !== '') {
+                    $labels[] = $label;
                 }
             }
         }
 
-        return $fallback;
+        return $labels;
+    }
+
+    private static function isVariationGroupType(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), ['single', 'multi', 'multiple'], true);
     }
 
     /**
@@ -1414,11 +1457,15 @@ class AdminSaleReportExport
      * @param  array<int, string>  $addonNames
      * @return list<string>
      */
-    private static function addonLabels(object $row, array $product, array $addonNames): array
+    private static function postedAddonLabels(object $row, array $product, array $addonNames): array
     {
-        $ids = self::decodeList($row->add_on_ids ?? []);
+        $ids = self::postedAddonIds($row->add_on_ids ?? null);
+        if ($ids === []) {
+            return [];
+        }
+
         $qtys = self::decodeList($row->add_on_qtys ?? []);
-        $fromProduct = [];
+        $fromSnapshot = [];
         foreach ($product['add_ons'] ?? [] as $addon) {
             if (! is_array($addon)) {
                 continue;
@@ -1426,21 +1473,13 @@ class AdminSaleReportExport
             $id = (int) ($addon['id'] ?? 0);
             $name = trim((string) ($addon['name'] ?? ''));
             if ($id > 0 && $name !== '') {
-                $fromProduct[$id] = $name;
+                $fromSnapshot[$id] = $name;
             }
-        }
-
-        if ($ids === []) {
-            return [];
         }
 
         $labels = [];
-        foreach ($ids as $index => $rawId) {
-            $id = (int) $rawId;
-            if ($id < 1) {
-                continue;
-            }
-            $name = $fromProduct[$id] ?? $addonNames[$id] ?? '';
+        foreach ($ids as $index => $id) {
+            $name = $fromSnapshot[$id] ?? $addonNames[$id] ?? '';
             if ($name === '') {
                 continue;
             }
@@ -1449,6 +1488,22 @@ class AdminSaleReportExport
         }
 
         return $labels;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private static function postedAddonIds(mixed $value): array
+    {
+        $ids = [];
+        foreach (self::decodeList($value) as $raw) {
+            $id = (int) $raw;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
     }
 
     /**
@@ -1462,7 +1517,11 @@ class AdminSaleReportExport
         if (! is_string($value) || trim($value) === '') {
             return [];
         }
-        $decoded = json_decode($value, true);
+        $trimmed = trim($value);
+        if (strcasecmp($trimmed, 'null') === 0) {
+            return [];
+        }
+        $decoded = json_decode($trimmed, true);
 
         return is_array($decoded) ? array_values($decoded) : [];
     }
