@@ -40,6 +40,10 @@
                 <th>{{ $summary['total_discounts'] }}</th>
             </tr>
             <tr>
+                <th colspan="6">{{ translate('Cashier Discounts') }}</th>
+                <th>{{ $summary['cashier_discounts'] ?? '' }}</th>
+            </tr>
+            <tr>
                 <th colspan="6">{{ translate('Net Sales') }}</th>
                 <th>{{ $summary['net_sales'] }}</th>
             </tr>

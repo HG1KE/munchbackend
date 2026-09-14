@@ -101,7 +101,7 @@ class PosOrderEditService
                 ];
             }
 
-            $locked->extra_discount = $parts['extra_discount'];
+            $locked->extra_discount = PosOrderTypes::cashierExtraDiscount($parts['extra_discount'] ?? 0);
             $locked->total_tax_amount = $parts['total_tax_amount'];
             $locked->delivery_charge = $parts['delivery_charge'];
             $locked->order_amount = $parts['order_amount'];

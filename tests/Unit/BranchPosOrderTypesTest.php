@@ -158,14 +158,14 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('Bolt Food Order Number', PosOrderTypes::platformOrderNumberLabel('bolt_food'));
     }
 
-    public function test_manual_discount_is_only_allowed_for_delivery_takeaway_and_dine_in(): void
+    public function test_manual_discount_is_disabled_for_every_pos_channel(): void
     {
-        $this->assertTrue(PosOrderTypes::allowsManualDiscount('delivery'));
-        $this->assertTrue(PosOrderTypes::allowsManualDiscount('take_away'));
-        $this->assertTrue(PosOrderTypes::allowsManualDiscount('dine_in'));
-        $this->assertFalse(PosOrderTypes::allowsManualDiscount('glovo'));
-        $this->assertFalse(PosOrderTypes::allowsManualDiscount('uber'));
-        $this->assertFalse(PosOrderTypes::allowsManualDiscount('bolt_food'));
+        foreach (['delivery', 'take_away', 'dine_in', 'glovo', 'uber', 'bolt_food'] as $type) {
+            $this->assertFalse(PosOrderTypes::allowsManualDiscount($type));
+            $this->assertSame(0.0, PosOrderTypes::cashierExtraDiscount(500));
+        }
+        $this->assertSame(0.0, PosOrderTypes::cashierExtraDiscount('99'));
+        $this->assertSame(0.0, PosOrderTypes::cashierExtraDiscount(null));
     }
 
     public function test_pos_cancellation_is_limited_to_owned_channels(): void

@@ -22,6 +22,7 @@ class AdminSaleReportSummaryTest extends TestCase
 
         $this->assertSame(1000.0, $summary['gross_sales']);
         $this->assertSame(160.0, $summary['total_discounts']);
+        $this->assertSame(20.0, $summary['cashier_discounts']);
         $this->assertSame(840.0, $summary['net_sales']);
         $this->assertSame(40.0, $summary['tax']);
         $this->assertSame(150.0, $summary['delivery_fees']);
@@ -38,6 +39,7 @@ class AdminSaleReportSummaryTest extends TestCase
 
         $this->assertSame(1234.56, $summary['total_sales']);
         $this->assertSame(400.0, $summary['net_sales']);
+        $this->assertSame(0.0, $summary['cashier_discounts']);
     }
 
     public function test_munch_sales_is_cash_card_mpesa_and_paystack(): void
@@ -89,6 +91,7 @@ class AdminSaleReportSummaryTest extends TestCase
         ]);
 
         $this->assertSame(777.0, $summary['total_sales']);
+        $this->assertSame(0.0, $summary['cashier_discounts']);
         $this->assertSame(550.0, $groups['munch_sales']);
         $this->assertSame(350.0, $groups['marketplace_sales']);
         $this->assertNotSame($summary['total_sales'], $groups['munch_sales'] + $groups['marketplace_sales']);
@@ -132,7 +135,12 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringNotContainsString("sale_report_' . rand", $controller);
 
         $this->assertStringContainsString('id="sum-total-discounts"', $page);
+        $this->assertStringContainsString('id="sum-cashier-discounts"', $page);
         $this->assertStringContainsString('id="total-discounts-highlight"', $page);
+        $this->assertStringContainsString("data.summary.cashier_discounts", $page);
+        $this->assertStringContainsString('Cashier Discounts', $page);
+        $this->assertStringNotContainsString('Cashier Discounts', $pdf);
+        $this->assertStringNotContainsString('data.summary.cashier_discounts', $pdf);
         $this->assertStringContainsString('id="sum-gross-sales"', $page);
         $this->assertStringContainsString('id="sum-net-sales"', $page);
         $this->assertStringContainsString('id="sum-munch-sales"', $page);
@@ -160,6 +168,7 @@ class AdminSaleReportSummaryTest extends TestCase
         $this->assertStringContainsString("'format' => 'xlsx'", $page);
 
         $this->assertStringContainsString('Total Discounts', $table);
+        $this->assertStringContainsString('Cashier Discounts', $table);
         $this->assertStringContainsString('Munch Sales', $table);
         $this->assertStringContainsString('Marketplace Sales', $table);
         $this->assertStringContainsString('footer: true', $table);

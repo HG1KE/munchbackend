@@ -99,6 +99,10 @@
     box-shadow: var(--sale-kpi-shadow), inset 3px 0 0 #f59e0b;
 }
 
+.munch-sale-report__card--cashier-discount {
+    box-shadow: var(--sale-kpi-shadow), inset 3px 0 0 #b45309;
+}
+
 .munch-sale-report__grid--cancelled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -182,7 +186,7 @@
 
 @media (min-width: 1200px) {
     .munch-sale-report__grid--kpis {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .munch-sale-report__grid--payments {

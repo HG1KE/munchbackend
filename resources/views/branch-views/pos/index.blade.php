@@ -49,13 +49,6 @@
             </div>
             <div class="munch-pos-footer">
                 <div class="munch-pos-totals" id="pos-totals"></div>
-                <div class="munch-pos-discount" id="pos-discount-wrap">
-                    <input type="number" id="pos-discount" min="0" step="1" placeholder="{{ translate('Discount') }}">
-                    <select id="pos-discount-type">
-                        <option value="amount">{{ translate('Amount') }}</option>
-                        <option value="percent">%</option>
-                    </select>
-                </div>
                 <div class="munch-pos-pay" id="pos-pay"></div>
                 <button type="button" class="munch-pos-place" id="pos-place" data-label="{{ translate('Place Order') }}">{{ translate('Place Order') }}</button>
                 <button type="button" class="munch-pos-clear" id="pos-clear">{{ translate('Clear Cart') }}</button>
@@ -383,7 +376,7 @@
 </script>
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.3"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.3"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.8" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v={{ \App\Support\PosClientVersion::ASSET }}" defer></script>
 @endpush

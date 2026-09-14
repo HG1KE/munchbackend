@@ -60,7 +60,7 @@ class PosDineInTableTest extends TestCase
     {
         $this->assertTrue(PosOrderTypes::isDineIn('dine_in'));
         $this->assertSame('dine_in', PosOrderTypes::databaseType('dine_in'));
-        $this->assertTrue(PosOrderTypes::allowsManualDiscount('dine_in'));
+        $this->assertFalse(PosOrderTypes::allowsManualDiscount('dine_in'));
         $this->assertFalse(method_exists(PosOrderTypes::class, 'jsonDineInError'));
         $this->assertFalse(method_exists(PosOrderTypes::class, 'jsonDineInTableId'));
         $this->assertFalse(method_exists(PosOrderTypes::class, 'jsonDineInPeople'));

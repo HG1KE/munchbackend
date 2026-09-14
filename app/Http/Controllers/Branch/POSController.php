@@ -452,8 +452,8 @@ class POSController extends Controller
         }
 
         $cart = $request->session()->get('cart', collect([]));
-        $cart['extra_discount_type'] = $request->type;
-        $cart['extra_discount'] = $request->discount;
+        $cart['extra_discount_type'] = 'amount';
+        $cart['extra_discount'] = PosOrderTypes::cashierExtraDiscount($request->discount);
 
         $request->session()->put('cart', $cart);
         return back();
@@ -729,7 +729,7 @@ class POSController extends Controller
         $order->checked = 1;
 
         try {
-            $order->extra_discount = $extraDiscount;
+            $order->extra_discount = PosOrderTypes::cashierExtraDiscount($extraDiscount);
             $order->total_tax_amount = $totalTaxAmount;
             $order->delivery_charge = $deliveryCharge;
             $order->order_amount = $orderAmount;
@@ -1357,10 +1357,8 @@ class POSController extends Controller
             return $this->posFail($request, translate('cart_empty_warning'));
         }
 
-        $cart['extra_discount'] = PosOrderTypes::allowsManualDiscount($request->input('order_type'))
-            ? (float) $request->input('extra_discount', 0)
-            : 0;
-        $cart['extra_discount_type'] = $request->input('extra_discount_type', 'amount') === 'percent' ? 'percent' : 'amount';
+        $cart['extra_discount'] = PosOrderTypes::cashierExtraDiscount($request->input('extra_discount', 0));
+        $cart['extra_discount_type'] = 'amount';
 
         $request->session()->put('cart', $cart);
         $request->session()->put('order_type', PosOrderTypes::normalize($request->input('order_type')));
@@ -1458,20 +1456,7 @@ class POSController extends Controller
         }
 
         $totalPrice = $productPrice + $totalAddonPrice;
-        $totalPriceForDiscountValidation = $totalPrice ?? 0;
-        $extraDiscount = 0;
-        if (isset($cart['extra_discount'])) {
-            $extraDiscount = $cart['extra_discount_type'] == 'percent' && $cart['extra_discount'] > 0 ? (($totalPrice * $cart['extra_discount']) / 100) : $cart['extra_discount'];
-            $totalPrice -= $extraDiscount;
-        }
-        if (isset($cart['extra_discount']) && $cart['extra_discount_type'] == 'amount') {
-            if ($cart['extra_discount'] > $totalPriceForDiscountValidation) {
-                return [
-                    'ok' => false,
-                    'message' => translate('discount_can_not_be_more_than ').$totalPriceForDiscountValidation,
-                ];
-            }
-        }
+        $extraDiscount = PosOrderTypes::cashierExtraDiscount($cart['extra_discount'] ?? 0);
         $tax = isset($cart['tax']) ? $cart['tax'] : 0;
         $totalTaxAmount = ($tax > 0) ? (($totalPrice * $tax) / 100) : $totalTaxAmount;
 

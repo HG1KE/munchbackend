@@ -22,6 +22,7 @@ class AdminSaleReportSummary
      * @return array{
      *     gross_sales: float,
      *     total_discounts: float,
+     *     cashier_discounts: float,
      *     net_sales: float,
      *     tax: float,
      *     delivery_fees: float,
@@ -31,14 +32,16 @@ class AdminSaleReportSummary
     public static function fromParts(array $parts): array
     {
         $gross = self::money($parts['gross'] ?? 0);
+        $cashier = self::money($parts['extra_discount'] ?? 0);
         $discounts = self::money($parts['item_discount'] ?? 0)
-            + self::money($parts['extra_discount'] ?? 0)
+            + $cashier
             + self::money($parts['coupon_discount'] ?? 0)
             + self::money($parts['referral_discount'] ?? 0);
 
         return [
             'gross_sales' => $gross,
             'total_discounts' => $discounts,
+            'cashier_discounts' => $cashier,
             'net_sales' => $gross - $discounts,
             'tax' => self::money($parts['tax'] ?? 0),
             'delivery_fees' => self::money($parts['delivery_fees'] ?? 0),

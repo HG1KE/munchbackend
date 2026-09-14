@@ -433,7 +433,7 @@ class ReportController extends Controller
 
     /**
      * @param  list<int|string>  $orderIds
-     * @return array{gross_sales: float, total_discounts: float, net_sales: float, tax: float, delivery_fees: float, total_sales: float}
+     * @return array{gross_sales: float, total_discounts: float, cashier_discounts: float, net_sales: float, tax: float, delivery_fees: float, total_sales: float}
      */
     private function saleReportSummary(array $orderIds, float $totalSold): array
     {
@@ -469,7 +469,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @param  array{gross_sales: float, total_discounts: float, net_sales: float, tax: float, delivery_fees: float, total_sales: float}  $summary
+     * @param  array{gross_sales: float, total_discounts: float, cashier_discounts: float, net_sales: float, tax: float, delivery_fees: float, total_sales: float}  $summary
      * @return array<string, string>
      */
     private function formatSaleReportSummary(array $summary): array

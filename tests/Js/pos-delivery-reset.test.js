@@ -67,6 +67,8 @@ test('persistableCart never writes delivery details and does not mutate live sta
     assertBlankDelivery(stored, 'idb snapshot');
     assert(stored.lines.length === 1, 'idb snapshot should keep in-progress lines');
     assert(stored.note === 'keep-me', 'idb snapshot should keep unrelated cart fields');
+    assert(stored.discount === 0, 'idb snapshot must not restore a cashier discount');
+    assert(stored.discountType === 'amount', 'idb snapshot discount type must stay amount');
     assert(cart.deliveryFee === 200, 'live cart fee was mutated');
     assert(cart.address.contact_person_name === 'Jane Doe', 'live cart name was mutated');
 });

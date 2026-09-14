@@ -39,7 +39,7 @@ class PosVariationSelectionTest extends TestCase
 
         $this->assertStringContainsString('function placeOrder', $js);
         $this->assertStringContainsString('paid_amount: grandTotal()', $js);
-        $this->assertStringContainsString('extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0', $js);
+        $this->assertStringContainsString('extra_discount: 0', $js);
         $this->assertStringContainsString('function extraDiscount', $js);
         $this->assertStringContainsString('function lineUnit', $js);
         $this->assertStringContainsString('function variationPrice', $js);

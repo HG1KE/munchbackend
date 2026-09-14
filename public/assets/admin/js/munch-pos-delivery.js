@@ -53,12 +53,18 @@
     }
 
     function persistableCart(cart) {
-        return applyEmptyDelivery(Object.assign({}, cart || {}));
+        var next = applyEmptyDelivery(Object.assign({}, cart || {}));
+        next.discount = 0;
+        next.discountType = 'amount';
+        return next;
     }
 
     function hydrateCart(base, stored) {
         var next = Object.assign({}, base || {}, stored || {});
-        return applyEmptyDelivery(next);
+        next = applyEmptyDelivery(next);
+        next.discount = 0;
+        next.discountType = 'amount';
+        return next;
     }
 
     return {

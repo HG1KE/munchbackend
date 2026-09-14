@@ -249,7 +249,7 @@ test('checkout, pricing, discounts, reports and kitchen printing remain unchange
     assert(js.indexOf('function placeOrder') !== -1, 'checkout missing');
     assert(js.indexOf('function buildPayload') !== -1, 'order payload missing');
     assert(js.indexOf('paid_amount: grandTotal()') !== -1, 'checkout total missing');
-    assert(js.indexOf('extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0') !== -1, 'discount payload missing');
+    assert(js.indexOf('extra_discount: 0') !== -1, 'discount payload missing');
     assert(js.indexOf('function extraDiscount') !== -1, 'discount helper missing');
     assert(js.indexOf('function lineUnit') !== -1, 'line pricing missing');
     assert(js.indexOf('function variationPrice') !== -1, 'variation pricing missing');

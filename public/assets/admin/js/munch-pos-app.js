@@ -374,15 +374,18 @@
     }
 
     function allowsDiscount() {
-        return state.cart.orderType === 'delivery' || state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in';
+        return false;
     }
 
     function extraDiscount(subtotal) {
-        if (!allowsDiscount()) return 0;
-        var value = Number(state.cart.discount || 0);
-        if (value <= 0) return 0;
-        if (state.cart.discountType === 'percent') return subtotal * value / 100;
-        return Math.min(value, subtotal);
+        return 0;
+    }
+
+    function stripCashierDiscount(cart) {
+        cart = cart || state.cart;
+        cart.discount = 0;
+        cart.discountType = 'amount';
+        return cart;
     }
 
     function deliveryCharge() {
@@ -662,11 +665,8 @@
 
     function renderExtras() {
         if (els.delivery) els.delivery.hidden = true;
-        if (els.discountWrap) els.discountWrap.hidden = !allowsDiscount();
-        if (!allowsDiscount() && Number(state.cart.discount || 0) !== 0) {
-            state.cart.discount = 0;
-            persistCart();
-        }
+        if (els.discountWrap) els.discountWrap.hidden = true;
+        stripCashierDiscount(state.cart);
         if (els.feeCurrency) els.feeCurrency.textContent = state.catalog.currency_symbol || 'Ksh';
         if (els.fee) {
             var decimals = Number(state.catalog.decimal || 0);
@@ -758,20 +758,14 @@
     function renderTotals() {
         if (!els.totals) return;
         var sub = cartSubtotal();
-        var disc = extraDiscount(sub);
         var del = deliveryCharge();
         var html = '<div class="munch-pos-totals__sub"><span>' + escapeHtml(CFG.labels.subtotal) + '</span><span>' + money(sub) + '</span></div>';
         if (state.cart.orderType === 'delivery') {
             html += '<div class="munch-pos-totals__fee"><span>' + escapeHtml(CFG.labels.deliveryFee || CFG.labels.deliveryCharge) + '</span><span>' + money(del) + '</span></div>';
         }
-        if (disc > 0) {
-            html += '<div class="munch-pos-totals__disc"><span>' + escapeHtml(CFG.labels.discount) + '</span><span>−' + money(disc) + '</span></div>';
-        }
         html += '<div class="is-grand"><span>' + escapeHtml(CFG.labels.grandTotal) + '</span><span>' + money(grandTotal()) + '</span></div>';
         els.totals.innerHTML = html;
         if (els.topTotal) els.topTotal.textContent = money(grandTotal());
-        if (els.discount) els.discount.value = state.cart.discount || '';
-        if (els.discountType) els.discountType.value = state.cart.discountType;
         if (els.place) {
             els.place.disabled = !state.cart.lines.length || state.placing || state.orderSubmitting || !!successJob;
             if (!state.placing && !state.orderSubmitting) {
@@ -849,6 +843,7 @@
     }
 
     function persistCart() {
+        stripCashierDiscount(state.cart);
         var stored = Delivery ? Delivery.persistableCart(state.cart) : state.cart;
         return idbPut('cart', stored, CART_KEY);
     }
@@ -1002,8 +997,8 @@
             order_type: state.cart.orderType,
             type: state.cart.payment,
             paid_amount: grandTotal(),
-            extra_discount: allowsDiscount() ? Number(state.cart.discount || 0) : 0,
-            extra_discount_type: state.cart.discountType,
+            extra_discount: 0,
+            extra_discount_type: 'amount',
             delivery_charge: deliveryCharge(),
             platform_order_number: isMarketplaceOrderType() ? readMarketplaceOrderNumber() : '',
             address: state.cart.orderType === 'delivery' ? {
@@ -1422,7 +1417,7 @@
             if (ids.indexOf(line.productId) === -1) ids.push(line.productId);
         });
         state.cart.lines = [];
-        state.cart.discount = 0;
+        stripCashierDiscount(state.cart);
         state.cart.paid = '';
         resetDelivery();
         persistCart();
@@ -1441,6 +1436,10 @@
     }
 
     function replaceQueuedPayload(payload) {
+        if (payload && payload.action !== 'cancel') {
+            payload.extra_discount = 0;
+            payload.extra_discount_type = 'amount';
+        }
         var id = payload && payload.client_uuid != null ? String(payload.client_uuid) : '';
         if (!id) return enqueue(payload);
         return idbGet('queue', id).then(function (existing) {
@@ -1455,6 +1454,10 @@
     }
 
     function enqueue(payload) {
+        if (payload && payload.action !== 'cancel') {
+            payload.extra_discount = 0;
+            payload.extra_discount_type = 'amount';
+        }
         var id = payload && payload.client_uuid != null ? String(payload.client_uuid) : '';
         if (!id) return Promise.reject(new Error('missing_uuid'));
         return idbGet('queue', id).then(function (existing) {
@@ -1528,6 +1531,10 @@
         row.attempts = (row.attempts || 0) + 1;
         return idbPut('queue', row).then(function () {
             var payload = row.payload || {};
+            if (payload.action !== 'cancel') {
+                payload.extra_discount = 0;
+                payload.extra_discount_type = 'amount';
+            }
             var post = payload.action === 'cancel'
                 ? postCancel(payload)
                 : (payload.action === 'update' ? postUpdate(payload) : postOrder(payload));
@@ -1813,6 +1820,7 @@
             offline: !!snapshot.offline
         };
         state.cart = JSON.parse(JSON.stringify(snapshot.cart));
+        stripCashierDiscount(state.cart);
         if (!state.cart.address) state.cart.address = {};
         fillDeliveryModal();
         successJob = null;
@@ -3099,16 +3107,20 @@
         }
         var deliveryPhone = document.getElementById('pos-del-phone');
         if (deliveryPhone) bindDeliveryPhoneField(deliveryPhone);
-        els.discount.addEventListener('input', function () {
-            state.cart.discount = Number(els.discount.value || 0);
-            persistCart();
-            scheduleRender();
-        });
-        els.discountType.addEventListener('change', function () {
-            state.cart.discountType = els.discountType.value;
-            persistCart();
-            scheduleRender();
-        });
+        if (els.discount) {
+            els.discount.addEventListener('input', function () {
+                stripCashierDiscount(state.cart);
+                persistCart();
+                scheduleRender();
+            });
+        }
+        if (els.discountType) {
+            els.discountType.addEventListener('change', function () {
+                stripCashierDiscount(state.cart);
+                persistCart();
+                scheduleRender();
+            });
+        }
         bindSubmitControl(els.place, placeOrder);
         if (els.clear) els.clear.addEventListener('click', function () {
             if (successJob) return;
@@ -3334,6 +3346,7 @@
                     state.cart.address = liveAddress;
                     state.cart.deliveryFee = liveFee;
                 }
+                stripCashierDiscount(state.cart);
             }
             restorePendingAttempt(results[2]);
             if (!isDeliveryModalOpen() && !state.orderSubmitting) {

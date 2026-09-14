@@ -72,9 +72,21 @@ class PosOrderTypes
         return in_array(self::normalize($type), [self::GLOVO, self::UBER, self::BOLT_FOOD], true);
     }
 
+    /**
+     * Branch POS no longer issues cashier cart-level discounts for any channel.
+     * Historical orders.extra_discount rows stay in place for reporting.
+     */
     public static function allowsManualDiscount(?string $type): bool
     {
-        return in_array(self::normalize($type), [self::DELIVERY, self::TAKE_AWAY, self::DINE_IN], true);
+        return false;
+    }
+
+    /**
+     * Submitted extra_discount is ignored. New POS sales always persist 0.
+     */
+    public static function cashierExtraDiscount(mixed $submitted = null): float
+    {
+        return 0.0;
     }
 
     /**

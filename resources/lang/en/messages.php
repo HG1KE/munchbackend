@@ -1093,6 +1093,7 @@
   'Sale_Report' => 'Sale Report',
   'Gross Sales' => 'Gross Sales',
   'Total Discounts' => 'Total Discounts',
+  'Cashier Discounts' => 'Cashier Discounts',
   'Net Sales' => 'Net Sales',
   'Munch Sales' => 'Munch Sales',
   'Marketplace Sales' => 'Marketplace Sales',

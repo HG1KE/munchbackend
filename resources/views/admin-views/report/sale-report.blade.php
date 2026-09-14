@@ -3,7 +3,7 @@
 @section('title', translate('Sale Report'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-sale-report.css') }}?v=1.3">
 @endpush
 
 @section('content')
@@ -84,6 +84,10 @@
             <article class="munch-sale-report__card munch-sale-report__card--discount">
                 <span class="munch-sale-report__label">{{ translate('Total Discounts') }}</span>
                 <p class="munch-sale-report__value" id="sum-total-discounts">—</p>
+            </article>
+            <article class="munch-sale-report__card munch-sale-report__card--cashier-discount">
+                <span class="munch-sale-report__label">{{ translate('Cashier Discounts') }}</span>
+                <p class="munch-sale-report__value" id="sum-cashier-discounts">—</p>
             </article>
             <article class="munch-sale-report__card">
                 <span class="munch-sale-report__label">{{ translate('Net Sales') }}</span>
@@ -199,6 +203,7 @@
                     if (data.summary) {
                         $('#sum-gross-sales').html(data.summary.gross_sales);
                         $('#sum-total-discounts').html(data.summary.total_discounts);
+                        $('#sum-cashier-discounts').html(data.summary.cashier_discounts);
                         $('#sum-net-sales').html(data.summary.net_sales);
                         $('#sum-munch-sales').html(data.summary.munch_sales);
                         $('#sum-marketplace-sales').html(data.summary.marketplace_sales);

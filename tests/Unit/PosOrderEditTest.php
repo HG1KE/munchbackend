@@ -183,6 +183,22 @@ class PosOrderEditTest extends TestCase
         $this->assertSame(300.0, (float) $cancelled->fresh()->order_amount);
     }
 
+    public function test_edit_cannot_introduce_a_cashier_discount(): void
+    {
+        $order = $this->persistOrder([
+            'order_amount' => 100,
+            'extra_discount' => 0,
+        ]);
+        $parts = $this->parts(200);
+        $parts['extra_discount'] = 500;
+
+        $result = $this->service->apply($order, $parts, 'cash');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(0.0, (float) $order->fresh()->extra_discount);
+        $this->assertSame(200.0, (float) $order->fresh()->order_amount);
+    }
+
     public function test_frontend_and_backend_keep_normal_post_print_and_cancel_paths(): void
     {
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
@@ -263,6 +279,7 @@ class PosOrderEditTest extends TestCase
             'kitchen_printed_at' => $attrs['kitchen_printed_at'] ?? null,
             'receipt_printed_at' => $attrs['receipt_printed_at'] ?? null,
             'cancelled_at' => $attrs['cancelled_at'] ?? null,
+            'extra_discount' => $attrs['extra_discount'] ?? 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

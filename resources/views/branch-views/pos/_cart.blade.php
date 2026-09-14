@@ -98,15 +98,6 @@ $discountAmount = ($discountType=='percent' && $discount>0)?(($total * $discount
 $discountAmount += $discountOnProduct;
 $total -= $discountAmount;
 
-$extraDiscount = session()->get('cart')['extra_discount'] ?? 0;
-$extraDiscountType = session()->get('cart')['extra_discount_type'] ?? 'amount';
-if($extraDiscountType == 'percent' && $extraDiscount > 0){
-    $extraDiscount = ($total * $extraDiscount) / 100;
-}
-if($extraDiscount) {
-    $total -= $extraDiscount;
-}
-
 $deliveryCharge = 0;
 if (session()->get('order_type') == 'home_delivery'){
     $distance = 0;
@@ -136,14 +127,6 @@ if (session()->get('order_type') == 'home_delivery'){
 {{--        <dt  class="col-6">{{translate('subtotal')}} : </dt>--}}
 {{--        <dd class="col-6 text-right">{{\App\CentralLogics\Helpers::set_symbol($subtotal+$addonPrice) }}</dd>--}}
 
-
-        <dt  class="col-6">{{translate('extra')}} {{translate('discount')}} :</dt>
-        <dd class="col-6 text-right">
-            <button class="btn btn-sm" type="button" data-toggle="modal" data-target="#add-discount">
-                <i class="tio-edit"></i>
-            </button>
-            - {{Helpers::set_symbol($extraDiscount) }}
-        </dd>
 
         <dt  class="col-6">{{translate('VAT/TAX:')}} : </dt>
         <dd class="col-6 text-right">{{Helpers::set_symbol(round($totalTax + $addonTotalTax,2)) }}</dd>
@@ -207,44 +190,6 @@ if (session()->get('order_type') == 'home_delivery'){
             </div>
         </div>
     </form>
-</div>
-
-<div class="modal fade" id="add-discount" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{{translate('update_discount')}}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form action="{{route('branch.pos.discount')}}" method="post" class="row mb-0">
-                    @csrf
-                    <div class="form-group col-sm-6">
-                        <label class="text-dark">{{translate('discount')}}</label>
-                        <input type="number" class="form-control" name="discount" value="{{ session()->get('cart')['extra_discount'] ?? 0 }}" min="0" step="0.1">
-                    </div>
-                    <div class="form-group col-sm-6">
-                        <label class="text-dark">{{translate('type')}}</label>
-                        <select name="type" class="form-control">
-                            <option
-                                value="amount" {{$extraDiscountType=='amount'?'selected':''}}>{{translate('amount')}}
-                                ({{\App\CentralLogics\Helpers::currency_symbol()}})
-                            </option>
-                            <option
-                                value="percent" {{$extraDiscountType=='percent'?'selected':''}}>{{translate('percent')}}
-                                (%)
-                            </option>
-                        </select>
-                    </div>
-                    <div class="d-flex justify-content-end col-sm-12">
-                        <button class="btn btn-sm btn-primary" type="submit">{{translate('submit')}}</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="modal fade" id="add-tax" tabindex="-1">

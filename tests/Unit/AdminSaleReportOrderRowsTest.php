@@ -269,6 +269,7 @@ class AdminSaleReportOrderRowsTest extends TestCase
         $this->assertSame(1440.0, $report['totals']['munch_sales']);
         $this->assertSame(1500.0, $summary['total_sales']);
         $this->assertSame(0.0, $summary['total_discounts']);
+        $this->assertSame(0.0, $summary['cashier_discounts']);
         $this->assertNotSame($listing[0]['price'], $summary['total_sales']);
     }
 
