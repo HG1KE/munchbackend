@@ -14,6 +14,7 @@ use App\Model\CustomerAddress;
 use App\Model\DeliveryHistory;
 use App\Model\Order;
 use App\Services\OrderReadableIdService;
+use App\Support\OrderPublicNumber;
 use App\Support\OrderViewBootstrap;
 use App\Models\DeliveryChargeByArea;
 use App\Models\OfflinePayment;
@@ -57,6 +58,9 @@ class OrderController extends Controller
 
         $from = $request['from'];
         $to = $request['to'];
+        $search = trim((string) ($request['search'] ?? ''));
+        $includeSearchablePos = $search !== '';
+        $key = $includeSearchablePos ? preg_split('/\s+/', $search) ?: [] : [];
 
         $this->order->where(['checked' => 0, 'branch_id' => auth('branch')->id()])->update(['checked' => 1]);
 
@@ -78,93 +82,148 @@ class OrderController extends Controller
         }
 
         $queryParam = [];
-        $search = $request['search'];
 
-        if ($request->has('search')) {
-            $key = explode(' ', $request['search']);
+        if ($includeSearchablePos) {
             $orders = $this->order
+                ->with(['customer'])
                 ->where(['branch_id' => auth('branch')->id()])
-                ->whereDate('delivery_date', '<=', Carbon::now()->format('Y-m-d'))
                 ->where(function ($q) use ($key) {
                     foreach ($key as $value) {
                         OrderReadableIdService::applyTerm($q, $value);
                     }
                 });
-            $queryParam = ['search' => $request['search']];
+            $queryParam['search'] = $request['search'];
         }
 
         if ($from && $to) {
-            $orders = $this->order->whereBetween('created_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()]);
-            $queryParam = ['from' => $from, 'to' => $to];
+            $orders = $orders->whereBetween('created_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()]);
+            $queryParam['from'] = $from;
+            $queryParam['to'] = $to;
         }
 
         $orderCount = [
             'pending' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'pending', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'confirmed' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'confirmed', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'processing' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'processing', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'out_for_delivery' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'out_for_delivery', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'delivered' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'delivered', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'canceled' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'canceled', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'returned' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'returned', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
 
             'failed' => $this->order
-                ->notPos()
+                ->forOrderList($includeSearchablePos)
                 ->notSchedule()
                 ->where(['order_status' => 'failed', 'branch_id' => auth('branch')->id()])
                 ->when(!is_null($from) && !is_null($to), function ($query) use ($from, $to) {
                     $query->whereBetween('created_at', [$from, Carbon::parse($to)->endOfDay()]);
+                })
+                ->when($includeSearchablePos, function ($query) use ($key) {
+                    $query->where(function ($q) use ($key) {
+                        foreach ($key as $value) {
+                            OrderReadableIdService::applyTerm($q, $value);
+                        }
+                    });
                 })->count(),
         ];
 
-        $orders = $orders->notPos()->notDineIn()->latest()->paginate(Helpers::getPagination())->appends($queryParam);
+        $orders = $orders->forOrderList($includeSearchablePos)->latest()->paginate(Helpers::getPagination())->appends($queryParam);
         session()->put('order_data_export', $orders);
 
         return view('branch-views.order.list', compact('orders', 'status', 'search', 'from', 'to', 'orderCount'));
@@ -176,10 +235,12 @@ class OrderController extends Controller
      */
     public function details($id): Renderable|RedirectResponse
     {
-        $order = $this->order
-            ->with(['details', 'order_partial_payments', 'customer'])
-            ->where(['id' => $id, 'branch_id' => auth('branch')->id()])
-            ->first();
+        $order = OrderPublicNumber::constrainRouteId(
+            $this->order
+                ->with(['details', 'order_partial_payments', 'customer'])
+                ->where(['branch_id' => auth('branch')->id()]),
+            $id
+        )->first();
 
         if (!isset($order)) {
             Toastr::info(translate('Order not found!'));

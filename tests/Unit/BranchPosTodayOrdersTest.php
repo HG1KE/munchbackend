@@ -109,6 +109,56 @@ class BranchPosTodayOrdersTest extends TestCase
         }
     }
 
+    public function test_empty_view_orders_stays_on_today_and_search_finds_historical_pos(): void
+    {
+        $now = Carbon::now('UTC');
+        $yesterday = $now->copy()->subDay();
+
+        $this->insertOrder(201, [
+            'readable_order_id' => 'A10651',
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+            'created_at' => $yesterday,
+            'updated_at' => $yesterday,
+        ]);
+        $this->insertOrder(202, [
+            'readable_order_id' => 'A10680',
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $this->insertOrder(203, [
+            'readable_order_id' => 'A10651',
+            'branch_id' => 2,
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+            'created_at' => $yesterday,
+            'updated_at' => $yesterday,
+        ]);
+        $this->insertOrder(204, [
+            'readable_order_id' => 'A10690',
+            'sales_channel' => null,
+            'order_type' => 'delivery',
+            'created_at' => $yesterday,
+            'updated_at' => $yesterday,
+        ]);
+
+        $service = new BranchPosTodayOrdersService();
+        $today = $service->forBranch(1, 'Nyali', null, 'all', 1);
+        $this->assertSame(1, $today['total']);
+        $this->assertSame(202, $today['orders'][0]['id']);
+        $this->assertSame('A10680', $today['orders'][0]['number']);
+
+        $search = $service->forBranch(1, 'Nyali', 'A10651', 'all', 1);
+        $this->assertSame(1, $search['total']);
+        $this->assertSame(201, $search['orders'][0]['id']);
+        $this->assertSame('A10651', $search['orders'][0]['number']);
+
+        $website = $service->forBranch(1, 'Nyali', 'A10690', 'all', 1);
+        $this->assertSame(0, $website['total']);
+    }
+
     public function test_sales_channels_cover_the_all_tab_contract(): void
     {
         $this->assertSame(

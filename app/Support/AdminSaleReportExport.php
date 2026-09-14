@@ -1430,33 +1430,21 @@ class AdminSaleReportExport
             }
         }
 
-        $labels = [];
-        if ($ids !== []) {
-            foreach ($ids as $index => $rawId) {
-                $id = (int) $rawId;
-                if ($id < 1) {
-                    continue;
-                }
-                $name = $fromProduct[$id] ?? $addonNames[$id] ?? '';
-                if ($name === '') {
-                    continue;
-                }
-                $qty = (int) ($qtys[$index] ?? 1);
-                $labels[] = $qty > 1 ? $name.' × '.$qty : $name;
-            }
-
-            return $labels;
+        if ($ids === []) {
+            return [];
         }
 
-        foreach ($product['add_ons'] ?? [] as $addon) {
-            if (! is_array($addon)) {
+        $labels = [];
+        foreach ($ids as $index => $rawId) {
+            $id = (int) $rawId;
+            if ($id < 1) {
                 continue;
             }
-            $name = trim((string) ($addon['name'] ?? ''));
+            $name = $fromProduct[$id] ?? $addonNames[$id] ?? '';
             if ($name === '') {
                 continue;
             }
-            $qty = max(1, (int) ($addon['quantity'] ?? $addon['qty'] ?? 1));
+            $qty = (int) ($qtys[$index] ?? 1);
             $labels[] = $qty > 1 ? $name.' × '.$qty : $name;
         }
 

@@ -167,6 +167,43 @@ class Order extends Model
         return $query->notPos()->notDineIn();
     }
 
+    /**
+     * Branch POS dine-in / takeaway / delivery that staff may look up from
+     * Admin/Branch Orders search. Glovo / Uber / Bolt Food stay on POS.
+     */
+    public function scopeSearchableMunchPos($query)
+    {
+        $channels = PosOrderTypes::munchPosSalesChannels();
+
+        return $query->where(function ($inner) use ($channels) {
+            $inner->where('order_type', 'dine_in');
+            if (Schema::hasColumn($this->getTable(), 'sales_channel')) {
+                $inner->orWhereIn('sales_channel', $channels);
+            } else {
+                $inner->orWhere('order_type', 'pos');
+            }
+        });
+    }
+
+    /**
+     * Default Online Orders board. When searching, also include searchable
+     * Munch POS orders without dumping marketplace POS onto this screen.
+     */
+    public function scopeForOrderList($query, bool $includeSearchablePos = false)
+    {
+        if (! $includeSearchablePos) {
+            return $query->onlineOrders();
+        }
+
+        return $query->where(function ($outer) {
+            $outer->where(function ($online) {
+                $online->onlineOrders();
+            })->orWhere(function ($pos) {
+                $pos->searchableMunchPos();
+            });
+        });
+    }
+
     public function isPosFamily(): bool
     {
         return PosOrderTypes::isPosFamily($this->order_type ?? null, $this->sales_channel ?? null);

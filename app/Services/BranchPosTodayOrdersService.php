@@ -27,8 +27,14 @@ class BranchPosTodayOrdersService
             ->with(['details', 'customer', 'customer_delivery_address', 'order_change_amount', 'branch', 'cancelledByBranch', 'cancelledByAdmin'])
             ->where('branch_id', $branchId)
             ->whereIn('sales_channel', PosOrderTypes::salesChannels())
-            ->whereBetween('created_at', [$start, $end])
             ->latest('id');
+
+        $search = trim((string) $search);
+        // Empty View Orders stays on the current Nairobi day. A search term
+        // looks up that branch's POS history so cashiers can find A10651.
+        if ($search === '') {
+            $query->whereBetween('created_at', [$start, $end]);
+        }
 
         $this->applyFilter($query, $filter);
         $this->applySearch($query, $search);

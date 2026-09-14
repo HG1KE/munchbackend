@@ -101,4 +101,21 @@ final class OrderPublicNumber
     {
         return OrderReadableIdService::applySearch($query, $search);
     }
+
+    /**
+     * Resolve a details-route parameter. Public numbers use readable_order_id
+     * only; numeric values use orders.id only. Never treat A10651 as id 10651.
+     *
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public static function constrainRouteId(Builder $query, mixed $id): Builder
+    {
+        $public = self::normalizeReadable(trim((string) $id));
+        if ($public !== null) {
+            return $query->where(self::COLUMN, $public);
+        }
+
+        return $query->where('id', $id);
+    }
 }

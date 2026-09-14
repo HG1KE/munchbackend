@@ -58,6 +58,8 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame([
             'pos', 'delivery', 'takeaway', 'dine_in', 'glovo', 'uber', 'bolt_food',
         ], PosOrderTypes::salesChannels());
+        $this->assertSame(['pos', 'delivery', 'takeaway', 'dine_in'], PosOrderTypes::munchPosSalesChannels());
+        $this->assertSame(['glovo', 'uber', 'bolt_food'], PosOrderTypes::marketplaceSalesChannels());
         $this->assertFalse(method_exists(PosOrderTypes::class, 'orderNote'));
         $this->assertSame('Glovo', PosOrderTypes::channelLabel('glovo'));
         $this->assertSame('Take Away', PosOrderTypes::channelLabel('takeaway', 'pos'));

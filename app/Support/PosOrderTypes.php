@@ -168,6 +168,30 @@ class PosOrderTypes
     }
 
     /**
+     * Branch POS dine-in / takeaway / delivery. Marketplace stays off the
+     * Admin/Branch Orders board even when a cashier searches an order number.
+     *
+     * @return list<string>
+     */
+    public static function munchPosSalesChannels(): array
+    {
+        return ['pos', 'delivery', 'takeaway', 'dine_in'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function marketplaceSalesChannels(): array
+    {
+        return [self::GLOVO, self::UBER, self::BOLT_FOOD];
+    }
+
+    public static function isMarketplaceSalesChannel(?string $channel): bool
+    {
+        return in_array((string) $channel, self::marketplaceSalesChannels(), true);
+    }
+
+    /**
      * Sale Report channel filter. "All" and "POS" are the Branch POS family
      * (`order_type=pos` plus POS sales channels), not `sales_channel=pos`.
      * Online Next.js orders stay out. Other values still match

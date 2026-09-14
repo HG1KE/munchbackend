@@ -299,6 +299,182 @@ class AdminSaleReportPdfItemsTest extends TestCase
         );
     }
 
+    public function test_empty_add_on_ids_do_not_print_product_catalogue_addons(): void
+    {
+        $day = Carbon::parse('2026-09-13 12:12:51', 'Africa/Nairobi');
+        DB::table('orders')->insert([
+            'id' => 115061,
+            'branch_id' => 10,
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
+            'readable_order_id' => 'A10651',
+            'platform_order_number' => '',
+            'payment_method' => 'cash',
+            'order_status' => 'delivered',
+            'order_amount' => 270,
+            'created_at' => $day,
+            'updated_at' => $day,
+        ]);
+        DB::table('add_ons')->insert([
+            ['id' => 1, 'name' => 'Special Chips'],
+            ['id' => 9, 'name' => 'Plain Chips'],
+            ['id' => 10, 'name' => 'Spicy Chips'],
+        ]);
+        DB::table('order_details')->insert([
+            'order_id' => 115061,
+            'quantity' => 1,
+            'product_details' => json_encode([
+                'name' => '1/4 Chicken',
+                'add_ons' => [
+                    ['id' => 1, 'name' => 'Special Chips'],
+                    ['id' => 9, 'name' => 'Plain Chips'],
+                    ['id' => 10, 'name' => 'Spicy Chips'],
+                ],
+            ]),
+            'variation' => json_encode([]),
+            'add_on_ids' => json_encode([]),
+            'add_on_qtys' => json_encode([]),
+            'created_at' => $day,
+            'updated_at' => $day,
+        ]);
+
+        $order = DB::table('orders')->where('id', 115061)->first();
+        $report = AdminSaleReportExport::build([$order], [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-13',
+            'to' => '2026-09-13',
+            'payment_totals' => ['cash' => 270],
+            'quantities' => ['115061' => 1],
+        ]);
+        $row = $report['sections']['munch_sales']['orders'][0];
+        $text = AdminSaleReportExport::orderCellText($row);
+        $cellHtml = AdminSaleReportExport::orderCellHtml($row);
+
+        $this->assertSame("A10651\n1 × 1/4 Chicken", $text);
+        $this->assertSame([], $row['items'][0]['addons']);
+        $this->assertStringNotContainsString('Special Chips', $text);
+        $this->assertStringNotContainsString('Plain Chips', $text);
+        $this->assertStringNotContainsString('Spicy Chips', $text);
+        $this->assertStringNotContainsString('+ ', $text);
+        $this->assertStringNotContainsString('order-cell__meta', $cellHtml);
+        $this->assertSame(270.0, $report['totals']['munch_sales']);
+    }
+
+    public function test_one_selected_addon_ignores_other_catalogue_addons(): void
+    {
+        $day = Carbon::parse('2026-09-13 12:16:00', 'Africa/Nairobi');
+        DB::table('orders')->insert([
+            'id' => 20,
+            'branch_id' => 10,
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
+            'readable_order_id' => 'A10660',
+            'platform_order_number' => '',
+            'payment_method' => 'cash',
+            'order_status' => 'delivered',
+            'order_amount' => 520,
+            'created_at' => $day,
+            'updated_at' => $day,
+        ]);
+        DB::table('add_ons')->insert([
+            ['id' => 1, 'name' => 'Special Chips'],
+            ['id' => 9, 'name' => 'Plain Chips'],
+            ['id' => 10, 'name' => 'Spicy Chips'],
+        ]);
+        DB::table('order_details')->insert([
+            'order_id' => 20,
+            'quantity' => 1,
+            'product_details' => json_encode([
+                'name' => '1/4 Chicken',
+                'add_ons' => [
+                    ['id' => 1, 'name' => 'Special Chips'],
+                    ['id' => 9, 'name' => 'Plain Chips'],
+                    ['id' => 10, 'name' => 'Spicy Chips'],
+                ],
+            ]),
+            'variation' => json_encode([['name' => 'Flavour', 'values' => [['label' => 'BBQ']]]]),
+            'add_on_ids' => json_encode([9]),
+            'add_on_qtys' => json_encode([1]),
+            'created_at' => $day,
+            'updated_at' => $day,
+        ]);
+
+        $order = DB::table('orders')->where('id', 20)->first();
+        $report = AdminSaleReportExport::build([$order], [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-13',
+            'to' => '2026-09-13',
+            'payment_totals' => ['cash' => 520],
+            'quantities' => ['20' => 1],
+        ]);
+        $row = $report['sections']['munch_sales']['orders'][0];
+        $text = AdminSaleReportExport::orderCellText($row);
+
+        $this->assertSame("A10660\n1 × 1/4 Chicken\n   BBQ\n   + Plain Chips", $text);
+        $this->assertSame(['Plain Chips'], $row['items'][0]['addons']);
+        $this->assertSame(['BBQ'], $row['items'][0]['variations']);
+        $this->assertStringNotContainsString('Special Chips', $text);
+        $this->assertStringNotContainsString('Spicy Chips', $text);
+        $this->assertSame(520.0, $report['totals']['munch_sales']);
+    }
+
+    public function test_multiple_selected_addons_keep_item_quantity_and_variation(): void
+    {
+        $day = Carbon::parse('2026-09-13 12:20:00', 'Africa/Nairobi');
+        DB::table('orders')->insert([
+            'id' => 21,
+            'branch_id' => 10,
+            'order_type' => 'dine_in',
+            'sales_channel' => 'dine_in',
+            'readable_order_id' => 'A10661',
+            'platform_order_number' => '',
+            'payment_method' => 'cash',
+            'order_status' => 'delivered',
+            'order_amount' => 900,
+            'created_at' => $day,
+            'updated_at' => $day,
+        ]);
+        DB::table('add_ons')->insert([
+            ['id' => 1, 'name' => 'Extra Cheese'],
+            ['id' => 2, 'name' => 'Chicken'],
+            ['id' => 3, 'name' => 'Extra Sauce'],
+        ]);
+        DB::table('order_details')->insert([
+            'order_id' => 21,
+            'quantity' => 2,
+            'product_details' => json_encode([
+                'name' => 'SuperBowl',
+                'add_ons' => [
+                    ['id' => 1, 'name' => 'Extra Cheese'],
+                    ['id' => 2, 'name' => 'Chicken'],
+                    ['id' => 3, 'name' => 'Extra Sauce'],
+                ],
+            ]),
+            'variation' => json_encode([['name' => 'Flavour', 'values' => ['label' => ['Plain Chips']]]]),
+            'add_on_ids' => json_encode([1, 2]),
+            'add_on_qtys' => json_encode([1, 2]),
+            'created_at' => $day,
+            'updated_at' => $day,
+        ]);
+
+        $order = DB::table('orders')->where('id', 21)->first();
+        $report = AdminSaleReportExport::build([$order], [
+            'branch_name' => 'Munch Bamburi',
+            'from' => '2026-09-13',
+            'to' => '2026-09-13',
+            'payment_totals' => ['cash' => 900],
+            'quantities' => ['21' => 2],
+        ]);
+        $row = $report['sections']['munch_sales']['orders'][0];
+        $text = AdminSaleReportExport::orderCellText($row);
+
+        $this->assertSame("A10661\n2 × SuperBowl\n   Plain Chips\n   + Extra Cheese, + Chicken × 2", $text);
+        $this->assertSame(['Extra Cheese', 'Chicken × 2'], $row['items'][0]['addons']);
+        $this->assertStringNotContainsString('Extra Sauce', $text);
+        $this->assertSame(2, $row['quantity']);
+        $this->assertSame(900.0, $report['totals']['munch_sales']);
+    }
+
     /**
      * @return array<string, mixed>
      */
