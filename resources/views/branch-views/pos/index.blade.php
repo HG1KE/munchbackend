@@ -330,6 +330,8 @@
             existingOrderDetail: @json(translate('This submission already posted. Using the existing sale.')),
             branchMismatch: @json(translate('This queued order belongs to another branch.')),
             confirmTimeout: @json(translate('Unable to confirm order. Please check your connection and try again.')),
+            checkingOrder: @json(translate('Checking order status...')),
+            checkingRetry: @json(translate('Still confirming this order. Tap Place Order to try again.')),
             submitFailed: @json(translate('Please try again.')),
             staleClient: @json(translate('A new version of the POS is available. Please refresh before placing new orders.')),
             staleTitle: @json(translate('New POS version available')),
@@ -380,8 +382,8 @@
     };
 </script>
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.2"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.3"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.2"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.7" defer></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v=6.8" defer></script>
 @endpush

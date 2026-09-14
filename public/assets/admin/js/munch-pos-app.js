@@ -63,6 +63,7 @@
     };
     var cancelQueuedIds = {};
     var pendingAttempt = null;
+    var checkingOrder = false;
     var POST_TIMEOUT_MS = (SubmitGuard && SubmitGuard.POST_TIMEOUT_MS) || 15000;
 
     function uuid() {
@@ -2248,6 +2249,7 @@
         } else {
             state.orderSubmitting = true;
         }
+        checkingOrder = false;
         state.placing = true;
         applySubmitLockUi();
         return true;
@@ -2256,20 +2258,29 @@
     function endOrderSubmit() {
         if (SubmitGuard) SubmitGuard.release(state);
         else state.orderSubmitting = false;
+        checkingOrder = false;
         state.placing = false;
         restorePlaceButton();
         renderTotals();
     }
 
+    function applyCheckingStatusUi() {
+        checkingOrder = true;
+        applySubmitLockUi();
+    }
+
     function applySubmitLockUi() {
+        var label = checkingOrder
+            ? L('checkingOrder', 'Checking order status...')
+            : (editingOrder
+                ? L('savingChanges', 'Saving...')
+                : (navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...')));
         if (els.place) {
             els.place.disabled = true;
             els.place.setAttribute('aria-busy', 'true');
             els.place.classList.add('is-submitting');
             els.place.innerHTML = '<span class="munch-pos-place__spin" aria-hidden="true"></span>' +
-                escapeHtml(editingOrder
-                    ? L('savingChanges', 'Saving...')
-                    : (navigator.onLine ? L('placing', 'Placing...') : L('queueing', 'Queueing...')));
+                escapeHtml(label);
         }
         setDeliveryFormBusy(true);
         if (els.platformConfirm) els.platformConfirm.disabled = true;
@@ -2312,7 +2323,9 @@
             els.deliveryConfirm.setAttribute('aria-busy', 'true');
             els.deliveryConfirm.classList.add('is-submitting');
             els.deliveryConfirm.innerHTML = '<span class="munch-pos-place__spin" aria-hidden="true"></span>' +
-                escapeHtml(L('postingOrder', 'Posting order...'));
+                escapeHtml(checkingOrder
+                    ? L('checkingOrder', 'Checking order status...')
+                    : L('postingOrder', 'Posting order...'));
         } else {
             els.deliveryConfirm.removeAttribute('aria-busy');
             els.deliveryConfirm.classList.remove('is-submitting');
@@ -2525,6 +2538,10 @@
         return CFG.labels.confirmTimeout || 'Unable to confirm order. Please check your connection and try again.';
     }
 
+    function checkingRetryMessage() {
+        return CFG.labels.checkingRetry || 'Still confirming this order. Tap Place Order to try again.';
+    }
+
     function reportSubmitFailure(reason, keepPending) {
         if (!keepPending) clearPendingAttempt();
         endOrderSubmit();
@@ -2533,6 +2550,67 @@
             return;
         }
         toast((CFG.labels.orderNotPosted || 'Order not posted') + ' — ' + reason);
+    }
+
+    function leaveSafeRetry(payload) {
+        endOrderSubmit();
+        var message = checkingRetryMessage();
+        if (state.cart.orderType === 'delivery') {
+            showDeliveryError(message, L('checkingOrder', 'Checking order status...'));
+            openDeliveryModalKeepFields();
+            return;
+        }
+        toast(message);
+    }
+
+    function acceptPostedOrder(body, payload) {
+        clearPendingAttempt();
+        editingOrder = null;
+        closeDeliveryModal(true);
+        openSuccessModal(snapshotPrintJob(body), {
+            offline: false,
+            payload: payload,
+            duplicate: !!body.duplicate,
+            idempotent: !!body.idempotent
+        });
+        clearCart();
+        endOrderSubmit();
+    }
+
+    function recoverUncertainSubmit(payload) {
+        applyCheckingStatusUi();
+        if (!navigator.onLine) {
+            return finishQueuedOrder(payload);
+        }
+        var recoverPost = (payload.action === 'update' && payload.order_id)
+            ? postUpdate(payload)
+            : postOrder(payload);
+        return recoverPost.then(function (body) {
+            return handlePostedResult(body, payload, true);
+        }).catch(function () {
+            if (!navigator.onLine) return finishQueuedOrder(payload);
+            return leaveSafeRetry(payload);
+        });
+    }
+
+    function handlePostedResult(body, payload, alreadyRecovered) {
+        if (body && body.success === 1) {
+            acceptPostedOrder(body, payload);
+            return Promise.resolve();
+        }
+        if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
+            state.authRequired = true;
+            return finishQueuedOrder(payload, CFG.labels.sessionExpired);
+        }
+        if (body && body._http === 422) {
+            reportSubmitFailure((body && body.message) || CFG.labels.validationFailed || CFG.labels.syncFailed, false);
+            return Promise.resolve();
+        }
+        if (alreadyRecovered) {
+            if (!navigator.onLine) return finishQueuedOrder(payload);
+            return leaveSafeRetry(payload);
+        }
+        return recoverUncertainSubmit(payload);
     }
 
     function submitPlacedOrder() {
@@ -2567,35 +2645,9 @@
                 ? postUpdate(payload)
                 : postOrder(payload);
             posted.then(function (body) {
-                if (body && body.success === 1) {
-                    clearPendingAttempt();
-                    editingOrder = null;
-                    closeDeliveryModal(true);
-                    openSuccessModal(snapshotPrintJob(body), {
-                        offline: false,
-                        payload: payload,
-                        duplicate: !!body.duplicate,
-                        idempotent: !!body.idempotent
-                    });
-                    clearCart();
-                    endOrderSubmit();
-                    return;
-                }
-                if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
-                    state.authRequired = true;
-                    return finishQueuedOrder(payload, CFG.labels.sessionExpired);
-                }
-                if (body && body._http === 422) {
-                    reportSubmitFailure((body && body.message) || CFG.labels.validationFailed || CFG.labels.syncFailed, false);
-                    return;
-                }
-                return finishQueuedOrder(payload);
+                return handlePostedResult(body, payload, false);
             }).catch(function (err) {
-                if (err && err.code === 'timeout') {
-                    reportSubmitFailure(timeoutMessage(), true);
-                    return;
-                }
-                return finishQueuedOrder(payload);
+                return recoverUncertainSubmit(payload);
             }).then(function () {
                 renderStatus();
                 renderQueue();
@@ -3091,11 +3143,6 @@
                 confirmMarketplaceAndPlace();
             });
         }
-        if (els.successModal) {
-            els.successModal.addEventListener('click', function (ev) {
-                if (ev.target.id === 'pos-success-modal') dismissPlacedOrder();
-            });
-        }
         document.getElementById('pos-modal').addEventListener('click', function (ev) {
             if (ev.target.id === 'pos-modal') ev.target.hidden = true;
         });
@@ -3191,7 +3238,8 @@
                     return;
                 }
                 if (successJob && els.successModal && !els.successModal.hidden) {
-                    dismissPlacedOrder();
+                    ev.preventDefault();
+                    ev.stopPropagation();
                     return;
                 }
                 if (els.platformModal && !els.platformModal.hidden) {

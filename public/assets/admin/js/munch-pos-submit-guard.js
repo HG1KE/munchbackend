@@ -18,6 +18,44 @@
         return reason === 'success' || reason === 'queued' || reason === 'validation' || reason === 'http_422' || reason === 'sync-error-before-request';
     }
 
+    function isUncertainPlaceFailure(reason) {
+        return shouldReuseClientUuid(reason);
+    }
+
+    function recoverPlaceOutcome(event) {
+        event = event || {};
+        var uuid = event.client_uuid != null ? String(event.client_uuid) : '';
+        var result = {
+            checking: true,
+            checkingLabel: 'Checking order status...',
+            client_uuid: uuid,
+            failedToast: false,
+            createSecondSale: false
+        };
+        if (event.orderExists || event.recoverPosted) {
+            result.status = 'posted';
+            result.showSuccessModal = true;
+            result.queued = false;
+            result.reuseUuid = false;
+            result.retrySameUuid = false;
+            return result;
+        }
+        if (event.offline) {
+            result.status = 'queued';
+            result.showSuccessModal = true;
+            result.queued = true;
+            result.reuseUuid = true;
+            result.retrySameUuid = true;
+            return result;
+        }
+        result.status = 'retry';
+        result.showSuccessModal = false;
+        result.queued = false;
+        result.reuseUuid = true;
+        result.retrySameUuid = true;
+        return result;
+    }
+
     function nextAttemptKeys(existing, freshUuid, freshPlacedAt) {
         if (existing && existing.client_uuid && existing.placed_at) {
             return {
@@ -157,13 +195,54 @@
                 });
             }
             posts += 1;
-            if (options.timeout) {
-                end('timeout');
+            if (options.timeout || options.network) {
+                posts += 1;
+                var reason = options.timeout ? 'timeout' : 'network';
+                var recovered = recoverPlaceOutcome({
+                    client_uuid: payload.client_uuid,
+                    orderExists: !!(options.recoverSuccess || options.orderExists),
+                    recoverPosted: !!(options.recoverSuccess || options.orderExists),
+                    offline: !!options.offlineAfterUncertain
+                });
+                if (recovered.status === 'posted') {
+                    showModalOnce();
+                    end('online-success');
+                    return Promise.resolve({
+                        checking: true,
+                        recovered: true,
+                        posted: true,
+                        timedOut: !!options.timeout,
+                        network: !!options.network,
+                        failedToast: false,
+                        queued: false,
+                        reuseUuid: false,
+                        client_uuid: payload.client_uuid,
+                        sameUuid: true,
+                        createSecondSale: false,
+                        modals: modals
+                    });
+                }
+                if (recovered.status === 'queued') {
+                    return writeQueue(payload, options.queueWriteFails).then(function (result) {
+                        result.checking = true;
+                        result.failedToast = false;
+                        result.reuseUuid = true;
+                        result.createSecondSale = false;
+                        return result;
+                    });
+                }
+                end(reason);
                 return Promise.resolve({
-                    timedOut: true,
-                    reuseUuid: shouldReuseClientUuid('timeout'),
+                    checking: true,
+                    timedOut: !!options.timeout,
+                    network: !!options.network,
+                    reuseUuid: shouldReuseClientUuid(reason),
                     queued: false,
-                    unlocked: true
+                    unlocked: true,
+                    failedToast: false,
+                    retrySameUuid: true,
+                    client_uuid: payload.client_uuid,
+                    createSecondSale: false
                 });
             }
             if (options.onlineSuccess) {
@@ -237,6 +316,8 @@
         createSubmitFlow: createSubmitFlow,
         shouldReuseClientUuid: shouldReuseClientUuid,
         shouldClearAttempt: shouldClearAttempt,
+        isUncertainPlaceFailure: isUncertainPlaceFailure,
+        recoverPlaceOutcome: recoverPlaceOutcome,
         nextAttemptKeys: nextAttemptKeys,
         currentBranchId: currentBranchId,
         payloadBranchId: payloadBranchId,

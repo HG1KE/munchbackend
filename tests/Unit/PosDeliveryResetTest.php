@@ -38,11 +38,13 @@ class PosDeliveryResetTest extends TestCase
         );
 
         $submit = $this->functionBody($app, 'function submitPlacedOrder');
+        $accept = $this->functionBody($app, 'function acceptPostedOrder');
         $this->assertTrue(
-            strpos($submit, 'openSuccessModal(snapshotPrintJob(body)') < strpos($submit, 'clearCart()'),
+            strpos($accept, 'openSuccessModal(snapshotPrintJob(body)') < strpos($accept, 'clearCart()'),
             'online success must snapshot delivery details before clearing the form'
         );
-        $this->assertStringContainsString('clearCart()', $this->successBranch($submit));
+        $this->assertStringContainsString('clearCart()', $this->successBranch($app));
+        $this->assertStringContainsString('handlePostedResult(body, payload, false)', $submit);
 
         $this->assertStringContainsString('function persistableCart', $helper);
         $this->assertStringContainsString('function hydrateCart', $helper);
@@ -74,12 +76,12 @@ class PosDeliveryResetTest extends TestCase
         $this->assertStringContainsString('offline queue payload is independent', $joined);
     }
 
-    private function successBranch(string $submit): string
+    private function successBranch(string $source): string
     {
-        $start = strpos($submit, 'if (body && body.success === 1)');
+        $start = strpos($source, 'function acceptPostedOrder');
         $this->assertNotFalse($start, 'online success branch not found');
 
-        return substr($submit, $start, 800);
+        return substr($source, $start, 800);
     }
 
     private function functionBody(string $source, string $needle): string

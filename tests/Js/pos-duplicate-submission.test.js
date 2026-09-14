@@ -189,6 +189,8 @@ function run() {
                     assert(result.timedOut === true, 'timeout flag missing');
                     assert(result.queued === false, 'timeout must not auto-queue');
                     assert(result.reuseUuid === true, 'timeout must reuse uuid');
+                    assert(result.failedToast === false, 'timeout must not look like a failed sale');
+                    assert(result.checking === true, 'timeout must check order status');
                     assert(flow.state.orderSubmitting === false, 'lock lingered after timeout');
                     var keys = guard.nextAttemptKeys({ client_uuid: 'to-1', placed_at: 't1' }, 'new', 't2');
                     assert(keys.reused === true, 'retry keys should reuse');

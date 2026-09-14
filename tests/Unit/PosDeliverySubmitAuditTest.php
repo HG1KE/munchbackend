@@ -19,13 +19,13 @@ class PosDeliverySubmitAuditTest extends TestCase
         $this->assertStringContainsString('submitPlacedOrder()', $confirm);
         $this->assertStringContainsString('Posting order...', $app);
         $this->assertStringContainsString('setDeliveryFormBusy(true)', $app);
-        $this->assertStringContainsString('reportSubmitFailure', $submit);
-        $this->assertStringContainsString("body._http === 422", $submit);
-        $this->assertStringContainsString('closeDeliveryModal(true)', $submit);
-        $this->assertStringContainsString("err.code === 'timeout'", $submit);
+        $this->assertStringContainsString('recoverUncertainSubmit', $submit);
+        $this->assertStringContainsString('handlePostedResult', $submit);
+        $this->assertStringContainsString('leaveSafeRetry', $app);
+        $this->assertStringContainsString('Checking order status...', $app);
         $this->assertStringContainsString('AbortController', $app);
         $this->assertStringContainsString('buildAttemptPayload', $app);
-        $this->assertStringContainsString('reportSubmitFailure(timeoutMessage(), true)', $submit);
+        $this->assertStringNotContainsString('reportSubmitFailure(timeoutMessage(), true)', $submit);
     }
 
     public function test_phone_rules_match_on_frontend_and_backend(): void
@@ -58,7 +58,7 @@ class PosDeliverySubmitAuditTest extends TestCase
         $this->assertStringContainsString('PosDeliveryCustomerSms::dispatch($order)', $job);
         $this->assertStringContainsString('implements ShouldQueue', $job);
 
-        $this->assertSame('6.7', PosClientVersion::ASSET);
+        $this->assertSame('6.8', PosClientVersion::ASSET);
         $this->assertTrue(is_a(SendPosDeliveryCustomerSmsJob::class, \Illuminate\Contracts\Queue\ShouldQueue::class, true));
     }
 
@@ -94,6 +94,7 @@ class PosDeliverySubmitAuditTest extends TestCase
             'tests/Js/pos-marketplace-order-number.test.js',
             'tests/Js/pos-munch-type-confirm.test.js',
             'tests/Js/pos-stale-client.test.js',
+            'tests/Js/pos-success-recovery.test.js',
         ] as $relative) {
             $output = [];
             $code = 0;

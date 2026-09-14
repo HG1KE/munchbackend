@@ -121,6 +121,11 @@ class PosDuplicateSubmissionTest extends TestCase
         $this->assertStringContainsString('timeout unlocks', implode("\n", $output));
         $this->assertStringContainsString('queued payload is branch-scoped', implode("\n", $output));
         $this->assertStringContainsString('refresh recovery reuses the same uuid', implode("\n", $output));
+
+        $recovery = [];
+        $recoveryCode = 0;
+        exec(escapeshellcmd($node).' '.escapeshellarg(base_path('tests/Js/pos-success-recovery.test.js')).' 2>&1', $recovery, $recoveryCode);
+        $this->assertSame(0, $recoveryCode, implode("\n", $recovery));
     }
 
     private function functionBody(string $source, string $needle): string

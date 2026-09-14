@@ -1655,6 +1655,8 @@
   'Order saved offline. It will sync automatically.' => 'Order saved offline. It will sync automatically.',
   'Order {n} saved offline. It will sync automatically.' => 'Order {n} saved offline. It will sync automatically.',
   'Unable to confirm order. Please check your connection and try again.' => 'Unable to confirm order. Please check your connection and try again.',
+  'Checking order status...' => 'Checking order status...',
+  'Still confirming this order. Tap Place Order to try again.' => 'Still confirming this order. Tap Place Order to try again.',
   'New POS version available. Please refresh before placing new orders.' => 'New POS version available. Please refresh before placing new orders.',
   'New POS version available' => 'New POS version available',
   'A new version of the POS is available. Please refresh before placing new orders.' => 'A new version of the POS is available. Please refresh before placing new orders.',
