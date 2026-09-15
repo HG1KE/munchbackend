@@ -36,6 +36,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Throwable;
 use function App\CentralLogics\translate;
 
 class OrderController extends Controller
@@ -559,6 +560,9 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([$e], 403);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw $e;
         }
     }
 

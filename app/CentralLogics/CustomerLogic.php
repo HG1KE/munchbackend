@@ -2,6 +2,7 @@
 
 namespace App\CentralLogics;
 
+use App\Model\BusinessSetting;
 use App\Model\PointTransitions;
 use App\Model\WalletBonus;
 use App\User;

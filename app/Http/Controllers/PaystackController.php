@@ -175,14 +175,13 @@ class PaystackController extends Controller
                 $request->input('payment_id')
             );
 
-            $httpStatus = ($result['status'] ?? '') === 'success' ? 200 : 402;
-            if ($httpStatus === 200 && $this->orderPaymentVerifiedButNotPlaced($result)) {
-                $placementCode = $result['placement_error']['code'] ?? 'order_not_placed';
+            if ($this->gatewayPaidButNotFulfilled($result)) {
+                $placementCode = $result['placement_error']['code'] ?? 'fulfillment_failed';
                 if ($placementCode === 'missing_place_order_draft') {
                     return response()->json($result, 200);
                 }
 
-                Log::critical('paystack.paid_without_order', [
+                Log::critical('paystack.paid_without_fulfillment', [
                     'reference' => $reference,
                     'payment_id' => $result['payment_id'] ?? null,
                     'placement_status' => $result['placement_status'] ?? null,
@@ -193,10 +192,12 @@ class PaystackController extends Controller
                 return response()->json(array_merge($result, [
                     'errors' => [[
                         'code' => $placementCode,
-                        'message' => $result['placement_error']['message'] ?? 'Payment received but order placement failed. Our team has been notified.',
+                        'message' => $result['placement_error']['message'] ?? 'Payment received but fulfillment failed. Our team has been notified.',
                     ]],
                 ]), 422);
             }
+
+            $httpStatus = ($result['status'] ?? '') === 'success' ? 200 : 402;
 
             return response()->json($result, $httpStatus);
         } catch (PaystackException $exception) {
@@ -297,9 +298,9 @@ class PaystackController extends Controller
             $result = $this->verifyAndCompletePayment((string) $reference, null, forRedirect: true);
 
             if (($result['status'] ?? '') === 'success' && isset($result['payment_request'])) {
-                if ($this->orderPaymentVerifiedButNotPlaced($result)
+                if ($this->gatewayPaidButNotFulfilled($result)
                     && ($result['placement_error']['code'] ?? null) !== 'missing_place_order_draft') {
-                    Log::critical('paystack.paid_without_order', [
+                    Log::critical('paystack.paid_without_fulfillment', [
                         'reference' => $reference,
                         'payment_id' => $result['payment_id'] ?? null,
                         'placement_status' => $result['placement_status'] ?? null,
@@ -395,7 +396,7 @@ class PaystackController extends Controller
                     'reference' => $reference,
                     'payment_id' => $result['payment_request']?->id,
                 ]);
-            } elseif (in_array($result['outcome'], ['order_placed', 'verified_not_placed', 'verified_non_order'], true)) {
+            } elseif (in_array($result['outcome'], ['order_placed', 'verified_non_order'], true)) {
                 Log::info('paystack.verify_success', [
                     'reference' => $reference,
                     'attribute_id' => $result['payment_request']?->attribute_id,
@@ -555,28 +556,36 @@ class PaystackController extends Controller
     }
 
     /**
+     * Gateway verified the charge, but Meatco did not credit the wallet / place the order.
+     *
      * @param  array<string, mixed>  $result
      */
-    private function orderPaymentVerifiedButNotPlaced(array $result): bool
+    private function gatewayPaidButNotFulfilled(array $result): bool
     {
-        if (($result['status'] ?? '') !== 'success') {
+        if (($result['order_placed'] ?? false) === true) {
             return false;
         }
 
         $paymentRequest = $result['payment_request'] ?? null;
-        if ($paymentRequest instanceof PaymentRequest) {
-            return $paymentRequest->attribute === 'order' && ! ($result['order_placed'] ?? false);
+        if (! $paymentRequest instanceof PaymentRequest && isset($result['payment_id'])) {
+            $paymentRequest = PaymentRequest::query()->find($result['payment_id']);
         }
 
-        if (isset($result['payment_id'])) {
-            $row = PaymentRequest::query()->find($result['payment_id']);
-
-            return $row !== null
-                && $row->attribute === 'order'
-                && ! ($result['order_placed'] ?? false);
+        if (! $paymentRequest instanceof PaymentRequest) {
+            return false;
         }
 
-        return ! ($result['order_placed'] ?? true);
+        if ((int) $paymentRequest->is_paid !== 1) {
+            return false;
+        }
+
+        if ($paymentRequest->attribute === 'order') {
+            return true;
+        }
+
+        $placementStatus = (string) ($result['placement_status'] ?? $paymentRequest->placement_status ?? '');
+
+        return $placementStatus !== PaymentRequest::PLACEMENT_RECONCILED;
     }
 
     /**

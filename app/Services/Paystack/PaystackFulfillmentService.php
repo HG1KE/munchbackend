@@ -156,11 +156,12 @@ class PaystackFulfillmentService
                 if ($paymentRequest === null || $paymentRequest->attribute !== 'order') {
                     $nonOrder = $paymentRequest !== null
                         ? $this->fulfillNonOrderPurpose($paymentRequest, $reference)
-                        : ['fulfilled' => false, 'placement_status' => null, 'placement_error' => null];
+                        : ['fulfilled' => true, 'placement_status' => null, 'placement_error' => null];
+                    $fulfilled = (bool) ($nonOrder['fulfilled'] ?? false);
 
                     return $this->buildResult(
                         outcome: 'verified_non_order',
-                        status: 'success',
+                        status: $fulfilled ? 'success' : 'failed',
                         reference: $reference,
                         paymentRequest: $paymentRequest?->fresh(),
                         paymentDetails: $paymentDetails,
@@ -170,6 +171,9 @@ class PaystackFulfillmentService
                             'placement_status' => $nonOrder['placement_status'],
                             'placement_error' => $nonOrder['placement_error'],
                         ],
+                        message: $fulfilled
+                            ? null
+                            : (string) ($nonOrder['placement_error']['message'] ?? 'Payment received but fulfillment failed.'),
                     );
                 }
 
@@ -180,8 +184,9 @@ class PaystackFulfillmentService
                 ]));
 
                 $placement = $this->protection->completeAfterVerify($paymentRequest, $paymentDetails);
+                $placed = (bool) ($placement['order_placed'] ?? false) && $placement['order_id'] !== null;
 
-                if ($placement['order_placed'] && $placement['order_id'] !== null) {
+                if ($placed) {
                     Log::info('paystack.fulfillment_order_placement_succeeded', array_merge($baseContext, [
                         'payment_request_id' => $paymentRequest->id,
                         'order_id' => $placement['order_id'],
@@ -189,12 +194,15 @@ class PaystackFulfillmentService
                 }
 
                 return $this->buildResult(
-                    outcome: $placement['order_placed'] ? 'order_placed' : 'verified_not_placed',
-                    status: 'success',
+                    outcome: $placed ? 'order_placed' : 'verified_not_placed',
+                    status: $placed ? 'success' : 'failed',
                     reference: $reference,
                     paymentRequest: $paymentRequest->fresh(),
                     paymentDetails: $paymentDetails,
                     placement: $placement,
+                    message: $placed
+                        ? null
+                        : (string) ($placement['placement_error']['message'] ?? 'Payment received but order placement failed.'),
                 );
             });
         } catch (PaystackException $exception) {
@@ -346,7 +354,11 @@ class PaystackFulfillmentService
 
             PaymentRequest::query()
                 ->where('id', $session->id)
-                ->update(['placement_status' => PaymentRequest::PLACEMENT_PENDING]);
+                ->update([
+                    'placement_status' => PaymentRequest::PLACEMENT_PENDING,
+                    'placement_error' => json_encode($error),
+                    'placement_attempted_at' => now(),
+                ]);
 
             return ['fulfilled' => false, 'placement_status' => PaymentRequest::PLACEMENT_PENDING, 'placement_error' => $error];
         }
@@ -373,7 +385,11 @@ class PaystackFulfillmentService
 
             PaymentRequest::query()
                 ->where('id', $session->id)
-                ->update(['placement_status' => PaymentRequest::PLACEMENT_PENDING]);
+                ->update([
+                    'placement_status' => PaymentRequest::PLACEMENT_PENDING,
+                    'placement_error' => json_encode($error),
+                    'placement_attempted_at' => now(),
+                ]);
 
             return ['fulfilled' => false, 'placement_status' => PaymentRequest::PLACEMENT_PENDING, 'placement_error' => $error];
         }
