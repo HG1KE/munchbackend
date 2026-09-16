@@ -9,6 +9,7 @@ use App\Model\Newsletter;
 use App\Model\Order;
 use App\Model\PointTransitions;
 use App\Model\BusinessSetting;
+use App\Model\WalletTransaction;
 use App\User;
 use Box\Spout\Common\Exception\InvalidArgumentException;
 use Box\Spout\Common\Exception\IOException;
@@ -139,7 +140,13 @@ class CustomerController extends Controller
             ->paginate(Helpers::getPagination())
             ->appends(['search' => $search]);
 
-        return view('admin-views.customer.customer-view', compact('customer', 'orders', 'search'));
+        $walletTransactions = WalletTransaction::query()
+            ->where('user_id', $id)
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get();
+
+        return view('admin-views.customer.customer-view', compact('customer', 'orders', 'search', 'walletTransactions'));
     }
 
     /**

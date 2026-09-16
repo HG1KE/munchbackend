@@ -43,6 +43,7 @@
                                 <select name="transaction_type" id="" class="form-control h--45px" title="{{translate('select')}} {{translate('transaction_type')}}">
                                     <option value="">{{translate('all')}}</option>
                                     <option value="add_fund_by_admin" {{isset($transactionStatus) && $transactionStatus=='add_fund_by_admin'?'selected':''}} >{{translate('add_fund_by_admin')}}</option>
+                                    <option value="debit_by_admin" {{isset($transactionStatus) && $transactionStatus=='debit_by_admin'?'selected':''}} >{{translate('debit_by_admin')}}</option>
                                     <option value="referral_order_place" {{isset($transactionStatus) && $transactionStatus=='referral_order_place	'?'selected':''}}>{{translate('referral_order_place')}}</option>
                                     <option value="loyalty_point_to_wallet" {{isset($transactionStatus) && $transactionStatus=='loyalty_point_to_wallet'?'selected':''}}>{{translate('loyalty_point_to_wallet')}}</option>
                                     <option value="order_place" {{isset($transactionStatus) && $transactionStatus=='order_place'?'selected':''}}>{{translate('order_place')}}</option>

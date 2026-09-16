@@ -8,10 +8,14 @@ use App\Model\WalletBonus;
 use App\User;
 use App\Model\WalletTransaction;
 use Brian2694\Toastr\Facades\Toastr;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CustomerLogic{
+
+    public const ADMIN_WALLET_CREDIT_TYPE = 'add_fund_by_admin';
+    public const ADMIN_WALLET_DEBIT_TYPE = 'debit_by_admin';
 
     public static function create_wallet_transaction($user_id, float $amount, $transaction_type, $referance)
     {
@@ -66,6 +70,148 @@ class CustomerLogic{
             return false;
         }
         return false;
+    }
+
+    /**
+     * Atomically credit or debit a customer wallet from an authorized admin action.
+     * Reuses users.wallet_balance and wallet_transactions; never updates balance without a ledger row.
+     *
+     * @return array{ok: bool, message?: string, transaction?: WalletTransaction, replayed?: bool}
+     */
+    public static function adjust_wallet_by_admin(
+        int $userId,
+        $amount,
+        string $type,
+        string $reason,
+        ?int $adminId = null,
+        ?string $idempotencyKey = null
+    ): array {
+        $type = strtolower(trim($type));
+        $reason = trim($reason);
+        $idempotencyKey = $idempotencyKey !== null ? trim($idempotencyKey) : null;
+        if ($idempotencyKey === '') {
+            $idempotencyKey = null;
+        }
+
+        if (!in_array($type, ['credit', 'debit'], true)) {
+            return ['ok' => false, 'message' => translate('invalid_wallet_adjustment_type')];
+        }
+
+        if (!is_numeric($amount)) {
+            return ['ok' => false, 'message' => translate('The amount must be a number.')];
+        }
+
+        $amount = round((float) $amount, 3);
+        if ($amount <= 0) {
+            return ['ok' => false, 'message' => translate('The amount must be greater than 0')];
+        }
+
+        if ($reason === '') {
+            return ['ok' => false, 'message' => translate('reason_note') . ' ' . translate('is_required')];
+        }
+
+        if (mb_strlen($reason) > 191) {
+            return ['ok' => false, 'message' => translate('reason_note') . ' ' . translate('is_too_long')];
+        }
+
+        $walletStatus = BusinessSetting::where('key', 'wallet_status')->first();
+        if (!$walletStatus || (int) $walletStatus->value !== 1) {
+            return ['ok' => false, 'message' => translate('customer_wallet_status_is_disable')];
+        }
+
+        try {
+            return DB::transaction(function () use ($userId, $amount, $type, $reason, $adminId, $idempotencyKey) {
+                $user = User::query()->where('id', $userId)->lockForUpdate()->first();
+                if (!$user) {
+                    return ['ok' => false, 'message' => translate('Customer not found!')];
+                }
+
+                if ($idempotencyKey !== null) {
+                    $existing = WalletTransaction::query()
+                        ->where('idempotency_key', $idempotencyKey)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existing) {
+                        if ((int) $existing->user_id !== (int) $user->id) {
+                            return ['ok' => false, 'message' => translate('failed_to_create_transaction')];
+                        }
+
+                        return [
+                            'ok' => true,
+                            'replayed' => true,
+                            'transaction' => $existing,
+                        ];
+                    }
+                }
+
+                $currentBalance = round((float) $user->wallet_balance, 3);
+                $credit = $type === 'credit' ? $amount : 0.0;
+                $debit = $type === 'debit' ? $amount : 0.0;
+                $newBalance = round($currentBalance + $credit - $debit, 3);
+
+                if ($type === 'debit' && $newBalance < 0) {
+                    return ['ok' => false, 'message' => translate('wallet_debit_exceeds_balance')];
+                }
+
+                $transactionType = $type === 'credit'
+                    ? self::ADMIN_WALLET_CREDIT_TYPE
+                    : self::ADMIN_WALLET_DEBIT_TYPE;
+
+                $walletTransaction = new WalletTransaction();
+                $walletTransaction->user_id = $user->id;
+                $walletTransaction->admin_id = $adminId;
+                $walletTransaction->transaction_id = 'ADMADJ_' . str_replace('-', '', (string) Str::uuid());
+                $walletTransaction->reference = $reason;
+                $walletTransaction->idempotency_key = $idempotencyKey;
+                $walletTransaction->transaction_type = $transactionType;
+                $walletTransaction->credit = $credit;
+                $walletTransaction->debit = $debit;
+                $walletTransaction->balance = $newBalance;
+                $walletTransaction->admin_bonus = 0;
+                $walletTransaction->created_at = now();
+                $walletTransaction->updated_at = now();
+
+                $user->wallet_balance = $newBalance;
+                $user->save();
+                $walletTransaction->save();
+
+                return [
+                    'ok' => true,
+                    'replayed' => false,
+                    'transaction' => $walletTransaction,
+                ];
+            });
+        } catch (QueryException $exception) {
+            if ($idempotencyKey && self::isUniqueConstraintViolation($exception)) {
+                $existing = WalletTransaction::query()->where('idempotency_key', $idempotencyKey)->first();
+                if ($existing && (int) $existing->user_id === $userId) {
+                    return [
+                        'ok' => true,
+                        'replayed' => true,
+                        'transaction' => $existing,
+                    ];
+                }
+            }
+
+            info($exception);
+
+            return ['ok' => false, 'message' => translate('failed_to_create_transaction')];
+        } catch (\Throwable $exception) {
+            info($exception);
+
+            return ['ok' => false, 'message' => translate('failed_to_create_transaction')];
+        }
+    }
+
+    private static function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) $exception->getCode();
+        if (isset($exception->errorInfo[0])) {
+            $sqlState = (string) $exception->errorInfo[0];
+        }
+
+        return $sqlState === '23000' || $sqlState === '23505' || str_contains($exception->getMessage(), 'UNIQUE');
     }
 
     /**

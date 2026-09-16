@@ -567,6 +567,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::group(['prefix' => 'wallet', 'as' => 'wallet.'], function () {
                 Route::get('add-fund', [CustomerWalletController::class, 'addFundView'])->name('add-fund');
                 Route::post('add-fund', [CustomerWalletController::class, 'addFund'])->name('add-fund-store');
+                Route::post('adjust/{customer_id}', [CustomerWalletController::class, 'adjust'])
+                    ->name('adjust')
+                    ->middleware('module:customer_wallet_adjustment');
                 Route::get('report', [CustomerWalletController::class, 'report'])->name('report');
 
                 Route::group(['prefix' => 'bonus', 'as' => 'bonus.'], function () {
