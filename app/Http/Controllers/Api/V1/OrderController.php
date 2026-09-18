@@ -7,6 +7,7 @@ use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
 use App\Jobs\SendOnlineOrderPlacementNotificationsJob;
+use App\Support\BranchOrderSlotTime;
 use App\Support\OnlineCheckoutIdempotency;
 use App\Http\Controllers\Controller;
 use App\Model\AddOn;
@@ -184,20 +185,18 @@ class OrderController extends Controller
         }
 
        // $preparation_time = Helpers::get_business_settings('default_preparation_time') ?? 0;
-        $preparation_time = Branch::where(['id' => $request['branch_id']])->first()->preparation_time ?? 0;
+        $preparation_time = (int) (Branch::where(['id' => $request['branch_id']])->first()->preparation_time ?? 0);
 
-        if ($request['delivery_time'] == 'now') {
-            $deliveryDate = Carbon::now()->format('Y-m-d');
-            $deliveryTime = Carbon::now()->add($preparation_time, 'minute')->format('H:i:s');
-        } else {
-            $deliveryDate = $request['delivery_date'];
-            $deliveryTime = Carbon::parse($request['delivery_time'])->add($preparation_time, 'minute')->format('H:i:s');
-        }
+        $customerSlot = BranchOrderSlotTime::customerSlot(
+            (string) $request['delivery_time'],
+            (string) $request['delivery_date']
+        );
+        $deliveryDate = $customerSlot['date'];
+        $customerSlotTime = $customerSlot['time'];
+        $deliveryTime = BranchOrderSlotTime::kitchenReadyTime($customerSlotTime, $preparation_time);
 
-        // Validate branch availability time slot (backward compatible)
-        // Only validate if branch availability feature is being used
-        $deliveryTimeWithPrep = Carbon::parse($deliveryTime)->format('H:i:s');
-
+        // Validate branch availability against the customer's requested/current time.
+        // Preparation minutes affect stored kitchen ready-time only, not slot eligibility.
         $branchSchedulesExist = BranchTimeSchedule::where('branch_id', $request['branch_id'])->exists();
         $restaurantSchedulesExist = TimeSchedule::exists();
 
@@ -207,17 +206,7 @@ class OrderController extends Controller
                 return response()->json(['errors' => [['code' => 'date', 'message' => translate('orders_can_only_be_placed_for_today')]]], 403);
             }
 
-            /**
-             * Slot check: `delivery_time` for "now" is **kitchen-ready time** (current + preparation minutes).
-             * That can fall after closing while the branch is still accepting walk-in / pickup orders *now*.
-             * Takeaway + `now` therefore validates against **current** time; delivery keeps ready-time semantics.
-             */
-            $availabilitySlotTime = $deliveryTimeWithPrep;
-            if ($request['order_type'] === 'take_away' && (string) $request['delivery_time'] === 'now') {
-                $availabilitySlotTime = Carbon::now()->format('H:i:s');
-            }
-
-            $slotOk = Helpers::isBranchAvailable($request['branch_id'], $deliveryDate, $availabilitySlotTime);
+            $slotOk = Helpers::isBranchAvailable($request['branch_id'], $deliveryDate, $customerSlotTime);
 
             if (filter_var((string) env('BRANCH_AVAILABILITY_DEBUG', ''), FILTER_VALIDATE_BOOLEAN)) {
                 Log::debug('place_order_branch_availability', [
@@ -225,8 +214,8 @@ class OrderController extends Controller
                     'order_type' => $request['order_type'],
                     'delivery_time_input' => $request['delivery_time'],
                     'delivery_date_resolved' => $deliveryDate,
-                    'delivery_time_with_prep' => $deliveryTimeWithPrep,
-                    'availability_slot_time' => $availabilitySlotTime,
+                    'customer_slot_time' => $customerSlotTime,
+                    'kitchen_ready_time' => $deliveryTime,
                     'branch_schedules_exist' => $branchSchedulesExist,
                     'restaurant_schedules_exist' => $restaurantSchedulesExist,
                     'is_branch_available_at_slot' => $slotOk,
