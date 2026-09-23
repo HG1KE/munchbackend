@@ -127,6 +127,14 @@ class BranchPosOrderTypesTest extends TestCase
         $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '07123456789'])));
         $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '07123ABC78'])));
         $this->assertSame('Enter a valid 10-digit phone number.', PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_phone' => '+254712345678'])));
+        $this->assertSame(
+            'Customer name is too long (max '.PosOrderTypes::POS_DELIVERY_NAME_MAX.' characters).',
+            PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['customer_name' => str_repeat('A', PosOrderTypes::POS_DELIVERY_NAME_MAX + 1)]))
+        );
+        $this->assertSame(
+            'Delivery address is too long (max '.PosOrderTypes::POS_DELIVERY_ADDRESS_MAX.' characters).',
+            PosOrderTypes::posDeliveryFieldError('delivery', array_merge($complete, ['address' => str_repeat('B', PosOrderTypes::POS_DELIVERY_ADDRESS_MAX + 1)]))
+        );
         $this->assertSame('0712345678', PosOrderTypes::canonicalPosDeliveryPhone('0712 345 678'));
         $this->assertSame('0712345678', PosOrderTypes::normalizePosDeliveryPhone('0712-345-678'));
         $this->assertSame('', PosOrderTypes::canonicalPosDeliveryPhone('+254712345678'));

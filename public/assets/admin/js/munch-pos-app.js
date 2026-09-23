@@ -1118,6 +1118,10 @@
     }
 
     function validateDeliveryDetails() {
+        if (!state.cart.address) state.cart.address = {};
+        if (Delivery && Delivery.posDeliveryFormError) {
+            return Delivery.posDeliveryFormError(state.cart.address, CFG.labels || {});
+        }
         if (!String(state.cart.address.contact_person_name || '').trim()) return CFG.labels.customerName || 'Customer Name';
         if (!String(state.cart.address.contact_person_number || '').trim()) return CFG.labels.customerPhone || 'Customer Phone';
         if (invalidPhone(state.cart.address.contact_person_number)) return CFG.labels.invalidPhone || 'Enter a valid 10-digit phone number.';
@@ -1320,7 +1324,6 @@
             if (res.status === 419 && !retried) {
                 return refreshHeartbeat().then(function (ok) {
                     if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
-                    if (!ok) return { success: 0, _http: 419, _ok: false };
                     return postOrder(payload, true);
                 });
             }
@@ -1365,7 +1368,6 @@
             if (res.status === 419 && !retried) {
                 return refreshHeartbeat().then(function (ok) {
                     if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
-                    if (!ok) return { success: 0, _http: 419, _ok: false };
                     return postUpdate(payload, true);
                 });
             }
@@ -1401,7 +1403,6 @@
             if (res.status === 419 && !retried) {
                 return refreshHeartbeat().then(function (ok) {
                     if (ok === false) return { success: 0, _http: 401, _ok: false, code: 'unauthenticated' };
-                    if (!ok) return { success: 0, _http: 419, _ok: false };
                     return postCancel(payload, true);
                 });
             }
@@ -1419,6 +1420,10 @@
         state.cart.lines = [];
         stripCashierDiscount(state.cart);
         state.cart.paid = '';
+        if (!state.orderSubmitting) {
+            clearPendingAttempt();
+            clearPostedEditState();
+        }
         resetDelivery();
         persistCart();
         renderLines();
@@ -2352,11 +2357,27 @@
         return idbPut('meta', value, PENDING_ATTEMPT_KEY).catch(function () {});
     }
 
+    function cartHasDeliveryDraft(cart) {
+        var addr = cart && cart.address;
+        if (!addr) return false;
+        return !!(
+            String(addr.contact_person_name || '').trim()
+            || String(addr.contact_person_number || '').trim()
+            || String(addr.address || '').trim()
+            || Number(cart.deliveryFee || 0) > 0
+        );
+    }
+
     function restorePendingAttempt(stored) {
         if (!stored || !stored.client_uuid) return;
         var storedBranch = Number(stored.branch_id || 0);
         var current = currentBranchId();
         if (storedBranch > 0 && current > 0 && storedBranch !== current) {
+            pendingAttempt = null;
+            persistPendingAttempt();
+            return;
+        }
+        if (!state.cart.lines.length && stored.action !== 'update') {
             pendingAttempt = null;
             persistPendingAttempt();
             return;
@@ -2368,7 +2389,7 @@
             order_id: stored.order_id || null,
             action: stored.action || 'place'
         };
-        if (pendingAttempt.action === 'update' && pendingAttempt.order_id && !editingOrder) {
+        if (pendingAttempt.action === 'update' && pendingAttempt.order_id && !editingOrder && lastPosted) {
             editingOrder = {
                 id: Number(pendingAttempt.order_id),
                 clientUuid: pendingAttempt.client_uuid,
@@ -2601,17 +2622,32 @@
         });
     }
 
+    function classifyPostedResult(body) {
+        if (SubmitGuard && SubmitGuard.classifyPosSubmitResponse) {
+            return SubmitGuard.classifyPosSubmitResponse(body);
+        }
+        body = body && typeof body === 'object' ? body : {};
+        if (body.success === 1 || body.duplicate || body.idempotent) return { kind: 'success' };
+        if (body._http === 401 || body._http === 403 || body.code === 'unauthenticated') return { kind: 'auth' };
+        if (body._http === 422) return { kind: 'validation', message: body.message || '' };
+        return { kind: 'uncertain', reason: 'malformed' };
+    }
+
     function handlePostedResult(body, payload, alreadyRecovered) {
-        if (body && body.success === 1) {
+        var outcome = classifyPostedResult(body);
+        if (outcome.kind === 'success') {
             acceptPostedOrder(body, payload);
             return Promise.resolve();
         }
-        if (body && (body._http === 401 || body._http === 403 || body.code === 'unauthenticated')) {
+        if (outcome.kind === 'auth') {
             state.authRequired = true;
             return finishQueuedOrder(payload, CFG.labels.sessionExpired);
         }
-        if (body && body._http === 422) {
-            reportSubmitFailure((body && body.message) || CFG.labels.validationFailed || CFG.labels.syncFailed, false);
+        if (outcome.kind === 'validation' || outcome.kind === 'client') {
+            reportSubmitFailure(
+                outcome.message || CFG.labels.validationFailed || CFG.labels.syncFailed,
+                false
+            );
             return Promise.resolve();
         }
         if (alreadyRecovered) {
@@ -2624,6 +2660,7 @@
     function submitPlacedOrder() {
         try {
             if (state.cart.orderType === 'delivery') {
+                if (isDeliveryModalOpen()) readDeliveryModal();
                 var deliveryError = validateDeliveryDetails();
                 if (deliveryError) {
                     clearPendingAttempt();
@@ -3336,8 +3373,8 @@
             }
             if (results[1] && Array.isArray(results[1].lines)) {
                 var keepLiveDelivery = isDeliveryModalOpen() || state.orderSubmitting;
-                var liveAddress = keepLiveDelivery ? state.cart.address : null;
-                var liveFee = keepLiveDelivery ? state.cart.deliveryFee : null;
+                var liveAddress = keepLiveDelivery && cartHasDeliveryDraft(state.cart) ? state.cart.address : null;
+                var liveFee = keepLiveDelivery && Number(state.cart.deliveryFee || 0) > 0 ? state.cart.deliveryFee : null;
                 state.cart = Delivery
                     ? Delivery.hydrateCart(state.cart, results[1])
                     : Object.assign(state.cart, results[1]);

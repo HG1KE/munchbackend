@@ -467,14 +467,22 @@ class PosOrderTypes
      *
      * @param  array{customer_name?: mixed, customer_phone?: mixed, address?: mixed}  $fields
      */
+    public const POS_DELIVERY_NAME_MAX = 100;
+
+    public const POS_DELIVERY_ADDRESS_MAX = 250;
+
     public static function posDeliveryFieldError(?string $type, array $fields): ?string
     {
         if (! self::isDelivery($type)) {
             return null;
         }
 
-        if (trim((string) ($fields['customer_name'] ?? '')) === '') {
+        $name = trim((string) ($fields['customer_name'] ?? ''));
+        if ($name === '') {
             return 'Customer Name';
+        }
+        if (mb_strlen($name) > self::POS_DELIVERY_NAME_MAX) {
+            return 'Customer name is too long (max '.self::POS_DELIVERY_NAME_MAX.' characters).';
         }
         $customerPhone = trim((string) ($fields['customer_phone'] ?? ''));
         if ($customerPhone === '') {
@@ -484,8 +492,12 @@ class PosOrderTypes
         if ($phoneError !== null) {
             return $phoneError;
         }
-        if (trim((string) ($fields['address'] ?? '')) === '') {
+        $address = trim((string) ($fields['address'] ?? ''));
+        if ($address === '') {
             return 'Delivery Address';
+        }
+        if (mb_strlen($address) > self::POS_DELIVERY_ADDRESS_MAX) {
+            return 'Delivery address is too long (max '.self::POS_DELIVERY_ADDRESS_MAX.' characters).';
         }
 
         return null;

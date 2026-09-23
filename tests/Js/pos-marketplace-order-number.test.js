@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 
 var root = path.join(__dirname, '../..');
+var Delivery = require(path.join(root, 'public/assets/admin/js/munch-pos-delivery.js'));
 var js = fs.readFileSync(path.join(root, 'public/assets/admin/js/munch-pos-app.js'), 'utf8');
 var page = fs.readFileSync(path.join(root, 'resources/views/branch-views/pos/index.blade.php'), 'utf8');
 var ticket = fs.readFileSync(path.join(root, 'public/assets/admin/js/munch-receipt-ticket.js'), 'utf8');

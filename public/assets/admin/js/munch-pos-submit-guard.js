@@ -22,6 +22,45 @@
         return shouldReuseClientUuid(reason);
     }
 
+    /**
+     * Classify a Branch POS place-order HTTP response.
+     *
+     * @returns {{ kind: 'success'|'auth'|'validation'|'client'|'uncertain', message?: string, reason?: string }}
+     */
+    function classifyPosSubmitResponse(body) {
+        body = body && typeof body === 'object' ? body : {};
+        var http = Number(body._http || 0);
+
+        if (body.success === 1 || body.duplicate || body.idempotent) {
+            return { kind: 'success' };
+        }
+        if (http === 401 || http === 403 || body.code === 'unauthenticated') {
+            return { kind: 'auth' };
+        }
+        if (http === 422) {
+            return { kind: 'validation', message: String(body.message || '') };
+        }
+        if (http >= 400 && http < 500 && http !== 419) {
+            return { kind: 'client', message: String(body.message || '') };
+        }
+        if (http === 419) {
+            return { kind: 'uncertain', reason: 'http_419' };
+        }
+        if (http >= 500 && http <= 599) {
+            return { kind: 'uncertain', reason: 'http_5xx' };
+        }
+        if (body.success === 0 && body.message) {
+            return { kind: 'client', message: String(body.message) };
+        }
+        if (http === 200 || http === 201) {
+            return { kind: 'uncertain', reason: 'malformed' };
+        }
+        if (!http) {
+            return { kind: 'uncertain', reason: 'network' };
+        }
+        return { kind: 'uncertain', reason: 'malformed' };
+    }
+
     function recoverPlaceOutcome(event) {
         event = event || {};
         var uuid = event.client_uuid != null ? String(event.client_uuid) : '';
@@ -317,6 +356,7 @@
         shouldReuseClientUuid: shouldReuseClientUuid,
         shouldClearAttempt: shouldClearAttempt,
         isUncertainPlaceFailure: isUncertainPlaceFailure,
+        classifyPosSubmitResponse: classifyPosSubmitResponse,
         recoverPlaceOutcome: recoverPlaceOutcome,
         nextAttemptKeys: nextAttemptKeys,
         currentBranchId: currentBranchId,

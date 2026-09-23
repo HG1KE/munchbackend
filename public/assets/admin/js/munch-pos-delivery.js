@@ -10,6 +10,8 @@
 
     var PHONE_ERROR = 'Enter a valid 10-digit phone number.';
     var PHONE_REQUIRED = 'Customer Phone';
+    var NAME_MAX = 100;
+    var ADDRESS_MAX = 250;
 
     function emptyDeliveryState() {
         return {
@@ -43,6 +45,32 @@
         return posDeliveryPhoneError(value) === null;
     }
 
+    function posDeliveryFormError(address, labels) {
+        labels = labels || {};
+        var name = String((address && address.contact_person_name) || '').trim();
+        if (name === '') {
+            return labels.customerName || 'Customer Name';
+        }
+        if (name.length > NAME_MAX) {
+            return labels.customerNameTooLong || ('Customer name is too long (max ' + NAME_MAX + ' characters).');
+        }
+        var phoneErr = posDeliveryPhoneError((address && address.contact_person_number) || '');
+        if (phoneErr === PHONE_REQUIRED) {
+            return labels.customerPhone || PHONE_REQUIRED;
+        }
+        if (phoneErr) {
+            return labels.invalidPhone || phoneErr;
+        }
+        var addr = String((address && address.address) || '').trim();
+        if (addr === '') {
+            return labels.deliveryAddress || labels.address || 'Delivery Address';
+        }
+        if (addr.length > ADDRESS_MAX) {
+            return labels.deliveryAddressTooLong || ('Delivery address is too long (max ' + ADDRESS_MAX + ' characters).');
+        }
+        return null;
+    }
+
     function applyEmptyDelivery(cart) {
         var next = cart || {};
         var empty = emptyDeliveryState();
@@ -70,6 +98,9 @@
     return {
         PHONE_ERROR: PHONE_ERROR,
         PHONE_REQUIRED: PHONE_REQUIRED,
+        NAME_MAX: NAME_MAX,
+        ADDRESS_MAX: ADDRESS_MAX,
+        posDeliveryFormError: posDeliveryFormError,
         emptyDeliveryState: emptyDeliveryState,
         applyEmptyDelivery: applyEmptyDelivery,
         persistableCart: persistableCart,
