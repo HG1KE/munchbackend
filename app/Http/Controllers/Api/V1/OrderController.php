@@ -6,7 +6,9 @@ use App\CentralLogics\AbandonedCheckoutService;
 use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
+use App\Jobs\DeliverMunchOrderWebhookJob;
 use App\Jobs\SendOnlineOrderPlacementNotificationsJob;
+use App\Services\MunchOrdersWebhook\MunchOrderRingingWebhookRecorder;
 use App\Support\BranchOrderSlotTime;
 use App\Support\OnlineCheckoutIdempotency;
 use App\Http\Controllers\Controller;
@@ -287,6 +289,8 @@ class OrderController extends Controller
             ]);
         }
 
+        $webhookOutboxId = null;
+
         try {
             DB::beginTransaction();
 
@@ -519,9 +523,12 @@ class OrderController extends Controller
                 }
             }
 
+            $webhookOutbox = app(MunchOrderRingingWebhookRecorder::class)->recordFromAttributes($or);
+            $webhookOutboxId = $webhookOutbox?->id;
+
             DB::commit();
 
-            $this->finishOnlineOrderPlacement($order_id, $request);
+            $this->finishOnlineOrderPlacement($order_id, $request, $webhookOutboxId);
 
             return response()->json([
                 'message' => translate('order_success'),
@@ -555,7 +562,7 @@ class OrderController extends Controller
         }
     }
 
-    private function finishOnlineOrderPlacement(int $orderId, Request $request): void
+    private function finishOnlineOrderPlacement(int $orderId, Request $request, ?int $webhookOutboxId = null): void
     {
         $persisted = Order::query()->find($orderId);
         if ($persisted) {
@@ -567,6 +574,10 @@ class OrderController extends Controller
             isset($request['guest_id']) ? (int) $request['guest_id'] : null,
             auth('api')->id()
         )->afterResponse();
+
+        if ($webhookOutboxId !== null) {
+            DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId)->afterResponse();
+        }
     }
 
     private function existingPaystackOrderResponse(Request $request, string $paystackReference): ?\Illuminate\Http\JsonResponse

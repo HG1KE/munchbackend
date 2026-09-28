@@ -314,11 +314,11 @@ class OnlineOrderIdempotencyTest extends TestCase
             $controller
         );
         $this->assertTrue(
-            strpos($controller, 'DB::commit()') < strpos($controller, '$this->finishOnlineOrderPlacement($order_id, $request)'),
+            strpos($controller, 'DB::commit()') < strpos($controller, '$this->finishOnlineOrderPlacement($order_id, $request, $webhookOutboxId)'),
             'notifications must start only after the order is committed'
         );
         $this->assertTrue(
-            strpos($controller, '$this->finishOnlineOrderPlacement($order_id, $request)')
+            strpos($controller, '$this->finishOnlineOrderPlacement($order_id, $request, $webhookOutboxId)')
                 < strpos($controller, "'order_display_id' => \$readableOrderId"),
             'the success JSON must still be built after notification dispatch is scheduled'
         );
