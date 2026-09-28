@@ -23,6 +23,10 @@ class OnlineOrderRingingEligibility
             return false;
         }
 
+        if (! MunchOrderWebhookBranch::qualifiesBranchId(isset($order->branch_id) ? (int) $order->branch_id : null)) {
+            return false;
+        }
+
         return self::isNotScheduled($order);
     }
 
@@ -40,6 +44,11 @@ class OnlineOrderRingingEligibility
 
         $status = (string) ($attributes['order_status'] ?? '');
         if (! in_array($status, OnlineOrderStatus::pendingQueueStatuses(), true)) {
+            return false;
+        }
+
+        $branchId = isset($attributes['branch_id']) ? (int) $attributes['branch_id'] : null;
+        if (! MunchOrderWebhookBranch::qualifiesBranchId($branchId)) {
             return false;
         }
 

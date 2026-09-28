@@ -14,7 +14,17 @@ Fires **once** per order when it first qualifies for:
 
 Typical path: customer `placeOrder` commits with `order_status = pending`, alongside `SendOnlineOrderPlacementNotificationsJob`.
 
-**Excluded:** Branch POS, dine-in POS, POS delivery, Glovo, Uber, Bolt Food. No second `order.ringing` when the order later moves to preparing, ready, completed, or cancelled.
+**Excluded:** Branch POS, dine-in POS, POS delivery, Glovo, Uber, Bolt Food. **Makadara** (`branches.id = 11`) is skipped. Webhook branches use portal branch IDs:
+
+| `branches.id` | Payload `branch` |
+|---------------|------------------|
+| 1 | Nyali |
+| 10 | Bamburi |
+| 13 | Mtwapa |
+| 14 | Kilimani |
+| 11 | *(no webhook — Makadara)* |
+
+No second `order.ringing` when the order later moves to preparing, ready, completed, or cancelled.
 
 ## Configuration
 
@@ -85,8 +95,9 @@ Outbox insert failures are **not** swallowed; delivery failures do **not** roll 
 - `DeliverMunchOrderWebhookJob` POSTs JSON to `MUNCH_ORDERS_WEBHOOK_URL` with configured auth.
 - Queue retries: about **1, 5, 15, 30 minutes** (`$tries = 5`, backoff `[60, 300, 900, 1800]` seconds).
 - **Success:** HTTP 2xx → outbox `delivered`.
-- **Retry:** 408, 429, 5xx, connection errors → job retries; same outbox row and `Idempotency-Key: order.ringing:{order_id}` on each attempt.
+- **Retry:** 408, 429, 5xx, connection errors, or **missing `MUNCH_ORDERS_WEBHOOK_URL` / `MUNCH_ORDERS_WEBHOOK_AUTH`** → job retries with outbox left `pending`; same `Idempotency-Key: order.ringing:{order_id}` on each attempt.
 - **Permanent failure:** other 4xx (e.g. 401, 403) → outbox `failed`; order unchanged.
+- **Re-queue after fixing env or a failed row:** `php artisan munch:orders-webhook-retry --order=<id>` (or `--outbox=<id>`).
 
 ## Dry run
 

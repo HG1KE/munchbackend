@@ -3,10 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Model\Order;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookBranch;
 use App\Services\MunchOrdersWebhook\MunchOrderWebhookHttpClient;
 use App\Services\MunchOrdersWebhook\MunchOrderWebhookPayloadBuilder;
+use App\Services\MunchOrdersWebhook\OnlineOrderRingingEligibility;
 use Illuminate\Console\Command;
-
 class MunchOrdersWebhookDryRunCommand extends Command
 {
     protected $signature = 'munch:orders-webhook-dry-run
@@ -33,8 +34,20 @@ class MunchOrdersWebhookDryRunCommand extends Command
             return self::FAILURE;
         }
 
+        $branchId = (int) ($order->branch_id ?? 0);
+        $resolvedBranch = MunchOrderWebhookBranch::webhookLabelForBranchId($branchId)
+            ?: MunchOrderWebhookBranch::webhookLabelFromBranchName($order->branch?->name)
+            ?: '(not eligible)';
+
+        $this->line('Order id: '.$orderId);
+        $this->line('Branch id: '.$branchId.' → webhook branch: '.$resolvedBranch);
+        $this->line('Ringing eligibility: '.(OnlineOrderRingingEligibility::qualifies($order) ? 'yes' : 'no'));
+        $this->line('Destination: '.$this->redactedDestinationUrl());
+        $this->line('Auth configured: '.$this->authConfiguredLabel());
+
         $payload = $payloadBuilder->build($order);
         $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $this->line('');
         $this->line($json === false ? '{}' : $json);
 
         if (! $this->option('send')) {
@@ -45,6 +58,12 @@ class MunchOrdersWebhookDryRunCommand extends Command
 
         if ((string) config('munch_orders_webhook.url') === '') {
             $this->error('MUNCH_ORDERS_WEBHOOK_URL is not configured.');
+
+            return self::FAILURE;
+        }
+
+        if (trim((string) config('munch_orders_webhook.authorization')) === '') {
+            $this->error('MUNCH_ORDERS_WEBHOOK_AUTH is not configured.');
 
             return self::FAILURE;
         }
@@ -62,8 +81,34 @@ class MunchOrdersWebhookDryRunCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->error('Webhook POST failed: '.($result['error'] ?? 'unknown'));
+        $this->error('Webhook POST failed: '.($result['error'] ?? 'unknown')
+            .($result['retryable'] ? ' (retryable)' : ' (permanent)'));
 
         return self::FAILURE;
+    }
+
+    private function redactedDestinationUrl(): string
+    {
+        $url = trim((string) config('munch_orders_webhook.url'));
+        if ($url === '') {
+            return '(MUNCH_ORDERS_WEBHOOK_URL not set)';
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return '(invalid URL in config)';
+        }
+
+        $host = $parts['host'] ?? '';
+        $path = $parts['path'] ?? '/';
+
+        return 'https://'.$host.$path.' (credentials/query redacted)';
+    }
+
+    private function authConfiguredLabel(): string
+    {
+        $auth = trim((string) config('munch_orders_webhook.authorization'));
+
+        return $auth === '' ? 'no' : 'yes (value hidden)';
     }
 }

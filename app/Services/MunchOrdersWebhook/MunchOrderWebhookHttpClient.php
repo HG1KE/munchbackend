@@ -20,9 +20,19 @@ class MunchOrderWebhookHttpClient
         if ($url === '') {
             return [
                 'success' => false,
-                'retryable' => false,
+                'retryable' => true,
                 'http_status' => null,
                 'error' => 'webhook_url_not_configured',
+            ];
+        }
+
+        $authorization = trim((string) config('munch_orders_webhook.authorization'));
+        if ($authorization === '') {
+            return [
+                'success' => false,
+                'retryable' => true,
+                'http_status' => null,
+                'error' => 'webhook_auth_not_configured',
             ];
         }
 
@@ -35,10 +45,7 @@ class MunchOrderWebhookHttpClient
             'Idempotency-Key' => $outbox->event_key,
         ];
 
-        $authorization = trim((string) config('munch_orders_webhook.authorization'));
-        if ($authorization !== '') {
-            $headers['Authorization'] = $authorization;
-        }
+        $headers['Authorization'] = $authorization;
 
         try {
             $response = Http::timeout($timeout)

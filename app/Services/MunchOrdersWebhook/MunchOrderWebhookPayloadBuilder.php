@@ -54,11 +54,18 @@ class MunchOrderWebhookPayloadBuilder
 
     public function branchLabel(Order $order): string
     {
+        $fromId = MunchOrderWebhookBranch::webhookLabelForBranchId(
+            isset($order->branch_id) ? (int) $order->branch_id : null
+        );
+        if ($fromId !== null) {
+            return $fromId;
+        }
+
         $branch = $order->relationLoaded('branch')
             ? $order->branch
             : Branch::query()->find($order->branch_id);
 
-        return trim((string) ($branch?->name ?? ''));
+        return MunchOrderWebhookBranch::webhookLabelFromBranchName($branch?->name) ?? '';
     }
 
     private function customerName(Order $order): string

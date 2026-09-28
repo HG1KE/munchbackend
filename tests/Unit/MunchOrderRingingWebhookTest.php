@@ -6,7 +6,9 @@ use App\Jobs\DeliverMunchOrderWebhookJob;
 use App\Model\Order;
 use App\Models\MunchOrderWebhookOutbox;
 use App\Services\MunchOrdersWebhook\MunchOrderRingingWebhookRecorder;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookBranch;
 use App\Services\MunchOrdersWebhook\MunchOrderWebhookHttpClient;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookOutboxPayloadRefresher;
 use App\Services\MunchOrdersWebhook\MunchOrderWebhookPayloadBuilder;
 use App\Services\MunchOrdersWebhook\OnlineOrderRingingEligibility;
 use App\Support\PosOrderTypes;
@@ -70,6 +72,115 @@ class MunchOrderRingingWebhookTest extends TestCase
     {
         $order = $this->persistOrder(['order_status' => 'processing']);
         $this->assertNull(app(MunchOrderRingingWebhookRecorder::class)->recordForOrder($order));
+    }
+
+    public function test_makadara_branch_does_not_create_outbox(): void
+    {
+        $order = $this->persistOrder([
+            'branch_id' => MunchOrderWebhookBranch::MAKADARA_BRANCH_ID,
+            'order_status' => 'pending',
+        ]);
+
+        $this->assertNull(app(MunchOrderRingingWebhookRecorder::class)->recordForOrder($order));
+    }
+
+    /**
+     * @dataProvider webhookBranchLabelProvider
+     */
+    public function test_branch_payload_labels_for_eligible_branches(int $branchId, string $expectedLabel): void
+    {
+        $order = $this->persistOrder(['branch_id' => $branchId]);
+        $payload = app(MunchOrderWebhookPayloadBuilder::class)->build($order->load('branch'));
+
+        $this->assertSame($expectedLabel, $payload['branch']);
+        $this->assertNotNull(app(MunchOrderRingingWebhookRecorder::class)->recordForOrder($order));
+    }
+
+    /** @return array<string, array{0: int, 1: string}> */
+    public static function webhookBranchLabelProvider(): array
+    {
+        return [
+            'nyali' => [1, 'Nyali'],
+            'bamburi' => [10, 'Bamburi'],
+            'mtwapa' => [13, 'Mtwapa'],
+            'kilimani' => [14, 'Kilimani'],
+        ];
+    }
+
+    public function test_retry_refreshes_stale_branch_in_existing_outbox_and_posts_bamburi(): void
+    {
+        Http::fake(['https://webhook.test/*' => Http::response([], 200)]);
+
+        $order = $this->persistOrder(['id' => 130814618, 'branch_id' => 10]);
+        $outbox = MunchOrderWebhookOutbox::query()->create([
+            'event_type' => MunchOrderWebhookOutbox::EVENT_ORDER_RINGING,
+            'order_id' => 130814618,
+            'event_key' => MunchOrderWebhookOutbox::eventKeyForOrder(130814618),
+            'payload' => [
+                'event' => 'order.ringing',
+                'order_id' => '130814618',
+                'branch' => 'Munch Bamburi',
+                'occurred_at' => '2026-09-28T13:08:34+03:00',
+            ],
+            'status' => MunchOrderWebhookOutbox::STATUS_FAILED,
+            'last_error' => 'webhook_url_not_configured',
+        ]);
+        $originalOutboxId = $outbox->id;
+        $originalEventKey = $outbox->event_key;
+
+        app(MunchOrderWebhookOutboxPayloadRefresher::class)->refresh($outbox->fresh());
+        $outbox->update([
+            'status' => MunchOrderWebhookOutbox::STATUS_PENDING,
+            'last_error' => null,
+        ]);
+
+        $this->runWebhookDeliveryJob((int) $originalOutboxId);
+
+        $fresh = MunchOrderWebhookOutbox::query()->findOrFail($originalOutboxId);
+        $this->assertSame(1, MunchOrderWebhookOutbox::query()->count());
+        $this->assertSame($originalOutboxId, $fresh->id);
+        $this->assertSame(130814618, $fresh->order_id);
+        $this->assertSame($originalEventKey, $fresh->event_key);
+        $this->assertSame('Bamburi', $fresh->payload['branch']);
+        $this->assertSame('2026-09-28T13:08:34+03:00', $fresh->payload['occurred_at']);
+
+        Http::assertSent(function ($request) {
+            return ($request->data()['branch'] ?? null) === 'Bamburi'
+                && ($request->header('Idempotency-Key')[0] ?? '') === 'order.ringing:130814618';
+        });
+    }
+
+    public function test_duplicate_retry_does_not_create_second_outbox_row(): void
+    {
+        $order = $this->persistOrder(['id' => 130814619, 'branch_id' => 10]);
+        $outbox = MunchOrderWebhookOutbox::query()->create([
+            'event_type' => MunchOrderWebhookOutbox::EVENT_ORDER_RINGING,
+            'order_id' => 130814619,
+            'event_key' => MunchOrderWebhookOutbox::eventKeyForOrder(130814619),
+            'payload' => ['event' => 'order.ringing', 'order_id' => '130814619', 'branch' => 'Munch Bamburi'],
+            'status' => MunchOrderWebhookOutbox::STATUS_FAILED,
+        ]);
+
+        $refresher = app(MunchOrderWebhookOutboxPayloadRefresher::class);
+        $refresher->refresh($outbox->fresh());
+        $refresher->refresh($outbox->fresh());
+
+        $this->assertSame(1, MunchOrderWebhookOutbox::query()->count());
+        $this->assertSame('Bamburi', $outbox->fresh()->payload['branch']);
+    }
+
+    public function test_missing_webhook_url_is_retryable_and_keeps_outbox_pending(): void
+    {
+        Config::set('munch_orders_webhook.url', '');
+        $outbox = $this->createOutboxForOrder($this->persistOrder());
+
+        try {
+            $this->runWebhookDeliveryJob((int) $outbox->id);
+        } catch (RuntimeException) {
+            //
+        }
+
+        $this->assertSame(MunchOrderWebhookOutbox::STATUS_PENDING, $outbox->fresh()->status);
     }
 
     public function test_scheduled_future_delivery_does_not_create_outbox(): void
@@ -200,7 +311,7 @@ class MunchOrderRingingWebhookTest extends TestCase
         DB::commit();
 
         try {
-            (new DeliverMunchOrderWebhookJob((int) $outbox->id))->handle(app(MunchOrderWebhookHttpClient::class));
+            $this->runWebhookDeliveryJob((int) $outbox->id);
         } catch (RuntimeException) {
             //
         }
@@ -214,12 +325,6 @@ class MunchOrderRingingWebhookTest extends TestCase
 
     public function test_payload_minimum_fields_and_optional_fields(): void
     {
-        DB::table('branches')->insert([
-            'id' => 14,
-            'name' => 'Kilimani',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
         DB::table('users')->insert([
             'id' => 10,
             'f_name' => 'Faith',
@@ -262,8 +367,7 @@ class MunchOrderRingingWebhookTest extends TestCase
         $outbox = app(MunchOrderRingingWebhookRecorder::class)->recordForOrder($order);
         $this->assertNotNull($outbox);
 
-        $job = new DeliverMunchOrderWebhookJob((int) $outbox->id);
-        $job->handle(app(MunchOrderWebhookHttpClient::class));
+        $this->runWebhookDeliveryJob((int) $outbox->id);
 
         Http::assertSent(function ($request) use ($order) {
             $body = $request->data();
@@ -294,7 +398,7 @@ class MunchOrderRingingWebhookTest extends TestCase
     {
         Http::fake(['https://webhook.test/*' => Http::response([], 204)]);
         $outbox = $this->createOutboxForOrder($this->persistOrder());
-        (new DeliverMunchOrderWebhookJob($outbox->id))->handle(app(MunchOrderWebhookHttpClient::class));
+        $this->runWebhookDeliveryJob((int) $outbox->id);
         $this->assertSame(MunchOrderWebhookOutbox::STATUS_DELIVERED, $outbox->fresh()->status);
     }
 
@@ -304,7 +408,7 @@ class MunchOrderRingingWebhookTest extends TestCase
         $outbox = $this->createOutboxForOrder($this->persistOrder());
 
         try {
-            (new DeliverMunchOrderWebhookJob($outbox->id))->handle(app(MunchOrderWebhookHttpClient::class));
+            $this->runWebhookDeliveryJob((int) $outbox->id);
             $this->fail('Expected permanent failure');
         } catch (RuntimeException) {
             //
@@ -321,7 +425,7 @@ class MunchOrderRingingWebhookTest extends TestCase
         $outbox = $this->createOutboxForOrder($this->persistOrder());
 
         $this->expectException(RuntimeException::class);
-        (new DeliverMunchOrderWebhookJob($outbox->id))->handle(app(MunchOrderWebhookHttpClient::class));
+        $this->runWebhookDeliveryJob((int) $outbox->id);
     }
 
     public function test_retry_reuses_same_outbox_identity(): void
@@ -333,16 +437,14 @@ class MunchOrderRingingWebhookTest extends TestCase
         ]);
 
         $outbox = $this->createOutboxForOrder($this->persistOrder());
-        $job = new DeliverMunchOrderWebhookJob($outbox->id);
-
         try {
-            $job->handle(app(MunchOrderWebhookHttpClient::class));
+            $this->runWebhookDeliveryJob((int) $outbox->id);
         } catch (RuntimeException) {
             //
         }
 
         $this->assertSame(1, MunchOrderWebhookOutbox::query()->count());
-        $job->handle(app(MunchOrderWebhookHttpClient::class));
+        $this->runWebhookDeliveryJob((int) $outbox->id);
         $this->assertSame(MunchOrderWebhookOutbox::STATUS_DELIVERED, $outbox->fresh()->status);
         $this->assertSame(2, $outbox->fresh()->attempt_count);
     }
@@ -354,7 +456,7 @@ class MunchOrderRingingWebhookTest extends TestCase
         $outbox = $this->createOutboxForOrder($order);
 
         try {
-            (new DeliverMunchOrderWebhookJob($outbox->id))->handle(app(MunchOrderWebhookHttpClient::class));
+            $this->runWebhookDeliveryJob((int) $outbox->id);
         } catch (RuntimeException) {
             //
         }
@@ -368,7 +470,7 @@ class MunchOrderRingingWebhookTest extends TestCase
 
         $this->assertStringContainsString('MunchOrderRingingWebhookRecorder', $controller);
         $this->assertStringContainsString('recordFromAttributes($or)', $controller);
-        $this->assertStringContainsString('DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId)->afterResponse()', $controller);
+        $this->assertStringContainsString('DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId);', $controller);
         $this->assertStringNotContainsString('munch_orders_webhook.outbox_record_failed', $controller);
         $this->assertStringNotContainsString('webhookRecordException', $controller);
         $this->assertTrue(
@@ -393,6 +495,14 @@ class MunchOrderRingingWebhookTest extends TestCase
         $this->assertNotNull($outbox);
 
         return $outbox;
+    }
+
+    private function runWebhookDeliveryJob(int $outboxId): void
+    {
+        (new DeliverMunchOrderWebhookJob($outboxId))->handle(
+            app(MunchOrderWebhookHttpClient::class),
+            app(MunchOrderWebhookOutboxPayloadRefresher::class),
+        );
     }
 
     /**
@@ -488,11 +598,19 @@ class MunchOrderRingingWebhookTest extends TestCase
             $table->unique(['event_type', 'order_id']);
         });
 
-        DB::table('branches')->insert([
-            'id' => 13,
-            'name' => 'Bamburi',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        foreach ([
+            [1, 'Munch Nyali'],
+            [10, 'Munch Bamburi'],
+            [11, 'Munch Makadara'],
+            [13, 'Munch Mtwapa'],
+            [14, 'Munch Kilimani'],
+        ] as [$id, $name]) {
+            DB::table('branches')->insert([
+                'id' => $id,
+                'name' => $name,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 }

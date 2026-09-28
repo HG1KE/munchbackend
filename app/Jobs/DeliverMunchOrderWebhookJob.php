@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\MunchOrderWebhookOutbox;
 use App\Services\MunchOrdersWebhook\MunchOrderWebhookHttpClient;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookOutboxPayloadRefresher;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,7 +33,7 @@ class DeliverMunchOrderWebhookJob implements ShouldQueue
     ) {
     }
 
-    public function handle(MunchOrderWebhookHttpClient $client): void
+    public function handle(MunchOrderWebhookHttpClient $client, MunchOrderWebhookOutboxPayloadRefresher $payloadRefresher): void
     {
         $outbox = MunchOrderWebhookOutbox::query()->find($this->outboxId);
         if (! $outbox) {
@@ -46,6 +47,8 @@ class DeliverMunchOrderWebhookJob implements ShouldQueue
         if ($outbox->status === MunchOrderWebhookOutbox::STATUS_FAILED) {
             return;
         }
+
+        $outbox = $payloadRefresher->refresh($outbox);
 
         $attemptNumber = $outbox->attempt_count + 1;
         $outbox->attempt_count = $attemptNumber;

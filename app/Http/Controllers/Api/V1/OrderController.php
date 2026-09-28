@@ -576,7 +576,7 @@ class OrderController extends Controller
         )->afterResponse();
 
         if ($webhookOutboxId !== null) {
-            DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId)->afterResponse();
+            DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId);
         }
     }
 
