@@ -6,9 +6,9 @@ use App\CentralLogics\AbandonedCheckoutService;
 use App\CentralLogics\CustomerLogic;
 use App\CentralLogics\Helpers;
 use App\CentralLogics\OrderLogic;
-use App\Jobs\DeliverMunchOrderWebhookJob;
 use App\Jobs\SendOnlineOrderPlacementNotificationsJob;
 use App\Services\MunchOrdersWebhook\MunchOrderRingingWebhookRecorder;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookJobDispatcher;
 use App\Support\BranchOrderSlotTime;
 use App\Support\OnlineCheckoutIdempotency;
 use App\Http\Controllers\Controller;
@@ -576,7 +576,7 @@ class OrderController extends Controller
         )->afterResponse();
 
         if ($webhookOutboxId !== null) {
-            DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId);
+            MunchOrderWebhookJobDispatcher::dispatch($webhookOutboxId);
         }
     }
 

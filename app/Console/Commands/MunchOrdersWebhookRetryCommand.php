@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\DeliverMunchOrderWebhookJob;
 use App\Models\MunchOrderWebhookOutbox;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookJobDispatcher;
 use App\Services\MunchOrdersWebhook\MunchOrderWebhookOutboxPayloadRefresher;
 use Illuminate\Console\Command;
 
@@ -34,7 +34,7 @@ class MunchOrdersWebhookRetryCommand extends Command
         $outbox->last_error = null;
         $outbox->save();
 
-        DeliverMunchOrderWebhookJob::dispatch((int) $outbox->id);
+        MunchOrderWebhookJobDispatcher::dispatch((int) $outbox->id);
         $this->info("Queued DeliverMunchOrderWebhookJob for outbox {$outbox->id} (order {$outbox->order_id}).");
 
         return self::SUCCESS;

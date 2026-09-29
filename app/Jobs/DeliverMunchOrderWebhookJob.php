@@ -90,10 +90,32 @@ class DeliverMunchOrderWebhookJob implements ShouldQueue
             return;
         }
 
-        if ($outbox->status !== MunchOrderWebhookOutbox::STATUS_FAILED) {
-            $outbox->status = MunchOrderWebhookOutbox::STATUS_FAILED;
-            $outbox->last_error = $e->getMessage();
+        if ($this->shouldKeepPendingAfterFailure((string) ($outbox->last_error ?? ''), $e)) {
+            $outbox->status = MunchOrderWebhookOutbox::STATUS_PENDING;
             $outbox->save();
+
+            return;
         }
+
+        $outbox->status = MunchOrderWebhookOutbox::STATUS_FAILED;
+        $outbox->last_error = $e->getMessage();
+        $outbox->save();
+    }
+
+    private function shouldKeepPendingAfterFailure(string $lastError, Throwable $e): bool
+    {
+        $markers = [
+            'webhook_url_not_configured',
+            'webhook_auth_not_configured',
+            'connection_error',
+        ];
+
+        foreach ($markers as $marker) {
+            if ($lastError === $marker || str_contains($e->getMessage(), $marker)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

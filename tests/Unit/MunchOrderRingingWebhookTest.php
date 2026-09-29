@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Jobs\DeliverMunchOrderWebhookJob;
+use App\Services\MunchOrdersWebhook\MunchOrderWebhookJobDispatcher;
 use App\Model\Order;
 use App\Models\MunchOrderWebhookOutbox;
 use App\Services\MunchOrdersWebhook\MunchOrderRingingWebhookRecorder;
@@ -17,6 +18,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
@@ -464,13 +466,44 @@ class MunchOrderRingingWebhookTest extends TestCase
         $this->assertNotNull(Order::query()->find($order->id));
     }
 
+    public function test_webhook_dispatcher_uses_dedicated_redis_queue(): void
+    {
+        Config::set('munch_orders_webhook.queue_connection', 'redis');
+        Config::set('munch_orders_webhook.queue_name', 'munch-webhooks');
+        Queue::fake();
+
+        MunchOrderWebhookJobDispatcher::dispatch(99);
+
+        Queue::assertPushedOn('munch-webhooks', DeliverMunchOrderWebhookJob::class);
+        Queue::assertPushed(DeliverMunchOrderWebhookJob::class, function (DeliverMunchOrderWebhookJob $job) {
+            return $job->outboxId === 99 && $job->connection === 'redis' && $job->queue === 'munch-webhooks';
+        });
+    }
+
+    public function test_failed_handler_keeps_pending_for_missing_webhook_url(): void
+    {
+        $outbox = MunchOrderWebhookOutbox::query()->create([
+            'event_type' => MunchOrderWebhookOutbox::EVENT_ORDER_RINGING,
+            'order_id' => 999001,
+            'event_key' => 'order.ringing:999001',
+            'payload' => ['event' => 'order.ringing', 'order_id' => '999001', 'branch' => 'Bamburi'],
+            'status' => MunchOrderWebhookOutbox::STATUS_PENDING,
+            'last_error' => 'webhook_url_not_configured',
+        ]);
+
+        $job = new DeliverMunchOrderWebhookJob((int) $outbox->id);
+        $job->failed(new RuntimeException('retryable_webhook_failure'));
+
+        $this->assertSame(MunchOrderWebhookOutbox::STATUS_PENDING, $outbox->fresh()->status);
+    }
+
     public function test_place_order_records_outbox_before_commit_and_queues_webhook_after(): void
     {
         $controller = file_get_contents(app_path('Http/Controllers/Api/V1/OrderController.php'));
 
         $this->assertStringContainsString('MunchOrderRingingWebhookRecorder', $controller);
         $this->assertStringContainsString('recordFromAttributes($or)', $controller);
-        $this->assertStringContainsString('DeliverMunchOrderWebhookJob::dispatch($webhookOutboxId);', $controller);
+        $this->assertStringContainsString('MunchOrderWebhookJobDispatcher::dispatch($webhookOutboxId)', $controller);
         $this->assertStringNotContainsString('munch_orders_webhook.outbox_record_failed', $controller);
         $this->assertStringNotContainsString('webhookRecordException', $controller);
         $this->assertTrue(

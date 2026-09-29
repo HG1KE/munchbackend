@@ -92,6 +92,9 @@ Outbox insert failures are **not** swallowed; delivery failures do **not** roll 
 
 ## Async delivery and retries
 
+- `DeliverMunchOrderWebhookJob` is dispatched on the **dedicated Redis queue** `munch-webhooks` (not `QUEUE_CONNECTION=sync`), so HTTP never runs inside PHP-FPM order placement.
+- Supervisor must consume: `queue:work redis --queue=munch-webhooks,...`
+- After changing webhook `.env` values, run `php artisan config:cache` and **reload PHP-FPM** so web workers see fresh config.
 - `DeliverMunchOrderWebhookJob` POSTs JSON to `MUNCH_ORDERS_WEBHOOK_URL` with configured auth.
 - Queue retries: about **1, 5, 15, 30 minutes** (`$tries = 5`, backoff `[60, 300, 900, 1800]` seconds).
 - **Success:** HTTP 2xx → outbox `delivered`.
