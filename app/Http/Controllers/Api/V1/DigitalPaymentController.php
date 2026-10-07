@@ -246,11 +246,16 @@ class DigitalPaymentController extends Controller
 
         $payer = new Payer($customer['f_name'] . ' ' . $customer['l_name'] , $customer['email'], $customer['phone'], '');
 
+        $paymentMethod = (string) $request->payment_method;
+        if ($paymentMethod === 'mpesa_stk') {
+            $paymentMethod = 'palpluss';
+        }
+
         $payment_info = new PaymentInfo(
             success_hook: 'order_place',
             failure_hook: 'order_cancel',
             currency_code: Helpers::currency_code(),
-            payment_method: $request->payment_method,
+            payment_method: $paymentMethod,
             payment_platform: $request->payment_platform,
             payer_id: $customer_id,
             receiver_id: '100',
@@ -274,6 +279,26 @@ class DigitalPaymentController extends Controller
             }
 
             return $this->responder->paystackInlineCheckoutResponse($redirect_link, $customer['email'] ?? null);
+        }
+
+        if (in_array($paymentMethod, ['palpluss'], true)
+            || in_array((string) $request->payment_method, ['palpluss', 'mpesa_stk'], true)) {
+            if (! is_string($redirect_link)) {
+                return response()->json(['errors' => [[
+                    'code' => 'payment_method',
+                    'message' => translate('Payment gateway is not supported or not configured'),
+                ]]], 403);
+            }
+
+            $phone = (string) ($request->input('phone') ?: ($customer['phone'] ?? ''));
+            if (trim($phone) === '') {
+                return response()->json(['errors' => [[
+                    'code' => 'phone',
+                    'message' => 'M-PESA phone number is required.',
+                ]]], 422);
+            }
+
+            return $this->responder->palplussStkCheckoutResponse($redirect_link, $phone);
         }
 
         return response()->json(['redirect_link' => $redirect_link], 200);

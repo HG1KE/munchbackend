@@ -132,6 +132,18 @@ class OrderController extends Controller
             }
         }
 
+        $palplussReference = trim((string) ($request->transaction_reference ?? ''));
+        if ((string) $request->payment_method === 'palpluss' && $palplussReference !== '') {
+            $existingPalplussOrder = $this->order->newQuery()
+                ->where('payment_method', 'palpluss')
+                ->where('transaction_reference', $palplussReference)
+                ->orderByDesc('id')
+                ->first();
+            if ($existingPalplussOrder) {
+                return OnlineCheckoutIdempotency::successResponse($existingPalplussOrder);
+            }
+        }
+
         if (count($request['cart']) < 1) {
             return response()->json(['errors' => [['code' => 'empty-cart', 'message' => translate('cart is empty')]]], 403);
         }

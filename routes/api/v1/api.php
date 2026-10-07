@@ -32,6 +32,8 @@ use App\Http\Controllers\Api\V1\TableController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\DigitalPaymentController;
+use App\Http\Controllers\Api\V1\PalPlussController;
+use App\Http\Controllers\Api\V1\PalPlussWebhookController;
 use App\Http\Controllers\Api\V1\PaystackWebhookController;
 use App\Http\Controllers\PaystackController;
 
@@ -265,6 +267,17 @@ Route::group(['namespace' => 'Api\V1', 'middleware' => 'localization'], function
         Route::post('initialize', [PaystackController::class, 'initializeInline']);
         Route::post('verify', [PaystackController::class, 'verifyInline']);
         Route::post('webhook', [PaystackWebhookController::class, 'handle'])
+            ->withoutMiddleware([
+                'throttle:api',
+                \App\Http\Middleware\VerifyCsrfToken::class,
+            ]);
+    });
+
+    Route::group(['prefix' => 'palpluss'], function () {
+        Route::post('initiate', [PalPlussController::class, 'initiate']);
+        Route::post('verify', [PalPlussController::class, 'verify']);
+        Route::get('status', [PalPlussController::class, 'status']);
+        Route::post('webhook', [PalPlussWebhookController::class, 'handle'])
             ->withoutMiddleware([
                 'throttle:api',
                 \App\Http\Middleware\VerifyCsrfToken::class,

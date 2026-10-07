@@ -2,9 +2,11 @@
 
 namespace App\Services\Payments\Intent\Support;
 
+use App\Exceptions\PalPlussException;
 use App\Exceptions\PaystackException;
 use App\Http\Controllers\PaystackController;
 use App\Models\PaymentRequest;
+use App\Services\PalPluss\PalPlussStkInitiator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
@@ -82,5 +84,55 @@ final class PaymentInitiationResponder
         }
 
         return $matches[1];
+    }
+
+    public function palplussStkCheckoutResponse(string $redirectLink, string $phone): JsonResponse
+    {
+        $paymentId = $this->extractPaymentIdFromRedirectLink($redirectLink);
+        if ($paymentId === null) {
+            return response()->json([
+                'errors' => [[
+                    'code' => 'payment_session_error',
+                    'message' => 'Could not resolve payment session for PalPluss STK checkout.',
+                ]],
+            ], 500);
+        }
+
+        $paymentRequest = PaymentRequest::query()
+            ->where('id', $paymentId)
+            ->where('is_paid', 0)
+            ->first();
+
+        if ($paymentRequest === null) {
+            return response()->json([
+                'errors' => [[
+                    'code' => 'payment_not_found',
+                    'message' => 'Payment session not found or already completed.',
+                ]],
+            ], 404);
+        }
+
+        try {
+            $payload = app(PalPlussStkInitiator::class)->initiate($paymentRequest, $phone);
+
+            return response()->json($payload, 200);
+        } catch (PalPlussException $exception) {
+            Log::warning('palpluss.stk_from_payment_mobile_failed', [
+                'payment_id' => $paymentId,
+                'error_code' => $exception->errorCode,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $status = $exception->httpStatus && $exception->httpStatus >= 400 && $exception->httpStatus < 600
+                ? $exception->httpStatus
+                : 502;
+
+            return response()->json([
+                'errors' => [[
+                    'code' => $exception->errorCode ?? 'palpluss_initiate_failed',
+                    'message' => $exception->getMessage(),
+                ]],
+            ], $status);
+        }
     }
 }

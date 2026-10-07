@@ -61,6 +61,11 @@ class Kernel extends ConsoleKernel
             ->everyFiveMinutes()
             ->withoutOverlapping(5)
             ->onOneServer();
+
+        $schedule->command('palpluss:reconcile-unverified')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(5)
+            ->onOneServer();
     }
 
     /**
