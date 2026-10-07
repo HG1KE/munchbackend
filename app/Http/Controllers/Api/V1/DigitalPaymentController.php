@@ -283,6 +283,20 @@ class DigitalPaymentController extends Controller
 
         if (in_array($paymentMethod, ['palpluss'], true)
             || in_array((string) $request->payment_method, ['palpluss', 'mpesa_stk'], true)) {
+            $palplussClient = app(\App\Services\PalPluss\PalPlussHttpClient::class);
+            if (! $palplussClient->isEnabled()) {
+                return response()->json(['errors' => [[
+                    'code' => 'payment_method',
+                    'message' => translate('PalPluss M-PESA payments are disabled'),
+                ]]], 403);
+            }
+            if (! $palplussClient->isConfigured()) {
+                return response()->json(['errors' => [[
+                    'code' => 'payment_method',
+                    'message' => translate('PalPluss is not configured. Set API key and Till channel in Admin Payment Settings.'),
+                ]]], 503);
+            }
+
             if (! is_string($redirect_link)) {
                 return response()->json(['errors' => [[
                     'code' => 'payment_method',

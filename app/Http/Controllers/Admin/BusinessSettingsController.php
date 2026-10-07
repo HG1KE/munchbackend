@@ -335,8 +335,10 @@ class BusinessSettingsController extends Controller
         $data_values = Setting::whereIn('settings_type', ['payment_config'])
             ->whereIn('key_name', ['ssl_commerz', 'paypal', 'stripe', 'razor_pay','pesapal','senang_pay', 'paystack', 'paymob_accept', 'flutterwave', 'bkash', 'mercadopago'])
             ->get();
-        
-        return view('admin-views.business-settings.payment-index', compact('published_status', 'payment_url', 'data_values'));
+
+        $palplussConfig = app(\App\Services\PalPluss\PalPlussConfigResolver::class)->adminSafeView();
+
+        return view('admin-views.business-settings.payment-index', compact('published_status', 'payment_url', 'data_values', 'palplussConfig'));
     }
 
     /**

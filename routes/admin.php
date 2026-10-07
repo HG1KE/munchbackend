@@ -427,6 +427,15 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                 Route::post('payment-config-update', [BusinessSettingsController::class, 'paymentConfigUpdate'])->name('payment-config-update')->middleware('actch');
                 Route::post('payment-method-status', [BusinessSettingsController::class, 'paymentMethodStatus'])->name('payment-method-status')->middleware('actch');
 
+                Route::post('palpluss/update', [\App\Http\Controllers\Admin\PalPlussSettingsController::class, 'update'])
+                    ->name('palpluss-update')->middleware('actch');
+                Route::post('palpluss/list-channels', [\App\Http\Controllers\Admin\PalPlussSettingsController::class, 'listChannels'])
+                    ->name('palpluss-list-channels')->middleware('actch');
+                Route::post('palpluss/verify', [\App\Http\Controllers\Admin\PalPlussSettingsController::class, 'verify'])
+                    ->name('palpluss-verify')->middleware('actch');
+                Route::get('palpluss/status', [\App\Http\Controllers\Admin\PalPlussSettingsController::class, 'status'])
+                    ->name('palpluss-status')->middleware('actch');
+
                 Route::group(['prefix' => 'system-setup', 'as' => 'system-setup.'], function () {
                     Route::get('app-setting', [BusinessSettingsController::class, 'appSettingIndex'])->name('app_setting');
                     Route::post('app-setting', [BusinessSettingsController::class, 'appSettingUpdate']);

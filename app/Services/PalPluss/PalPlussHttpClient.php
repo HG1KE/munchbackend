@@ -9,28 +9,39 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Minimal PalPluss REST client (HTTP Basic, API key as username).
+ * Credentials come from PalPlussConfigResolver (Admin settings).
  * Never logs the API key or Authorization header.
  */
 class PalPlussHttpClient
 {
+    public function __construct(
+        private readonly PalPlussConfigResolver $configResolver,
+    ) {
+    }
+
     public function isConfigured(): bool
     {
-        return $this->apiKey() !== '' && $this->baseUrl() !== '' && $this->channelId() !== '';
+        return $this->configResolver->isEnabledAndConfigured();
+    }
+
+    public function isEnabled(): bool
+    {
+        return (bool) ($this->configResolver->resolve()['enabled'] ?? false);
     }
 
     public function apiKey(): string
     {
-        return trim((string) config('palpluss.api_key', ''));
+        return (string) ($this->configResolver->resolve()['api_key'] ?? '');
     }
 
     public function baseUrl(): string
     {
-        return rtrim((string) config('palpluss.base_url', 'https://api.palpluss.com/v1'), '/');
+        return rtrim((string) ($this->configResolver->resolve()['base_url'] ?? 'https://api.palpluss.com/v1'), '/');
     }
 
     public function channelId(): string
     {
-        return trim((string) config('palpluss.channel_id', ''));
+        return (string) ($this->configResolver->resolve()['channel_id'] ?? '');
     }
 
     /**
@@ -41,7 +52,7 @@ class PalPlussHttpClient
      */
     public function post(string $path, array $body): array
     {
-        return $this->request('post', $path, $body);
+        return $this->request('post', $path, $body, [], $this->requireRuntimeApiKey());
     }
 
     /**
@@ -52,7 +63,40 @@ class PalPlussHttpClient
      */
     public function get(string $path, array $query = []): array
     {
-        return $this->request('get', $path, null, $query);
+        return $this->request('get', $path, null, $query, $this->requireRuntimeApiKey());
+    }
+
+    /**
+     * Admin/ops call with an explicit key (e.g. freshly pasted, not yet saved).
+     *
+     * @return array<string, mixed>
+     *
+     * @throws PalPlussException
+     */
+    public function getWithApiKey(string $apiKey, string $path, array $query = []): array
+    {
+        $apiKey = trim($apiKey);
+        if ($apiKey === '') {
+            throw new PalPlussException('PalPluss API key is required.', 'NOT_CONFIGURED', 422);
+        }
+
+        return $this->request('get', $path, null, $query, $apiKey);
+    }
+
+    /**
+     * @throws PalPlussException
+     */
+    private function requireRuntimeApiKey(): string
+    {
+        $config = $this->configResolver->resolve();
+        if (! $config['enabled']) {
+            throw new PalPlussException('PalPluss payments are disabled.', 'DISABLED', 403);
+        }
+        if ($config['api_key'] === '') {
+            throw new PalPlussException('PalPluss is not configured.', 'NOT_CONFIGURED', 500);
+        }
+
+        return $config['api_key'];
     }
 
     /**
@@ -62,13 +106,8 @@ class PalPlussHttpClient
      *
      * @throws PalPlussException
      */
-    private function request(string $method, string $path, ?array $body = null, array $query = []): array
+    private function request(string $method, string $path, ?array $body, array $query, string $apiKey): array
     {
-        $apiKey = $this->apiKey();
-        if ($apiKey === '') {
-            throw new PalPlussException('PalPluss is not configured.', 'NOT_CONFIGURED', 500);
-        }
-
         $url = $this->baseUrl().'/'.ltrim($path, '/');
         $timeout = max(5, (int) config('palpluss.timeout_seconds', 30));
 

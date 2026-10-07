@@ -90,6 +90,8 @@
             </div>
 
             <div class="row digital_payment_methods mt-3 g-3" id="payment-gatway-cards">
+                @include('admin-views.business-settings.partials._palpluss-payment-card', ['palplussConfig' => $palplussConfig ?? []])
+
                 @foreach($data_values as $payment)
                     <div class="col-md-6 mb-5">
                         <div class="card">

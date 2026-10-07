@@ -31,11 +31,19 @@ class PalPlussStkInitiator
      */
     public function initiate(PaymentRequest $paymentRequest, string $rawPhone): array
     {
+        if (! $this->client->isEnabled()) {
+            throw new PalPlussException(
+                'PalPluss M-PESA payments are disabled.',
+                'DISABLED',
+                403
+            );
+        }
+
         if (! $this->client->isConfigured()) {
             throw new PalPlussException(
-                'PalPluss is not configured (API key, base URL, or channel ID missing).',
+                'PalPluss is not configured. Set API key and Till channel in Admin Payment Settings.',
                 'NOT_CONFIGURED',
-                500
+                503
             );
         }
 

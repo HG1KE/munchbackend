@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Exceptions\PalPlussException;
 use App\Models\PalPlussPaymentAttempt;
 use App\Models\PaymentRequest;
+use App\Models\Setting;
+use App\Services\PalPluss\PalPlussConfigResolver;
 use App\Services\PalPluss\PalPlussFulfillmentService;
 use App\Services\PalPluss\PalPlussHttpClient;
 use App\Services\PalPluss\PalPlussPhoneNormalizer;
@@ -23,14 +25,15 @@ class PalPlussStkIntegrationTest extends TestCase
         parent::setUp();
 
         config([
-            'palpluss.api_key' => 'pk_test_fake',
+            'app.key' => 'base64:'.base64_encode(str_repeat('a', 32)),
+            'palpluss.api_key' => null,
             'palpluss.base_url' => 'https://api.palpluss.com/v1',
-            'palpluss.channel_id' => '11111111-1111-1111-1111-111111111111',
-            'palpluss.currency' => 'KES',
+            'palpluss.channel_id' => null,
             'app.url' => 'https://portal.munch.co.ke',
         ]);
 
         $this->ensureSchema();
+        $this->seedAdminPalpluss();
     }
 
     private function ensureSchema(): void
@@ -38,6 +41,19 @@ class PalPlussStkIntegrationTest extends TestCase
         Schema::dropIfExists('palpluss_payment_attempts');
         Schema::dropIfExists('payment_requests');
         Schema::dropIfExists('orders');
+        Schema::dropIfExists('addon_settings');
+
+        Schema::create('addon_settings', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('key_name');
+            $table->json('live_values')->nullable();
+            $table->json('test_values')->nullable();
+            $table->string('settings_type');
+            $table->string('mode')->default('live');
+            $table->tinyInteger('is_active')->default(0);
+            $table->text('additional_data')->nullable();
+            $table->timestamps();
+        });
 
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
@@ -96,6 +112,32 @@ class PalPlussStkIntegrationTest extends TestCase
             $table->string('last_error', 255)->nullable();
             $table->timestamps();
         });
+    }
+
+    private function seedAdminPalpluss(): void
+    {
+        $resolver = app(PalPlussConfigResolver::class);
+        $values = [
+            'gateway' => 'palpluss',
+            'mode' => 'live',
+            'status' => 1,
+            'api_key_encrypted' => $resolver->encryptApiKey('pk_test_fake'),
+            'channel_id' => '11111111-1111-1111-1111-111111111111',
+            'channel_shortcode' => '123456',
+            'channel_type' => 'TILL_NUMBER',
+            'channel_name' => 'Test Till',
+        ];
+
+        $setting = new Setting();
+        $setting->id = (string) Str::uuid();
+        $setting->key_name = 'palpluss';
+        $setting->settings_type = 'payment_config';
+        $setting->live_values = $values;
+        $setting->test_values = $values;
+        $setting->mode = 'live';
+        $setting->is_active = 1;
+        $setting->additional_data = json_encode(['gateway_title' => 'M-PESA (PalPluss)']);
+        $setting->save();
     }
 
     private function makePaymentRequest(array $overrides = []): PaymentRequest
@@ -158,7 +200,7 @@ class PalPlussStkIntegrationTest extends TestCase
         $data = $client->post('/payments/stk', [
             'amount' => 500,
             'phone' => '254712345678',
-            'channelId' => config('palpluss.channel_id'),
+            'channelId' => $client->channelId(),
             'accountReference' => 'ABCDEF123456',
             'transactionDesc' => 'Munch order',
             'callbackUrl' => 'https://portal.munch.co.ke/api/v1/palpluss/webhook',
@@ -245,7 +287,7 @@ class PalPlussStkIntegrationTest extends TestCase
             'phone' => '254700000001',
             'amount' => 500,
             'currency' => 'KES',
-            'channel_id' => config('palpluss.channel_id'),
+            'channel_id' => '11111111-1111-1111-1111-111111111111',
             'status' => 'pending',
         ]);
 
@@ -291,7 +333,7 @@ class PalPlussStkIntegrationTest extends TestCase
             'phone' => '254700000001',
             'amount' => 200,
             'currency' => 'KES',
-            'channel_id' => config('palpluss.channel_id'),
+            'channel_id' => '11111111-1111-1111-1111-111111111111',
             'status' => 'success',
             'placed_order_id' => 999001,
             'fulfilled_at' => now(),
@@ -323,7 +365,7 @@ class PalPlussStkIntegrationTest extends TestCase
             'phone' => '254700000001',
             'amount' => 150,
             'currency' => 'KES',
-            'channel_id' => config('palpluss.channel_id'),
+            'channel_id' => '11111111-1111-1111-1111-111111111111',
             'status' => 'pending',
         ]);
 

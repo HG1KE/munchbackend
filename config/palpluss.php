@@ -7,10 +7,14 @@ return [
     | PalPluss M-PESA STK Push (non-BYOC)
     |--------------------------------------------------------------------------
     |
-    | Authentication is HTTP Basic with the API key as username and an empty
-    | password. Do not configure Safaricom Daraja / BYOC credential_id here.
+    | Runtime credentials (API key + channelId) come from Admin Payment Settings
+    | (addon_settings key_name=palpluss), encrypted at rest.
     |
-    | Till routing is via PALPLUSS_CHANNEL_ID (payment channel UUID).
+    | PALPLUSS_API_KEY / PALPLUSS_CHANNEL_ID remain optional legacy fallbacks
+    | only when Admin values are empty. Prefer Admin configuration.
+    |
+    | Authentication is HTTP Basic with the API key as username and an empty
+    | password. Do not configure Safaricom Daraja / BYOC credential_id.
     |
     */
 
@@ -26,9 +30,6 @@ return [
 
     'amount_tolerance_major' => 1.0,
 
-    /*
-    | Public webhook path appended to APP_URL when initiating STK.
-    */
     'webhook_path' => env('PALPLUSS_WEBHOOK_PATH', '/api/v1/palpluss/webhook'),
 
     'reconcile_lookback_hours' => (int) env('PALPLUSS_RECONCILE_LOOKBACK_HOURS', 48),
