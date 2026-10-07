@@ -7,6 +7,8 @@ use App\Model\BusinessSetting;
 use App\Model\Category;
 use App\Model\Order;
 use App\Models\LoginSetup;
+use App\Models\Setting;
+use App\Observers\AddonSettingObserver;
 use App\Observers\BusinessSettingObserver;
 use App\Observers\CategoryObserver;
 use App\Observers\LoginSetupObserver;
@@ -52,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
         LoginSetup::observe(LoginSetupObserver::class);
         Category::observe(CategoryObserver::class);
         Order::observe(OrderObserver::class);
+        Setting::observe(AddonSettingObserver::class);
 
         //for system addon
         Config::set('addon_admin_routes',$this->get_addon_admin_routes());

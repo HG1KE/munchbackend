@@ -44,6 +44,11 @@ class StorefrontConfigService
         self::forgetCachedConfiguration();
     }
 
+    public static function invalidateAfterPaymentConfigChange(): void
+    {
+        self::forgetCachedConfiguration();
+    }
+
     public static function getConfigurationPayload(): array
     {
         $key = self::cacheKey();
@@ -160,9 +165,10 @@ class StorefrontConfigService
             $publishedStatus = $paymentPublishedStatus[0]['is_published'];
         }
 
-        $activeAddonPaymentLists = $publishedStatus == 1
-            ? self::getPaymentMethods()
-            : self::getDefaultPaymentMethods();
+        // Admin Payment Setup (addon_settings payment_config) is the source of truth for
+        // which gateways appear on the storefront. The published-plugin vs default-gateway
+        // distinction is preserved only in digital_payment_info flags for clients.
+        $activeAddonPaymentLists = self::getActivePaymentMethodsFromAddonSettings();
 
         $digitalPaymentInfos = [
             'digital_payment' => ($digitalPayment['status'] ?? 0) == 1 ? 'true' : 'false',
@@ -404,46 +410,22 @@ class StorefrontConfigService
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Frontend-safe list of enabled Admin Payment Setup gateways.
+     *
+     * Source of truth: addon_settings rows with settings_type=payment_config,
+     * is_active=1, and credentials status=1. No hardcoded gateway whitelist.
+     *
+     * @return array<int, array{gateway: string, gateway_title: mixed, gateway_image: mixed}>
      */
-    private static function getPaymentMethods(): array
-    {
-        if (! Schema::hasTable('addon_settings')) {
-            return [];
-        }
-
-        $methods = DB::table('addon_settings')->where('settings_type', 'payment_config')->get();
-        $env = env('APP_ENV') == 'live' ? 'live' : 'test';
-        $credentials = $env.'_values';
-
-        $data = [];
-        foreach ($methods as $method) {
-            $credentialsData = json_decode($method->$credentials);
-            $additionalData = json_decode($method->additional_data);
-            if (isset($credentialsData->status) && $credentialsData->status == 1) {
-                $data[] = [
-                    'gateway' => $method->key_name,
-                    'gateway_title' => $additionalData?->gateway_title,
-                    'gateway_image' => $additionalData?->gateway_image,
-                ];
-            }
-        }
-
-        return $data;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private static function getDefaultPaymentMethods(): array
+    private static function getActivePaymentMethodsFromAddonSettings(): array
     {
         if (! Schema::hasTable('addon_settings')) {
             return [];
         }
 
         $methods = DB::table('addon_settings')
-            ->whereIn('settings_type', ['payment_config'])
-            ->whereIn('key_name', ['ssl_commerz', 'paypal', 'stripe', 'razor_pay', 'senang_pay', 'pesapal', 'paystack', 'paymob_accept', 'flutterwave', 'bkash', 'mercadopago'])
+            ->where('settings_type', 'payment_config')
+            ->where('is_active', 1)
             ->get();
 
         $env = env('APP_ENV') == 'live' ? 'live' : 'test';
@@ -451,17 +433,28 @@ class StorefrontConfigService
 
         $data = [];
         foreach ($methods as $method) {
-            $credentialsData = json_decode($method->$credentials);
-            $additionalData = json_decode($method->additional_data);
-            if (isset($credentialsData->status) && $credentialsData->status == 1) {
-                $data[] = [
-                    'gateway' => $method->key_name,
-                    'gateway_title' => $additionalData?->gateway_title,
-                    'gateway_image' => $additionalData?->gateway_image,
-                ];
+            $rawCredentials = $method->$credentials ?? null;
+            $credentialsData = is_string($rawCredentials)
+                ? json_decode($rawCredentials)
+                : (is_object($rawCredentials) ? $rawCredentials : null);
+
+            if (! isset($credentialsData->status) || (int) $credentialsData->status !== 1) {
+                continue;
             }
+
+            $rawAdditional = $method->additional_data ?? null;
+            $additionalData = is_string($rawAdditional)
+                ? json_decode($rawAdditional)
+                : (is_object($rawAdditional) ? $rawAdditional : null);
+
+            $data[] = [
+                'gateway' => $method->key_name,
+                'gateway_title' => $additionalData->gateway_title ?? null,
+                'gateway_image' => $additionalData->gateway_image ?? null,
+            ];
         }
 
         return $data;
     }
+
 }
