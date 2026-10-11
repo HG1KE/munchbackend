@@ -161,20 +161,25 @@ class ReportController extends Controller
         $fromDate = Carbon::parse($request->from)->startOfDay();
         $toDate = Carbon::parse($request->to)->endOfDay();
 
-        $orders = $this->order->when($request['branch_id'] != 'all', function ($query) use ($request) {
-            $query->where('branch_id', $request['branch_id']);
-        })
-            ->whereBetween('created_at', [$fromDate, $toDate])
-            ->latest()
-            ->get();
-
+        // Meatco hot-path: eager-load + chunkByIdDesc instead of loading all matching orders.
         $data = [];
         $totalSold = 0;
         $totalQuantity = 0;
-        foreach ($orders as $order) {
-            foreach ($order->details as $detail) {
-                if ($request['product_id'] != 'all') {
-                    if ($detail['product_id'] == $request['product_id']) {
+        $productFilter = $request['product_id'];
+
+        $this->order->newQuery()
+            ->with(['customer', 'details'])
+            ->when($request['branch_id'] != 'all', function ($query) use ($request) {
+                $query->where('branch_id', $request['branch_id']);
+            })
+            ->whereBetween('created_at', [$fromDate, $toDate])
+            ->orderByDesc('id')
+            ->chunkById(200, function ($orders) use (&$data, &$totalSold, &$totalQuantity, $productFilter) {
+                foreach ($orders as $order) {
+                    foreach ($order->details as $detail) {
+                        if ($productFilter != 'all' && $detail['product_id'] != $productFilter) {
+                            continue;
+                        }
                         $price = Helpers::variation_price(json_decode($detail->product_details, true), $detail['variations']) - $detail['discount_on_product'];
                         $orderTotal = $price * $detail['quantity'];
                         $data[] = [
@@ -188,23 +193,8 @@ class ReportController extends Controller
                         $totalSold += $orderTotal;
                         $totalQuantity += $detail['quantity'];
                     }
-
-                } else {
-                    $price = Helpers::variation_price(json_decode($detail->product_details, true), $detail['variations']) - $detail['discount_on_product'];
-                    $orderTotal = $price * $detail['quantity'];
-                    $data[] = [
-                        'order_id' => $order['id'],
-                        'order_display_id' => Helpers::order_display_id($order),
-                        'date' => $order['created_at'],
-                        'customer' => $order->customer,
-                        'price' => $orderTotal,
-                        'quantity' => $detail['quantity'],
-                    ];
-                    $totalSold += $orderTotal;
-                    $totalQuantity += $detail['quantity'];
                 }
-            }
-        }
+            }, 'id');
 
         session()->put('export_data', $data);
 
@@ -223,28 +213,28 @@ class ReportController extends Controller
     {
         if (session()->has('export_data')) {
             $data = session('export_data');
-
         } else {
-            $orders = $this->order->all();
+            // Meatco hot-path: never fall back to Order::all() for export.
             $data = [];
-            $totalSold = 0;
-            $totalQuantity = 0;
-            foreach ($orders as $order) {
-                foreach ($order->details as $detail) {
-                    $price = Helpers::variation_price(json_decode($detail->product_details, true), $detail['variations']) - $detail['discount_on_product'];
-                    $orderTotal = $price * $detail['quantity'];
-                    $data[] = [
-                        'order_id' => $order['id'],
-                        'order_display_id' => Helpers::order_display_id($order),
-                        'date' => $order['created_at'],
-                        'customer' => $order->customer,
-                        'price' => $orderTotal,
-                        'quantity' => $detail['quantity'],
-                    ];
-                    $totalSold += $orderTotal;
-                    $totalQuantity += $detail['quantity'];
-                }
-            }
+            $this->order->newQuery()
+                ->with(['customer', 'details'])
+                ->orderByDesc('id')
+                ->chunkById(200, function ($orders) use (&$data) {
+                    foreach ($orders as $order) {
+                        foreach ($order->details as $detail) {
+                            $price = Helpers::variation_price(json_decode($detail->product_details, true), $detail['variations']) - $detail['discount_on_product'];
+                            $orderTotal = $price * $detail['quantity'];
+                            $data[] = [
+                                'order_id' => $order['id'],
+                                'order_display_id' => Helpers::order_display_id($order),
+                                'date' => $order['created_at'],
+                                'customer' => $order->customer,
+                                'price' => $orderTotal,
+                                'quantity' => $detail['quantity'],
+                            ];
+                        }
+                    }
+                }, 'id');
         }
 
         $pdf = Pdf::loadView('admin-views.report.partials._report', compact('data'));

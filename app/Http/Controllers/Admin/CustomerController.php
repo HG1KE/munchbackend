@@ -111,7 +111,15 @@ class CustomerController extends Controller
             $customers = $this->customer;
         }
 
-        $customers = $customers->with(['orders'])->where('user_type', null)->latest()->paginate(Helpers::getPagination())->appends($queryParam);
+        // Meatco customer-list freeze fix: aggregate counts/sums in SQL instead of hydrating every order.
+        $customers = $customers
+            ->withCount('orders')
+            ->withSum('orders', 'order_amount')
+            ->where('user_type', null)
+            ->latest()
+            ->paginate(Helpers::getPagination())
+            ->appends($queryParam);
+
         return view('admin-views.customer.list', compact('customers', 'search'));
     }
 

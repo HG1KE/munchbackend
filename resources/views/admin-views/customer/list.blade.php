@@ -26,7 +26,7 @@
                             <input id="datatableSearch_" type="search" name="search"
                                 class="form-control"
                                 placeholder="{{translate('Search_By_Name_or_Phone_or_Email')}}" aria-label="Search"
-                                value="{{$search}}" required autocomplete="off">
+                                value="{{$search}}" data-munch-live-search autocomplete="off">
                             <div class="input-group-append">
                                 <button type="submit" class="btn btn-primary">{{translate('Search')}}
                                 </button>
@@ -88,10 +88,10 @@
                                 </td>
                                 <td>
                                     <label class="badge badge-soft-info py-1 px-5 mb-0">
-                                        {{$customer->orders->count()}}
+                                        {{ (int) ($customer->orders_count ?? 0) }}
                                     </label>
                                 </td>
-                                <td>{{$customer->orders->sum('order_amount')}}</td>
+                                <td>{{ $customer->orders_sum_order_amount ?? 0 }}</td>
                                 <td class="show-point-{{$customer['id']}}-table">
                                     {{$customer['point']}}
                                 </td>

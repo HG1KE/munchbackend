@@ -160,13 +160,17 @@
 <script src="{{asset('public/assets/admin')}}/js/sweet_alert.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/toastr.js"></script>
 <script src="{{asset('public/assets/admin/js/owl.min.js')}}"></script>
+@php($munchAdminOrderNotificationType = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
+@if($munchAdminOrderNotificationType == 'firebase')
 <script src="{{asset('public/assets/admin/js/firebase.min.js')}}"></script>
+@endif
 <script src="{{asset('public/assets/admin')}}/vendor/intl-tel-input/js/intlTelInput.js"></script>
 <script src="{{asset('public/assets/admin')}}/vendor/intl-tel-input/js/utils.js"></script>
 <script src="{{asset('public/assets/admin')}}/vendor/intl-tel-input/js/intlTelInout-validation.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/offcanvas.js"></script>
 <script src="{{asset('public/assets/admin/js/file-size-type-validation.js')}}"></script>
 <script src="{{asset('public/assets/admin/js/upload-file_custom.js')}}"></script>
+<script src="{{asset('public/assets/admin/js/munch-live-search.js')}}"></script>
 
 {!! Toastr::message() !!}
 
@@ -681,7 +685,33 @@
             }
 
             @if($admin_order_notification_type == 'manual')
-                setInterval(munchFetchPendingOrderAlert, 10000);
+                var munchPendingAlertTimer = null;
+                function munchStartPendingOrderAlertPoll() {
+                    if (munchPendingAlertTimer !== null) {
+                        return;
+                    }
+                    munchPendingAlertTimer = setInterval(function () {
+                        if (document.visibilityState === 'hidden') {
+                            return;
+                        }
+                        munchFetchPendingOrderAlert();
+                    }, 10000);
+                }
+                function munchStopPendingOrderAlertPoll() {
+                    if (munchPendingAlertTimer !== null) {
+                        clearInterval(munchPendingAlertTimer);
+                        munchPendingAlertTimer = null;
+                    }
+                }
+                document.addEventListener('visibilitychange', function () {
+                    if (document.visibilityState === 'hidden') {
+                        munchStopPendingOrderAlertPoll();
+                    } else {
+                        munchFetchPendingOrderAlert();
+                        munchStartPendingOrderAlertPoll();
+                    }
+                });
+                munchStartPendingOrderAlertPoll();
             @endif
 
             @if($admin_order_notification_type == 'firebase')

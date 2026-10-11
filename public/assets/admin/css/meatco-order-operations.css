@@ -164,10 +164,14 @@
     margin-top: 0.35rem;
 }
 
+/* Meatco tip 4a204b5: distinct PENDING / PACKING headers; green DISPATCHED */
 .meatco-express-section--prep .meatco-express-section__title,
-.meatco-express-section--pending .meatco-express-section__title,
+.meatco-express-section--pending .meatco-express-section__title {
+    color: #b45309;
+}
+
 .meatco-express-section--packing .meatco-express-section__title {
-    color: #0f172a;
+    color: #1d4ed8;
 }
 
 .meatco-express-section--upcoming .meatco-express-section__title {
@@ -193,7 +197,7 @@
 }
 
 .meatco-express-section--dispatched .meatco-express-section__title {
-    color: #475569;
+    color: #15803d;
 }
 
 .meatco-express-section--dispatched .meatco-express-card {

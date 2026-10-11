@@ -12,7 +12,7 @@
             <h2 class="h1 mb-0 d-flex align-items-center gap-1">
                 <img width="20" class="avatar-img" src="{{asset('public/assets/admin/img/icons/all_orders.png')}}" alt="">
                 <span class="page-header-title">
-                {{translate($status)}} {{translate('Orders')}}
+                {{ $status === 'all' ? translate('All') : translate($status) }} {{translate('Orders')}}
                 </span>
             </h2>
             <span class="badge badge-soft-dark rounded-50 fz-14">{{ $orders->total() }}</span>
@@ -171,7 +171,7 @@
                                 <input id="datatableSearch_" type="search" name="search"
                                         class="form-control"
                                         placeholder="{{translate('Search by ID, customer or payment status')}}" aria-label="Search"
-                                        value="{{$search}}" required autocomplete="off">
+                                        value="{{$search}}" data-munch-live-search autocomplete="off">
                                 <div class="input-group-append">
                                     <button type="submit" class="btn btn-primary">
                                         {{translate('Search')}}

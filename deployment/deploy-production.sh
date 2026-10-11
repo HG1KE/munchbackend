@@ -229,6 +229,7 @@ else
 fi
 
 run_as_app php artisan optimize
+run_as_app php artisan event:cache
 run_as_app php artisan view:cache
 ok "Laravel caches rebuilt"
 

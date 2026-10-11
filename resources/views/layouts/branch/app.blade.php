@@ -70,6 +70,7 @@
 </main>
 
 <script src="{{asset('public/assets/admin')}}/js/custom.js"></script>
+<script src="{{asset('public/assets/admin/js/munch-live-search.js')}}"></script>
 
 @stack('script')
 
@@ -77,7 +78,10 @@
 <script src="{{asset('public/assets/admin')}}/js/theme.min.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/sweet_alert.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/toastr.js"></script>
+@php($munchBranchOrderNotificationType = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
+@if($munchBranchOrderNotificationType == 'firebase')
 <script src="{{asset('public/assets/admin/js/firebase.min.js')}}"></script>
+@endif
 
 {!! Toastr::message() !!}
 
@@ -256,7 +260,33 @@
             }
 
             @if($admin_order_notification_type == 'manual')
-                setInterval(munchFetchPendingOrderAlert, 10000);
+                var munchPendingAlertTimer = null;
+                function munchStartPendingOrderAlertPoll() {
+                    if (munchPendingAlertTimer !== null) {
+                        return;
+                    }
+                    munchPendingAlertTimer = setInterval(function () {
+                        if (document.visibilityState === 'hidden') {
+                            return;
+                        }
+                        munchFetchPendingOrderAlert();
+                    }, 10000);
+                }
+                function munchStopPendingOrderAlertPoll() {
+                    if (munchPendingAlertTimer !== null) {
+                        clearInterval(munchPendingAlertTimer);
+                        munchPendingAlertTimer = null;
+                    }
+                }
+                document.addEventListener('visibilitychange', function () {
+                    if (document.visibilityState === 'hidden') {
+                        munchStopPendingOrderAlertPoll();
+                    } else {
+                        munchFetchPendingOrderAlert();
+                        munchStartPendingOrderAlertPoll();
+                    }
+                });
+                munchStartPendingOrderAlertPoll();
             @endif
 
             @if($admin_order_notification_type == 'firebase')
