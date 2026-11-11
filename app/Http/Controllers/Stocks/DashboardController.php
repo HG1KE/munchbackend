@@ -63,6 +63,7 @@ class DashboardController extends Controller
             'date' => 'required|date',
             'branch_id' => 'required|integer|exists:branches,id',
             'opening' => 'nullable|array',
+            'received' => 'nullable|array',
             'closing' => 'nullable|array',
         ]);
 
@@ -79,15 +80,18 @@ class DashboardController extends Controller
         }
 
         $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
+        $receiveds = is_array($request->input('received')) ? $request->input('received') : [];
         $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
         $activeItemIds = StockItem::query()->active()->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         foreach ($activeItemIds as $stockItemId) {
             $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId] ?? null;
+            $receivedRaw = $receiveds[$stockItemId] ?? $receiveds[(string) $stockItemId] ?? null;
             $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId] ?? null;
             $hasOpening = $openingRaw !== null && $openingRaw !== '';
+            $hasReceived = $receivedRaw !== null && $receivedRaw !== '';
             $hasClosing = $closingRaw !== null && $closingRaw !== '';
-            if (! $hasOpening || ! $hasClosing) {
+            if (! $hasOpening || ! $hasReceived || ! $hasClosing) {
                 Toastr::error(translate('Fill in all boxes before saving'));
                 return back()->withInput();
             }
@@ -95,6 +99,7 @@ class DashboardController extends Controller
 
         foreach ($activeItemIds as $stockItemId) {
             $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId];
+            $receivedRaw = $receiveds[$stockItemId] ?? $receiveds[(string) $stockItemId];
             $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId];
 
             StockDailyCount::query()->updateOrCreate(
@@ -105,6 +110,7 @@ class DashboardController extends Controller
                 ],
                 [
                     'opening_qty' => (float) $openingRaw,
+                    'received_qty' => (float) $receivedRaw,
                     'closing_qty' => (float) $closingRaw,
                     'stock_manager_id' => (int) $manager->id,
                 ]

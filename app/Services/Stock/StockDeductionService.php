@@ -5,6 +5,7 @@ namespace App\Services\Stock;
 use App\Model\Order;
 use App\Model\ProductStockAllocation;
 use App\Model\StockSaleDeduction;
+use App\Support\PosOrderTypes;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,8 +14,10 @@ class StockDeductionService
 {
     /**
      * Kitchen-committed statuses. POS dine_in/delivery place as `confirmed`;
-     * takeaway/marketplace place as `delivered`. Online moves confirmed →
-     * processing → out_for_delivery → delivered. Pending/canceled/failed clear.
+     * takeaway/marketplace place as `delivered`. Pending/canceled/failed clear.
+     *
+     * Sold ledger is POS-only (see countsTowardSold) — online web orders are
+     * re-posted on Branch POS, so including them would double-count.
      */
     public const SOLD_STATUSES = [
         'confirmed',
@@ -31,9 +34,30 @@ class StockDeductionService
     }
 
     /**
+     * Include Branch/Admin POS family (pos + sales_channel in
+     * pos/delivery/takeaway/dine_in/glovo/uber/bolt_food) and dine_in rows
+     * that lack sales_channel (Admin POS dine_in).
+     *
+     * Exclude pure online web/app orders (order_type delivery/take_away/… with
+     * no POS sales_channel) — those are re-entered on POS when fulfilled.
+     */
+    public function countsTowardSold(Order $order): bool
+    {
+        $orderType = $order->order_type ?? null;
+        $salesChannel = $order->sales_channel ?? null;
+
+        if (PosOrderTypes::isPosFamily($orderType, $salesChannel)) {
+            return true;
+        }
+
+        // Admin POS dine_in is often stored as order_type=dine_in without sales_channel.
+        return (string) $orderType === 'dine_in';
+    }
+
+    /**
      * Rebuild ledger rows for an order from current details × product allocations.
      * Idempotent: re-running with the same details leaves net quantities unchanged.
-     * Non-sold / canceled orders clear their ledger (reverses prior deduction).
+     * Non-sold / non-POS / canceled orders clear their ledger (reverses prior deduction).
      */
     public function syncOrder(Order $order): void
     {
@@ -46,7 +70,7 @@ class StockDeductionService
             return;
         }
 
-        if (! $this->isSoldStatus($order->order_status ?? null)) {
+        if (! $this->isSoldStatus($order->order_status ?? null) || ! $this->countsTowardSold($order)) {
             StockSaleDeduction::query()->where('order_id', $orderId)->delete();
             return;
         }

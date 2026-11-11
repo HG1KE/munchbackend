@@ -1,6 +1,6 @@
 /**
  * Stocks manager dashboard — live Result, draft persistence, save gate.
- * Result = (opening − closing) − Sold (expected from sale deductions).
+ * Result = Opening + Received − Sold − Closing.
  */
 (function () {
     'use strict';
@@ -63,6 +63,7 @@
             }
             return {
                 opening: parsed.opening && typeof parsed.opening === 'object' ? parsed.opening : {},
+                received: parsed.received && typeof parsed.received === 'object' ? parsed.received : {},
                 closing: parsed.closing && typeof parsed.closing === 'object' ? parsed.closing : {}
             };
         } catch (e) {
@@ -94,11 +95,18 @@
 
     function collectDraft(table) {
         var opening = {};
+        var received = {};
         var closing = {};
         table.querySelectorAll('[data-stocks-opening]').forEach(function (input) {
             var id = itemIdFromInput(input);
             if (id) {
                 opening[id] = String(input.value);
+            }
+        });
+        table.querySelectorAll('[data-stocks-received]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id) {
+                received[id] = String(input.value);
             }
         });
         table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
@@ -107,7 +115,7 @@
                 closing[id] = String(input.value);
             }
         });
-        return { opening: opening, closing: closing };
+        return { opening: opening, received: received, closing: closing };
     }
 
     function applyDraft(table, draft) {
@@ -120,6 +128,12 @@
                 input.value = draft.opening[id];
             }
         });
+        table.querySelectorAll('[data-stocks-received]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id && Object.prototype.hasOwnProperty.call(draft.received, id)) {
+                input.value = draft.received[id];
+            }
+        });
         table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
             var id = itemIdFromInput(input);
             if (id && Object.prototype.hasOwnProperty.call(draft.closing, id)) {
@@ -129,7 +143,9 @@
     }
 
     function allBoxesFilled(table) {
-        var inputs = table.querySelectorAll('[data-stocks-opening], [data-stocks-closing]');
+        var inputs = table.querySelectorAll(
+            '[data-stocks-opening], [data-stocks-received], [data-stocks-closing]'
+        );
         for (var i = 0; i < inputs.length; i++) {
             if (String(inputs[i].value).trim() === '') {
                 return false;
@@ -148,9 +164,10 @@
 
     function refreshRow(row) {
         var openingInput = row.querySelector('[data-stocks-opening]');
+        var receivedInput = row.querySelector('[data-stocks-received]');
         var closingInput = row.querySelector('[data-stocks-closing]');
         var resultEl = row.querySelector('[data-stocks-result]');
-        if (!openingInput || !closingInput || !resultEl) {
+        if (!openingInput || !receivedInput || !closingInput || !resultEl) {
             return;
         }
 
@@ -160,15 +177,16 @@
         }
 
         var opening = parseQty(openingInput.value);
+        var received = parseQty(receivedInput.value);
         var closing = parseQty(closingInput.value);
 
-        if (opening === null || closing === null) {
+        if (opening === null || received === null || closing === null) {
             setChip(resultEl, { text: '—', kind: 'empty' });
             return;
         }
 
-        var physical = Math.round((opening - closing) * 1000) / 1000;
-        var variance = Math.round((physical - expected) * 1000) / 1000;
+        // Result = Opening + Received − Sold − Closing
+        var variance = Math.round((opening + received - expected - closing) * 1000) / 1000;
         setChip(resultEl, formatResult(variance));
     }
 
@@ -201,7 +219,10 @@
 
         function onChange(ev) {
             var target = ev.target;
-            if (!target || !target.matches('[data-stocks-opening], [data-stocks-closing]')) {
+            if (
+                !target ||
+                !target.matches('[data-stocks-opening], [data-stocks-received], [data-stocks-closing]')
+            ) {
                 return;
             }
             var row = target.closest('[data-stocks-row]');

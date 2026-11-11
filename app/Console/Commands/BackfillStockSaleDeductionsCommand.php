@@ -24,11 +24,13 @@ class BackfillStockSaleDeductionsCommand extends Command
             $this->warn('Dry-run is informational only; use without --dry-run to write.');
             $this->line("Would backfill since {$since}" . ($branchId ? " branch={$branchId}" : ' (all branches)'));
             $this->line('Sold statuses: ' . implode(', ', StockDeductionService::SOLD_STATUSES));
+            $this->line('Sold scope: POS/Branch POS only (excludes pure online web orders to avoid double-count).');
 
             return self::SUCCESS;
         }
 
         $this->info("Backfilling stock sale deductions since {$since}" . ($branchId ? " branch={$branchId}" : ''));
+        $this->line('Sold scope: POS/Branch POS only (online web orders clear/skip).');
         $result = $service->backfillSince($since, $branchId);
         $this->line(sprintf(
             'scanned=%d synced=%d with_rows=%d cleared=%d',

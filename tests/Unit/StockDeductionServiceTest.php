@@ -26,6 +26,8 @@ class StockDeductionServiceTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('branch_id')->nullable();
             $table->string('order_status')->nullable();
+            $table->string('order_type')->nullable();
+            $table->string('sales_channel')->nullable();
             $table->timestamp('placed_at')->nullable();
             $table->timestamps();
         });
@@ -72,6 +74,9 @@ class StockDeductionServiceTest extends TestCase
         $orderId = DB::table('orders')->insertGetId(array_merge([
             'branch_id' => 5,
             'order_status' => 'delivered',
+            // Default to Branch POS takeaway so Sold tests count toward ledger.
+            'order_type' => 'pos',
+            'sales_channel' => 'takeaway',
             'placed_at' => '2026-11-11 10:00:00',
             'created_at' => now(),
             'updated_at' => now(),
@@ -190,6 +195,97 @@ class StockDeductionServiceTest extends TestCase
         }
         $this->assertFalse((new StockDeductionService())->isSoldStatus('pending'));
         $this->assertFalse((new StockDeductionService())->isSoldStatus('canceled'));
+    }
+
+    public function test_online_web_order_does_not_deduct_even_when_delivered(): void
+    {
+        // Pure online: order_type=delivery with no POS sales_channel.
+        // These are re-posted on Branch POS — counting both would double Sold.
+        $order = $this->seedOrder([
+            'order_status' => 'delivered',
+            'order_type' => 'delivery',
+            'sales_channel' => null,
+        ], [
+            ['product_id' => 10, 'quantity' => 2],
+        ], [
+            ['product_id' => 10, 'stock_item_id' => 1, 'quantity' => 1],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+        $this->assertSame(0, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
+    }
+
+    public function test_online_order_clears_prior_deduction_rows(): void
+    {
+        $order = $this->seedOrder([
+            'order_status' => 'delivered',
+            'order_type' => 'pos',
+            'sales_channel' => 'delivery',
+        ], [
+            ['product_id' => 10, 'quantity' => 2],
+        ], [
+            ['product_id' => 10, 'stock_item_id' => 1, 'quantity' => 1],
+        ]);
+
+        $service = new StockDeductionService();
+        $service->syncOrder($order->fresh(['details']));
+        $this->assertSame(1, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
+
+        // Reclassify as pure online web order → ledger must clear.
+        DB::table('orders')->where('id', $order->id)->update([
+            'order_type' => 'delivery',
+            'sales_channel' => null,
+        ]);
+        $service->syncOrder($order->fresh(['details']));
+        $this->assertSame(0, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
+    }
+
+    public function test_pos_channels_and_dine_in_count_toward_sold(): void
+    {
+        $service = new StockDeductionService();
+
+        DB::table('product_stock_allocations')->insert([
+            'product_id' => 10,
+            'stock_item_id' => 1,
+            'quantity' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $cases = [
+            ['order_type' => 'pos', 'sales_channel' => 'takeaway'],
+            ['order_type' => 'pos', 'sales_channel' => 'delivery'],
+            ['order_type' => 'dine_in', 'sales_channel' => 'dine_in'],
+            ['order_type' => 'dine_in', 'sales_channel' => null], // Admin POS dine_in
+            ['order_type' => 'pos', 'sales_channel' => 'glovo'],
+        ];
+
+        foreach ($cases as $i => $meta) {
+            $order = $this->seedOrder(array_merge(['order_status' => 'confirmed'], $meta), [
+                ['product_id' => 10, 'quantity' => 1],
+            ]);
+            $service->syncOrder($order->fresh(['details']));
+            $this->assertSame(
+                1,
+                (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count(),
+                'expected POS case '.$i.' to deduct'
+            );
+        }
+
+        $online = $this->seedOrder([
+            'order_status' => 'confirmed',
+            'order_type' => 'delivery',
+            'sales_channel' => null,
+        ]);
+        $this->assertFalse($service->countsTowardSold($online));
+    }
+
+    public function test_counts_toward_sold_wiring(): void
+    {
+        $serviceSrc = file_get_contents(app_path('Services/Stock/StockDeductionService.php'));
+        $this->assertStringContainsString('countsTowardSold', $serviceSrc);
+        $this->assertStringContainsString('PosOrderTypes::isPosFamily', $serviceSrc);
+        $this->assertStringContainsString('double-count', $serviceSrc);
     }
 
     public function test_wiring_presence(): void
