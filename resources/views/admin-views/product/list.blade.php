@@ -5,7 +5,7 @@
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-pricing.css') }}?v=1.7">
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-stock.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-stock.css') }}?v=1.1">
 @endpush
 
 @section('content')
@@ -352,5 +352,5 @@
         }
     </script>
     <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=2.2"></script>
-    <script src="{{ asset('public/assets/admin/js/munch-product-stock.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-stock.js') }}?v=1.1"></script>
 @endpush

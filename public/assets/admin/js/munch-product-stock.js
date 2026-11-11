@@ -31,6 +31,10 @@
         saving: false,
     };
 
+    function jq() {
+        return window.jQuery || window.$ || null;
+    }
+
     function urlFor(template, id) {
         return String(template || '').replace('__ID__', String(id));
     }
@@ -64,6 +68,41 @@
             .replace(/"/g, '&quot;');
     }
 
+    function destroySelect2(scope) {
+        var $ = jq();
+        if (!$ || !$.fn || !$.fn.select2) return;
+        var rootEl = scope || els.rows;
+        if (!rootEl) return;
+        $(rootEl).find('select[data-stock-item]').each(function () {
+            var $el = $(this);
+            if ($el.hasClass('select2-hidden-accessible')) {
+                $el.select2('destroy');
+            }
+        });
+    }
+
+    function initSelect2(scope) {
+        var $ = jq();
+        if (!$ || !$.fn || !$.fn.select2) return;
+        var rootEl = scope || els.rows;
+        if (!rootEl) return;
+        // Attach to the full-screen modal shell (not the overflow-hidden panel)
+        // so the searchable dropdown is not clipped — same idea as stock-manager modal.
+        var $parent = $(els.modal);
+        $(rootEl).find('select[data-stock-item]').each(function () {
+            var $el = $(this);
+            if ($el.hasClass('select2-hidden-accessible')) {
+                $el.select2('destroy');
+            }
+            $el.select2({
+                placeholder: 'Select stock item',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $parent.length ? $parent : $(document.body),
+            });
+        });
+    }
+
     function rowHtml(allocation) {
         allocation = allocation || {};
         var qty = allocation.quantity != null && allocation.quantity !== '' ? allocation.quantity : '';
@@ -71,11 +110,11 @@
             '<div class="munch-stock-row">' +
                 '<div class="munch-stock-row__item">' +
                     '<label>Stock item</label>' +
-                    '<select class="form-control" data-stock-item>' + optionHtml(allocation.stock_item_id) + '</select>' +
+                    '<select class="form-control js-select2-custom" data-stock-item>' + optionHtml(allocation.stock_item_id) + '</select>' +
                 '</div>' +
                 '<div class="munch-stock-row__qty">' +
                     '<label>Qty per sale</label>' +
-                    '<input type="number" class="form-control" min="0.001" step="0.001" placeholder="1" data-stock-qty value="' + escapeHtml(qty) + '">' +
+                    '<input type="number" class="form-control" min="0.001" step="0.001" inputmode="decimal" placeholder="0.5" data-stock-qty value="' + escapeHtml(qty) + '">' +
                 '</div>' +
                 '<div class="munch-stock-row__remove">' +
                     '<button type="button" class="btn btn-outline-danger" data-stock-remove aria-label="Remove row">' +
@@ -87,8 +126,10 @@
     }
 
     function renderRows(allocations) {
+        destroySelect2();
         var list = Array.isArray(allocations) && allocations.length ? allocations : [{}];
         els.rows.innerHTML = list.map(rowHtml).join('');
+        initSelect2();
         updateEmptyHint();
     }
 
@@ -105,6 +146,7 @@
         state.stockItems = [];
         els.title.textContent = 'Stock';
         els.meta.textContent = 'Loading…';
+        destroySelect2();
         els.rows.innerHTML = '<div class="munch-stock-loading">Loading allocations…</div>';
         setStatus('');
         els.backdrop.hidden = false;
@@ -133,6 +175,7 @@
                 }
             })
             .catch(function (err) {
+                destroySelect2();
                 els.rows.innerHTML = '';
                 setStatus((err && err.message) || 'Could not load allocations');
                 showToast(false, (err && err.message) || 'Could not load allocations');
@@ -141,6 +184,7 @@
 
     function closeModal() {
         if (state.saving) return;
+        destroySelect2();
         els.backdrop.hidden = true;
         els.modal.hidden = true;
         document.body.classList.remove('munch-stock-open');
@@ -230,6 +274,8 @@
             ev.preventDefault();
             if (!state.stockItems.length) return;
             els.rows.insertAdjacentHTML('beforeend', rowHtml({}));
+            var added = els.rows.querySelector('.munch-stock-row:last-child');
+            if (added) initSelect2(added);
             return;
         }
 
@@ -246,9 +292,12 @@
             if (!row) return;
             var all = els.rows.querySelectorAll('.munch-stock-row');
             if (all.length <= 1) {
+                destroySelect2(row);
                 row.querySelectorAll('select, input').forEach(function (el) { el.value = ''; });
+                initSelect2(row);
                 return;
             }
+            destroySelect2(row);
             row.remove();
         }
     });

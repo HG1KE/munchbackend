@@ -109,6 +109,19 @@
     padding: 0;
 }
 
+/* Select2 (searchable stock item) — match admin modal patterns */
+.munch-stock-row__item .select2-container {
+    width: 100% !important;
+}
+
+.munch-stock-modal .select2-container--open {
+    z-index: 1060;
+}
+
+.munch-stock-modal .select2-dropdown {
+    z-index: 1060;
+}
+
 .munch-stock-loading,
 .munch-stock-empty {
     text-align: center;

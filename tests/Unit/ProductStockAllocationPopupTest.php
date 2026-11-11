@@ -128,5 +128,35 @@ class ProductStockAllocationPopupTest extends TestCase
         $this->assertStringContainsString('stock_allocation_item_id[]', $js);
         $this->assertStringContainsString('stock_allocation_qty[]', $js);
         $this->assertStringContainsString('[data-stock]', $js);
+        $this->assertStringContainsString('select2', $js);
+        $this->assertStringContainsString('dropdownParent', $js);
+        $this->assertStringContainsString('step="0.001"', $js);
+        $this->assertStringContainsString('min="0.001"', $js);
+    }
+
+    public function test_sync_accepts_decimal_qty(): void
+    {
+        $productId = DB::table('products')->insertGetId([
+            'name' => 'Half Bun Special',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $bunsId = DB::table('stock_items')->insertGetId([
+            'name' => 'Buns',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = new ProductStockAllocationService();
+        $request = Request::create('/admin/product/stock-allocations/'.$productId, 'POST', [
+            'stock_allocation_item_id' => [$bunsId],
+            'stock_allocation_qty' => [0.5],
+        ]);
+        $service->syncFromRequest($productId, $request);
+
+        $row = DB::table('product_stock_allocations')->where('product_id', $productId)->first();
+        $this->assertNotNull($row);
+        $this->assertEquals(0.5, (float) $row->quantity);
     }
 }
