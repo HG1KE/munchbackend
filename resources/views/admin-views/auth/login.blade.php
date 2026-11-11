@@ -39,10 +39,8 @@
                     <img src="{{ $logo }}" alt="{{ translate('logo') }}">
                 </div>
 
-                @php
-                    $showLoginForm = $errors->any() || filled(old('email')) || request()->boolean('form');
-                    $recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha');
-                @endphp
+                @php($showLoginForm = $errors->any() || filled(old('email')) || request()->boolean('form'))
+                @php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
 
                 @unless($showLoginForm)
                     @include('admin-views.auth.partials._munch-login-chooser', ['currentMode' => 'admin'])

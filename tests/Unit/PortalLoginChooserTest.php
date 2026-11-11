@@ -27,7 +27,8 @@ class PortalLoginChooserTest extends TestCase
 
         foreach ([$admin, $branch, $stocks] as $view) {
             $this->assertStringContainsString("_munch-login-chooser", $view);
-            $this->assertStringContainsString("request()->boolean('form')", $view);
+            $this->assertStringContainsString("@php(\$showLoginForm = \$errors->any() || filled(old('email')) || request()->boolean('form'))", $view);
+            $this->assertStringNotContainsString("@endphp", $view);
             $this->assertStringContainsString("translate('Change login type')", $view);
         }
 
