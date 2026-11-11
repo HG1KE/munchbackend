@@ -1329,6 +1329,9 @@
   'Stocks Login' => 'Stocks Login',
   'Choose your login' => 'Choose your login',
   'Change login type' => 'Change login type',
+  'Stock Control' => 'Stock Control',
+  'Daily opening and closing counts for your branch.' => 'Daily opening and closing counts for your branch.',
+
 
   'Earning statistics for business analytics' => 'Earning statistics for business analytics',
   'Monthly Earning' => 'Monthly Earning',

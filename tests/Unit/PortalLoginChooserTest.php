@@ -16,31 +16,56 @@ class PortalLoginChooserTest extends TestCase
         $this->assertArrayHasKey('Branch Login', $en);
         $this->assertArrayHasKey('Stocks Login', $en);
         $this->assertArrayHasKey('Choose your login', $en);
+        $this->assertArrayHasKey('Change login type', $en);
     }
 
-    public function test_login_pages_hide_credentials_until_mode_chosen(): void
+    public function test_login_pages_use_seamless_js_mode_chooser(): void
     {
         $admin = file_get_contents(resource_path('views/admin-views/auth/login.blade.php'));
         $branch = file_get_contents(resource_path('views/branch-views/auth/login.blade.php'));
         $stocks = file_get_contents(resource_path('views/stocks-views/auth/login.blade.php'));
         $chooser = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-chooser.blade.php'));
+        $panel = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-panel.blade.php'));
+        $script = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-mode-script.blade.php'));
+        $styles = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-styles.blade.php'));
 
         foreach ([$admin, $branch, $stocks] as $view) {
-            $this->assertStringContainsString("_munch-login-chooser", $view);
-            $this->assertStringContainsString("@php(\$showLoginForm = \$errors->any() || filled(old('email')) || request()->boolean('form'))", $view);
+            $this->assertStringContainsString("_munch-login-panel", $view);
+            $this->assertStringContainsString("_munch-login-mode-script", $view);
             $this->assertStringNotContainsString("@endphp", $view);
-            $this->assertStringContainsString("translate('Change login type')", $view);
         }
 
-        $this->assertStringContainsString("translate('Admin Login')", $chooser);
-        $this->assertStringContainsString("translate('Branch Login')", $chooser);
-        $this->assertStringContainsString("translate('Stocks Login')", $chooser);
-        $this->assertStringContainsString("route('admin.auth.login', ['form' => 1])", $chooser);
-        $this->assertStringContainsString("route('branch.auth.login', ['form' => 1])", $chooser);
-        $this->assertStringContainsString("route('stocks.auth.login', ['form' => 1])", $chooser);
+        $this->assertStringContainsString('data-munch-login-mode="admin"', $chooser);
+        $this->assertStringContainsString('data-munch-login-mode="branch"', $chooser);
+        $this->assertStringContainsString('data-munch-login-mode="stocks"', $chooser);
+        $this->assertStringContainsString('munch-auth-chooser__btn--admin', $chooser);
+        $this->assertStringContainsString('type="button"', $chooser);
+        $this->assertStringNotContainsString("route('admin.auth.login', ['form' => 1])", $chooser);
 
-        $this->assertStringContainsString("translate('stocks_manager_sign_in')", $stocks);
-        $this->assertStringContainsString('name="email"', $admin);
-        $this->assertStringContainsString('name="password"', $admin);
+        $this->assertStringContainsString('name="login_panel"', $panel);
+        $this->assertStringContainsString('name="email"', $panel);
+        $this->assertStringContainsString('name="password"', $panel);
+        $this->assertStringContainsString("translate('stocks_manager_sign_in')", $panel);
+        $this->assertStringNotContainsString("@endphp", $panel);
+
+        $this->assertStringContainsString("route('admin.auth.login')", $script);
+        $this->assertStringContainsString("route('branch.auth.login')", $script);
+        $this->assertStringContainsString("route('stocks.auth.login')", $script);
+        $this->assertStringContainsString('applyMode', $script);
+
+        $this->assertStringContainsString('munch-auth-chooser__btn--admin', $styles);
+        $this->assertStringContainsString('munch-auth-chooser__btn--branch', $styles);
+        $this->assertStringContainsString('munch-auth-chooser__btn--stocks', $styles);
+    }
+
+    public function test_login_controllers_preserve_login_panel_on_failure(): void
+    {
+        $admin = file_get_contents(app_path('Http/Controllers/Admin/Auth/LoginController.php'));
+        $branch = file_get_contents(app_path('Http/Controllers/Branch/Auth/LoginController.php'));
+        $stocks = file_get_contents(app_path('Http/Controllers/Stocks/Auth/LoginController.php'));
+
+        foreach ([$admin, $branch, $stocks] as $controller) {
+            $this->assertStringContainsString("withInput(\$request->only('email', 'login_panel'))", $controller);
+        }
     }
 }

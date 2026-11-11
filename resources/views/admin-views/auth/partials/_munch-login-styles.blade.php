@@ -145,7 +145,8 @@
         margin-top: 0.25rem;
     }
 
-    body.munch-auth-login .munch-auth-chooser__btn {
+    body.munch-auth-login .munch-auth-chooser__btn,
+    body.munch-auth-login .munch-auth-alt-login__btn {
         display: block;
         width: 100%;
         text-align: center;
@@ -157,30 +158,69 @@
         color: #0f172a;
         background: #fff;
         text-decoration: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
         transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
 
-    body.munch-auth-login .munch-auth-chooser__btn:hover,
-    body.munch-auth-login .munch-auth-chooser__btn:focus {
+    body.munch-auth-login .munch-auth-alt-login__btn {
+        font-size: 0.875rem;
+        padding: 0.55rem 1rem;
+    }
+
+    /* Admin = red primary; Branch + Stocks = outline (not red) */
+    body.munch-auth-login .munch-auth-chooser__btn--admin,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--admin {
         border-color: var(--c1);
-        color: var(--c1);
-        background: rgba(var(--c1-rgb), 0.04);
-        text-decoration: none;
-        box-shadow: 0 0 0 3px rgba(var(--c1-rgb), 0.12);
+        color: #fff;
+        background: var(--c1);
+    }
+
+    body.munch-auth-login .munch-auth-chooser__btn--admin:hover,
+    body.munch-auth-login .munch-auth-chooser__btn--admin:focus,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--admin:hover,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--admin:focus {
+        color: #fff;
+        background: var(--c1);
+        border-color: var(--c1);
+        box-shadow: 0 0 0 3px rgba(var(--c1-rgb), 0.18);
         outline: none;
+        text-decoration: none;
     }
 
-    body.munch-auth-login .munch-auth-chooser__btn.is-current {
-        border-color: var(--c1);
-        color: #fff;
-        background: var(--c1);
+    body.munch-auth-login .munch-auth-chooser__btn--branch,
+    body.munch-auth-login .munch-auth-chooser__btn--stocks,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--branch,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--stocks {
+        border-color: #cbd5e1;
+        color: #334155;
+        background: #fff;
     }
 
-    body.munch-auth-login .munch-auth-chooser__btn.is-current:hover,
-    body.munch-auth-login .munch-auth-chooser__btn.is-current:focus {
-        color: #fff;
-        background: var(--c1);
-        border-color: var(--c1);
+    body.munch-auth-login .munch-auth-chooser__btn--branch:hover,
+    body.munch-auth-login .munch-auth-chooser__btn--branch:focus,
+    body.munch-auth-login .munch-auth-chooser__btn--stocks:hover,
+    body.munch-auth-login .munch-auth-chooser__btn--stocks:focus,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--branch:hover,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--branch:focus,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--stocks:hover,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--stocks:focus {
+        border-color: #94a3b8;
+        color: #0f172a;
+        background: #f8fafc;
+        box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+        outline: none;
+        text-decoration: none;
+    }
+
+    body.munch-auth-login .munch-auth-chooser__btn--branch.is-selected,
+    body.munch-auth-login .munch-auth-chooser__btn--stocks.is-selected,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--branch.is-selected,
+    body.munch-auth-login .munch-auth-alt-login__btn.munch-auth-chooser__btn--stocks.is-selected {
+        border-color: #64748b;
+        color: #0f172a;
+        background: #f1f5f9;
     }
 
     body.munch-auth-login .munch-auth-change-mode {
@@ -190,12 +230,17 @@
         color: #64748b;
         text-decoration: none;
         margin-bottom: 0.75rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
     }
 
     body.munch-auth-login .munch-auth-change-mode:hover,
     body.munch-auth-login .munch-auth-change-mode:focus {
         color: var(--c1);
         text-decoration: none;
+        outline: none;
     }
 
     body.munch-auth-login .munch-auth-alt-login {
@@ -210,27 +255,7 @@
         margin-bottom: 0.5rem;
     }
 
-    body.munch-auth-login .munch-auth-alt-login__btn {
-        display: block;
-        width: 100%;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.875rem;
-        padding: 0.55rem 1rem;
-        border-radius: 10px;
-        border: 1px solid #cbd5e1;
-        color: #334155;
-        background: #fff;
-        text-decoration: none;
-        transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-    }
-
-    body.munch-auth-login .munch-auth-alt-login__btn:hover {
-        border-color: var(--c1);
-        color: var(--c1);
-        background: rgba(var(--c1-rgb), 0.04);
-        text-decoration: none;
-    }
+    /* Mode-colored styles for .munch-auth-alt-login__btn live with chooser buttons above */
 
     body.munch-auth-login .form-group {
         margin-bottom: 1.15rem;
