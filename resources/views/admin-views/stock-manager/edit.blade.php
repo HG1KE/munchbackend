@@ -13,7 +13,7 @@
 
         <div class="card">
             <div class="card-body">
-                <form action="{{ route('admin.stock-manager.update', [$manager->id]) }}" method="post">
+                <form action="{{ route('admin.stock-manager.update', [$manager->id]) }}" method="post" id="edit-stock-manager-form">
                     @csrf
                     <div class="form-group">
                         <label class="input-label">{{ translate('name') }}</label>
@@ -28,14 +28,24 @@
                         <input type="password" name="password" class="form-control" minlength="6">
                     </div>
                     <div class="form-group">
-                        <label class="input-label">{{ translate('branch') }}</label>
-                        <select name="branch_id" class="form-control" required>
+                        <label class="toggle-switch d-flex align-items-center">
+                            <input type="checkbox" name="all_branches" value="1" class="toggle-switch-input" id="edit-all-branches"
+                                   {{ $manager->all_branches ? 'checked' : '' }}>
+                            <span class="toggle-switch-label"><span class="toggle-switch-indicator"></span></span>
+                            <span class="toggle-switch-content ml-2">{{ translate('All branches') }}</span>
+                        </label>
+                    </div>
+                    <div class="form-group" id="edit-branch-ids-wrap">
+                        <label class="input-label">{{ translate('branches') }}</label>
+                        @php($selectedIds = $manager->branches->pluck('id')->map(function ($id) { return (int) $id; })->all())
+                        <select name="branch_ids[]" id="edit-branch-ids" class="form-control" multiple="multiple">
                             @foreach($branches as $branch)
-                                <option value="{{ $branch->id }}" {{ (int)$manager->branch_id === (int)$branch->id ? 'selected' : '' }}>
+                                <option value="{{ $branch->id }}" {{ in_array((int) $branch->id, $selectedIds, true) ? 'selected' : '' }}>
                                     {{ $branch->name }}
                                 </option>
                             @endforeach
                         </select>
+                        <small class="text-muted">{{ translate('Select one or more branches, or enable All branches.') }}</small>
                     </div>
                     <div class="form-group">
                         <label class="toggle-switch d-flex align-items-center">
@@ -53,3 +63,27 @@
         </div>
     </div>
 @endsection
+
+@push('script_2')
+    <script>
+        "use strict";
+        $(document).ready(function () {
+            $("#edit-branch-ids").select2({
+                placeholder: "{{ translate('Select branch') }}",
+                allowClear: true,
+                width: '100%'
+            });
+
+            function syncEditAllBranches() {
+                var all = $('#edit-all-branches').is(':checked');
+                $('#edit-branch-ids').prop('disabled', all);
+                if (all) {
+                    $('#edit-branch-ids').val(null).trigger('change');
+                }
+            }
+
+            $('#edit-all-branches').on('change', syncEditAllBranches);
+            syncEditAllBranches();
+        });
+    </script>
+@endpush

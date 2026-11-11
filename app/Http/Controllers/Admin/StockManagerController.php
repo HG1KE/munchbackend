@@ -11,6 +11,7 @@ use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class StockManagerController extends Controller
 {
@@ -23,7 +24,7 @@ class StockManagerController extends Controller
     {
         $queryParam = [];
         $search = $request['search'];
-        $query = $this->stockManager->newQuery()->with('branch');
+        $query = $this->stockManager->newQuery()->with('branches');
         if ($request->has('search') && $search !== null && $search !== '') {
             $key = explode(' ', $search);
             $query->where(function ($q) use ($key) {
@@ -43,20 +44,31 @@ class StockManagerController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $allBranches = $request->boolean('all_branches');
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:stock_managers,email',
             'password' => 'required|min:6',
-            'branch_id' => 'required|exists:branches,id',
+            'all_branches' => 'nullable|boolean',
+            'branch_ids' => [
+                Rule::requiredIf(! $allBranches),
+                'nullable',
+                'array',
+                'min:1',
+            ],
+            'branch_ids.*' => 'integer|exists:branches,id',
         ]);
 
-        $this->stockManager->create([
+        $manager = $this->stockManager->create([
             'name' => trim($request->name),
             'email' => trim($request->email),
             'password' => Hash::make($request->password),
-            'branch_id' => (int) $request->branch_id,
+            'all_branches' => $allBranches,
             'status' => true,
         ]);
+
+        $manager->branches()->sync($allBranches ? [] : array_map('intval', $request->input('branch_ids', [])));
 
         Toastr::success(translate('Stock manager added successfully!'));
         return back();
@@ -64,7 +76,7 @@ class StockManagerController extends Controller
 
     public function edit($id): Renderable
     {
-        $manager = $this->stockManager->findOrFail($id);
+        $manager = $this->stockManager->with('branches')->findOrFail($id);
         $branches = $this->branch->orderBy('name')->get(['id', 'name']);
 
         return view('admin-views.stock-manager.edit', compact('manager', 'branches'));
@@ -72,22 +84,33 @@ class StockManagerController extends Controller
 
     public function update(Request $request, $id): RedirectResponse
     {
+        $allBranches = $request->boolean('all_branches');
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:stock_managers,email,' . $id,
-            'branch_id' => 'required|exists:branches,id',
             'password' => 'nullable|min:6',
+            'all_branches' => 'nullable|boolean',
+            'branch_ids' => [
+                Rule::requiredIf(! $allBranches),
+                'nullable',
+                'array',
+                'min:1',
+            ],
+            'branch_ids.*' => 'integer|exists:branches,id',
         ]);
 
         $manager = $this->stockManager->findOrFail($id);
         $manager->name = trim($request->name);
         $manager->email = trim($request->email);
-        $manager->branch_id = (int) $request->branch_id;
+        $manager->all_branches = $allBranches;
         $manager->status = $request->status == 'on' || $request->status == 1;
         if ($request->filled('password')) {
             $manager->password = Hash::make($request->password);
         }
         $manager->save();
+
+        $manager->branches()->sync($allBranches ? [] : array_map('intval', $request->input('branch_ids', [])));
 
         Toastr::success(translate('Stock manager updated successfully!'));
         return redirect()->route('admin.stock-manager.index');
@@ -106,6 +129,7 @@ class StockManagerController extends Controller
     public function delete($id): RedirectResponse
     {
         $manager = $this->stockManager->findOrFail($id);
+        $manager->branches()->detach();
         $manager->delete();
 
         Toastr::success(translate('Stock manager removed!'));

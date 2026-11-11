@@ -43,7 +43,7 @@
                             <th>{{ translate('SL') }}</th>
                             <th>{{ translate('name') }}</th>
                             <th>{{ translate('email') }}</th>
-                            <th>{{ translate('branch') }}</th>
+                            <th>{{ translate('branches') }}</th>
                             <th class="text-center">{{ translate('status') }}</th>
                             <th class="text-center">{{ translate('action') }}</th>
                         </tr>
@@ -54,7 +54,7 @@
                                 <td>{{ $managers->firstItem() + $key }}</td>
                                 <td>{{ $manager->name }}</td>
                                 <td>{{ $manager->email }}</td>
-                                <td>{{ $manager->branch?->name ?? '—' }}</td>
+                                <td style="white-space: normal; max-width: 280px;">{{ $manager->branchLabel() }}</td>
                                 <td class="text-center">
                                     <label class="switcher mx-auto">
                                         <input type="checkbox" class="switcher_input redirect-url"
@@ -99,7 +99,7 @@
             <div class="modal-content">
                 <div class="modal-body">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button>
-                    <form action="{{ route('admin.stock-manager.store') }}" method="post">
+                    <form action="{{ route('admin.stock-manager.store') }}" method="post" id="add-stock-manager-form">
                         @csrf
                         <div class="form-group">
                             <label class="input-label">{{ translate('name') }}</label>
@@ -114,13 +114,20 @@
                             <input type="password" name="password" class="form-control" required minlength="6">
                         </div>
                         <div class="form-group">
-                            <label class="input-label">{{ translate('branch') }}</label>
-                            <select name="branch_id" class="form-control" required>
-                                <option value="">{{ translate('Select branch') }}</option>
+                            <label class="toggle-switch d-flex align-items-center">
+                                <input type="checkbox" name="all_branches" value="1" class="toggle-switch-input" id="add-all-branches">
+                                <span class="toggle-switch-label"><span class="toggle-switch-indicator"></span></span>
+                                <span class="toggle-switch-content ml-2">{{ translate('All branches') }}</span>
+                            </label>
+                        </div>
+                        <div class="form-group" id="add-branch-ids-wrap">
+                            <label class="input-label">{{ translate('branches') }}</label>
+                            <select name="branch_ids[]" id="add-branch-ids" class="form-control" multiple="multiple">
                                 @foreach($branches as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                 @endforeach
                             </select>
+                            <small class="text-muted">{{ translate('Select one or more branches, or enable All branches.') }}</small>
                         </div>
                         <div class="d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary">{{ translate('submit') }}</button>
@@ -131,3 +138,28 @@
         </div>
     </div>
 @endsection
+
+@push('script_2')
+    <script>
+        "use strict";
+        $(document).ready(function () {
+            $("#add-branch-ids").select2({
+                placeholder: "{{ translate('Select branch') }}",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#addStockManagerModal')
+            });
+
+            function syncAddAllBranches() {
+                var all = $('#add-all-branches').is(':checked');
+                $('#add-branch-ids').prop('disabled', all);
+                if (all) {
+                    $('#add-branch-ids').val(null).trigger('change');
+                }
+            }
+
+            $('#add-all-branches').on('change', syncAddAllBranches);
+            syncAddAllBranches();
+        });
+    </script>
+@endpush

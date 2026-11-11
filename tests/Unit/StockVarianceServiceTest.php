@@ -39,6 +39,7 @@ class StockVarianceServiceTest extends TestCase
         $this->assertStringContainsString("translate('STOCK SOLD')", $dashboard);
         $this->assertStringContainsString('opening[', $dashboard);
         $this->assertStringContainsString('closing[', $dashboard);
+        $this->assertStringContainsString('showBranchPicker', $dashboard);
     }
 
     public function test_product_allocation_ui_wired(): void

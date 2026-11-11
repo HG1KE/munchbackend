@@ -14,8 +14,9 @@
                 <li class="nav-item">
                     <span class="nav-link text-dark font-weight-bold">
                         {{ auth('stocks')->user()->name ?? '' }}
-                        @if(auth('stocks')->user()?->branch)
-                            <span class="text-muted font-weight-normal">— {{ auth('stocks')->user()->branch->name }}</span>
+                        @php($stocksUser = auth('stocks')->user())
+                        @if($stocksUser)
+                            <span class="text-muted font-weight-normal">— {{ $stocksUser->branchLabel() }}</span>
                         @endif
                     </span>
                 </li>

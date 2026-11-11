@@ -20,27 +20,57 @@ class DashboardController extends Controller
     public function index(Request $request): Renderable
     {
         $manager = auth('stocks')->user();
-        $branch = $manager->branch;
-        $branchId = (int) $manager->branch_id;
+        $manager->loadMissing('branches');
+
+        $accessible = $manager->accessibleBranches();
+        $showBranchPicker = $accessible->count() > 1 || (bool) $manager->all_branches;
+
+        $branchId = (int) $request->input('branch_id', 0);
+        if ($branchId > 0 && ! $manager->canAccessBranch($branchId)) {
+            abort(403, translate('You do not have access to this branch'));
+        }
+
+        if ($branchId <= 0) {
+            $branchId = (int) ($accessible->first()->id ?? 0);
+        }
+
         $date = $request->input('date') ?: now()->toDateString();
 
-        $rows = $this->variance->rowsForBranchDate($branchId, $date);
-        $branchName = $branch?->name ?: translate('Stocks');
+        $rows = $branchId > 0
+            ? $this->variance->rowsForBranchDate($branchId, $date)
+            : [];
 
-        return view('stocks-views.dashboard.index', compact('rows', 'date', 'branchName', 'branchId'));
+        $currentBranch = $accessible->firstWhere('id', $branchId);
+        $branchName = $currentBranch?->name ?: translate('Stocks');
+
+        return view('stocks-views.dashboard.index', compact(
+            'rows',
+            'date',
+            'branchName',
+            'branchId',
+            'accessible',
+            'showBranchPicker'
+        ));
     }
 
     public function saveCounts(Request $request): RedirectResponse
     {
         $manager = auth('stocks')->user();
-        $branchId = (int) $manager->branch_id;
-        $date = $request->input('date') ?: now()->toDateString();
+        $manager->loadMissing('branches');
 
         $request->validate([
             'date' => 'required|date',
+            'branch_id' => 'required|integer|exists:branches,id',
             'opening' => 'nullable|array',
             'closing' => 'nullable|array',
         ]);
+
+        $branchId = (int) $request->input('branch_id');
+        if (! $manager->canAccessBranch($branchId)) {
+            abort(403, translate('You do not have access to this branch'));
+        }
+
+        $date = $request->input('date') ?: now()->toDateString();
 
         if (! Schema::hasTable('stock_daily_counts')) {
             Toastr::error(translate('Stock counts table is missing. Run migrations.'));
@@ -93,6 +123,9 @@ class DashboardController extends Controller
 
         Toastr::success(translate('Stock counts saved.'));
 
-        return redirect()->route('stocks.dashboard', ['date' => $date]);
+        return redirect()->route('stocks.dashboard', [
+            'date' => $date,
+            'branch_id' => $branchId,
+        ]);
     }
 }
