@@ -8,13 +8,31 @@
 </div>
 
 <nav class="munch-auth-chooser" aria-label="{{ translate('Choose your login') }}">
-    <button type="button" class="munch-auth-chooser__btn munch-auth-chooser__btn--admin" data-munch-login-mode="admin">
+    <button
+        type="button"
+        class="munch-auth-chooser__btn munch-auth-chooser__btn--admin"
+        data-munch-login-mode="admin"
+        data-munch-login-action="{{ route('admin.auth.login') }}"
+        data-munch-login-badge="{{ translate('admin_or_employee_sign_in') }}"
+    >
         {{ translate('Admin Login') }}
     </button>
-    <button type="button" class="munch-auth-chooser__btn munch-auth-chooser__btn--branch" data-munch-login-mode="branch">
+    <button
+        type="button"
+        class="munch-auth-chooser__btn munch-auth-chooser__btn--branch"
+        data-munch-login-mode="branch"
+        data-munch-login-action="{{ route('branch.auth.login') }}"
+        data-munch-login-badge="{{ translate('branch_sign_in') }}"
+    >
         {{ translate('Branch Login') }}
     </button>
-    <button type="button" class="munch-auth-chooser__btn munch-auth-chooser__btn--stocks" data-munch-login-mode="stocks">
+    <button
+        type="button"
+        class="munch-auth-chooser__btn munch-auth-chooser__btn--stocks"
+        data-munch-login-mode="stocks"
+        data-munch-login-action="{{ route('stocks.auth.login') }}"
+        data-munch-login-badge="{{ translate('stocks_manager_sign_in') }}"
+    >
         {{ translate('Stocks Login') }}
     </button>
 </nav>

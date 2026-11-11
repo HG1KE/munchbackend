@@ -6,11 +6,11 @@
 @php($pageMode = $pageMode ?? 'admin')
 @php($showLoginForm = $errors->any() || filled(old('email')) || filled(old('login_panel')) || request()->boolean('form'))
 @php($activeMode = old('login_panel', $pageMode))
-@php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
 @php($formAction = $activeMode === 'branch' ? route('branch.auth.login') : ($activeMode === 'stocks' ? route('stocks.auth.login') : route('admin.auth.login')))
-@php($captchaSrc = $activeMode === 'branch' ? url('/branch/auth/code/captcha/1') : ($activeMode === 'stocks' ? url('/stocks/auth/code/captcha/1') : url('/admin/auth/code/captcha/1')))
 @php($modeBadge = $activeMode === 'branch' ? translate('branch_sign_in') : ($activeMode === 'stocks' ? translate('stocks_manager_sign_in') : translate('admin_or_employee_sign_in')))
 @php($demoEmailLabel = $activeMode === 'branch' ? translate('Email : mainb@mainb.com') : translate('Email : admin@admin.com'))
+@php($chooserStyle = $showLoginForm ? 'display:none' : 'display:block')
+@php($formStyle = $showLoginForm ? 'display:block' : 'display:none')
 
 <div class="munch-auth-mobile-logo">
     <img src="{{ $logo }}" alt="{{ translate('logo') }}">
@@ -21,11 +21,11 @@
     data-munch-login-initial="{{ $activeMode }}"
     data-munch-login-show-form="{{ $showLoginForm ? '1' : '0' }}"
 >
-    <div id="munch-auth-chooser-wrap" @if($showLoginForm) hidden @endif>
+    <div id="munch-auth-chooser-wrap" style="{{ $chooserStyle }}">
         @include('admin-views.auth.partials._munch-login-chooser')
     </div>
 
-    <div id="munch-auth-form-wrap" @unless($showLoginForm) hidden @endunless>
+    <div id="munch-auth-form-wrap" style="{{ $formStyle }}">
         <form id="form-id" action="{{ $formAction }}" method="post" novalidate>
             @csrf
             <input type="hidden" name="login_panel" id="login_panel" value="{{ $showLoginForm ? $activeMode : '' }}">
@@ -80,37 +80,6 @@
                 </div>
             </div>
 
-            @if(isset($recaptcha) && $recaptcha['status'] == 1)
-                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
-                <input type="hidden" name="set_default_captcha" id="set_default_captcha_value" value="0">
-
-                <div class="row p-2 d-none" id="reload-captcha">
-                    <div class="col-5 pr-0">
-                        <input type="text" class="form-control form-control-lg default-captcha-value" name="default_captcha_value" value=""
-                            placeholder="{{ translate('Enter captcha value') }}" autocomplete="off">
-                    </div>
-                    <div class="col-7 input-icons bg-white rounded">
-                        <a class="re-captcha" href="javascript:">
-                            <img src="{{ $captchaSrc }}" class="input-field default-recaptcha" id="default_recaptcha_id" alt="">
-                            <i class="tio-refresh icon" aria-hidden="true"></i>
-                        </a>
-                    </div>
-                </div>
-            @else
-                <div class="row p-2 mb-2">
-                    <div class="col-5 pr-0">
-                        <input type="text" class="form-control form-control-lg default-captcha-value" name="default_captcha_value" value=""
-                            placeholder="{{ translate('Enter captcha value') }}" autocomplete="off">
-                    </div>
-                    <div class="col-7 input-icons bg-white rounded">
-                        <a class="re-captcha" href="javascript:">
-                            <img src="{{ $captchaSrc }}" class="input-field default-recaptcha" id="default_recaptcha_id" alt="">
-                            <i class="tio-refresh icon" aria-hidden="true"></i>
-                        </a>
-                    </div>
-                </div>
-            @endif
-
             <button type="submit" class="btn btn-lg btn-block btn-primary" id="signInBtn">
                 <span class="munch-auth-spinner" aria-hidden="true"></span>
                 <span class="munch-auth-btn-label">{{ translate('sign_in') }}</span>
@@ -118,13 +87,13 @@
 
             <div class="munch-auth-alt-login">
                 <p class="munch-auth-alt-login__label mb-2">{{ translate('Choose your login') }}</p>
-                <button type="button" class="munch-auth-alt-login__btn munch-auth-chooser__btn--admin mb-2" data-munch-login-mode="admin">
+                <button type="button" class="munch-auth-alt-login__btn munch-auth-chooser__btn--admin mb-2" data-munch-login-mode="admin" data-munch-login-action="{{ route('admin.auth.login') }}" data-munch-login-badge="{{ translate('admin_or_employee_sign_in') }}">
                     {{ translate('Admin Login') }}
                 </button>
-                <button type="button" class="munch-auth-alt-login__btn munch-auth-chooser__btn--branch mb-2" data-munch-login-mode="branch">
+                <button type="button" class="munch-auth-alt-login__btn munch-auth-chooser__btn--branch mb-2" data-munch-login-mode="branch" data-munch-login-action="{{ route('branch.auth.login') }}" data-munch-login-badge="{{ translate('branch_sign_in') }}">
                     {{ translate('Branch Login') }}
                 </button>
-                <button type="button" class="munch-auth-alt-login__btn munch-auth-chooser__btn--stocks" data-munch-login-mode="stocks">
+                <button type="button" class="munch-auth-alt-login__btn munch-auth-chooser__btn--stocks" data-munch-login-mode="stocks" data-munch-login-action="{{ route('stocks.auth.login') }}" data-munch-login-badge="{{ translate('stocks_manager_sign_in') }}">
                     {{ translate('Stocks Login') }}
                 </button>
             </div>

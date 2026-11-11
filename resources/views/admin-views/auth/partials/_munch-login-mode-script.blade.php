@@ -1,48 +1,44 @@
-<script type="application/json" id="munch-login-modes-json">{
-{
-    "admin": {
-        "action": @json(route('admin.auth.login')),
-        "captchaBase": @json(url('/admin/auth/code/captcha')),
-        "badge": @json(translate('admin_or_employee_sign_in')),
-        "brandTitle": @json(translate('Manage Munch Operations')),
-        "brandText": @json(translate('Orders, branches, marketing and analytics in one dashboard.')),
-        "brandLabel": @json(translate('Admin')),
-        "pageTitle": @json(translate('Admin') . ' | ' . translate('Login')),
-        "demoEmail": @json(translate('Email : admin@admin.com')),
-        "demoPassword": @json(translate('Password : 12345678')),
-        "demoUser": "admin@admin.com",
-        "demoPass": "12345678"
-    },
-    "branch": {
-        "action": @json(route('branch.auth.login')),
-        "captchaBase": @json(url('/branch/auth/code/captcha')),
-        "badge": @json(translate('branch_sign_in')),
-        "brandTitle": @json(translate('Manage Branch Operations')),
-        "brandText": @json(translate('Orders, kitchen flow and branch performance in one dashboard.')),
-        "brandLabel": @json(translate('Branch')),
-        "pageTitle": @json(translate('Branch') . ' | ' . translate('Login')),
-        "demoEmail": @json(translate('Email : mainb@mainb.com')),
-        "demoPassword": @json(translate('Password : 12345678')),
-        "demoUser": "mainb@mainb.com",
-        "demoPass": "12345678"
-    },
-    "stocks": {
-        "action": @json(route('stocks.auth.login')),
-        "captchaBase": @json(url('/stocks/auth/code/captcha')),
-        "badge": @json(translate('stocks_manager_sign_in')),
-        "brandTitle": @json(translate('Stock Control')),
-        "brandText": @json(translate('Daily opening and closing counts for your branch.')),
-        "brandLabel": @json(translate('Stocks')),
-        "pageTitle": @json(translate('Stocks') . ' | ' . translate('Login')),
-        "demoEmail": @json(translate('Email : admin@admin.com')),
-        "demoPassword": @json(translate('Password : 12345678')),
-        "demoUser": "admin@admin.com",
-        "demoPass": "12345678"
-    }
-}
-</script>
 <script>
     "use strict";
+
+    window.MUNCH_LOGIN_MODES = {
+        admin: {
+            action: @json(route('admin.auth.login')),
+            badge: @json(translate('admin_or_employee_sign_in')),
+            brandTitle: @json(translate('Manage Munch Operations')),
+            brandText: @json(translate('Orders, branches, marketing and analytics in one dashboard.')),
+            brandLabel: @json(translate('Admin')),
+            pageTitle: @json(translate('Admin') . ' | ' . translate('Login')),
+            demoEmail: @json(translate('Email : admin@admin.com')),
+            demoPassword: @json(translate('Password : 12345678')),
+            demoUser: 'admin@admin.com',
+            demoPass: '12345678'
+        },
+        branch: {
+            action: @json(route('branch.auth.login')),
+            badge: @json(translate('branch_sign_in')),
+            brandTitle: @json(translate('Manage Branch Operations')),
+            brandText: @json(translate('Orders, kitchen flow and branch performance in one dashboard.')),
+            brandLabel: @json(translate('Branch')),
+            pageTitle: @json(translate('Branch') . ' | ' . translate('Login')),
+            demoEmail: @json(translate('Email : mainb@mainb.com')),
+            demoPassword: @json(translate('Password : 12345678')),
+            demoUser: 'mainb@mainb.com',
+            demoPass: '12345678'
+        },
+        stocks: {
+            action: @json(route('stocks.auth.login')),
+            badge: @json(translate('stocks_manager_sign_in')),
+            brandTitle: @json(translate('Stock Control')),
+            brandText: @json(translate('Daily opening and closing counts for your branch.')),
+            brandLabel: @json(translate('Stocks')),
+            pageTitle: @json(translate('Stocks') . ' | ' . translate('Login')),
+            demoEmail: @json(translate('Email : admin@admin.com')),
+            demoPassword: @json(translate('Password : 12345678')),
+            demoUser: 'admin@admin.com',
+            demoPass: '12345678'
+        }
+    };
 
     (function () {
         var root = document.querySelector('[data-munch-login-root]');
@@ -50,22 +46,12 @@
             return;
         }
 
-        var modes = {};
-        var modesNode = document.getElementById('munch-login-modes-json');
-        if (modesNode) {
-            try {
-                modes = JSON.parse(modesNode.textContent);
-            } catch (e) {
-                modes = {};
-            }
-        }
-
+        var modes = window.MUNCH_LOGIN_MODES || {};
         var chooser = document.getElementById('munch-auth-chooser-wrap');
         var formWrap = document.getElementById('munch-auth-form-wrap');
         var form = document.getElementById('form-id');
         var panelInput = document.getElementById('login_panel');
         var badge = document.getElementById('munch-auth-mode-badge');
-        var captchaImg = document.getElementById('default_recaptcha_id');
         var brandTitle = document.querySelector('.munch-auth-brand__title');
         var brandText = document.querySelector('.munch-auth-brand__text');
         var brandAside = document.querySelector('.munch-auth-brand');
@@ -75,18 +61,29 @@
         var initialMode = root.getAttribute('data-munch-login-initial') || 'admin';
         var showFormInitially = root.getAttribute('data-munch-login-show-form') === '1';
 
-        function applyMode(mode, options) {
-            var cfg = modes[mode];
-            if (!cfg || !form) {
+        function setShown(el, shown) {
+            if (!el) {
                 return;
             }
+            el.hidden = !shown;
+            el.style.display = shown ? '' : 'none';
+        }
 
+        function applyMode(mode, options, sourceBtn) {
             options = options || {};
-            form.setAttribute('action', cfg.action);
-            if (panelInput) {
-                panelInput.value = mode;
+            var cfg = modes[mode] || {};
+            if (sourceBtn) {
+                cfg.action = sourceBtn.getAttribute('data-munch-login-action') || cfg.action;
+                cfg.badge = sourceBtn.getAttribute('data-munch-login-badge') || cfg.badge;
             }
-            if (badge) {
+
+            if (form && cfg.action) {
+                form.setAttribute('action', cfg.action);
+            }
+            if (panelInput) {
+                panelInput.value = mode || '';
+            }
+            if (badge && cfg.badge) {
                 badge.textContent = cfg.badge;
             }
             if (brandTitle && cfg.brandTitle) {
@@ -107,37 +104,29 @@
             if (demoPassword && cfg.demoPassword) {
                 demoPassword.textContent = cfg.demoPassword;
             }
-            if (captchaImg && cfg.captchaBase) {
-                captchaImg.src = cfg.captchaBase + '/' + Math.random();
+
+            var modeButtons = document.querySelectorAll('[data-munch-login-mode]');
+            for (var i = 0; i < modeButtons.length; i++) {
+                var isActive = modeButtons[i].getAttribute('data-munch-login-mode') === mode;
+                modeButtons[i].classList.toggle('is-selected', isActive);
+                modeButtons[i].setAttribute('aria-pressed', isActive ? 'true' : 'false');
             }
 
-            document.querySelectorAll('[data-munch-login-mode]').forEach(function (btn) {
-                var isActive = btn.getAttribute('data-munch-login-mode') === mode;
-                btn.classList.toggle('is-selected', isActive);
-                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-            });
-
             if (options.reveal) {
-                if (chooser) {
-                    chooser.hidden = true;
-                }
-                if (formWrap) {
-                    formWrap.hidden = false;
-                }
+                setShown(chooser, false);
+                setShown(formWrap, true);
                 var email = document.getElementById('signinSrEmail');
                 if (email && options.focus !== false) {
-                    email.focus();
+                    try {
+                        email.focus();
+                    } catch (err) {}
                 }
             }
         }
 
         function showChooser() {
-            if (chooser) {
-                chooser.hidden = false;
-            }
-            if (formWrap) {
-                formWrap.hidden = true;
-            }
+            setShown(chooser, true);
+            setShown(formWrap, false);
             if (panelInput) {
                 panelInput.value = '';
             }
@@ -145,54 +134,43 @@
             if (password) {
                 password.value = '';
             }
-            document.querySelectorAll('[data-munch-login-mode]').forEach(function (btn) {
-                btn.classList.remove('is-selected');
-                btn.setAttribute('aria-pressed', 'false');
-            });
-        }
-
-        window.munchLoginRefreshCaptcha = function () {
-            var mode = panelInput && panelInput.value ? panelInput.value : initialMode;
-            var cfg = modes[mode] || modes.admin;
-            if (captchaImg && cfg && cfg.captchaBase) {
-                captchaImg.src = cfg.captchaBase + '/' + Math.random();
+            var modeButtons = document.querySelectorAll('[data-munch-login-mode]');
+            for (var i = 0; i < modeButtons.length; i++) {
+                modeButtons[i].classList.remove('is-selected');
+                modeButtons[i].setAttribute('aria-pressed', 'false');
             }
-        };
+        }
 
         window.munchLoginCopyCred = function () {
             var mode = panelInput && panelInput.value ? panelInput.value : initialMode;
-            var cfg = modes[mode] || modes.admin;
-            if (!cfg) {
-                return;
-            }
+            var cfg = modes[mode] || modes.admin || {};
             var email = document.getElementById('signinSrEmail');
             var password = document.getElementById('signupSrPassword');
-            if (email) {
+            if (email && cfg.demoUser) {
                 email.value = cfg.demoUser;
             }
-            if (password) {
+            if (password && cfg.demoPass) {
                 password.value = cfg.demoPass;
             }
         };
 
-        document.querySelectorAll('[data-munch-login-mode]').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+        document.addEventListener('click', function (e) {
+            var modeBtn = e.target.closest ? e.target.closest('[data-munch-login-mode]') : null;
+            if (modeBtn) {
                 e.preventDefault();
-                applyMode(btn.getAttribute('data-munch-login-mode'), { reveal: true });
-            });
-        });
+                applyMode(modeBtn.getAttribute('data-munch-login-mode'), { reveal: true }, modeBtn);
+                return;
+            }
 
-        document.querySelectorAll('[data-munch-login-change]').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+            var changeBtn = e.target.closest ? e.target.closest('[data-munch-login-change]') : null;
+            if (changeBtn) {
                 e.preventDefault();
                 showChooser();
-            });
+            }
         });
 
-        if (showFormInitially && modes[initialMode]) {
+        if (showFormInitially) {
             applyMode(initialMode, { reveal: true, focus: false });
-        } else if (modes[initialMode]) {
-            applyMode(initialMode, { reveal: false });
         }
     })();
 </script>

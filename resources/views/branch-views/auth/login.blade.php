@@ -71,12 +71,6 @@
             $.HSCore.components.HSValidation.init($(this));
         });
 
-        $(".re-captcha").click(function() {
-            if (typeof window.munchLoginRefreshCaptcha === 'function') {
-                window.munchLoginRefreshCaptcha();
-            }
-        });
-
         $(".copy-cred").click(function() {
             if (typeof window.munchLoginCopyCred === 'function') {
                 window.munchLoginCopyCred();
@@ -99,57 +93,6 @@
         });
     });
 </script>
-
-@php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
-@if(isset($recaptcha) && $recaptcha['status'] == 1)
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-    <script>
-        "use strict";
-        $('#signInBtn').click(function (e) {
-
-            if ($('#set_default_captcha_value').val() == 1) {
-                $('#form-id').submit();
-                return true;
-            }
-
-            e.preventDefault();
-
-            if (typeof grecaptcha === 'undefined') {
-                toastr.error('Invalid recaptcha key provided. Please check the recaptcha configuration.');
-
-                $('#reload-captcha').removeClass('d-none');
-                $('#set_default_captcha_value').val('1');
-
-                $('#signInBtn').removeClass('is-loading').prop('disabled', false);
-                return;
-            }
-
-            grecaptcha.ready(function () {
-                grecaptcha.execute('{{ $recaptcha['site_key'] }}', {action: 'submit'}).then(function (token) {
-                    document.getElementById('g-recaptcha-response').value = token;
-                    document.getElementById('form-id').submit();
-                });
-            });
-
-            window.onerror = function(message) {
-                var errorMessage = 'An unexpected error occurred. Please check the recaptcha configuration';
-                if (message.includes('Invalid site key')) {
-                    errorMessage = 'Invalid site key provided. Please check the recaptcha configuration.';
-                } else if (message.includes('not loaded in api.js')) {
-                    errorMessage = 'reCAPTCHA API could not be loaded. Please check the recaptcha API configuration.';
-                }
-
-                $('#reload-captcha').removeClass('d-none');
-                $('#set_default_captcha_value').val('1');
-
-                $('#signInBtn').removeClass('is-loading').prop('disabled', false);
-                toastr.error(errorMessage);
-                return true;
-            };
-        });
-    </script>
-@endif
 
 <script>
     if (/MSIE \d|Trident.*rv:/.test(navigator.userAgent)) document.write('<script src="{{ asset('public/assets/admin') }}/vendor/babel-polyfill/polyfill.min.js"><\/script>');

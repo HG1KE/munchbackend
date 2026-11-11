@@ -33,32 +33,34 @@ class PortalLoginChooserTest extends TestCase
             $this->assertStringContainsString("_munch-login-panel", $view);
             $this->assertStringContainsString("_munch-login-mode-script", $view);
             $this->assertStringNotContainsString("@endphp", $view);
+            $this->assertStringNotContainsString('google.com/recaptcha', $view);
+            $this->assertStringNotContainsString('g-recaptcha', $view);
         }
 
         $this->assertStringContainsString('data-munch-login-mode="admin"', $chooser);
-        $this->assertStringContainsString('data-munch-login-mode="branch"', $chooser);
-        $this->assertStringContainsString('data-munch-login-mode="stocks"', $chooser);
-        $this->assertStringContainsString('munch-auth-chooser__btn--admin', $chooser);
+        $this->assertStringContainsString('data-munch-login-action=', $chooser);
         $this->assertStringContainsString('type="button"', $chooser);
-        $this->assertStringNotContainsString("route('admin.auth.login', ['form' => 1])", $chooser);
 
         $this->assertStringContainsString('name="login_panel"', $panel);
         $this->assertStringContainsString('name="email"', $panel);
         $this->assertStringContainsString('name="password"', $panel);
-        $this->assertStringContainsString("translate('stocks_manager_sign_in')", $panel);
+        $this->assertStringNotContainsString('default_captcha_value', $panel);
+        $this->assertStringNotContainsString('g-recaptcha-response', $panel);
         $this->assertStringNotContainsString("@endphp", $panel);
 
+        $this->assertStringContainsString('window.MUNCH_LOGIN_MODES', $script);
         $this->assertStringContainsString("route('admin.auth.login')", $script);
         $this->assertStringContainsString("route('branch.auth.login')", $script);
         $this->assertStringContainsString("route('stocks.auth.login')", $script);
-        $this->assertStringContainsString('applyMode', $script);
+        $this->assertStringContainsString("closest('[data-munch-login-mode]')", $script);
+        $this->assertStringNotContainsString('JSON.parse', $script);
 
         $this->assertStringContainsString('munch-auth-chooser__btn--admin', $styles);
         $this->assertStringContainsString('munch-auth-chooser__btn--branch', $styles);
         $this->assertStringContainsString('munch-auth-chooser__btn--stocks', $styles);
     }
 
-    public function test_login_controllers_preserve_login_panel_on_failure(): void
+    public function test_login_controllers_skip_captcha_and_preserve_login_panel(): void
     {
         $admin = file_get_contents(app_path('Http/Controllers/Admin/Auth/LoginController.php'));
         $branch = file_get_contents(app_path('Http/Controllers/Branch/Auth/LoginController.php'));
@@ -66,6 +68,9 @@ class PortalLoginChooserTest extends TestCase
 
         foreach ([$admin, $branch, $stocks] as $controller) {
             $this->assertStringContainsString("withInput(\$request->only('email', 'login_panel'))", $controller);
+            $this->assertStringNotContainsString('Captcha Failed', $controller);
+            $this->assertStringNotContainsString('g-recaptcha-response', $controller);
+            $this->assertStringNotContainsString('Recaptcha Failed', $controller);
         }
     }
 }

@@ -67,12 +67,6 @@
             new HSTogglePassword(this).init();
         });
 
-        $(".re-captcha").click(function() {
-            if (typeof window.munchLoginRefreshCaptcha === 'function') {
-                window.munchLoginRefreshCaptcha();
-            }
-        });
-
         var $form = $('#form-id');
         var $btn = $('#signInBtn');
 
@@ -85,31 +79,5 @@
         });
     });
 </script>
-
-@php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
-@if(isset($recaptcha) && $recaptcha['status'] == 1)
-    <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-    <script>
-        "use strict";
-        $('#signInBtn').click(function (e) {
-            if ($('#set_default_captcha_value').val() == 1) {
-                $('#form-id').submit();
-                return true;
-            }
-            e.preventDefault();
-            if (typeof grecaptcha === 'undefined') {
-                $('#reload-captcha').removeClass('d-none');
-                $('#set_default_captcha_value').val('1');
-                return;
-            }
-            grecaptcha.ready(function () {
-                grecaptcha.execute('{{ $recaptcha['site_key'] }}', {action: 'submit'}).then(function (token) {
-                    document.getElementById('g-recaptcha-response').value = token;
-                    document.getElementById('form-id').submit();
-                });
-            });
-        });
-    </script>
-@endif
 </body>
 </html>
