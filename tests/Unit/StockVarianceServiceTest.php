@@ -21,9 +21,12 @@ class StockVarianceServiceTest extends TestCase
         $this->assertSame(10.0, StockVarianceService::variance(60, 50));
         $this->assertSame('10 excess', $svc->formatVarianceLabel(10));
 
-        // physical 40 vs expected 50 → 10 missing
+        // physical 40 vs expected 50 → 10 missing (admin default)
         $this->assertSame(-10.0, StockVarianceService::variance(40, 50));
         $this->assertSame('10 missing', $svc->formatVarianceLabel(-10));
+
+        // stocks manager UI uses "short" instead of "missing"
+        $this->assertSame('10 short', $svc->formatVarianceLabel(-10, 'short'));
 
         $this->assertSame('balanced', $svc->formatVarianceLabel(0));
         $this->assertSame('—', $svc->formatVarianceLabel(null));
@@ -34,12 +37,27 @@ class StockVarianceServiceTest extends TestCase
         $adminReport = file_get_contents(resource_path('views/admin-views/stock-report/index.blade.php'));
         $this->assertStringContainsString("translate('STOCK SOLD')", $adminReport);
         $this->assertStringContainsString('variance_label', $adminReport);
+        $this->assertStringContainsString("translate('Variance')", $adminReport);
 
         $dashboard = file_get_contents(resource_path('views/stocks-views/dashboard/index.blade.php'));
         $this->assertStringContainsString("translate('STOCK SOLD')", $dashboard);
+        $this->assertStringContainsString("translate('Result')", $dashboard);
         $this->assertStringContainsString('opening[', $dashboard);
         $this->assertStringContainsString('closing[', $dashboard);
         $this->assertStringContainsString('showBranchPicker', $dashboard);
+        $this->assertStringContainsString('munch-stocks-dashboard.js', $dashboard);
+        $this->assertStringContainsString('data-stocks-result', $dashboard);
+        $this->assertStringContainsString('munch-stocks-chip--', $dashboard);
+        $this->assertStringContainsString("'short'", $dashboard);
+        $this->assertStringContainsString("'excess'", $dashboard);
+
+        $controller = file_get_contents(app_path('Http/Controllers/Stocks/DashboardController.php'));
+        $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$date, 'short')", $controller);
+
+        $js = file_get_contents(public_path('assets/admin/js/munch-stocks-dashboard.js'));
+        $this->assertStringContainsString('short', $js);
+        $this->assertStringContainsString('excess', $js);
+        $this->assertStringContainsString('data-stocks-opening', $js);
     }
 
     public function test_product_allocation_ui_wired(): void

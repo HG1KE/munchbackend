@@ -4,43 +4,58 @@
 
 @section('content')
     <div class="content container-fluid">
-        <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
-            <h2 class="h1 mb-0">{{ $branchName }}</h2>
-            <form method="GET" action="{{ route('stocks.dashboard') }}" class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="munch-stocks-page-header">
+            <div>
+                <div class="munch-stocks-page-header__eyebrow">{{ translate('Daily counts') }}</div>
+                <h1 class="munch-stocks-page-header__title">{{ $branchName }}</h1>
+                <p class="munch-stocks-page-header__hint">
+                    {{ translate('Enter opening and closing. Result updates as you type.') }}
+                </p>
+            </div>
+
+            <form method="GET" action="{{ route('stocks.dashboard') }}" class="munch-stocks-filters">
                 @if($showBranchPicker)
-                    <label class="mb-0 mr-2">{{ translate('branch') }}</label>
-                    <select name="branch_id" class="form-control mr-2" style="min-width: 180px" onchange="this.form.submit()">
-                        @forelse($accessible as $branch)
-                            <option value="{{ $branch->id }}" {{ (int) $branchId === (int) $branch->id ? 'selected' : '' }}>
-                                {{ $branch->name }}
-                            </option>
-                        @empty
-                            <option value="">{{ translate('No branches assigned') }}</option>
-                        @endforelse
-                    </select>
+                    <div class="munch-stocks-filters__field">
+                        <label for="stocks-branch">{{ translate('Branch') }}</label>
+                        <select id="stocks-branch" name="branch_id" class="form-control" onchange="this.form.submit()">
+                            @forelse($accessible as $branch)
+                                <option value="{{ $branch->id }}" {{ (int) $branchId === (int) $branch->id ? 'selected' : '' }}>
+                                    {{ $branch->name }}
+                                </option>
+                            @empty
+                                <option value="">{{ translate('No branches assigned') }}</option>
+                            @endforelse
+                        </select>
+                    </div>
                 @elseif($branchId)
                     <input type="hidden" name="branch_id" value="{{ $branchId }}">
                 @endif
-                <label class="mb-0 mr-2">{{ translate('date') }}</label>
-                <input type="date" name="date" class="form-control" value="{{ $date }}" onchange="this.form.submit()">
+                <div class="munch-stocks-filters__field">
+                    <label for="stocks-date">{{ translate('Date') }}</label>
+                    <input id="stocks-date" type="date" name="date" class="form-control" value="{{ $date }}" onchange="this.form.submit()">
+                </div>
             </form>
         </div>
 
         @if($branchId <= 0)
-            <div class="alert alert-warning">
+            <div class="alert alert-warning mb-0">
                 {{ translate('No branches assigned. Ask an admin to allocate branches to your account.') }}
             </div>
         @else
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ translate('Stock items sold') }} — {{ $date }}</h5>
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h5 class="mb-0">
+                        {{ translate('Stock items') }}
+                        <span class="text-muted">— {{ $date }}</span>
+                    </h5>
                 </div>
                 <form method="POST" action="{{ route('stocks.counts.save') }}">
                     @csrf
                     <input type="hidden" name="date" value="{{ $date }}">
                     <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     <div class="table-responsive">
-                        <table class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table mb-0">
+                        <table id="munch-stocks-counts-table"
+                               class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table mb-0">
                             <thead class="thead-light">
                             <tr>
                                 <th>{{ translate('Stock item') }}</th>
@@ -48,42 +63,60 @@
                                 <th style="min-width:120px">{{ translate('Closing') }}</th>
                                 <th class="text-right">{{ translate('STOCK SOLD') }}</th>
                                 <th class="text-right">{{ translate('Expected (sales)') }}</th>
-                                <th class="text-right">{{ translate('Variance') }}</th>
+                                <th class="text-right">{{ translate('Result') }}</th>
                             </tr>
                             </thead>
                             <tbody>
                             @forelse($rows as $row)
-                                <tr>
-                                    <td class="font-weight-bold">{{ $row['name'] }}</td>
+                                @php
+                                    $chipKind = 'empty';
+                                    if ($row['variance'] !== null) {
+                                        if (abs($row['variance']) < 0.0005) {
+                                            $chipKind = 'balanced';
+                                        } elseif ($row['variance'] > 0) {
+                                            $chipKind = 'excess';
+                                        } else {
+                                            $chipKind = 'short';
+                                        }
+                                    }
+                                @endphp
+                                <tr data-stocks-row data-expected="{{ $row['expected_sold'] }}">
+                                    <td class="munch-stocks-item-name">{{ $row['name'] }}</td>
                                     <td>
                                         <input type="number" step="0.001" min="0" class="form-control"
                                                name="opening[{{ $row['stock_item_id'] }}]"
                                                value="{{ $row['opening_qty'] === null ? '' : $row['opening_qty'] }}"
-                                               placeholder="0">
+                                               placeholder="0"
+                                               data-stocks-opening
+                                               inputmode="decimal">
                                     </td>
                                     <td>
                                         <input type="number" step="0.001" min="0" class="form-control"
                                                name="closing[{{ $row['stock_item_id'] }}]"
                                                value="{{ $row['closing_qty'] === null ? '' : $row['closing_qty'] }}"
-                                               placeholder="0">
+                                               placeholder="0"
+                                               data-stocks-closing
+                                               inputmode="decimal">
                                     </td>
                                     <td class="text-right">
-                                        {{ $row['physical_sold'] === null ? '—' : $row['physical_sold'] }}
+                                        <span class="munch-stocks-qty {{ $row['physical_sold'] === null ? 'munch-stocks-qty--muted' : '' }}"
+                                              data-stocks-sold>
+                                            {{ $row['physical_sold'] === null ? '—' : $row['physical_sold'] }}
+                                        </span>
                                     </td>
-                                    <td class="text-right">{{ $row['expected_sold'] }}</td>
                                     <td class="text-right">
-                                        @if($row['variance'] !== null && abs($row['variance']) >= 0.0005)
-                                            <span class="{{ $row['variance'] > 0 ? 'text-warning' : 'text-danger' }}">
-                                                {{ $row['variance_label'] }}
-                                            </span>
-                                        @else
+                                        <span class="munch-stocks-qty">{{ $row['expected_sold'] }}</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="munch-stocks-chip munch-stocks-chip--{{ $chipKind }}"
+                                              data-stocks-result>
                                             {{ $row['variance_label'] }}
-                                        @endif
+                                        </span>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
+                                    <td colspan="6" class="text-center munch-stocks-empty">
                                         {{ translate('No active stock items. Ask admin to add stock items first.') }}
                                     </td>
                                 </tr>
@@ -101,3 +134,7 @@
         @endif
     </div>
 @endsection
+
+@push('script')
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.0"></script>
+@endpush

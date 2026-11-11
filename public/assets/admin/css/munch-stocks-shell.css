@@ -1,0 +1,485 @@
+/**
+ * Munch Stocks manager shell — light match to admin shell (red brand, slate neutrals).
+ * Scoped to body.munch-stocks-shell only.
+ */
+
+body.munch-stocks-shell {
+    --munch-shell-bg: #f4f6f9;
+    --munch-shell-surface: #ffffff;
+    --munch-shell-border: #e2e8f0;
+    --munch-shell-border-soft: #eef2f6;
+    --munch-shell-text: #0f172a;
+    --munch-shell-text-muted: #64748b;
+    --munch-shell-sidebar: #111827;
+    --munch-shell-sidebar-hover: rgba(255, 255, 255, 0.06);
+    --munch-shell-sidebar-active: rgba(255, 255, 255, 0.1);
+    --munch-shell-radius: 12px;
+    --munch-shell-radius-sm: 10px;
+    --munch-shell-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
+    --munch-shell-shadow-hover: 0 4px 20px rgba(15, 23, 42, 0.08);
+    --munch-chip-excess-bg: #eef2f6;
+    --munch-chip-excess-text: #475569;
+    --munch-chip-short-bg: #fef2f2;
+    --munch-chip-short-text: #b91c1c;
+    --munch-chip-ok-bg: #f0fdf4;
+    --munch-chip-ok-text: #166534;
+    font-feature-settings: "kern" 1, "liga" 1;
+    -webkit-font-smoothing: antialiased;
+    background: var(--munch-shell-bg);
+}
+
+body.munch-stocks-shell .main {
+    background-color: var(--munch-shell-bg);
+}
+
+body.munch-stocks-shell .content.container-fluid {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+}
+
+@media (min-width: 1200px) {
+    body.munch-stocks-shell .content.container-fluid {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                    */
+/* -------------------------------------------------------------------------- */
+
+body.munch-stocks-shell .navbar-vertical-aside.navbar-bordered {
+    background-color: var(--munch-shell-sidebar) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+body.munch-stocks-shell .navbar-vertical-aside .navbar-brand-wrapper {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+body.munch-stocks-shell .navbar-vertical-aside .navbar-brand-logo {
+    max-height: 40px;
+}
+
+body.munch-stocks-shell .munch-stocks-sidebar-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.38);
+    padding: 1rem 1rem 0.35rem;
+}
+
+body.munch-stocks-shell .navbar-vertical-aside .navbar-nav .nav-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    border-radius: 8px;
+    margin: 1px 0.5rem;
+    padding: 0.55rem 0.75rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+body.munch-stocks-shell .navbar-vertical-aside .navbar-nav .nav-link .nav-icon {
+    font-size: 1.125rem;
+    width: 1.35rem;
+    margin-right: 0.65rem;
+    opacity: 0.9;
+}
+
+body.munch-stocks-shell .navbar-vertical-aside .navbar-nav .nav-link:hover {
+    color: #fff;
+    background-color: var(--munch-shell-sidebar-hover);
+}
+
+body.munch-stocks-shell .navbar-vertical-aside .navbar-nav .active > .nav-link,
+body.munch-stocks-shell .navbar-vertical-aside .navbar-nav .nav-link.active,
+body.munch-stocks-shell .navbar-vertical-aside-has-menu.show > .nav-link {
+    color: #fff !important;
+    background-color: var(--munch-shell-sidebar-active);
+    font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Header                                                                     */
+/* -------------------------------------------------------------------------- */
+
+body.munch-stocks-shell #header.navbar {
+    background: var(--munch-shell-surface) !important;
+    border-bottom: 1px solid var(--munch-shell-border) !important;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+    min-height: 3.5rem;
+}
+
+body.munch-stocks-shell #header .navbar-nav-wrap {
+    min-height: 3.5rem;
+    width: 100%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+body.munch-stocks-shell #header .navbar-brand-logo {
+    max-height: 36px;
+}
+
+body.munch-stocks-shell .munch-stocks-panel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--c1, #E7032D);
+    background: rgba(var(--c1-rgb, 231, 3, 45), 0.1);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+}
+
+body.munch-stocks-shell .munch-stocks-user {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.25rem 0.35rem 0.25rem 0.75rem;
+    border: 1px solid var(--munch-shell-border-soft);
+    border-radius: 999px;
+    background: #fff;
+}
+
+body.munch-stocks-shell .munch-stocks-user__meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    max-width: 220px;
+}
+
+body.munch-stocks-shell .munch-stocks-user__name {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.munch-stocks-shell .munch-stocks-user__scope {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--munch-shell-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.munch-stocks-shell .munch-stocks-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    background: var(--munch-shell-bg);
+    border: 1px solid var(--munch-shell-border);
+    text-decoration: none !important;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+body.munch-stocks-shell .munch-stocks-logout:hover {
+    color: var(--c1, #E7032D);
+    border-color: rgba(var(--c1-rgb, 231, 3, 45), 0.35);
+    background: rgba(var(--c1-rgb, 231, 3, 45), 0.06);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Page header + filters                                                      */
+/* -------------------------------------------------------------------------- */
+
+body.munch-stocks-shell .munch-stocks-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+body.munch-stocks-shell .munch-stocks-page-header__eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--munch-shell-text-muted);
+    margin-bottom: 0.25rem;
+}
+
+body.munch-stocks-shell .munch-stocks-page-header__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.25;
+}
+
+body.munch-stocks-shell .munch-stocks-page-header__hint {
+    font-size: 0.875rem;
+    color: var(--munch-shell-text-muted);
+    margin: 0.35rem 0 0;
+}
+
+body.munch-stocks-shell .munch-stocks-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--munch-shell-surface);
+    border: 1px solid var(--munch-shell-border);
+    border-radius: var(--munch-shell-radius);
+    box-shadow: var(--munch-shell-shadow);
+}
+
+body.munch-stocks-shell .munch-stocks-filters__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 160px;
+}
+
+body.munch-stocks-shell .munch-stocks-filters__field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--munch-shell-text-muted);
+    margin: 0;
+}
+
+body.munch-stocks-shell .munch-stocks-filters .form-control {
+    border-radius: var(--munch-shell-radius-sm);
+    border-color: #cbd5e1;
+    min-height: 2.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+body.munch-stocks-shell .munch-stocks-filters .form-control:focus {
+    border-color: var(--c1, #E7032D);
+    box-shadow: 0 0 0 3px rgba(var(--c1-rgb, 231, 3, 45), 0.12);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Card / table                                                               */
+/* -------------------------------------------------------------------------- */
+
+body.munch-stocks-shell .card {
+    border: 1px solid var(--munch-shell-border);
+    border-radius: var(--munch-shell-radius);
+    box-shadow: var(--munch-shell-shadow);
+    background: var(--munch-shell-surface);
+    overflow: hidden;
+}
+
+body.munch-stocks-shell .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--munch-shell-border-soft);
+    padding: 1rem 1.25rem;
+}
+
+body.munch-stocks-shell .card-header h5 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--munch-shell-text);
+    margin: 0;
+}
+
+body.munch-stocks-shell .card-header .text-muted {
+    font-weight: 500;
+    color: var(--munch-shell-text-muted) !important;
+}
+
+body.munch-stocks-shell .card-footer {
+    background: #f8fafc;
+    border-top: 1px solid var(--munch-shell-border-soft);
+    padding: 0.9rem 1.25rem;
+}
+
+body.munch-stocks-shell .table {
+    margin-bottom: 0;
+    color: var(--munch-shell-text);
+}
+
+body.munch-stocks-shell .table thead th {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--munch-shell-text-muted);
+    border-bottom: 1px solid var(--munch-shell-border);
+    background: #f8fafc;
+    padding: 0.85rem 1rem;
+    white-space: nowrap;
+}
+
+body.munch-stocks-shell .table tbody td {
+    font-size: 0.875rem;
+    vertical-align: middle;
+    border-color: var(--munch-shell-border-soft);
+    padding: 0.75rem 1rem;
+}
+
+body.munch-stocks-shell .table tbody tr:hover {
+    background-color: #fafbfc;
+}
+
+body.munch-stocks-shell .munch-stocks-item-name {
+    font-weight: 700;
+    color: var(--munch-shell-text);
+}
+
+body.munch-stocks-shell .munch-stocks-qty {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--munch-shell-text);
+}
+
+body.munch-stocks-shell .munch-stocks-qty--muted {
+    color: var(--munch-shell-text-muted);
+    font-weight: 500;
+}
+
+body.munch-stocks-shell .table .form-control {
+    border-radius: var(--munch-shell-radius-sm);
+    border-color: #cbd5e1;
+    min-height: 2.4rem;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    max-width: 140px;
+}
+
+body.munch-stocks-shell .table .form-control:focus {
+    border-color: var(--c1, #E7032D);
+    box-shadow: 0 0 0 3px rgba(var(--c1-rgb, 231, 3, 45), 0.12);
+}
+
+body.munch-stocks-shell .btn-primary {
+    border-radius: var(--munch-shell-radius-sm);
+    font-weight: 700;
+    font-size: 0.875rem;
+    min-height: 2.5rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+body.munch-stocks-shell .alert {
+    border-radius: var(--munch-shell-radius-sm);
+    border: 1px solid var(--munch-shell-border);
+}
+
+body.munch-stocks-shell .alert-warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+body.munch-stocks-shell .munch-stocks-empty {
+    padding: 2.5rem 1rem !important;
+    color: var(--munch-shell-text-muted);
+    font-size: 0.9rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Result chips                                                               */
+/* -------------------------------------------------------------------------- */
+
+body.munch-stocks-shell .munch-stocks-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.6rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+body.munch-stocks-shell .munch-stocks-chip--excess {
+    background: var(--munch-chip-excess-bg);
+    color: var(--munch-chip-excess-text);
+}
+
+body.munch-stocks-shell .munch-stocks-chip--short {
+    background: var(--munch-chip-short-bg);
+    color: var(--munch-chip-short-text);
+}
+
+body.munch-stocks-shell .munch-stocks-chip--balanced {
+    background: var(--munch-chip-ok-bg);
+    color: var(--munch-chip-ok-text);
+}
+
+body.munch-stocks-shell .munch-stocks-chip--empty {
+    background: transparent;
+    color: var(--munch-shell-text-muted);
+    font-weight: 600;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Footer                                                                     */
+/* -------------------------------------------------------------------------- */
+
+body.munch-stocks-shell .footer {
+    border-top: 1px solid var(--munch-shell-border-soft);
+    background: transparent;
+    color: var(--munch-shell-text-muted);
+    font-size: 0.8125rem;
+    padding: 1rem 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mobile                                                                     */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 767.98px) {
+    body.munch-stocks-shell .munch-stocks-page-header__title {
+        font-size: 1.25rem;
+    }
+
+    body.munch-stocks-shell .munch-stocks-user__meta {
+        display: none;
+    }
+
+    body.munch-stocks-shell .munch-stocks-panel-badge {
+        display: none;
+    }
+
+    body.munch-stocks-shell .munch-stocks-filters {
+        width: 100%;
+    }
+
+    body.munch-stocks-shell .munch-stocks-filters__field {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    body.munch-stocks-shell .table .form-control {
+        max-width: 110px;
+    }
+}

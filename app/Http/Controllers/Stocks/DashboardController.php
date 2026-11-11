@@ -37,7 +37,7 @@ class DashboardController extends Controller
         $date = $request->input('date') ?: now()->toDateString();
 
         $rows = $branchId > 0
-            ? $this->variance->rowsForBranchDate($branchId, $date)
+            ? $this->variance->rowsForBranchDate($branchId, $date, 'short')
             : [];
 
         $currentBranch = $accessible->firstWhere('id', $branchId);

@@ -6,15 +6,16 @@
     <title>@yield('title')</title>
     @php($icon = \App\Model\BusinessSetting::where(['key' => 'fav_icon'])->first()->value ?? '')
     <link rel="icon" type="image/x-icon" href="{{ asset('storage/app/public/restaurant/' . $icon) }}">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('public/assets/admin') }}/css/vendor.min.css">
     <link rel="stylesheet" href="{{ asset('public/assets/admin') }}/vendor/icon-set/style.css">
     <link rel="stylesheet" href="{{ asset('public/assets/admin') }}/css/theme.minc619.css?v=1.2">
     <link rel="stylesheet" href="{{ asset('public/assets/admin') }}/css/style.css?v=1.2">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin') }}/css/munch-stocks-shell.css?v=1.0">
     <link rel="stylesheet" href="{{ asset('public/assets/admin') }}/css/toastr.css">
     @stack('css_or_js')
 </head>
-<body class="footer-offset">
+<body class="footer-offset munch-stocks-shell">
 @include('layouts.stocks.partials._header')
 @include('layouts.stocks.partials._sidebar')
 

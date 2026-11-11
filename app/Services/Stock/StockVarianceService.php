@@ -14,6 +14,7 @@ class StockVarianceService
      * Rows for a branch + date: each active stock item with opening/closing,
      * physical sold, expected sold from deductions, and variance label.
      *
+     * @param  string  $deficitWord  Negative label — admin "missing"; stocks UI "short".
      * @return list<array{
      *   stock_item_id:int,
      *   name:string,
@@ -25,7 +26,7 @@ class StockVarianceService
      *   variance_label:string
      * }>
      */
-    public function rowsForBranchDate(int $branchId, string $date): array
+    public function rowsForBranchDate(int $branchId, string $date, string $deficitWord = 'missing'): array
     {
         if (! Schema::hasTable('stock_items')) {
             return [];
@@ -63,7 +64,7 @@ class StockVarianceService
                 'physical_sold' => $physical,
                 'expected_sold' => $expected,
                 'variance' => $variance,
-                'variance_label' => $this->formatVarianceLabel($variance),
+                'variance_label' => $this->formatVarianceLabel($variance, $deficitWord),
             ];
         }
 
@@ -95,7 +96,7 @@ class StockVarianceService
         return $out;
     }
 
-    public function formatVarianceLabel(?float $variance): string
+    public function formatVarianceLabel(?float $variance, string $deficitWord = 'missing'): string
     {
         if ($variance === null) {
             return '—';
@@ -115,7 +116,9 @@ class StockVarianceService
             return $display . ' excess';
         }
 
-        return $display . ' missing';
+        $word = trim($deficitWord) !== '' ? trim($deficitWord) : 'missing';
+
+        return $display . ' ' . $word;
     }
 
     /**
