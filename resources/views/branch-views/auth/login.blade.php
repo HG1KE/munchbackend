@@ -129,8 +129,11 @@
 
                     <div class="munch-auth-alt-login">
                         <p class="munch-auth-alt-login__label mb-2">{{ translate('want_to_login_your_admin') }}?</p>
-                        <a href="{{ route('admin.auth.login') }}" class="munch-auth-alt-login__btn">
+                        <a href="{{ route('admin.auth.login') }}" class="munch-auth-alt-login__btn mb-2 d-block">
                             {{ translate('admin_login') }}
+                        </a>
+                        <a href="{{ route('stocks.auth.login') }}" class="munch-auth-alt-login__btn d-block">
+                            {{ translate('Login as Stocks Manager') }}
                         </a>
                     </div>
                 </form>

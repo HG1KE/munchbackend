@@ -26,7 +26,7 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         $minutes = (int) config('auth.remember_duration', 5256000);
-        foreach (['admin', 'branch'] as $guardName) {
+        foreach (['admin', 'branch', 'stocks'] as $guardName) {
             $guard = $this->app['auth']->guard($guardName);
             if (method_exists($guard, 'setRememberDuration')) {
                 $guard->setRememberDuration($minutes);

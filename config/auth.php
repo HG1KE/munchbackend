@@ -56,6 +56,11 @@ return [
             'provider' => 'branches',
         ],
 
+        'stocks' => [
+            'driver' => 'session',
+            'provider' => 'stock_managers',
+        ],
+
         'api' => [
             'driver' => 'passport',
             'provider' => 'users',
@@ -98,6 +103,11 @@ return [
         'branches' => [
             'driver' => 'eloquent',
             'model' => \App\Model\Branch::class,
+        ],
+
+        'stock_managers' => [
+            'driver' => 'eloquent',
+            'model' => \App\Model\StockManager::class,
         ],
 
         'delivery_men' => [
@@ -147,6 +157,13 @@ return [
 
         'branches' => [
             'provider' => 'branches',
+            'table' => 'password_resets',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        'stock_managers' => [
+            'provider' => 'stock_managers',
             'table' => 'password_resets',
             'expire' => 60,
             'throttle' => 60,

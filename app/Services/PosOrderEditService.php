@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Models\OrderChangeAmount;
+use App\Services\Stock\StockDeductionService;
 use App\Support\PosOrderTypes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -146,10 +147,17 @@ class PosOrderEditService
 
             $this->syncPaymentRecord($locked, $paymentMethod);
 
+            $fresh = $locked->fresh(['details']) ?? $locked;
+            try {
+                app(StockDeductionService::class)->syncOrder($fresh);
+            } catch (\Throwable) {
+                // Never block POS edit from stock ledger sync.
+            }
+
             return [
                 'success' => true,
                 'message' => 'Order updated.',
-                'order' => $locked->fresh() ?? $locked,
+                'order' => $fresh,
             ];
         });
     }

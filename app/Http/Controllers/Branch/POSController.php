@@ -789,6 +789,12 @@ class POSController extends Controller
                 OrderDetail::insert($orderDetails);
 
                 $this->persistPosTender($order, $paymentMethod);
+
+                try {
+                    app(\App\Services\Stock\StockDeductionService::class)->syncOrder($order->fresh(['details']) ?? $order);
+                } catch (\Throwable) {
+                    // Never block POS place from stock ledger sync.
+                }
             });
 
             if (! PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel)

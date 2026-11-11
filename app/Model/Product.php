@@ -184,6 +184,18 @@ class Product extends Model
         return $this->hasMany(ProductChannelPrice::class);
     }
 
+    public function stockAllocations(): HasMany
+    {
+        return $this->hasMany(ProductStockAllocation::class, 'product_id');
+    }
+
+    public function stockItems(): BelongsToMany
+    {
+        return $this->belongsToMany(StockItem::class, 'product_stock_allocations', 'product_id', 'stock_item_id')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
+
     public function getImageFullPathAttribute(): string
     {
         $image = $this->image ?? null;

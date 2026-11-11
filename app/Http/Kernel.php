@@ -10,6 +10,7 @@ use App\Http\Middleware\AppActivation;
 use App\Http\Middleware\BranchAdder;
 use App\Http\Middleware\BranchMiddleware;
 use App\Http\Middleware\BranchStatusCheck;
+use App\Http\Middleware\StocksMiddleware;
 use App\Http\Middleware\InstallationMiddleware;
 use App\Http\Middleware\ModulePermissionMiddleware;
 use App\Http\Middleware\MaintenanceModeMiddleware;
@@ -76,6 +77,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'admin'=>AdminMiddleware::class,
         'branch'=>BranchMiddleware::class,
+        'stocks'=>StocksMiddleware::class,
         'installation-check' => InstallationMiddleware::class,
         'actch' => ActivationCheckMiddleware::class,
         'localization' => \App\Http\Middleware\localization::class,

@@ -11,6 +11,8 @@ use App\Model\Review;
 use App\Model\Tag;
 use App\Model\Translation;
 use App\Models\Cuisine;
+use App\Model\StockItem;
+use App\Services\Stock\ProductStockAllocationService;
 use App\Support\AddonChannelPricing;
 use App\Support\ProductVariationPricing;
 use App\Support\StorefrontVisibilitySchedule;
@@ -102,7 +104,8 @@ class ProductController extends Controller
     {
         $categories = $this->category->where(['position' => 0])->get();
         $cuisines = $this->cuisine::active()->orderBy('priority', 'ASC')->get();
-        return view('admin-views.product.index', compact('categories', 'cuisines'));
+        $stockItems = StockItem::query()->active()->orderBy('name')->get(['id', 'name']);
+        return view('admin-views.product.index', compact('categories', 'cuisines', 'stockItems'));
     }
 
     /**
@@ -346,6 +349,8 @@ class ProductController extends Controller
 
         $mainBranchProduct->save();
 
+        app(ProductStockAllocationService::class)->syncFromRequest((int) $product->id, $request);
+
         $data = [];
         foreach ($request->lang as $index => $key) {
             if ($request->name[$index] && $key != 'en') {
@@ -379,12 +384,13 @@ class ProductController extends Controller
      */
     public function edit($id): View|Factory|Application
     {
-        $product = $this->product->withoutGlobalScopes()->with(['translations', 'main_branch_product', 'cuisines'])->find($id);
+        $product = $this->product->withoutGlobalScopes()->with(['translations', 'main_branch_product', 'cuisines', 'stockAllocations'])->find($id);
         $product_category = json_decode($product->category_ids);
         $categories = $this->category->where(['parent_id' => 0])->get();
         $cuisines = $this->cuisine::active()->orderBy('priority', 'ASC')->get();
+        $stockItems = StockItem::query()->active()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin-views.product.edit', compact('product', 'product_category', 'categories', 'cuisines'));
+        return view('admin-views.product.edit', compact('product', 'product_category', 'categories', 'cuisines', 'stockItems'));
     }
 
     /**
@@ -619,6 +625,8 @@ class ProductController extends Controller
             $updatedProduct->sold_quantity = 0;
             $updatedProduct->save();
         }
+
+        app(ProductStockAllocationService::class)->syncFromRequest((int) $product->id, $request);
 
         foreach ($request->lang as $index => $key) {
             if ($request->name[$index] && $key != 'en') {

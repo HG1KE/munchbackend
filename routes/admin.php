@@ -38,6 +38,9 @@ use App\Http\Controllers\Admin\QRCodeController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewsController;
 use App\Http\Controllers\Admin\SMSModuleController;
+use App\Http\Controllers\Admin\StockItemController;
+use App\Http\Controllers\Admin\StockManagerController;
+use App\Http\Controllers\Admin\StockReportController;
 use App\Http\Controllers\Admin\TransactionalSmsTemplatesController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\MarketingPromotionalSmsController;
@@ -179,6 +182,28 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('edit/{id}', [AddonController::class, 'edit'])->name('edit');
             Route::post('update/{id}', [AddonController::class, 'update'])->name('update');
             Route::delete('delete/{id}', [AddonController::class, 'delete'])->name('delete');
+        });
+
+        Route::group(['prefix' => 'stock-item', 'as' => 'stock-item.', 'middleware' => ['module:product_management']], function () {
+            Route::get('/', [StockItemController::class, 'index'])->name('index');
+            Route::post('store', [StockItemController::class, 'store'])->name('store');
+            Route::get('edit/{id}', [StockItemController::class, 'edit'])->name('edit');
+            Route::post('update/{id}', [StockItemController::class, 'update'])->name('update');
+            Route::get('status/{id}/{status}', [StockItemController::class, 'status'])->name('status');
+            Route::delete('delete/{id}', [StockItemController::class, 'delete'])->name('delete');
+        });
+
+        Route::group(['prefix' => 'stock-manager', 'as' => 'stock-manager.', 'middleware' => ['module:product_management']], function () {
+            Route::get('/', [StockManagerController::class, 'index'])->name('index');
+            Route::post('store', [StockManagerController::class, 'store'])->name('store');
+            Route::get('edit/{id}', [StockManagerController::class, 'edit'])->name('edit');
+            Route::post('update/{id}', [StockManagerController::class, 'update'])->name('update');
+            Route::get('status/{id}/{status}', [StockManagerController::class, 'status'])->name('status');
+            Route::delete('delete/{id}', [StockManagerController::class, 'delete'])->name('delete');
+        });
+
+        Route::group(['prefix' => 'stock-report', 'as' => 'stock-report.', 'middleware' => ['module:product_management']], function () {
+            Route::get('/', [StockReportController::class, 'index'])->name('index');
         });
 
         Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.', 'middleware' => ['module:user_management']], function () {

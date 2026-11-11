@@ -582,6 +582,12 @@ class POSController extends Controller
                 }
                 $this->order_detail->insert($order_details);
 
+                try {
+                    app(\App\Services\Stock\StockDeductionService::class)->syncOrder($order->fresh(['details']) ?? $order);
+                } catch (\Throwable) {
+                    // Never block admin POS place from stock ledger sync.
+                }
+
                 if (in_array($order->order_status, ['pending', 'confirmed'], true)) {
                     CustomerOrderStatusSms::dispatchPlacement($order->fresh(['customer', 'branch']));
                 }

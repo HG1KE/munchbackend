@@ -381,6 +381,35 @@
                                 </a>
                             </li>
 
+                            <!-- Stocks -->
+                            <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/stock-item*') || Request::is('admin/stock-manager*') || Request::is('admin/stock-report*') ?'active':''}}">
+                                <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:">
+                                    <i class="tio-cube nav-icon"></i>
+                                    <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{translate('Stocks')}}</span>
+                                </a>
+                                <ul class="js-navbar-vertical-aside-submenu nav nav-sub"
+                                    style="display: {{ Request::is('admin/stock-item*') || Request::is('admin/stock-manager*') || Request::is('admin/stock-report*') ?'block':'none'}}">
+                                    <li class="nav-item {{Request::is('admin/stock-item*')?'active':''}}">
+                                        <a class="nav-link" href="{{route('admin.stock-item.index')}}" title="{{translate('Stock items')}}">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">{{translate('Stock items')}}</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{Request::is('admin/stock-manager*')?'active':''}}">
+                                        <a class="nav-link" href="{{route('admin.stock-manager.index')}}" title="{{translate('Stock managers')}}">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">{{translate('Stock managers')}}</span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item {{Request::is('admin/stock-report*')?'active':''}}">
+                                        <a class="nav-link" href="{{route('admin.stock-report.index')}}" title="{{translate('Stock variance')}}">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">{{translate('Stock variance')}}</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+
                             <!-- Pages -->
                             <li class="navbar-vertical-aside-has-menu {{ Request::is('admin/addon*') ||Request::is('admin/product*') || Request::is('admin/attribute*') || Request::is('admin/reviews/list')?'active':''}}">
                                 <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle" href="javascript:"

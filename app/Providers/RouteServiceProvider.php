@@ -50,6 +50,8 @@ class RouteServiceProvider extends ServiceProvider
 
         $this->mapBranchRoutes();
 
+        $this->mapStocksRoutes();
+
         //$this->mapUpdateRoutes();
 
         //$this->mapInstallRoutes();
@@ -84,6 +86,14 @@ class RouteServiceProvider extends ServiceProvider
             ->middleware('web')
             ->namespace($this->namespace)
             ->group(base_path('routes/branch.php'));
+    }
+
+    protected function mapStocksRoutes()
+    {
+        Route::prefix('stocks')
+            ->middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/stocks.php'));
     }
 
     /**

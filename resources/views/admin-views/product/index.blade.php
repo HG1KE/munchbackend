@@ -273,6 +273,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                @include('admin-views.product.partials._stock-allocations')
                             </div>
                         </div>
                         <div class="col-lg-6">
