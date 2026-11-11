@@ -132,6 +132,7 @@ class StockVarianceServiceTest extends TestCase
 
         $adminLogin = file_get_contents(resource_path('views/admin-views/auth/login.blade.php'));
         $this->assertStringContainsString('stocks.auth.login', $adminLogin);
+        $this->assertStringContainsString('_munch-login-chooser', $adminLogin);
 
         $auth = file_get_contents(config_path('auth.php'));
         $this->assertStringContainsString("'stocks'", $auth);

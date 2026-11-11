@@ -131,6 +131,73 @@
         object-fit: contain;
     }
 
+    body.munch-auth-login .munch-auth-chooser__hint {
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 400;
+        text-transform: none;
+    }
+
+    body.munch-auth-login .munch-auth-chooser {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    body.munch-auth-login .munch-auth-chooser__btn {
+        display: block;
+        width: 100%;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        color: #0f172a;
+        background: #fff;
+        text-decoration: none;
+        transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    body.munch-auth-login .munch-auth-chooser__btn:hover,
+    body.munch-auth-login .munch-auth-chooser__btn:focus {
+        border-color: var(--c1);
+        color: var(--c1);
+        background: rgba(var(--c1-rgb), 0.04);
+        text-decoration: none;
+        box-shadow: 0 0 0 3px rgba(var(--c1-rgb), 0.12);
+        outline: none;
+    }
+
+    body.munch-auth-login .munch-auth-chooser__btn.is-current {
+        border-color: var(--c1);
+        color: #fff;
+        background: var(--c1);
+    }
+
+    body.munch-auth-login .munch-auth-chooser__btn.is-current:hover,
+    body.munch-auth-login .munch-auth-chooser__btn.is-current:focus {
+        color: #fff;
+        background: var(--c1);
+        border-color: var(--c1);
+    }
+
+    body.munch-auth-login .munch-auth-change-mode {
+        display: inline-block;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #64748b;
+        text-decoration: none;
+        margin-bottom: 0.75rem;
+    }
+
+    body.munch-auth-login .munch-auth-change-mode:hover,
+    body.munch-auth-login .munch-auth-change-mode:focus {
+        color: var(--c1);
+        text-decoration: none;
+    }
+
     body.munch-auth-login .munch-auth-alt-login {
         margin-top: 1rem;
         padding-top: 1rem;

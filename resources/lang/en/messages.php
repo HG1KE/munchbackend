@@ -1359,6 +1359,13 @@
   'want_to_login_your_admin' => 'Want to login your admin',
   'admin_login' => 'Admin login',
   'branch_sign_in' => 'Branch sign in',
+  'stocks_manager_sign_in' => 'Stocks manager sign in',
+  'Admin Login' => 'Admin Login',
+  'Branch Login' => 'Branch Login',
+  'Stocks Login' => 'Stocks Login',
+  'Choose your login' => 'Choose your login',
+  'Change login type' => 'Change login type',
+
   'Earning statistics for business analytics' => 'Earning statistics for business analytics',
   'Monthly Earning' => 'Monthly Earning',
   'earnings' => 'Earnings',

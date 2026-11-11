@@ -39,11 +39,20 @@
                     <img src="{{ $logo }}" alt="{{ translate('logo') }}">
                 </div>
 
+                @php
+                    $showLoginForm = $errors->any() || filled(old('email')) || request()->boolean('form');
+                    $recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha');
+                @endphp
+
+                @unless($showLoginForm)
+                    @include('admin-views.auth.partials._munch-login-chooser', ['currentMode' => 'admin'])
+                @else
                 <form class="" id="form-id" action="{{route('admin.auth.login')}}" method="post" novalidate>
                     @csrf
 
                     <div class="auth-header">
                         <div class="mb-0">
+                            <a href="{{ route('admin.auth.login') }}" class="munch-auth-change-mode">&larr; {{ translate('Change login type') }}</a>
                             <h2 class="title">{{translate('sign_in')}}</h2>
                             <div class="text-capitalize">{{translate('welcome_back')}}</div>
                             <span class="badge d-inline-block">{{translate('admin_or_employee_sign_in')}}</span>
@@ -91,7 +100,6 @@
                         </div>
                     </div>
 
-                    @php($recaptcha = \App\CentralLogics\Helpers::get_business_settings('recaptcha'))
                     @if(isset($recaptcha) && $recaptcha['status'] == 1)
                         <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
                         <input type="hidden" name="set_default_captcha" id="set_default_captcha_value" value="0">
@@ -129,17 +137,18 @@
                     </button>
 
                     <div class="munch-auth-alt-login">
-                        <p class="munch-auth-alt-login__label mb-2">{{ translate('want_to_login_your_branches') }}?</p>
-                        <a href="{{ route('branch.auth.login') }}" class="munch-auth-alt-login__btn mb-2 d-block">
-                            {{ translate('Login as Branch / Employee') }}
+                        <p class="munch-auth-alt-login__label mb-2">{{ translate('Choose your login') }}</p>
+                        <a href="{{ route('branch.auth.login', ['form' => 1]) }}" class="munch-auth-alt-login__btn mb-2 d-block">
+                            {{ translate('Branch Login') }}
                         </a>
-                        <a href="{{ route('stocks.auth.login') }}" class="munch-auth-alt-login__btn d-block">
-                            {{ translate('Login as Stocks Manager') }}
+                        <a href="{{ route('stocks.auth.login', ['form' => 1]) }}" class="munch-auth-alt-login__btn d-block">
+                            {{ translate('Stocks Login') }}
                         </a>
                     </div>
                 </form>
+                @endunless
 
-                @if(config('app.mode')=='demo')
+                @if($showLoginForm && config('app.mode')=='demo')
                     <div class="border-top mt-4 pt-4" style="border-color:#e2e8f0 !important;">
                         <div class="row align-items-center">
                             <div class="col-10 text-left">
