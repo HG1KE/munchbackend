@@ -26,7 +26,7 @@
     </div>
 
     <div id="munch-auth-form-wrap" style="{{ $formStyle }}">
-        <form id="form-id" action="{{ $formAction }}" method="post" novalidate>
+        <form id="form-id" action="{{ $formAction }}" method="post">
             @csrf
             <input type="hidden" name="login_panel" id="login_panel" value="{{ $showLoginForm ? $activeMode : '' }}">
 

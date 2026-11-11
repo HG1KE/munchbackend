@@ -453,7 +453,7 @@ class POSController extends Controller
         $product_price = 0;
         $order_details = [];
 
-        $order_id = 100000 + $this->order->all()->count() + 1;
+        $order_id = 100000 + (int) $this->order->count() + 1;
         if ($this->order->find($order_id)) {
             $order_id = $this->order->orderBy('id', 'DESC')->first()->id + 1;
         }

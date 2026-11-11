@@ -80,14 +80,23 @@ class DashboardController extends Controller
             }
         }
 
-        $donut = [];
-        $donutData = $this->order->where('branch_id', auth('branch')->id())->get();
-        $donut['pending'] = $donutData->where('order_status', 'pending')->count();
-        $donut['ongoing'] = $donutData->whereIn('order_status', ['confirmed', 'processing', 'out_for_delivery'])->count();
-        $donut['delivered'] = $donutData->where('order_status', 'delivered')->count();
-        $donut['canceled'] = $donutData->where('order_status', 'canceled')->count();
-        $donut['returned'] = $donutData->where('order_status', 'returned')->count();
-        $donut['failed'] = $donutData->where('order_status', 'failed')->count();
+        // Match admin hot-path: GROUP BY instead of loading every branch order into PHP.
+        $donutCounts = $this->order->newQuery()
+            ->where('branch_id', auth('branch')->id())
+            ->selectRaw('order_status, COUNT(*) as aggregate_count')
+            ->groupBy('order_status')
+            ->pluck('aggregate_count', 'order_status');
+
+        $statusCount = static fn (string $status): int => (int) ($donutCounts[$status] ?? 0);
+
+        $donut = [
+            'pending' => $statusCount('pending'),
+            'ongoing' => $statusCount('confirmed') + $statusCount('processing') + $statusCount('out_for_delivery'),
+            'delivered' => $statusCount('delivered'),
+            'canceled' => $statusCount('canceled'),
+            'returned' => $statusCount('returned'),
+            'failed' => $statusCount('failed'),
+        ];
 
         $data['recent_orders'] = $this->order->latest()
             ->where('branch_id', auth('branch')->id())

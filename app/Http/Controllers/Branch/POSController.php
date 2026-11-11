@@ -720,7 +720,7 @@ class POSController extends Controller
             return $this->posNearDuplicateFail($request, $nearDuplicate);
         }
 
-        $orderId = 100000 + $this->order->all()->count() + 1;
+        $orderId = 100000 + (int) $this->order->count() + 1;
         if ($this->order->find($orderId)) {
             $orderId = $this->order->orderBy('id', 'DESC')->first()->id + 1;
         }

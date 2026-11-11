@@ -70,7 +70,7 @@ class TableController extends Controller
 
         try {
             $order = $this->order;
-            $order->id = 100000 + $this->order->all()->count() + 1;
+            $order->id = 100000 + (int) $this->order->count() + 1;
             $order->user_id = $request->id;
             $order->order_amount = Helpers::set_price($request['order_amount']);
             $order->coupon_discount_amount = Helpers::set_price($request->coupon_discount_amount);

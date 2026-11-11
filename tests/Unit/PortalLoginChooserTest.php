@@ -31,11 +31,24 @@ class PortalLoginChooserTest extends TestCase
 
         foreach ([$admin, $branch, $stocks] as $view) {
             $this->assertStringContainsString("_munch-login-panel", $view);
-            $this->assertStringContainsString("_munch-login-mode-script", $view);
+            $this->assertStringContainsString("_munch-login-head-assets", $view);
+            $this->assertStringContainsString("_munch-login-scripts", $view);
+            $this->assertStringNotContainsString('vendor.min.js', $view);
+            $this->assertStringNotContainsString('theme.minc619.css', $view);
             $this->assertStringNotContainsString("@endphp", $view);
             $this->assertStringNotContainsString('google.com/recaptcha', $view);
             $this->assertStringNotContainsString('g-recaptcha', $view);
         }
+
+        $scripts = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-scripts.blade.php'));
+        $this->assertStringContainsString("_munch-login-mode-script", $scripts);
+        $this->assertStringContainsString('jquery.min.js', $scripts);
+        $this->assertStringNotContainsString('/js/vendor.min.js', $scripts);
+
+        $head = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-head-assets.blade.php'));
+        $this->assertStringContainsString('get_business_settings', $head);
+        $this->assertStringNotContainsString('BusinessSetting::where', $head);
+        $this->assertStringNotContainsString('fonts.googleapis.com', $head);
 
         $this->assertStringContainsString('data-munch-login-mode="admin"', $chooser);
         $this->assertStringContainsString('data-munch-login-action=', $chooser);
