@@ -48,11 +48,21 @@ class StockVarianceServiceTest extends TestCase
     public function test_admin_and_stocks_ui_reference_variance(): void
     {
         $adminReport = file_get_contents(resource_path('views/admin-views/stock-report/index.blade.php'));
-        $this->assertStringContainsString("translate('STOCK SOLD')", $adminReport);
+        $this->assertStringNotContainsString("translate('STOCK SOLD')", $adminReport);
+        $this->assertStringNotContainsString("translate('Variance')", $adminReport);
+        $this->assertStringContainsString("translate('Stock Report')", $adminReport);
+        $this->assertStringContainsString("translate('Opening Stock')", $adminReport);
         $this->assertStringContainsString("translate('Received')", $adminReport);
+        $this->assertStringContainsString("translate('Closing Stock')", $adminReport);
+        $this->assertStringContainsString("translate('Sold')", $adminReport);
+        $this->assertStringContainsString("translate('Result')", $adminReport);
         $this->assertStringContainsString('received_qty', $adminReport);
         $this->assertStringContainsString('variance_label', $adminReport);
-        $this->assertStringContainsString("translate('Variance')", $adminReport);
+        $this->assertStringContainsString('munch-admin-stock-chip--excess', $adminReport);
+        $this->assertStringContainsString('munch-admin-stock-chip--short', $adminReport);
+        $this->assertStringContainsString("name=\"from\"", $adminReport);
+        $this->assertStringContainsString("name=\"to\"", $adminReport);
+        $this->assertStringContainsString('admin.stock-report.export', $adminReport);
 
         $dashboard = file_get_contents(resource_path('views/stocks-views/dashboard/index.blade.php'));
         $this->assertStringNotContainsString("translate('STOCK SOLD')", $dashboard);
@@ -127,6 +137,8 @@ class StockVarianceServiceTest extends TestCase
     {
         $sidebar = file_get_contents(resource_path('views/layouts/admin/partials/_sidebar.blade.php'));
         $this->assertStringContainsString("translate('Stocks')", $sidebar);
+        $this->assertStringContainsString("translate('Stock Report')", $sidebar);
+        $this->assertStringNotContainsString("translate('Stock variance')", $sidebar);
         $this->assertStringContainsString('admin.stock-item.index', $sidebar);
         $this->assertStringContainsString('admin.stock-report.index', $sidebar);
 

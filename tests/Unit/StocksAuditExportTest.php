@@ -151,6 +151,82 @@ class StocksAuditExportTest extends TestCase
         $this->assertStringContainsString(StocksAuditExport::INCOMPLETE_MESSAGE, $js);
     }
 
+    public function test_build_range_uses_per_day_sections_and_range_filename(): void
+    {
+        $report = StocksAuditExport::buildRange('Bamburi', '2026-11-11', '2026-11-13', [
+            [
+                'date' => '2026-11-11',
+                'rows' => [$this->sampleRow(['variance' => 10, 'variance_label' => '10 excess'])],
+            ],
+            [
+                'date' => '2026-11-12',
+                'rows' => [$this->sampleRow([
+                    'variance' => -4,
+                    'variance_label' => '4 short',
+                    'expected_sold' => 54,
+                ])],
+            ],
+            [
+                'date' => '2026-11-13',
+                'rows' => [$this->sampleRow([
+                    'variance' => 0,
+                    'variance_label' => 'balanced',
+                    'expected_sold' => 60,
+                ])],
+            ],
+        ]);
+
+        $this->assertFalse($report['is_single_day']);
+        $this->assertSame('2026-11-11', $report['from']);
+        $this->assertSame('2026-11-13', $report['to']);
+        $this->assertSame(
+            'Wednesday, 11th November 2026 to Friday, 13th November 2026',
+            $report['date_label']
+        );
+        $this->assertCount(3, $report['sections']);
+        $this->assertSame('Wednesday, 11th November 2026', $report['sections'][0]['date_label']);
+        $this->assertSame('Thursday, 12th November 2026', $report['sections'][1]['date_label']);
+        $this->assertSame(
+            'Munch Bamburi Stocks Audit 11th November 26 to 13th November 26.pdf',
+            StocksAuditExport::filename($report)
+        );
+
+        $html = view('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))->render();
+        $this->assertStringContainsString('Date range', $html);
+        $this->assertStringContainsString('STOCKS AUDIT — Wednesday, 11th November 2026', $html);
+        $this->assertStringContainsString('STOCKS AUDIT — Thursday, 12th November 2026', $html);
+        $this->assertStringContainsString('STOCKS AUDIT — Friday, 13th November 2026', $html);
+        $this->assertStringContainsString('10 excess', $html);
+        $this->assertStringContainsString('4 short', $html);
+        $this->assertStringContainsString('#eef2f6', $html);
+        $this->assertStringContainsString('#fef2f2', $html);
+
+        $binary = Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))->output();
+        $this->assertStringStartsWith('%PDF', $binary);
+    }
+
+    public function test_admin_stock_report_wires_range_export_and_manager_columns(): void
+    {
+        $adminRoutes = file_get_contents(base_path('routes/admin.php'));
+        $this->assertStringContainsString('[StockReportController::class, \'export\']', $adminRoutes);
+
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/StockReportController.php'));
+        $this->assertStringContainsString('function export', $controller);
+        $this->assertStringContainsString('buildRange', $controller);
+        $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$day, 'short')", $controller);
+        $this->assertStringContainsString("'from'", $controller);
+        $this->assertStringContainsString("'to'", $controller);
+
+        $this->assertSame(
+            'Wednesday, 11th November 2026 to Friday, 13th November 2026',
+            StocksAuditExport::formatRangeLabel('2026-11-11', '2026-11-13')
+        );
+        $this->assertSame(
+            'Wednesday, 11th November 2026',
+            StocksAuditExport::formatRangeLabel('2026-11-11', '2026-11-11')
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>

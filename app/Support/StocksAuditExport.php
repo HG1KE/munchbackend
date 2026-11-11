@@ -38,8 +38,12 @@ class StocksAuditExport
      *     brand: string,
      *     branch_name: string,
      *     date: string,
+     *     from: string,
+     *     to: string,
      *     date_label: string,
+     *     is_single_day: bool,
      *     rows: list<array<string, mixed>>,
+     *     sections: list<array{date:string,date_label:string,rows:list<array<string,mixed>>}>,
      *     filename_base: string,
      *     incomplete: bool
      * }
@@ -47,22 +51,112 @@ class StocksAuditExport
     public static function build(string $branchName, CarbonInterface|string $date, array $rows): array
     {
         $day = self::parseDay($date);
+
+        return self::buildRange($branchName, $day, $day, [
+            ['date' => $day->toDateString(), 'rows' => $rows],
+        ]);
+    }
+
+    /**
+     * Admin (and multi-day) audit PDF payload. Prefer one section per day for clarity.
+     *
+     * @param  list<array{date?:string,rows?:list<array<string,mixed>>}>  $dayRows
+     * @return array{
+     *     brand: string,
+     *     branch_name: string,
+     *     date: string,
+     *     from: string,
+     *     to: string,
+     *     date_label: string,
+     *     is_single_day: bool,
+     *     rows: list<array<string, mixed>>,
+     *     sections: list<array{date:string,date_label:string,rows:list<array<string,mixed>>}>,
+     *     filename_base: string,
+     *     incomplete: bool
+     * }
+     */
+    public static function buildRange(
+        string $branchName,
+        CarbonInterface|string $from,
+        CarbonInterface|string $to,
+        array $dayRows
+    ): array {
+        $fromDay = self::parseDay($from);
+        $toDay = self::parseDay($to);
+        if ($toDay->lt($fromDay)) {
+            [$fromDay, $toDay] = [$toDay->copy(), $fromDay->copy()];
+        }
+
         $branchName = trim($branchName) !== '' ? trim($branchName) : 'Branch';
-        $normalized = [];
+        $sections = [];
         $incomplete = false;
+        $flatRows = [];
+
+        foreach ($dayRows as $dayPayload) {
+            $day = self::parseDay($dayPayload['date'] ?? $fromDay);
+            $normalized = self::normalizeRows(is_array($dayPayload['rows'] ?? null) ? $dayPayload['rows'] : []);
+            foreach ($normalized as $row) {
+                if ($row['opening_qty'] === null || $row['received_qty'] === null || $row['closing_qty'] === null) {
+                    $incomplete = true;
+                }
+            }
+            if ($normalized === []) {
+                $incomplete = true;
+            }
+
+            $sections[] = [
+                'date' => $day->toDateString(),
+                'date_label' => self::formatReportDate($day),
+                'rows' => $normalized,
+            ];
+            foreach ($normalized as $row) {
+                $flatRows[] = $row;
+            }
+        }
+
+        if ($sections === []) {
+            $sections[] = [
+                'date' => $fromDay->toDateString(),
+                'date_label' => self::formatReportDate($fromDay),
+                'rows' => [],
+            ];
+            $incomplete = true;
+        }
+
+        $isSingleDay = $fromDay->isSameDay($toDay);
+        $dateLabel = self::formatRangeLabel($fromDay, $toDay);
+
+        return [
+            'brand' => self::BRAND,
+            'branch_name' => $branchName,
+            'date' => $fromDay->toDateString(),
+            'from' => $fromDay->toDateString(),
+            'to' => $toDay->toDateString(),
+            'date_label' => $dateLabel,
+            'is_single_day' => $isSingleDay,
+            'rows' => $isSingleDay ? ($sections[0]['rows'] ?? []) : $flatRows,
+            'sections' => $sections,
+            'filename_base' => self::filenameBaseForRange($branchName, $fromDay, $toDay),
+            'incomplete' => $incomplete || $flatRows === [],
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private static function normalizeRows(array $rows): array
+    {
+        $normalized = [];
 
         foreach ($rows as $row) {
             $opening = self::nullableFloat($row['opening_qty'] ?? null);
             $received = self::nullableFloat($row['received_qty'] ?? null);
             $closing = self::nullableFloat($row['closing_qty'] ?? null);
-            $sold = round((float) ($row['expected_sold'] ?? 0), 3);
+            $sold = round((float) ($row['expected_sold'] ?? $row['sold_qty'] ?? 0), 3);
             $variance = array_key_exists('variance', $row)
                 ? self::nullableFloat($row['variance'])
                 : StockVarianceService::result($opening, $received, $sold, $closing);
-
-            if ($opening === null || $received === null || $closing === null) {
-                $incomplete = true;
-            }
 
             $kind = self::resultKind($variance);
             $normalized[] = [
@@ -82,17 +176,7 @@ class StocksAuditExport
             ];
         }
 
-        $dateLabel = self::formatReportDate($day);
-
-        return [
-            'brand' => self::BRAND,
-            'branch_name' => $branchName,
-            'date' => $day->toDateString(),
-            'date_label' => $dateLabel,
-            'rows' => $normalized,
-            'filename_base' => self::filenameBase($branchName, $day),
-            'incomplete' => $incomplete || $normalized === [],
-        ];
+        return $normalized;
     }
 
     /**
@@ -121,6 +205,16 @@ class StocksAuditExport
 
     public static function filenameBase(string $branchName, CarbonInterface|string $date): string
     {
+        $day = self::parseDay($date);
+
+        return self::filenameBaseForRange($branchName, $day, $day);
+    }
+
+    public static function filenameBaseForRange(
+        string $branchName,
+        CarbonInterface|string $from,
+        CarbonInterface|string $to
+    ): string {
         $branchName = trim($branchName);
         if ($branchName === '') {
             $branchName = 'Branch';
@@ -129,10 +223,19 @@ class StocksAuditExport
             ? $branchName
             : 'Munch '.$branchName;
 
-        $day = self::parseDay($date);
+        $fromDay = self::parseDay($from);
+        $toDay = self::parseDay($to);
+        if ($toDay->lt($fromDay)) {
+            [$fromDay, $toDay] = [$toDay->copy(), $fromDay->copy()];
+        }
+
+        $datePart = self::formatFilenameDate($fromDay);
+        if (! $fromDay->isSameDay($toDay)) {
+            $datePart .= ' to '.self::formatFilenameDate($toDay);
+        }
 
         return AdminSaleReportExport::sanitizeFilename(
-            $prefix.' Stocks Audit '.self::formatFilenameDate($day)
+            $prefix.' Stocks Audit '.$datePart
         );
     }
 
@@ -143,6 +246,24 @@ class StocksAuditExport
         $n = (int) $day->format('j');
 
         return $day->format('l').', '.$n.self::ordinal($n).' '.$day->format('F Y');
+    }
+
+    /** Single day or "from to to" with weekday + ordinal on each end. */
+    public static function formatRangeLabel(
+        CarbonInterface|string $from,
+        CarbonInterface|string $to
+    ): string {
+        $fromDay = self::parseDay($from);
+        $toDay = self::parseDay($to);
+        if ($toDay->lt($fromDay)) {
+            [$fromDay, $toDay] = [$toDay->copy(), $fromDay->copy()];
+        }
+
+        if ($fromDay->isSameDay($toDay)) {
+            return self::formatReportDate($fromDay);
+        }
+
+        return self::formatReportDate($fromDay).' to '.self::formatReportDate($toDay);
     }
 
     /** e.g. 11th November 26 */

@@ -205,6 +205,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
         Route::group(['prefix' => 'stock-report', 'as' => 'stock-report.', 'middleware' => ['module:product_management']], function () {
             Route::get('/', [StockReportController::class, 'index'])->name('index');
+            Route::get('export', [StockReportController::class, 'export'])->name('export');
         });
 
         Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.', 'middleware' => ['module:user_management']], function () {

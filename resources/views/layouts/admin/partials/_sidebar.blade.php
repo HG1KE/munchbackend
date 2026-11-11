@@ -402,9 +402,9 @@
                                         </a>
                                     </li>
                                     <li class="nav-item {{Request::is('admin/stock-report*')?'active':''}}">
-                                        <a class="nav-link" href="{{route('admin.stock-report.index')}}" title="{{translate('Stock variance')}}">
+                                        <a class="nav-link" href="{{route('admin.stock-report.index')}}" title="{{translate('Stock Report')}}">
                                             <span class="tio-circle nav-indicator-icon"></span>
-                                            <span class="text-truncate">{{translate('Stock variance')}}</span>
+                                            <span class="text-truncate">{{translate('Stock Report')}}</span>
                                         </a>
                                     </li>
                                 </ul>

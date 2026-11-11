@@ -7,7 +7,7 @@
         body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #111; }
         h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: 2px; }
         .meta { margin: 0 0 4px; font-size: 13px; }
-        .section { margin: 16px 0 10px; }
+        .section { margin: 16px 0 10px; page-break-inside: avoid; }
         .section-head {
             font-size: 13px;
             letter-spacing: 0.6px;
@@ -45,48 +45,78 @@
     </style>
 </head>
 <body>
+    @php
+        $sections = [];
+        if (!empty($report['sections']) && is_array($report['sections'])) {
+            $sections = $report['sections'];
+        } else {
+            $sections = [[
+                'date' => $report['date'] ?? '',
+                'date_label' => $report['date_label'] ?? '',
+                'rows' => $report['rows'] ?? [],
+            ]];
+        }
+        $isMultiDay = array_key_exists('is_single_day', $report)
+            ? ! (bool) $report['is_single_day']
+            : count($sections) > 1;
+        $rangeLabel = $report['date_label'] ?? '';
+    @endphp
+
     <h1>{{ $report['brand'] ?? 'MUNCH' }}</h1>
     <p class="meta"><strong>Branch:</strong> {{ $report['branch_name'] ?? '' }}</p>
-    <p class="meta"><strong>Date:</strong> {{ $report['date_label'] ?? '' }}</p>
+    <p class="meta"><strong>{{ $isMultiDay ? 'Date range' : 'Date' }}:</strong> {{ $rangeLabel }}</p>
 
-    <div class="section">
-        <div class="section-head">STOCKS AUDIT</div>
-        @if(empty($report['rows']))
-            <p class="empty">No stock items</p>
-        @else
-            <table class="report-table">
-                <thead>
-                <tr>
-                    <th>Stock item</th>
-                    <th class="num">Opening Stock</th>
-                    <th class="num">Received</th>
-                    <th class="num">Closing Stock</th>
-                    <th class="num">Sold</th>
-                    <th class="num">Result</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach($report['rows'] as $row)
-                    @php
-                        $colors = \App\Support\StocksAuditExport::resultColors($row['result_kind'] ?? 'empty');
-                    @endphp
+    @forelse($sections as $section)
+        <div class="section">
+            <div class="section-head">
+                @if($isMultiDay)
+                    STOCKS AUDIT — {{ $section['date_label'] ?? ($section['date'] ?? '') }}
+                @else
+                    STOCKS AUDIT
+                @endif
+            </div>
+            @if(empty($section['rows']))
+                <p class="empty">No stock items</p>
+            @else
+                <table class="report-table">
+                    <thead>
                     <tr>
-                        <td class="item-name">{{ $row['name'] ?? '' }}</td>
-                        <td class="num">{{ $row['opening_display'] ?? '—' }}</td>
-                        <td class="num">{{ $row['received_display'] ?? '—' }}</td>
-                        <td class="num">{{ $row['closing_display'] ?? '—' }}</td>
-                        <td class="num">{{ $row['sold_display'] ?? '0' }}</td>
-                        <td class="num">
-                            <span class="result-chip"
-                                  style="background: {{ $colors['bg'] }}; color: {{ $colors['text'] }};">
-                                {{ $row['variance_label'] ?? '—' }}
-                            </span>
-                        </td>
+                        <th>Stock item</th>
+                        <th class="num">Opening Stock</th>
+                        <th class="num">Received</th>
+                        <th class="num">Closing Stock</th>
+                        <th class="num">Sold</th>
+                        <th class="num">Result</th>
                     </tr>
-                @endforeach
-                </tbody>
-            </table>
-        @endif
-    </div>
+                    </thead>
+                    <tbody>
+                    @foreach($section['rows'] as $row)
+                        @php
+                            $colors = \App\Support\StocksAuditExport::resultColors($row['result_kind'] ?? 'empty');
+                        @endphp
+                        <tr>
+                            <td class="item-name">{{ $row['name'] ?? '' }}</td>
+                            <td class="num">{{ $row['opening_display'] ?? '—' }}</td>
+                            <td class="num">{{ $row['received_display'] ?? '—' }}</td>
+                            <td class="num">{{ $row['closing_display'] ?? '—' }}</td>
+                            <td class="num">{{ $row['sold_display'] ?? '0' }}</td>
+                            <td class="num">
+                                <span class="result-chip"
+                                      style="background: {{ $colors['bg'] }}; color: {{ $colors['text'] }};">
+                                    {{ $row['variance_label'] ?? '—' }}
+                                </span>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </div>
+    @empty
+        <div class="section">
+            <div class="section-head">STOCKS AUDIT</div>
+            <p class="empty">No stock items</p>
+        </div>
+    @endforelse
 </body>
 </html>
