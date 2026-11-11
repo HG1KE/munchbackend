@@ -11,7 +11,19 @@ use Illuminate\Support\Facades\Schema;
 
 class StockDeductionService
 {
-    public const SOLD_STATUSES = ['delivered', 'completed'];
+    /**
+     * Kitchen-committed statuses. POS dine_in/delivery place as `confirmed`;
+     * takeaway/marketplace place as `delivered`. Online moves confirmed →
+     * processing → out_for_delivery → delivered. Pending/canceled/failed clear.
+     */
+    public const SOLD_STATUSES = [
+        'confirmed',
+        'processing',
+        'out_for_delivery',
+        'handover',
+        'delivered',
+        'completed',
+    ];
 
     public function isSoldStatus(?string $status): bool
     {
@@ -120,5 +132,77 @@ class StockDeductionService
         } catch (\Throwable) {
             return now()->toDateString();
         }
+    }
+
+    /**
+     * Idempotent backfill: re-sync orders whose sale day falls on/after $sinceDate
+     * (app timezone, using placed_at ?? created_at). Safe to re-run.
+     *
+     * @return array{scanned:int, synced:int, with_rows:int, cleared:int}
+     */
+    public function backfillSince(string $sinceDate, ?int $branchId = null): array
+    {
+        if (! Schema::hasTable('orders') || ! Schema::hasTable('stock_sale_deductions')) {
+            return ['scanned' => 0, 'synced' => 0, 'with_rows' => 0, 'cleared' => 0];
+        }
+
+        $since = Carbon::parse($sinceDate, config('app.timezone'))->startOfDay();
+        $tz = config('app.timezone');
+        // Wide SQL window (1 day slack) so TZ/stored-as-UTC edges are not missed;
+        // precise sale-day filter still runs in PHP below.
+        $sqlFloor = $since->copy()->subDay()->format('Y-m-d H:i:s');
+
+        $query = Order::query()
+            ->where(function ($q) use ($sqlFloor) {
+                $q->where('placed_at', '>=', $sqlFloor)
+                    ->orWhere(function ($q2) use ($sqlFloor) {
+                        $q2->whereNull('placed_at')->where('created_at', '>=', $sqlFloor);
+                    });
+            })
+            ->orderBy('id');
+
+        if ($branchId !== null && $branchId > 0) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $scanned = 0;
+        $synced = 0;
+        $withRows = 0;
+        $cleared = 0;
+
+        $query->chunkById(100, function ($orders) use ($since, $tz, &$scanned, &$synced, &$withRows, &$cleared) {
+            foreach ($orders as $order) {
+                $scanned++;
+                $raw = $order->placed_at ?? $order->created_at;
+                if ($raw === null) {
+                    continue;
+                }
+                try {
+                    $saleDay = Carbon::parse($raw)->timezone($tz)->startOfDay();
+                } catch (\Throwable) {
+                    continue;
+                }
+                if ($saleDay->lt($since)) {
+                    continue;
+                }
+
+                $before = (int) StockSaleDeduction::query()->where('order_id', $order->id)->count();
+                $this->syncOrder($order->fresh(['details']) ?? $order);
+                $after = (int) StockSaleDeduction::query()->where('order_id', $order->id)->count();
+                $synced++;
+                if ($after > 0) {
+                    $withRows++;
+                } elseif ($before > 0 && $after === 0) {
+                    $cleared++;
+                }
+            }
+        });
+
+        return [
+            'scanned' => $scanned,
+            'synced' => $synced,
+            'with_rows' => $withRows,
+            'cleared' => $cleared,
+        ];
     }
 }

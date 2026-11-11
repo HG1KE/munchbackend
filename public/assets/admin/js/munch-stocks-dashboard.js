@@ -1,10 +1,12 @@
 /**
- * Stocks manager dashboard — live STOCK SOLD + Result as opening/closing change.
+ * Stocks manager dashboard — live Result, draft persistence, save gate.
+ * Result = (opening − closing) − Sold (expected from sale deductions).
  */
 (function () {
     'use strict';
 
     var EPS = 0.0005;
+    var DRAFT_PREFIX = 'munch-stocks-draft:';
 
     function parseQty(raw) {
         if (raw === null || raw === undefined) {
@@ -45,12 +47,110 @@
         el.className = 'munch-stocks-chip munch-stocks-chip--' + result.kind;
     }
 
+    function draftKey(branchId, date) {
+        return DRAFT_PREFIX + String(branchId) + ':' + String(date);
+    }
+
+    function readDraft(branchId, date) {
+        try {
+            var raw = window.localStorage.getItem(draftKey(branchId, date));
+            if (!raw) {
+                return null;
+            }
+            var parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return null;
+            }
+            return {
+                opening: parsed.opening && typeof parsed.opening === 'object' ? parsed.opening : {},
+                closing: parsed.closing && typeof parsed.closing === 'object' ? parsed.closing : {}
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function writeDraft(branchId, date, payload) {
+        try {
+            window.localStorage.setItem(draftKey(branchId, date), JSON.stringify(payload));
+        } catch (e) {
+            // Ignore quota / private-mode failures.
+        }
+    }
+
+    function clearDraft(branchId, date) {
+        try {
+            window.localStorage.removeItem(draftKey(branchId, date));
+        } catch (e) {
+            // Ignore.
+        }
+    }
+
+    function itemIdFromInput(input) {
+        var name = input.getAttribute('name') || '';
+        var match = name.match(/\[(\d+)\]/);
+        return match ? match[1] : null;
+    }
+
+    function collectDraft(table) {
+        var opening = {};
+        var closing = {};
+        table.querySelectorAll('[data-stocks-opening]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id) {
+                opening[id] = String(input.value);
+            }
+        });
+        table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id) {
+                closing[id] = String(input.value);
+            }
+        });
+        return { opening: opening, closing: closing };
+    }
+
+    function applyDraft(table, draft) {
+        if (!draft) {
+            return;
+        }
+        table.querySelectorAll('[data-stocks-opening]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id && Object.prototype.hasOwnProperty.call(draft.opening, id)) {
+                input.value = draft.opening[id];
+            }
+        });
+        table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id && Object.prototype.hasOwnProperty.call(draft.closing, id)) {
+                input.value = draft.closing[id];
+            }
+        });
+    }
+
+    function allBoxesFilled(table) {
+        var inputs = table.querySelectorAll('[data-stocks-opening], [data-stocks-closing]');
+        for (var i = 0; i < inputs.length; i++) {
+            if (String(inputs[i].value).trim() === '') {
+                return false;
+            }
+        }
+        return inputs.length > 0;
+    }
+
+    function showFillError(message) {
+        if (window.toastr && typeof window.toastr.error === 'function') {
+            window.toastr.error(message);
+            return;
+        }
+        window.alert(message);
+    }
+
     function refreshRow(row) {
         var openingInput = row.querySelector('[data-stocks-opening]');
         var closingInput = row.querySelector('[data-stocks-closing]');
-        var soldEl = row.querySelector('[data-stocks-sold]');
         var resultEl = row.querySelector('[data-stocks-result]');
-        if (!openingInput || !closingInput || !soldEl || !resultEl) {
+        if (!openingInput || !closingInput || !resultEl) {
             return;
         }
 
@@ -62,21 +162,12 @@
         var opening = parseQty(openingInput.value);
         var closing = parseQty(closingInput.value);
 
-        var physical = null;
-        if (opening !== null && closing !== null) {
-            physical = Math.round((opening - closing) * 1000) / 1000;
-        }
-
-        if (physical === null) {
-            soldEl.textContent = '—';
-            soldEl.classList.add('munch-stocks-qty--muted');
+        if (opening === null || closing === null) {
             setChip(resultEl, { text: '—', kind: 'empty' });
             return;
         }
 
-        soldEl.textContent = formatQty(physical);
-        soldEl.classList.remove('munch-stocks-qty--muted');
-
+        var physical = Math.round((opening - closing) * 1000) / 1000;
         var variance = Math.round((physical - expected) * 1000) / 1000;
         setChip(resultEl, formatResult(variance));
     }
@@ -85,6 +176,27 @@
         var table = root || document.getElementById('munch-stocks-counts-table');
         if (!table) {
             return;
+        }
+
+        var form = table.closest('form') || document.getElementById('munch-stocks-counts-form');
+        var branchId = table.getAttribute('data-branch-id') || (form && form.getAttribute('data-branch-id')) || '';
+        var date = table.getAttribute('data-date') || (form && form.getAttribute('data-date')) || '';
+        var fillMessage = (form && form.getAttribute('data-fill-message')) || 'Fill in all boxes before saving';
+
+        if (branchId && date) {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('saved') === '1') {
+                clearDraft(branchId, date);
+            } else {
+                applyDraft(table, readDraft(branchId, date));
+            }
+        }
+
+        function persist() {
+            if (!branchId || !date) {
+                return;
+            }
+            writeDraft(branchId, date, collectDraft(table));
         }
 
         function onChange(ev) {
@@ -96,10 +208,20 @@
             if (row) {
                 refreshRow(row);
             }
+            persist();
         }
 
         table.addEventListener('input', onChange);
         table.addEventListener('change', onChange);
+
+        if (form) {
+            form.addEventListener('submit', function (ev) {
+                if (!allBoxesFilled(table)) {
+                    ev.preventDefault();
+                    showFillError(fillMessage);
+                }
+            });
+        }
 
         table.querySelectorAll('[data-stocks-row]').forEach(refreshRow);
     }
@@ -115,6 +237,9 @@
     window.MunchStocksDashboard = {
         bind: bind,
         formatResult: formatResult,
-        refreshRow: refreshRow
+        refreshRow: refreshRow,
+        draftKey: draftKey,
+        clearDraft: clearDraft,
+        allBoxesFilled: allBoxesFilled
     };
 })();

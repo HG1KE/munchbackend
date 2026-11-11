@@ -9,7 +9,7 @@
                 <div class="munch-stocks-page-header__eyebrow">{{ translate('Daily counts') }}</div>
                 <h1 class="munch-stocks-page-header__title">{{ $branchName }}</h1>
                 <p class="munch-stocks-page-header__hint">
-                    {{ translate('Enter opening and closing. Result updates as you type.') }}
+                    {{ translate('Enter opening stock and closing stock. Result updates as you type.') }}
                 </p>
             </div>
 
@@ -49,20 +49,26 @@
                         <span class="text-muted">— {{ $date }}</span>
                     </h5>
                 </div>
-                <form method="POST" action="{{ route('stocks.counts.save') }}">
+                <form id="munch-stocks-counts-form"
+                      method="POST"
+                      action="{{ route('stocks.counts.save') }}"
+                      data-branch-id="{{ $branchId }}"
+                      data-date="{{ $date }}"
+                      data-fill-message="{{ translate('Fill in all boxes before saving') }}">
                     @csrf
                     <input type="hidden" name="date" value="{{ $date }}">
                     <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     <div class="table-responsive">
                         <table id="munch-stocks-counts-table"
-                               class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table mb-0">
+                               class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table mb-0"
+                               data-branch-id="{{ $branchId }}"
+                               data-date="{{ $date }}">
                             <thead class="thead-light">
                             <tr>
                                 <th>{{ translate('Stock item') }}</th>
-                                <th style="min-width:120px">{{ translate('Opening') }}</th>
-                                <th style="min-width:120px">{{ translate('Closing') }}</th>
-                                <th class="text-right">{{ translate('STOCK SOLD') }}</th>
-                                <th class="text-right">{{ translate('Expected (sales)') }}</th>
+                                <th style="min-width:120px">{{ translate('Opening Stock') }}</th>
+                                <th style="min-width:120px">{{ translate('Closing Stock') }}</th>
+                                <th class="text-right">{{ translate('Sold') }}</th>
                                 <th class="text-right">{{ translate('Result') }}</th>
                             </tr>
                             </thead>
@@ -85,7 +91,7 @@
                                     <td>
                                         <input type="number" step="0.001" min="0" class="form-control"
                                                name="opening[{{ $row['stock_item_id'] }}]"
-                                               value="{{ $row['opening_qty'] === null ? '' : $row['opening_qty'] }}"
+                                               value="{{ old('opening.'.$row['stock_item_id'], $row['opening_qty'] === null ? '' : $row['opening_qty']) }}"
                                                placeholder="0"
                                                data-stocks-opening
                                                inputmode="decimal">
@@ -93,19 +99,15 @@
                                     <td>
                                         <input type="number" step="0.001" min="0" class="form-control"
                                                name="closing[{{ $row['stock_item_id'] }}]"
-                                               value="{{ $row['closing_qty'] === null ? '' : $row['closing_qty'] }}"
+                                               value="{{ old('closing.'.$row['stock_item_id'], $row['closing_qty'] === null ? '' : $row['closing_qty']) }}"
                                                placeholder="0"
                                                data-stocks-closing
                                                inputmode="decimal">
                                     </td>
                                     <td class="text-right">
-                                        <span class="munch-stocks-qty {{ $row['physical_sold'] === null ? 'munch-stocks-qty--muted' : '' }}"
-                                              data-stocks-sold>
-                                            {{ $row['physical_sold'] === null ? '—' : $row['physical_sold'] }}
+                                        <span class="munch-stocks-qty" data-stocks-expected>
+                                            {{ $row['expected_sold'] }}
                                         </span>
-                                    </td>
-                                    <td class="text-right">
-                                        <span class="munch-stocks-qty">{{ $row['expected_sold'] }}</span>
                                     </td>
                                     <td class="text-right">
                                         <span class="munch-stocks-chip munch-stocks-chip--{{ $chipKind }}"
@@ -116,7 +118,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center munch-stocks-empty">
+                                    <td colspan="5" class="text-center munch-stocks-empty">
                                         {{ translate('No active stock items. Ask admin to add stock items first.') }}
                                     </td>
                                 </tr>
@@ -136,5 +138,5 @@
 @endsection
 
 @push('script')
-    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.0"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.2"></script>
 @endpush

@@ -111,7 +111,7 @@ class StockDeductionServiceTest extends TestCase
         $this->assertSame(6.0, (float) $rows[0]->quantity);
         $this->assertSame(1, (int) $rows[0]->stock_item_id);
         $this->assertSame(6.0, (float) $rows[1]->quantity);
-        $this->assertSame('2026-11-11', $rows[0]->sale_date);
+        $this->assertSame('2026-11-11', substr((string) $rows[0]->sale_date, 0, 10));
     }
 
     public function test_sync_is_idempotent_and_edit_recalculates(): void
@@ -166,6 +166,32 @@ class StockDeductionServiceTest extends TestCase
         $this->assertSame(0, (int) DB::table('stock_sale_deductions')->count());
     }
 
+    public function test_confirmed_pos_status_deducts(): void
+    {
+        $order = $this->seedOrder(['order_status' => 'confirmed'], [
+            ['product_id' => 10, 'quantity' => 2],
+        ], [
+            ['product_id' => 10, 'stock_item_id' => 1, 'quantity' => 1.5],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+
+        $this->assertSame(1, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
+        $this->assertSame(3.0, (float) DB::table('stock_sale_deductions')->where('order_id', $order->id)->value('quantity'));
+    }
+
+    public function test_sold_statuses_include_kitchen_committed(): void
+    {
+        foreach (['confirmed', 'processing', 'out_for_delivery', 'delivered', 'completed'] as $status) {
+            $this->assertTrue(
+                (new StockDeductionService())->isSoldStatus($status),
+                "expected {$status} to count as sold"
+            );
+        }
+        $this->assertFalse((new StockDeductionService())->isSoldStatus('pending'));
+        $this->assertFalse((new StockDeductionService())->isSoldStatus('canceled'));
+    }
+
     public function test_wiring_presence(): void
     {
         $observer = file_get_contents(app_path('Observers/OrderObserver.php'));
@@ -181,5 +207,9 @@ class StockDeductionServiceTest extends TestCase
         $this->assertStringContainsString("'as' => 'stocks.'", $routes);
         $this->assertStringContainsString("->name('dashboard')", $routes);
         $this->assertStringContainsString('mapStocksRoutes', file_get_contents(app_path('Providers/RouteServiceProvider.php')));
+
+        $command = file_get_contents(app_path('Console/Commands/BackfillStockSaleDeductionsCommand.php'));
+        $this->assertStringContainsString('stocks:backfill-deductions', $command);
+        $this->assertStringContainsString('backfillSince', $command);
     }
 }

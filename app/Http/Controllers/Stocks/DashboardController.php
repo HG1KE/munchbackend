@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Stocks;
 
 use App\Http\Controllers\Controller;
 use App\Model\StockDailyCount;
+use App\Model\StockItem;
 use App\Services\Stock\StockVarianceService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Support\Renderable;
@@ -72,40 +73,29 @@ class DashboardController extends Controller
 
         $date = $request->input('date') ?: now()->toDateString();
 
-        if (! Schema::hasTable('stock_daily_counts')) {
+        if (! Schema::hasTable('stock_daily_counts') || ! Schema::hasTable('stock_items')) {
             Toastr::error(translate('Stock counts table is missing. Run migrations.'));
             return back();
         }
 
         $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
         $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
-        $itemIds = array_unique(array_merge(array_keys($openings), array_keys($closings)));
+        $activeItemIds = StockItem::query()->active()->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        foreach ($itemIds as $rawId) {
-            $stockItemId = (int) $rawId;
-            if ($stockItemId <= 0) {
-                continue;
-            }
-
-            $openingRaw = $openings[$rawId] ?? null;
-            $closingRaw = $closings[$rawId] ?? null;
-
+        foreach ($activeItemIds as $stockItemId) {
+            $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId] ?? null;
+            $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId] ?? null;
             $hasOpening = $openingRaw !== null && $openingRaw !== '';
             $hasClosing = $closingRaw !== null && $closingRaw !== '';
-            if (! $hasOpening && ! $hasClosing) {
-                continue;
+            if (! $hasOpening || ! $hasClosing) {
+                Toastr::error(translate('Fill in all boxes before saving'));
+                return back()->withInput();
             }
+        }
 
-            $existing = StockDailyCount::query()
-                ->where('branch_id', $branchId)
-                ->where('stock_item_id', $stockItemId)
-                ->whereDate('count_date', $date)
-                ->first();
-
-            $opening = $hasOpening
-                ? (float) $openingRaw
-                : (float) ($existing->opening_qty ?? 0);
-            $closing = $hasClosing ? (float) $closingRaw : ($existing->closing_qty ?? null);
+        foreach ($activeItemIds as $stockItemId) {
+            $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId];
+            $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId];
 
             StockDailyCount::query()->updateOrCreate(
                 [
@@ -114,8 +104,8 @@ class DashboardController extends Controller
                     'count_date' => $date,
                 ],
                 [
-                    'opening_qty' => $opening,
-                    'closing_qty' => $closing,
+                    'opening_qty' => (float) $openingRaw,
+                    'closing_qty' => (float) $closingRaw,
                     'stock_manager_id' => (int) $manager->id,
                 ]
             );
@@ -126,6 +116,7 @@ class DashboardController extends Controller
         return redirect()->route('stocks.dashboard', [
             'date' => $date,
             'branch_id' => $branchId,
+            'saved' => 1,
         ]);
     }
 }

@@ -40,24 +40,33 @@ class StockVarianceServiceTest extends TestCase
         $this->assertStringContainsString("translate('Variance')", $adminReport);
 
         $dashboard = file_get_contents(resource_path('views/stocks-views/dashboard/index.blade.php'));
-        $this->assertStringContainsString("translate('STOCK SOLD')", $dashboard);
+        $this->assertStringNotContainsString("translate('STOCK SOLD')", $dashboard);
+        $this->assertStringContainsString("translate('Opening Stock')", $dashboard);
+        $this->assertStringContainsString("translate('Closing Stock')", $dashboard);
+        $this->assertStringContainsString("translate('Sold')", $dashboard);
         $this->assertStringContainsString("translate('Result')", $dashboard);
         $this->assertStringContainsString('opening[', $dashboard);
         $this->assertStringContainsString('closing[', $dashboard);
         $this->assertStringContainsString('showBranchPicker', $dashboard);
         $this->assertStringContainsString('munch-stocks-dashboard.js', $dashboard);
         $this->assertStringContainsString('data-stocks-result', $dashboard);
+        $this->assertStringContainsString('data-fill-message', $dashboard);
         $this->assertStringContainsString('munch-stocks-chip--', $dashboard);
         $this->assertStringContainsString("'short'", $dashboard);
         $this->assertStringContainsString("'excess'", $dashboard);
 
         $controller = file_get_contents(app_path('Http/Controllers/Stocks/DashboardController.php'));
         $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$date, 'short')", $controller);
+        $this->assertStringContainsString('Fill in all boxes before saving', $controller);
+        $this->assertStringContainsString("'saved' => 1", $controller);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-stocks-dashboard.js'));
         $this->assertStringContainsString('short', $js);
         $this->assertStringContainsString('excess', $js);
         $this->assertStringContainsString('data-stocks-opening', $js);
+        $this->assertStringContainsString('munch-stocks-draft:', $js);
+        $this->assertStringContainsString('allBoxesFilled', $js);
+        $this->assertStringNotContainsString('data-stocks-sold', $js);
     }
 
     public function test_product_allocation_ui_wired(): void
