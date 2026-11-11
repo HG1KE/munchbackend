@@ -38,6 +38,16 @@ HTTP Basic: API key as username, empty password. No BYOC / Daraja / `credential_
 ```bash
 php artisan palpluss:verify-channel
 php artisan palpluss:reconcile-unverified
+php artisan palpluss:reconcile-unverified --transaction=<palpluss-txn-uuid>
 ```
+
+### Deploy mid-STK resilience
+
+If php-fpm recycles after PalPluss accepts STK but before `transaction_id` is saved:
+
+1. STK initiator persists `transaction_id` immediately (plus a shutdown safety write).
+2. SUCCESS webhooks match orphans by `external_reference` (= our 12-char `account_reference`) or unique phone+amount in a short window.
+3. Unmatched SUCCESS txns are stored in `palpluss_unmatched_transactions` for retry.
+4. `deploy-production.sh` uses graceful FPM **reload** (never restart/kill) and runs `palpluss:reconcile-unverified` after warm/health checks.
 
 Paystack remains unchanged.

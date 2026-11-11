@@ -234,12 +234,20 @@ run_as_app php artisan view:cache
 ok "Laravel caches rebuilt"
 
 # ===========================================================================
-# Stage 6 — Reload php-fpm so opcache picks up new code. Do not touch nginx.
+# Stage 6 — Graceful php-fpm reload so opcache picks up new code.
+# Prefer reload (finish in-flight workers) over restart/kill. Do not touch nginx.
+# A hard kill mid-STK can leave PalPluss transaction_id unset on the attempt;
+# fulfillment matches orphans by external_reference and post-deploy reconcile.
 # ===========================================================================
 stage "6. Reload php8.3-fpm"
 
+info "Reloading php8.3-fpm (graceful). Never systemctl restart/kill here."
 systemctl reload php8.3-fpm
-ok "php8.3-fpm reloaded (nginx not reloaded; this script never edits nginx)"
+# Give old workers a short window to finish in-flight payment-mobile / STK calls
+# before health checks hit a half-recycled pool.
+sleep 5
+systemctl is-active --quiet php8.3-fpm || fail "php8.3-fpm is not active after reload"
+ok "php8.3-fpm reloaded gracefully (nginx not reloaded; this script never edits nginx)"
 
 # ===========================================================================
 # Stage 7 — Warm application URLs (final HTTP 200)
@@ -345,6 +353,23 @@ if [[ "${HEALTH_FAIL}" -ne 0 ]]; then
   fail "One or more health checks failed"
 fi
 ok "All health checks passed"
+
+# ===========================================================================
+# Stage 8b — Reconcile PalPluss SUCCESS orphans (deploy mid-STK safety net)
+# ===========================================================================
+stage "8b. PalPluss orphan reconcile"
+
+if run_as_app php artisan list --raw 2>/dev/null | grep -q '^palpluss:reconcile-unverified'; then
+  info "Running php artisan palpluss:reconcile-unverified"
+  if RECONCILE_JSON="$(run_as_app php artisan palpluss:reconcile-unverified 2>/dev/null)"; then
+    info "reconcile result: ${RECONCILE_JSON}"
+    ok "PalPluss reconcile finished"
+  else
+    warn "PalPluss reconcile command failed (non-fatal). Check Laravel logs."
+  fi
+else
+  warn "palpluss:reconcile-unverified not registered — skipping"
+fi
 
 # ===========================================================================
 # Stage 9 — Supervisor: only if an enabled *.conf exists (not *.disabled)

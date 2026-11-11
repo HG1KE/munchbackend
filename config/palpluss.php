@@ -36,4 +36,11 @@ return [
 
     'reconcile_limit' => (int) env('PALPLUSS_RECONCILE_LIMIT', 50),
 
+    /*
+    | When transaction_id was never persisted (deploy mid-STK), match SUCCESS
+    | webhooks by phone + amount within this recent window if external_reference
+    | is missing. Prefer external_reference matching when present.
+    */
+    'orphan_phone_match_minutes' => (int) env('PALPLUSS_ORPHAN_PHONE_MATCH_MINUTES', 45),
+
 ];

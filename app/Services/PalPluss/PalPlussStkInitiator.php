@@ -7,6 +7,7 @@ use App\Models\PalPlussPaymentAttempt;
 use App\Models\PaymentRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PalPlussStkInitiator
 {
@@ -141,22 +142,15 @@ class PalPlussStkInitiator
             throw new PalPlussException('PalPluss STK response missing transactionId.', 'INVALID_RESPONSE', 502);
         }
 
-        $attempt->transaction_id = $transactionId;
-        $attempt->status = strtolower((string) ($data['status'] ?? 'PENDING')) === 'pending'
-            ? PalPlussPaymentAttempt::STATUS_PENDING
-            : PalPlussPaymentAttempt::STATUS_PENDING;
-        $attempt->provider_request_id = isset($data['providerRequestId']) ? (string) $data['providerRequestId'] : null;
-        $attempt->provider_checkout_id = isset($data['providerCheckoutId']) ? (string) $data['providerCheckoutId'] : null;
-        $attempt->stk_initiated_at = now();
-        $attempt->last_error = null;
-        $attempt->save();
-
-        PaymentRequest::query()
-            ->where('id', $paymentRequest->id)
-            ->update([
-                'payment_method' => 'palpluss',
-                'transaction_id' => $transactionId,
-            ]);
+        // Persist provider txn id immediately (and via shutdown safety net) so a
+        // mid-request php-fpm recycle cannot orphan a live Safaricom STK session.
+        $this->persistProviderTransaction(
+            $attempt,
+            $paymentRequest,
+            $transactionId,
+            isset($data['providerRequestId']) ? (string) $data['providerRequestId'] : null,
+            isset($data['providerCheckoutId']) ? (string) $data['providerCheckoutId'] : null,
+        );
 
         Log::info('palpluss.stk_initiated', [
             'payment_request_id' => $paymentRequest->id,
@@ -184,6 +178,97 @@ class PalPlussStkInitiator
         }
 
         return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
+    }
+
+    /**
+     * Write transaction_id as soon as PalPluss returns it. Uses a direct UPDATE
+     * plus a shutdown handler so SIGTERM during deploy still has a chance to flush.
+     */
+    private function persistProviderTransaction(
+        PalPlussPaymentAttempt $attempt,
+        PaymentRequest $paymentRequest,
+        string $transactionId,
+        ?string $providerRequestId,
+        ?string $providerCheckoutId,
+    ): void {
+        $attemptId = (int) $attempt->id;
+        $paymentRequestId = (string) $paymentRequest->id;
+        $now = now();
+
+        $attemptAttributes = [
+            'transaction_id' => $transactionId,
+            'status' => PalPlussPaymentAttempt::STATUS_PENDING,
+            'provider_request_id' => $providerRequestId,
+            'provider_checkout_id' => $providerCheckoutId,
+            'stk_initiated_at' => $now,
+            'last_error' => null,
+            'updated_at' => $now,
+        ];
+
+        $this->writeProviderTransaction($attemptId, $paymentRequestId, $attemptAttributes, $transactionId);
+
+        $attempt->fill($attemptAttributes);
+
+        register_shutdown_function(static function () use ($attemptId, $paymentRequestId, $attemptAttributes, $transactionId) {
+            try {
+                $missing = ! PalPlussPaymentAttempt::query()
+                    ->whereKey($attemptId)
+                    ->where('transaction_id', $transactionId)
+                    ->exists();
+                if (! $missing) {
+                    return;
+                }
+
+                PalPlussPaymentAttempt::query()
+                    ->whereKey($attemptId)
+                    ->where(function ($q) use ($transactionId) {
+                        $q->whereNull('transaction_id')
+                            ->orWhere('transaction_id', '')
+                            ->orWhere('transaction_id', $transactionId);
+                    })
+                    ->update($attemptAttributes);
+
+                PaymentRequest::query()
+                    ->where('id', $paymentRequestId)
+                    ->update([
+                        'payment_method' => 'palpluss',
+                        'transaction_id' => $transactionId,
+                    ]);
+
+                Log::warning('palpluss.stk_transaction_id_persisted_on_shutdown', [
+                    'attempt_id' => $attemptId,
+                    'transaction_id' => $transactionId,
+                ]);
+            } catch (Throwable $e) {
+                // Best-effort only — webhook/reconcile matching covers hard kills.
+            }
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $attemptAttributes
+     */
+    private function writeProviderTransaction(
+        int $attemptId,
+        string $paymentRequestId,
+        array $attemptAttributes,
+        string $transactionId,
+    ): void {
+        PalPlussPaymentAttempt::query()
+            ->whereKey($attemptId)
+            ->where(function ($q) use ($transactionId) {
+                $q->whereNull('transaction_id')
+                    ->orWhere('transaction_id', '')
+                    ->orWhere('transaction_id', $transactionId);
+            })
+            ->update($attemptAttributes);
+
+        PaymentRequest::query()
+            ->where('id', $paymentRequestId)
+            ->update([
+                'payment_method' => 'palpluss',
+                'transaction_id' => $transactionId,
+            ]);
     }
 
     /**

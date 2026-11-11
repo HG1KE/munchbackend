@@ -4,12 +4,14 @@ namespace Tests\Unit;
 
 use App\Exceptions\PalPlussException;
 use App\Models\PalPlussPaymentAttempt;
+use App\Models\PalPlussUnmatchedTransaction;
 use App\Models\PaymentRequest;
 use App\Models\Setting;
 use App\Services\PalPluss\PalPlussConfigResolver;
 use App\Services\PalPluss\PalPlussFulfillmentService;
 use App\Services\PalPluss\PalPlussHttpClient;
 use App\Services\PalPluss\PalPlussPhoneNormalizer;
+use App\Services\PalPluss\PalPlussReconciliationService;
 use App\Services\PalPluss\PalPlussStkInitiator;
 use App\Services\PalPluss\PalPlussTransactionVerifier;
 use Illuminate\Database\Schema\Blueprint;
@@ -38,6 +40,7 @@ class PalPlussStkIntegrationTest extends TestCase
 
     private function ensureSchema(): void
     {
+        Schema::dropIfExists('palpluss_unmatched_transactions');
         Schema::dropIfExists('palpluss_payment_attempts');
         Schema::dropIfExists('payment_requests');
         Schema::dropIfExists('orders');
@@ -110,6 +113,21 @@ class PalPlussStkIntegrationTest extends TestCase
             $table->timestamp('fulfilled_at')->nullable();
             $table->unsignedBigInteger('placed_order_id')->nullable();
             $table->string('last_error', 255)->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('palpluss_unmatched_transactions', function (Blueprint $table) {
+            $table->id();
+            $table->string('transaction_id', 64)->unique();
+            $table->string('external_reference', 32)->nullable();
+            $table->string('phone', 20)->nullable();
+            $table->decimal('amount', 12, 2)->nullable();
+            $table->string('currency', 3)->nullable();
+            $table->string('status', 32)->nullable();
+            $table->string('mpesa_receipt', 64)->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamp('resolved_at')->nullable();
+            $table->unsignedBigInteger('resolved_attempt_id')->nullable();
             $table->timestamps();
         });
     }
@@ -439,5 +457,135 @@ class PalPlussStkIntegrationTest extends TestCase
                 && ! array_key_exists('shortcode', $body)
                 && ($body['channelId'] ?? null) === '11111111-1111-1111-1111-111111111111';
         });
+    }
+
+    public function test_fulfill_binds_orphan_attempt_by_external_reference(): void
+    {
+        $pr = $this->makePaymentRequest([
+            'id' => 'dbdbc9d6-95f9-4c2d-ad5e-2c1531cf58b3',
+            'payment_amount' => 820,
+            'attribute' => 'wallet',
+        ]);
+
+        $attempt = PalPlussPaymentAttempt::query()->create([
+            'payment_request_id' => $pr->id,
+            'transaction_id' => null,
+            'account_reference' => 'dbdbc9d695f9',
+            'phone' => '254759979968',
+            'amount' => 820,
+            'currency' => 'KES',
+            'channel_id' => '11111111-1111-1111-1111-111111111111',
+            'status' => PalPlussPaymentAttempt::STATUS_INITIATED,
+        ]);
+
+        Http::fake([
+            'https://api.palpluss.com/v1/transactions/*' => Http::response([
+                'success' => true,
+                'requestId' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'data' => [
+                    'transaction_id' => 'a9711022-25d7-429e-addc-4af98a435427',
+                    'status' => 'SUCCESS',
+                    'amount' => 820,
+                    'currency' => 'KES',
+                    'phone_number' => '254759979968',
+                    'external_reference' => 'dbdbc9d695f9',
+                    'mpesa_receipt' => 'UKBFH1B6KA',
+                ],
+            ], 200),
+        ]);
+
+        $result = app(PalPlussFulfillmentService::class)->fulfill(
+            'a9711022-25d7-429e-addc-4af98a435427',
+            PalPlussFulfillmentService::SOURCE_WEBHOOK
+        );
+
+        $this->assertSame('verified_non_order', $result['outcome']);
+        $this->assertSame(1, (int) $pr->fresh()->is_paid);
+        $this->assertSame('a9711022-25d7-429e-addc-4af98a435427', $attempt->fresh()->transaction_id);
+        $this->assertSame('UKBFH1B6KA', $attempt->fresh()->mpesa_receipt);
+        $this->assertSame('success', $attempt->fresh()->status);
+    }
+
+    public function test_unknown_success_is_recorded_for_later_reconcile(): void
+    {
+        Http::fake([
+            'https://api.palpluss.com/v1/transactions/*' => Http::response([
+                'success' => true,
+                'requestId' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'data' => [
+                    'transaction_id' => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                    'status' => 'SUCCESS',
+                    'amount' => 100,
+                    'currency' => 'KES',
+                    'phone_number' => '254700000099',
+                    'external_reference' => 'zzzzzzzzzzzz',
+                ],
+            ], 200),
+        ]);
+
+        $result = app(PalPlussFulfillmentService::class)->fulfill(
+            'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+            PalPlussFulfillmentService::SOURCE_WEBHOOK
+        );
+
+        $this->assertSame('failed', $result['outcome']);
+        $orphan = PalPlussUnmatchedTransaction::query()->where(
+            'transaction_id',
+            'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        )->first();
+        $this->assertNotNull($orphan);
+        $this->assertSame('zzzzzzzzzzzz', $orphan->external_reference);
+        $this->assertNull($orphan->resolved_at);
+    }
+
+    public function test_reconcile_retries_unmatched_success_after_attempt_appears(): void
+    {
+        PalPlussUnmatchedTransaction::query()->create([
+            'transaction_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            'external_reference' => 'abcdef123456',
+            'phone' => '254711111111',
+            'amount' => 75,
+            'currency' => 'KES',
+            'status' => 'SUCCESS',
+        ]);
+
+        $pr = $this->makePaymentRequest([
+            'id' => 'abcdef12-3456-7890-abcd-ef1234567890',
+            'payment_amount' => 75,
+            'attribute' => 'wallet',
+        ]);
+
+        PalPlussPaymentAttempt::query()->create([
+            'payment_request_id' => $pr->id,
+            'transaction_id' => null,
+            'account_reference' => 'abcdef123456',
+            'phone' => '254711111111',
+            'amount' => 75,
+            'currency' => 'KES',
+            'channel_id' => '11111111-1111-1111-1111-111111111111',
+            'status' => PalPlussPaymentAttempt::STATUS_INITIATED,
+        ]);
+
+        Http::fake([
+            'https://api.palpluss.com/v1/transactions/*' => Http::response([
+                'success' => true,
+                'requestId' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'data' => [
+                    'transaction_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                    'status' => 'SUCCESS',
+                    'amount' => 75,
+                    'currency' => 'KES',
+                    'phone_number' => '254711111111',
+                    'external_reference' => 'abcdef123456',
+                ],
+            ], 200),
+        ]);
+
+        $stats = app(PalPlussReconciliationService::class)->reconcile();
+
+        $this->assertSame(1, $stats['unmatched_scanned']);
+        $this->assertGreaterThanOrEqual(1, $stats['already_placed'] + $stats['fulfilled']);
+        $this->assertSame(1, (int) $pr->fresh()->is_paid);
+        $this->assertNotNull(PalPlussUnmatchedTransaction::query()->first()->resolved_at);
     }
 }

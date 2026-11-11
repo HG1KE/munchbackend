@@ -57,8 +57,37 @@ class PalPlussWebhookController extends Controller
             ->where('transaction_id', $transactionId)
             ->first();
 
+        // Deploy mid-STK can leave attempt.transaction_id null while PalPluss
+        // still has our accountReference — soft-match so we can persist payload.
+        if ($attempt === null) {
+            $external = isset($transaction['external_reference'])
+                ? trim((string) $transaction['external_reference'])
+                : '';
+            if ($external !== '') {
+                $attempt = PalPlussPaymentAttempt::query()
+                    ->where('account_reference', $external)
+                    ->where(function ($q) {
+                        $q->whereNull('transaction_id')->orWhere('transaction_id', '');
+                    })
+                    ->whereIn('status', [
+                        PalPlussPaymentAttempt::STATUS_INITIATED,
+                        PalPlussPaymentAttempt::STATUS_PENDING,
+                        PalPlussPaymentAttempt::STATUS_PROCESSING,
+                    ])
+                    ->orderByDesc('id')
+                    ->first();
+            }
+        }
+
         if ($attempt !== null) {
             $attempt->last_webhook_payload = $payload;
+            if (trim((string) ($attempt->transaction_id ?? '')) === '') {
+                $attempt->transaction_id = $transactionId;
+                $attempt->stk_initiated_at = $attempt->stk_initiated_at ?? now();
+                if ($attempt->status === PalPlussPaymentAttempt::STATUS_INITIATED) {
+                    $attempt->status = PalPlussPaymentAttempt::STATUS_PENDING;
+                }
+            }
             $attempt->save();
         }
 
@@ -67,6 +96,7 @@ class PalPlussWebhookController extends Controller
             'transaction_id' => $transactionId,
             'status' => $transaction['status'] ?? null,
             'attempt_found' => $attempt !== null,
+            'external_reference' => $transaction['external_reference'] ?? null,
         ]);
 
         if ($eventType !== 'transaction.success'
