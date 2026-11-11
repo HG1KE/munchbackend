@@ -318,7 +318,7 @@
             paymentStatus: @json(translate('Payment_Status')),
             invalidPhone: @json(translate('Enter a valid 10-digit phone number.')),
             orderNotPosted: @json(translate('Order not posted')),
-            nearDuplicate: @json(translate('This looks like an order you just placed. Open that order to edit it, or cancel it first.')),
+            nearDuplicate: @json(translate('Duplicate order detected. You just posted the same order.')),
             postingOrder: @json(translate('Posting order...')),
             postedNumber: @json(translate('Order {n} posted successfully.')),
             queuedSavedDetail: @json(translate('Order saved offline. It will sync automatically.')),

@@ -849,12 +849,17 @@
         return idbPut('cart', stored, CART_KEY);
     }
 
-    function toast(message, durationMs) {
+    function toast(message, durationMs, options) {
         if (!els.toast) return;
+        var danger = !!(options && options.danger);
+        els.toast.classList.toggle('munch-pos-toast--danger', danger);
         els.toast.hidden = false;
         els.toast.textContent = message;
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { els.toast.hidden = true; }, durationMs || 2600);
+        toastTimer = setTimeout(function () {
+            els.toast.hidden = true;
+            els.toast.classList.remove('munch-pos-toast--danger');
+        }, durationMs || 2600);
     }
 
     function addSimple(product) {
@@ -1570,7 +1575,7 @@
                     : CFG.labels.syncFailed;
                 state.syncKind = 'err';
                 if (body.code === 'near_duplicate') {
-                    toast(row.lastError, 5200);
+                    toast(row.lastError, 5200, { danger: true });
                 }
                 return idbPut('queue', row).then(refreshQueueCount);
             }
@@ -2617,12 +2622,12 @@
         if (body && body.code === 'near_duplicate') {
             var nearMessage = body.message
                 || CFG.labels.nearDuplicate
-                || 'This looks like an order you just placed. Open that order to edit it, or cancel it first.';
+                || 'Duplicate order detected. You just posted the same order.';
             if (state.cart.orderType === 'delivery') {
                 showDeliveryFailure(nearMessage);
                 return;
             }
-            toast(nearMessage, 5200);
+            toast(nearMessage, 5200, { danger: true });
             return;
         }
         if (state.cart.orderType === 'delivery') {

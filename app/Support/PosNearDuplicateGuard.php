@@ -21,7 +21,7 @@ class PosNearDuplicateGuard
 
     public static function message(): string
     {
-        return 'This looks like an order you just placed. Open that order to edit it, or cancel it first.';
+        return 'Duplicate order detected. You just posted the same order.';
     }
 
     /**

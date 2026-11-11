@@ -63,7 +63,7 @@ class PosNearDuplicateGuardTest extends TestCase
     public function test_message_is_plain_english(): void
     {
         $this->assertSame(
-            'This looks like an order you just placed. Open that order to edit it, or cancel it first.',
+            'Duplicate order detected. You just posted the same order.',
             PosNearDuplicateGuard::message()
         );
         $this->assertSame('near_duplicate', PosNearDuplicateGuard::CODE);
@@ -191,8 +191,8 @@ class PosNearDuplicateGuardTest extends TestCase
 
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $this->assertStringContainsString("body.code === 'near_duplicate'", $js);
-        $this->assertStringContainsString('This looks like an order you just placed', $js);
-        $this->assertStringContainsString('toast(nearMessage, 5200)', $js);
+        $this->assertStringContainsString('Duplicate order detected. You just posted the same order.', $js);
+        $this->assertStringContainsString('toast(nearMessage, 5200, { danger: true })', $js);
     }
 
     /**
