@@ -54,7 +54,7 @@
                                 class="btn btn-sm btn-outline-primary"
                                 data-export-url="{{ route('stocks.export') }}"
                                 data-export-message="{{ translate('Complete all fields for the branch and date selected before exporting the report.') }}">
-                            {{ translate('Export Report') }}
+                            {{ translate('Export') }} {{ $branchName }} {{ translate('Report') }}
                         </button>
                     @endif
                 </div>

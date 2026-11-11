@@ -131,7 +131,7 @@ class StocksAuditExportTest extends TestCase
     {
         $dashboard = file_get_contents(resource_path('views/stocks-views/dashboard/index.blade.php'));
         $this->assertStringContainsString('munch-stocks-export-report', $dashboard);
-        $this->assertStringContainsString("translate('Export Report')", $dashboard);
+        $this->assertStringContainsString("translate('Export') }} {{ \$branchName }} {{ translate('Report') }}", $dashboard);
         $this->assertStringContainsString('stocks.export', $dashboard);
         $this->assertStringContainsString(StocksAuditExport::INCOMPLETE_MESSAGE, $dashboard);
         $this->assertStringContainsString('munch-stocks-dashboard.js', $dashboard);
