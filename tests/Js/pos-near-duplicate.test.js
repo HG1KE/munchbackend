@@ -38,10 +38,13 @@ test('POS toast shows near-duplicate copy plainly', function () {
 });
 
 test('near-duplicate toast is centered and red', function () {
-    assert(css.indexOf('.munch-pos-toast--danger') !== -1, 'danger toast class missing');
+    assert(css.indexOf('.munch-pos-toast.munch-pos-toast--danger') !== -1, 'danger toast class missing');
     assert(css.indexOf('top: 50%') !== -1, 'must center vertically');
     assert(css.indexOf('background: #dc2626') !== -1, 'must use red danger background');
+    assert(css.indexOf('z-index: 80') !== -1, 'danger toast must sit above other POS overlays');
     assert(js.indexOf("classList.toggle('munch-pos-toast--danger'") !== -1, 'must apply danger class');
+    assert(js.indexOf("els.toast.style.top = '50%'") !== -1, 'must inline mid-page top');
+    assert(js.indexOf("els.toast.style.background = '#dc2626'") !== -1, 'must inline red background');
 });
 
 test('guard hard-blocks within two minutes', function () {
@@ -51,7 +54,10 @@ test('guard hard-blocks within two minutes', function () {
 });
 
 test('asset version bumped for POS clients', function () {
-    assert(version.indexOf("ASSET = '6.13'") !== -1, 'PosClientVersion should be 6.13');
+    assert(version.indexOf("ASSET = '6.14'") !== -1, 'PosClientVersion should be 6.14');
+    var layout = fs.readFileSync(path.join(root, 'resources/views/layouts/branch/pos.blade.php'), 'utf8');
+    assert(layout.indexOf("munch-pos.css') }}?v={{ \\App\\Support\\PosClientVersion::ASSET }}") !== -1,
+        'POS CSS must cache-bust with PosClientVersion::ASSET');
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');

@@ -37,7 +37,7 @@ class PosSuccessRecoveryTest extends TestCase
         $this->assertStringNotContainsString('reportSubmitFailure(timeoutMessage(), true)', $app);
         $this->assertStringContainsString('function recoverPlaceOutcome', $guard);
         $this->assertStringContainsString('isUncertainPlaceFailure', $guard);
-        $this->assertSame('6.13', PosClientVersion::ASSET);
+        $this->assertSame('6.14', PosClientVersion::ASSET);
     }
 
     public function test_node_success_recovery_scenarios(): void

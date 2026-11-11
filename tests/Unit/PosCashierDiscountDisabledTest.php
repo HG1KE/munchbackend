@@ -170,8 +170,12 @@ class PosCashierDiscountDisabledTest extends TestCase
         $this->assertStringContainsString('isPosClientStale()', $js);
         $this->assertStringContainsString("String(serverVersion) !== String(CFG.assetVersion)", $js);
         $this->assertStringContainsString("'pos_asset_version' => PosClientVersion::ASSET", $controller);
-        $this->assertSame('6.13', PosClientVersion::ASSET);
+        $this->assertSame('6.14', PosClientVersion::ASSET);
         $this->assertStringContainsString("munch-pos-app.js') }}?v={{ \\App\\Support\\PosClientVersion::ASSET }}", $page);
+        $this->assertStringContainsString(
+            "munch-pos.css') }}?v={{ \\App\\Support\\PosClientVersion::ASSET }}",
+            file_get_contents(resource_path('views/layouts/branch/pos.blade.php'))
+        );
         $this->assertStringContainsString('id="pos-munch-type-modal"', $page);
         $this->assertStringContainsString('function confirmMunchWalkInType', $js);
         $this->assertStringContainsString('function confirmDeliveryAndPlace', $js);

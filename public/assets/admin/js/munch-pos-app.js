@@ -849,16 +849,52 @@
         return idbPut('cart', stored, CART_KEY);
     }
 
+    function applyDangerToastStyles(on) {
+        if (!els.toast) return;
+        els.toast.classList.toggle('munch-pos-toast--danger', !!on);
+        // Inline critical styles so a stale CSS cache cannot leave duplicate
+        // warnings as a bottom pill after a JS-only asset bump.
+        if (on) {
+            els.toast.style.top = '50%';
+            els.toast.style.bottom = 'auto';
+            els.toast.style.left = '50%';
+            els.toast.style.transform = 'translate(-50%, -50%)';
+            els.toast.style.background = '#dc2626';
+            els.toast.style.color = '#fff';
+            els.toast.style.borderRadius = '14px';
+            els.toast.style.textAlign = 'center';
+            els.toast.style.maxWidth = 'min(92vw, 28rem)';
+            els.toast.style.zIndex = '80';
+            els.toast.style.padding = '0.95rem 1.25rem';
+            els.toast.style.lineHeight = '1.35';
+            els.toast.style.boxShadow = '0 12px 28px rgba(127, 29, 29, 0.35)';
+            return;
+        }
+        els.toast.style.top = '';
+        els.toast.style.bottom = '';
+        els.toast.style.left = '';
+        els.toast.style.transform = '';
+        els.toast.style.background = '';
+        els.toast.style.color = '';
+        els.toast.style.borderRadius = '';
+        els.toast.style.textAlign = '';
+        els.toast.style.maxWidth = '';
+        els.toast.style.zIndex = '';
+        els.toast.style.padding = '';
+        els.toast.style.lineHeight = '';
+        els.toast.style.boxShadow = '';
+    }
+
     function toast(message, durationMs, options) {
         if (!els.toast) return;
         var danger = !!(options && options.danger);
-        els.toast.classList.toggle('munch-pos-toast--danger', danger);
+        applyDangerToastStyles(danger);
         els.toast.hidden = false;
         els.toast.textContent = message;
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () {
             els.toast.hidden = true;
-            els.toast.classList.remove('munch-pos-toast--danger');
+            applyDangerToastStyles(false);
         }, durationMs || 2600);
     }
 

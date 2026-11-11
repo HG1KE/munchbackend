@@ -940,9 +940,10 @@
     font-weight: 600;
 }
 
-.munch-pos-toast--danger {
+.munch-pos-toast.munch-pos-toast--danger {
     top: 50%;
     bottom: auto;
+    left: 50%;
     transform: translate(-50%, -50%);
     max-width: min(92vw, 28rem);
     padding: 0.95rem 1.25rem;
@@ -952,6 +953,7 @@
     text-align: center;
     line-height: 1.35;
     box-shadow: 0 12px 28px rgba(127, 29, 29, 0.35);
+    z-index: 80;
 }
 
 .munch-pos-orders {
