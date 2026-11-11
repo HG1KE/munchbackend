@@ -48,13 +48,23 @@
                         {{ translate('Stock items') }}
                         <span class="text-muted">— {{ $date }}</span>
                     </h5>
+                    @if(count($rows))
+                        <button type="button"
+                                id="munch-stocks-export-report"
+                                class="btn btn-sm btn-outline-primary"
+                                data-export-url="{{ route('stocks.export') }}"
+                                data-export-message="{{ translate('Complete all fields for the branch and date selected before exporting the report.') }}">
+                            {{ translate('Export Report') }}
+                        </button>
+                    @endif
                 </div>
                 <form id="munch-stocks-counts-form"
                       method="POST"
                       action="{{ route('stocks.counts.save') }}"
                       data-branch-id="{{ $branchId }}"
                       data-date="{{ $date }}"
-                      data-fill-message="{{ translate('Fill in all boxes before saving') }}">
+                      data-fill-message="{{ translate('Fill in all boxes before saving') }}"
+                      data-export-message="{{ translate('Complete all fields for the branch and date selected before exporting the report.') }}">
                     @csrf
                     <input type="hidden" name="date" value="{{ $date }}">
                     <input type="hidden" name="branch_id" value="{{ $branchId }}">
@@ -147,5 +157,5 @@
 @endsection
 
 @push('script')
-    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.3"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.4"></script>
 @endpush

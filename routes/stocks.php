@@ -15,5 +15,6 @@ Route::group(['namespace' => 'Stocks', 'as' => 'stocks.', 'middleware' => 'maint
     Route::group(['middleware' => ['stocks']], function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
         Route::post('/counts', [DashboardController::class, 'saveCounts'])->name('counts.save');
+        Route::match(['get', 'post'], '/export', [DashboardController::class, 'exportReport'])->name('export');
     });
 });

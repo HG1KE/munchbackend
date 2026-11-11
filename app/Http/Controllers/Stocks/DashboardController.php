@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Model\StockDailyCount;
 use App\Model\StockItem;
 use App\Services\Stock\StockVarianceService;
+use App\Support\StocksAuditExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\Response;
 
 class DashboardController extends Controller
 {
@@ -52,6 +55,70 @@ class DashboardController extends Controller
             'accessible',
             'showBranchPicker'
         ));
+    }
+
+    public function exportReport(Request $request): Response|RedirectResponse
+    {
+        $manager = auth('stocks')->user();
+        $manager->loadMissing('branches');
+
+        $request->validate([
+            'date' => 'required|date',
+            'branch_id' => 'required|integer|exists:branches,id',
+        ]);
+
+        $branchId = (int) $request->input('branch_id');
+        if (! $manager->canAccessBranch($branchId)) {
+            abort(403, translate('You do not have access to this branch'));
+        }
+
+        $date = $request->input('date') ?: now()->toDateString();
+        $accessible = $manager->accessibleBranches();
+        $currentBranch = $accessible->firstWhere('id', $branchId);
+        $branchName = $currentBranch?->name ?: translate('Stocks');
+
+        // Prefer the filled table on screen (posted values). Fall back to saved counts.
+        $rows = $this->variance->rowsForBranchDate($branchId, $date, 'short');
+        if ($request->has('opening') || $request->has('received') || $request->has('closing')) {
+            $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
+            $receiveds = is_array($request->input('received')) ? $request->input('received') : [];
+            $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
+            $rows = array_map(function (array $row) use ($openings, $receiveds, $closings) {
+                $id = (int) $row['stock_item_id'];
+                $key = (string) $id;
+                $openingRaw = $openings[$id] ?? $openings[$key] ?? null;
+                $receivedRaw = $receiveds[$id] ?? $receiveds[$key] ?? null;
+                $closingRaw = $closings[$id] ?? $closings[$key] ?? null;
+
+                $opening = ($openingRaw === null || $openingRaw === '') ? null : (float) $openingRaw;
+                $received = ($receivedRaw === null || $receivedRaw === '') ? null : (float) $receivedRaw;
+                $closing = ($closingRaw === null || $closingRaw === '') ? null : (float) $closingRaw;
+                $sold = (float) ($row['expected_sold'] ?? 0);
+                $variance = StockVarianceService::result($opening, $received, $sold, $closing);
+
+                $row['opening_qty'] = $opening;
+                $row['received_qty'] = $received;
+                $row['closing_qty'] = $closing;
+                $row['variance'] = $variance;
+                $row['variance_label'] = $this->variance->formatVarianceLabel($variance, 'short');
+
+                return $row;
+            }, $rows);
+        }
+
+        $report = StocksAuditExport::build($branchName, $date, $rows);
+
+        if (! StocksAuditExport::isComplete($report)) {
+            Toastr::error(translate(StocksAuditExport::INCOMPLETE_MESSAGE));
+
+            return redirect()->route('stocks.dashboard', [
+                'date' => $date,
+                'branch_id' => $branchId,
+            ]);
+        }
+
+        return Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))
+            ->download(StocksAuditExport::filename($report));
     }
 
     public function saveCounts(Request $request): RedirectResponse

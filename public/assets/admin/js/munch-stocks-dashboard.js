@@ -200,6 +200,11 @@
         var branchId = table.getAttribute('data-branch-id') || (form && form.getAttribute('data-branch-id')) || '';
         var date = table.getAttribute('data-date') || (form && form.getAttribute('data-date')) || '';
         var fillMessage = (form && form.getAttribute('data-fill-message')) || 'Fill in all boxes before saving';
+        var exportBtn = document.getElementById('munch-stocks-export-report');
+        var exportMessage =
+            (exportBtn && exportBtn.getAttribute('data-export-message')) ||
+            (form && form.getAttribute('data-export-message')) ||
+            'Complete all fields for the branch and date selected before exporting the report.';
 
         if (branchId && date) {
             var params = new URLSearchParams(window.location.search);
@@ -240,6 +245,32 @@
                 if (!allBoxesFilled(table)) {
                     ev.preventDefault();
                     showFillError(fillMessage);
+                }
+            });
+        }
+
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                if (!allBoxesFilled(table)) {
+                    showFillError(exportMessage);
+                    return;
+                }
+                if (!form) {
+                    return;
+                }
+                var exportUrl =
+                    exportBtn.getAttribute('data-export-url') ||
+                    exportBtn.getAttribute('href') ||
+                    '';
+                if (!exportUrl) {
+                    return;
+                }
+                var originalAction = form.getAttribute('action');
+                form.setAttribute('action', exportUrl);
+                form.submit();
+                if (originalAction) {
+                    form.setAttribute('action', originalAction);
                 }
             });
         }
