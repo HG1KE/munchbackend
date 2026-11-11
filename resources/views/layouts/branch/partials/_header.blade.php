@@ -25,6 +25,8 @@
 
             <div class="navbar-nav-wrap-content-right">
                 <ul class="navbar-nav align-items-center flex-row">
+                    @include('layouts.partials._munch-theme-toggle')
+
                     <li class="nav-item d-none d-sm-inline-block">
                         <div class="hs-unfold">
                             <div class="bg-white p-1 rounded">

@@ -1,0 +1,3464 @@
+/**
+ * Munch admin/branch dark mode
+ *
+ * Every rule MUST keep a full body.*-admin-shell ancestor (validator policy).
+ * Valid:   body.munch-admin-shell[data-munch-theme="dark"] .card,
+ *          body.meatco-admin-shell[data-munch-theme="dark"] .card
+ * Invalid: body.munch-admin-shell[data-munch-theme="dark"], body.meatco-admin-shell .card
+ *
+ * Print / invoice / POS print stay light via @media print + forced-light exclusions.
+ * @see docs/MEATCO_ADMIN_CSS.md
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Dark palette — remap shell tokens                                          */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"],
+body.meatco-admin-shell[data-munch-theme="dark"] {
+    --munch-shell-bg: #0b1220;
+    --munch-shell-surface: #121a2b;
+    --munch-shell-surface-raised: #162033;
+    --munch-shell-border: #2a3a52;
+    --munch-shell-border-soft: #1e2a3d;
+    /* High-contrast ink: near-white primary, muted still WCAG-ish on navy */
+    --munch-shell-text: #f1f5f9;
+    --munch-shell-text-muted: #b6c4d8;
+    --munch-shell-text-subtle: #94a3b8;
+    --munch-shell-ink: #f8fafc;
+    --munch-shell-ink-strong: #ffffff;
+    --munch-shell-sidebar: #05080f;
+    --munch-shell-sidebar-elevated: #0a101c;
+    --munch-shell-sidebar-hover: rgba(255, 255, 255, 0.08);
+    --munch-shell-sidebar-active: rgba(231, 3, 45, 0.34);
+    --munch-shell-sidebar-active-strong: rgba(231, 3, 45, 0.46);
+    --munch-shell-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
+    --munch-shell-shadow-hover: 0 8px 28px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.28);
+    --munch-shell-shadow-header: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 22px rgba(0, 0, 0, 0.35);
+    color: var(--munch-shell-text);
+    background-color: var(--munch-shell-bg);
+    color-scheme: dark;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Canvas / footer / header                                                   */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .main,
+body.meatco-admin-shell[data-munch-theme="dark"] .main {
+    background-color: var(--munch-shell-bg);
+    background-image:
+        radial-gradient(ellipse 120% 80% at 100% -20%, rgba(231, 3, 45, 0.12), transparent 55%),
+        radial-gradient(ellipse 90% 60% at 0% 100%, rgba(56, 120, 255, 0.08), transparent 50%);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .footer,
+body.meatco-admin-shell[data-munch-theme="dark"] .footer {
+    background: #0e1626 !important;
+    border-top: 1px solid var(--munch-shell-border) !important;
+    color: var(--munch-shell-text-muted);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #header.navbar,
+body.meatco-admin-shell[data-munch-theme="dark"] #header.navbar {
+    background: #101827 !important;
+    border-bottom: 1px solid var(--munch-shell-border) !important;
+    box-shadow: var(--munch-shell-shadow-header);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #header .btn-icon.btn-ghost-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] #header .btn-icon.btn-ghost-secondary {
+    border-color: var(--munch-shell-border);
+    background: #182234;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #header .btn-icon.btn-ghost-secondary:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] #header .btn-icon.btn-ghost-secondary:hover {
+    border-color: #3d516e;
+    background: #1c2a40;
+    color: #fff;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #header .topbar-link,
+body.meatco-admin-shell[data-munch-theme="dark"] #header .topbar-link,
+body.munch-admin-shell[data-munch-theme="dark"] #header .card-title,
+body.meatco-admin-shell[data-munch-theme="dark"] #header .card-title,
+body.munch-admin-shell[data-munch-theme="dark"] #header .card-text,
+body.meatco-admin-shell[data-munch-theme="dark"] #header .card-text {
+    color: var(--munch-shell-text) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #header .bg-white.p-1.rounded,
+body.meatco-admin-shell[data-munch-theme="dark"] #header .bg-white.p-1.rounded {
+    background: #182234 !important;
+    border-color: var(--munch-shell-border);
+    box-shadow: none;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .navbar-dropdown-account-wrapper,
+body.meatco-admin-shell[data-munch-theme="dark"] .navbar-dropdown-account-wrapper {
+    color: var(--munch-shell-text);
+}
+
+/* Theme toggle control */
+body.munch-admin-shell[data-munch-theme="dark"] .munch-theme-toggle,
+body.meatco-admin-shell[data-munch-theme="dark"] .munch-theme-toggle,
+body.munch-admin-shell .munch-theme-toggle,
+body.meatco-admin-shell .munch-theme-toggle {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--munch-shell-border, #c9d4e3);
+    background: #f8fafc;
+    border-radius: var(--munch-shell-radius-xs, 7px);
+    color: var(--munch-shell-text, #0b1220);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition:
+        border-color 160ms ease,
+        background 160ms ease,
+        color 160ms ease,
+        box-shadow 160ms ease,
+        transform 120ms ease;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .munch-theme-toggle,
+body.meatco-admin-shell[data-munch-theme="dark"] .munch-theme-toggle {
+    background: #1e2d45;
+    border-color: #5b7394;
+    color: #fde68a;
+    box-shadow: inset 0 0 0 1px rgba(253, 230, 138, 0.18);
+}
+
+body.munch-admin-shell .munch-theme-toggle:hover,
+body.meatco-admin-shell .munch-theme-toggle:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-theme-toggle:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .munch-theme-toggle:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--munch-shell-shadow);
+}
+
+body.munch-admin-shell .munch-theme-toggle i,
+body.meatco-admin-shell .munch-theme-toggle i {
+    font-size: 1.15rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Page headers / cards / tables / forms                                      */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .page-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .page-header {
+    background: var(--munch-shell-surface);
+    border-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card,
+body.meatco-admin-shell[data-munch-theme="dark"] .card {
+    background: var(--munch-shell-surface-raised);
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .card:hover {
+    border-color: #3d516e;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-header {
+    background: linear-gradient(180deg, #1a2438 0%, #152033 100%);
+    border-bottom-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card-footer,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-footer {
+    background: #121a2b;
+    border-top-color: var(--munch-shell-border-soft);
+    color: var(--munch-shell-text-muted);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dashboard--card,
+body.meatco-admin-shell[data-munch-theme="dark"] .dashboard--card,
+body.munch-admin-shell[data-munch-theme="dark"] .order-stats,
+body.meatco-admin-shell[data-munch-theme="dark"] .order-stats,
+body.munch-admin-shell[data-munch-theme="dark"] .resturant-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .resturant-card {
+    background: var(--munch-shell-surface);
+    border-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .table,
+body.meatco-admin-shell[data-munch-theme="dark"] .table {
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .table thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .table thead th,
+body.munch-admin-shell[data-munch-theme="dark"] .card > .table-responsive > .table thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .card > .table-responsive > .table thead th,
+body.munch-admin-shell[data-munch-theme="dark"] .card .table-responsive thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .card .table-responsive thead th {
+    color: #b6c3d6;
+    border-bottom-color: var(--munch-shell-border);
+    background: linear-gradient(180deg, #1a2438 0%, #152033 100%);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .table tbody td,
+body.meatco-admin-shell[data-munch-theme="dark"] .table tbody td {
+    border-color: var(--munch-shell-border-soft);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .table-hover tbody tr:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(148, 163, 184, 0.08);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .table-striped tbody tr:nth-of-type(odd),
+body.meatco-admin-shell[data-munch-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(148, 163, 184, 0.04);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .form-control,
+body.meatco-admin-shell[data-munch-theme="dark"] .form-control,
+body.munch-admin-shell[data-munch-theme="dark"] .custom-select,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-select,
+body.munch-admin-shell[data-munch-theme="dark"] .form--control,
+body.meatco-admin-shell[data-munch-theme="dark"] .form--control,
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--single,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--single,
+body.munch-admin-shell[data-munch-theme="dark"] .custom-file-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-file-label {
+    background-color: #0f1726 !important;
+    border-color: #3d516e !important;
+    color: var(--munch-shell-text) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .form-control::placeholder,
+body.meatco-admin-shell[data-munch-theme="dark"] .form-control::placeholder,
+body.munch-admin-shell[data-munch-theme="dark"] .form--control::placeholder,
+body.meatco-admin-shell[data-munch-theme="dark"] .form--control::placeholder {
+    color: #7a8aa3;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .input-label,
+body.munch-admin-shell[data-munch-theme="dark"] label.input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] label.input-label,
+body.munch-admin-shell[data-munch-theme="dark"] .form-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .form-label,
+body.munch-admin-shell[data-munch-theme="dark"] label,
+body.meatco-admin-shell[data-munch-theme="dark"] label {
+    color: #c5d0e0;
+}
+
+/* style.css locks bare `label { color:#334257 }` — keep status/labels readable */
+body.munch-admin-shell[data-munch-theme="dark"] label.text-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] label.text-dark,
+body.munch-admin-shell[data-munch-theme="dark"] label.font-weight-bold,
+body.meatco-admin-shell[data-munch-theme="dark"] label.font-weight-bold {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .btn-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .btn--secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn--secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .btn-outline-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn-outline-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .btn-white,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn-white,
+body.munch-admin-shell[data-munch-theme="dark"] .btn-light,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn-light {
+    background-color: #1a2438 !important;
+    border-color: #3d516e !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .btn-ghost-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn-ghost-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .btn-ghost-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] .btn-ghost-dark {
+    color: #cbd5e1 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Bootstrap light-locked utilities                                           */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .bg-white,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-white,
+body.munch-admin-shell[data-munch-theme="dark"] .bg-light,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-light,
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-dark,
+body.munch-admin-shell[data-munch-theme="dark"] .bg-section,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-section,
+body.munch-admin-shell[data-munch-theme="dark"] .bg-section2,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-section2 {
+    background-color: var(--munch-shell-surface) !important;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .text-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] .text-dark,
+body.munch-admin-shell[data-munch-theme="dark"] .text-body,
+body.meatco-admin-shell[data-munch-theme="dark"] .text-body,
+body.munch-admin-shell[data-munch-theme="dark"] .text-black-50,
+body.meatco-admin-shell[data-munch-theme="dark"] .text-black-50,
+body.munch-admin-shell[data-munch-theme="dark"] .text-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .text-title {
+    color: var(--munch-shell-text) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .text-muted,
+body.meatco-admin-shell[data-munch-theme="dark"] .text-muted,
+body.munch-admin-shell[data-munch-theme="dark"] .text-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .text-secondary {
+    color: var(--munch-shell-text-muted) !important;
+}
+
+/* kbd stays light-gray chrome in theme.min — dim it for dark */
+body.munch-admin-shell[data-munch-theme="dark"] kbd,
+body.meatco-admin-shell[data-munch-theme="dark"] kbd {
+    background-color: #1e2a3d !important;
+    color: #e8eef7 !important;
+    border-color: #2a3a52;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .border,
+body.meatco-admin-shell[data-munch-theme="dark"] .border,
+body.munch-admin-shell[data-munch-theme="dark"] .border-top,
+body.meatco-admin-shell[data-munch-theme="dark"] .border-top,
+body.munch-admin-shell[data-munch-theme="dark"] .border-bottom,
+body.meatco-admin-shell[data-munch-theme="dark"] .border-bottom,
+body.munch-admin-shell[data-munch-theme="dark"] .border-left,
+body.meatco-admin-shell[data-munch-theme="dark"] .border-left,
+body.munch-admin-shell[data-munch-theme="dark"] .border-right,
+body.meatco-admin-shell[data-munch-theme="dark"] .border-right {
+    border-color: var(--munch-shell-border) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .shadow-sm,
+body.meatco-admin-shell[data-munch-theme="dark"] .shadow-sm,
+body.munch-admin-shell[data-munch-theme="dark"] .shadow,
+body.meatco-admin-shell[data-munch-theme="dark"] .shadow {
+    box-shadow: var(--munch-shell-shadow) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .list-group-item,
+body.meatco-admin-shell[data-munch-theme="dark"] .list-group-item {
+    background-color: var(--munch-shell-surface) !important;
+    border-color: var(--munch-shell-border) !important;
+    color: var(--munch-shell-text) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-menu,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-menu,
+body.munch-admin-shell[data-munch-theme="dark"] .hs-unfold-content,
+body.meatco-admin-shell[data-munch-theme="dark"] .hs-unfold-content,
+body.munch-admin-shell[data-munch-theme="dark"] .navbar-dropdown-menu,
+body.meatco-admin-shell[data-munch-theme="dark"] .navbar-dropdown-menu {
+    background-color: #152033 !important;
+    border-color: var(--munch-shell-border) !important;
+    color: var(--munch-shell-text);
+    box-shadow: var(--munch-shell-shadow-hover);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item {
+    color: var(--munch-shell-text);
+}
+
+/* theme.min locks active items to #1e2022 — near-invisible on navy menus */
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item.active,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item.active,
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item:active,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item:active,
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item.active:not(:focus):not(:active),
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item.active:not(:focus):not(:active) {
+    color: #f8fafc !important;
+    background-color: rgba(231, 3, 45, 0.22) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item.disabled,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item.disabled,
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item:disabled,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item:disabled {
+    color: #94a3b8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-item:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-item:focus {
+    background-color: rgba(231, 3, 45, 0.16);
+    color: #fff;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dropdown-divider,
+body.meatco-admin-shell[data-munch-theme="dark"] .dropdown-divider {
+    border-top-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .modal-content,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal-content {
+    background-color: #152033;
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .modal-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal-header,
+body.munch-admin-shell[data-munch-theme="dark"] .modal-footer,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal-footer {
+    border-color: var(--munch-shell-border);
+    background: #121a2b;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .modal-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal-title,
+body.munch-admin-shell[data-munch-theme="dark"] .close,
+body.meatco-admin-shell[data-munch-theme="dark"] .close {
+    color: var(--munch-shell-text);
+    text-shadow: none;
+    opacity: 0.85;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .modal-backdrop.show,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal-backdrop.show {
+    opacity: 0.72;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .nav-tabs,
+body.meatco-admin-shell[data-munch-theme="dark"] .nav-tabs {
+    border-bottom-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .nav-tabs .nav-link,
+body.meatco-admin-shell[data-munch-theme="dark"] .nav-tabs .nav-link {
+    color: var(--munch-shell-text-muted);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .nav-tabs .nav-link.active,
+body.meatco-admin-shell[data-munch-theme="dark"] .nav-tabs .nav-link.active {
+    background-color: var(--munch-shell-surface);
+    border-color: var(--munch-shell-border) var(--munch-shell-border) var(--munch-shell-surface);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .pagination .page-link,
+body.meatco-admin-shell[data-munch-theme="dark"] .pagination .page-link {
+    background-color: #152033;
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .pagination .page-item.active .page-link,
+body.meatco-admin-shell[data-munch-theme="dark"] .pagination .page-item.active .page-link {
+    background-color: var(--munch-primary, #E7032D);
+    border-color: var(--munch-primary, #E7032D);
+    color: #fff;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .pagination .page-item.disabled .page-link,
+body.meatco-admin-shell[data-munch-theme="dark"] .pagination .page-item.disabled .page-link {
+    background-color: #121a2b;
+    color: #64748b;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .alert,
+body.meatco-admin-shell[data-munch-theme="dark"] .alert {
+    border-color: var(--munch-shell-border);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .alert-soft-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .alert-soft-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .alert-light,
+body.meatco-admin-shell[data-munch-theme="dark"] .alert-light {
+    background: #1a2438;
+    color: #cbd5e1;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-dark,
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-light,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-light {
+    background: rgba(148, 163, 184, 0.18) !important;
+    color: #e2e8f0 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] hr,
+body.meatco-admin-shell[data-munch-theme="dark"] hr {
+    border-top-color: var(--munch-shell-border);
+}
+
+/* Toastr */
+body.munch-admin-shell[data-munch-theme="dark"] #toast-container > .toast,
+body.meatco-admin-shell[data-munch-theme="dark"] #toast-container > .toast {
+    box-shadow: var(--munch-shell-shadow-hover);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #toast-container > .toast-info,
+body.meatco-admin-shell[data-munch-theme="dark"] #toast-container > .toast-info,
+body.munch-admin-shell[data-munch-theme="dark"] #toast-container > .toast-success,
+body.meatco-admin-shell[data-munch-theme="dark"] #toast-container > .toast-success,
+body.munch-admin-shell[data-munch-theme="dark"] #toast-container > .toast-warning,
+body.meatco-admin-shell[data-munch-theme="dark"] #toast-container > .toast-warning,
+body.munch-admin-shell[data-munch-theme="dark"] #toast-container > .toast-error,
+body.meatco-admin-shell[data-munch-theme="dark"] #toast-container > .toast-error {
+    opacity: 0.96;
+}
+
+/* Loading overlay */
+body.munch-admin-shell[data-munch-theme="dark"] .munch-admin-loading__backdrop,
+body.meatco-admin-shell[data-munch-theme="dark"] .munch-admin-loading__backdrop {
+    background: rgba(5, 8, 15, 0.72);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .munch-admin-loading__panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .munch-admin-loading__panel {
+    background: #152033;
+    border: 1px solid var(--munch-shell-border);
+    box-shadow: var(--munch-shell-shadow-hover);
+}
+
+/* DataTables leftovers */
+body.munch-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_filter input,
+body.meatco-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_filter input,
+body.munch-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_length select,
+body.meatco-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_length select {
+    background: #0f1726;
+    border-color: #3d516e;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_info,
+body.meatco-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_info,
+body.munch-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button,
+body.meatco-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+    color: var(--munch-shell-text-muted) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+body.meatco-admin-shell[data-munch-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: #1a2438 !important;
+    border-color: #3d516e !important;
+    color: #fff !important;
+}
+
+/* Select2 dropdown */
+body.munch-admin-shell[data-munch-theme="dark"] .select2-dropdown,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-dropdown {
+    background: #152033;
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected],
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: rgba(231, 3, 45, 0.28);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-search--dropdown .select2-search__field,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-search--dropdown .select2-search__field {
+    background: #0f1726;
+    border-color: #3d516e;
+    color: var(--munch-shell-text);
+}
+
+/* Tagify */
+body.munch-admin-shell[data-munch-theme="dark"] .tagify,
+body.meatco-admin-shell[data-munch-theme="dark"] .tagify {
+    background: #0f1726;
+    border-color: #3d516e;
+    color: var(--munch-shell-text);
+}
+
+/* Apex / Chart.js chrome */
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-tooltip,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-tooltip {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-tooltip-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-tooltip-title {
+    background: #152033 !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-legend-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-legend-text,
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-text,
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-yaxis-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-yaxis-label,
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-xaxis-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-xaxis-label {
+    fill: #94a3b8 !important;
+    color: #94a3b8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-gridline,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-gridline {
+    stroke: #334155 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-menu,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-menu {
+    background: #152033 !important;
+    border-color: #334155 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .apexcharts-theme-light .apexcharts-menu-item:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .apexcharts-theme-light .apexcharts-menu-item:hover {
+    background: rgba(231, 3, 45, 0.2) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Feature modules — token remaps + white surface overrides                   */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list {
+    --meatco-order-list-ink: #f8fafc;
+    --meatco-order-list-muted: #b6c4d8;
+    --meatco-order-list-border: #2a3a52;
+    --meatco-order-list-soft: #152033;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__shell,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__shell,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list [style*="background: #fff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list [style*="background: #fff"] {
+    background: var(--munch-shell-surface) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters {
+    background: linear-gradient(180deg, #162033 0%, #121a2b 100%) !important;
+    border-bottom-color: var(--meatco-order-list-border);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail {
+    --meatco-order-detail-ink: #f8fafc;
+    --meatco-order-detail-muted: #b6c4d8;
+    --meatco-order-detail-border: #2a3a52;
+    --meatco-order-detail-soft: #152033;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .meatco-ops-detail-back,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .meatco-ops-detail-back {
+    background: #152033;
+    border-color: #3d516e;
+    color: #cbd5e1;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .meatco-ops-detail-back:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .meatco-ops-detail-back:hover {
+    background: rgba(231, 3, 45, 0.14);
+    color: #fca5a5;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sale-report,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sale-report {
+    --meatco-sale-report-ink: #f8fafc;
+    --meatco-sale-report-muted: #b6c4d8;
+    --meatco-sale-report-border: #2a3a52;
+    --meatco-sale-report-soft: #152033;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-catalog-page,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-catalog-page {
+    --meatco-catalog-border: #2a3a52;
+    --meatco-catalog-muted: #b6c4d8;
+    --meatco-catalog-ink: #f8fafc;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-traffic,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-traffic,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-traffic-analytics,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-traffic-analytics {
+    --meatco-traffic-ink: #f8fafc;
+    --meatco-traffic-muted: #b6c4d8;
+    --meatco-traffic-border: #2a3a52;
+    --meatco-traffic-soft: #152033;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent {
+    background: var(--munch-shell-surface) !important;
+    border-color: var(--munch-shell-border) !important;
+    color: var(--munch-shell-text);
+}
+
+/* KPI tokens — feature CSS uses var(--meatco-kpi-*); remap so values are near-white */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip {
+    --meatco-kpi-ink: #f8fafc;
+    --meatco-kpi-muted: #b6c4d8;
+    --meatco-kpi-filter-ink: #cbd5e1;
+    --meatco-kpi-sync: #b6c4d8;
+    --meatco-kpi-card-bg: #152033;
+    --meatco-kpi-card-bg-hover: #1a2740;
+    --meatco-kpi-change-bg: #0f1726;
+    --meatco-kpi-change-border: #3d516e;
+    --meatco-kpi-filter-bg: #0f1726;
+    --meatco-kpi-filter-border: #2a3a52;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-sync,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-sync {
+    color: var(--munch-shell-ink, #f8fafc) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card {
+    background: var(--meatco-kpi-card-bg, #152033);
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card:hover {
+    background: var(--meatco-kpi-card-bg-hover, #1a2740);
+    border-color: #3d516e;
+    box-shadow: var(--munch-shell-shadow);
+}
+
+/* CRITICAL: beat light-locked .meatco-kpi-card__value { color:#0b1220 } */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__value,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-gross-profit .meatco-kpi-card__value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-gross-profit .meatco-kpi-card__value,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-return-clients .meatco-kpi-card__value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-return-clients .meatco-kpi-card__value {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__hint,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__hint,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__subtitle,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__subtitle,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__period,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__period,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-new-members__icon,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-new-members__icon,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-new-members__hint,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-new-members__hint,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change--neutral,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change--neutral {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change {
+    background: #0f1726;
+    border-color: #3d516e;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change--up,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change--up {
+    color: #34d399 !important;
+    border-color: rgba(52, 211, 153, 0.35);
+    background: rgba(52, 211, 153, 0.12);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change--down,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-card__change--down {
+    color: #f87171 !important;
+    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.12);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .form-control,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .form-control,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .custom-select,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .custom-select {
+    color: #cbd5e1 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .form-control:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .form-control:focus,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .custom-select:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__filters .custom-select:focus {
+    color: #f8fafc !important;
+    background: #152033 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__custom-dates .form-control,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip__custom-dates .form-control {
+    background: #0f1726 !important;
+    border-color: #3d516e !important;
+    color: #f1f5f9 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-pill,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-pill {
+    background: #152033;
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+/* Ops panel chrome only — NEVER flatten branded .meatco-ops-tile--* gradients (--express/--scheduled/--complaints/--pos/--b2b) */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-operations-panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-operations-panel,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-delivery-route-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-delivery-route-card,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-ops-detail-panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-ops-detail-panel,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel {
+    background: var(--munch-shell-surface) !important;
+    border-color: var(--munch-shell-border) !important;
+    color: var(--munch-shell-text);
+}
+
+/* Neutral express order cards (status variants remapped separately below) */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card:not([class*="meatco-express-card--"]),
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card:not([class*="meatco-express-card--"]) {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-header,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-ops-toolbar,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-ops-toolbar {
+    color: var(--munch-shell-text);
+}
+
+/* Broad feature white-surface sweep under dark */
+body.munch-admin-shell[data-munch-theme="dark"] [class*="meatco-"] .card,
+body.meatco-admin-shell[data-munch-theme="dark"] [class*="meatco-"] .card,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-new-order-modal .modal-content,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-new-order-modal .modal-content {
+    background: var(--munch-shell-surface-raised);
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--warn,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--warn {
+    background: rgba(245, 158, 11, 0.12) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--urgent,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--urgent,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-ops-badge--unpaid,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-ops-badge--unpaid {
+    background: rgba(239, 68, 68, 0.16) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--completed,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--completed {
+    background: rgba(34, 197, 94, 0.12) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--dispatched,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel--dispatched {
+    background: rgba(59, 130, 246, 0.12) !important;
+}
+
+/* Hard-coded light hexes common in feature CSS */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-kpi-strip {
+    border-color: #2a3a52;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__shell,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__shell,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sale-report__shell,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sale-report__shell,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail__shell,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail__shell,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-catalog-list,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-catalog-list {
+    background: #121a2b !important;
+    border-color: #2a3a52 !important;
+}
+
+/* Stock manager shell surfaces */
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-card,
+body.munch-admin-shell[data-munch-theme="dark"] .stock-card {
+    background: var(--munch-shell-surface);
+    border-color: var(--munch-shell-border);
+    color: var(--munch-shell-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Contrast rescue — feature modules keep light hex ink (#0b1220 / #0f172a)   */
+/* Higher specificity + !important so later-loaded feature CSS cannot win.   */
+/* -------------------------------------------------------------------------- */
+
+/* Page titles / headings under dark canvas.
+   theme.minc619 locks BOTH elements and Bootstrap size utilities:
+   .h1–.h6, h1–h6 { color: #1e2022 }. Element-only remaps miss KPI values
+   that live on <div class="h3"> / <div class="h4"> (Referral Dashboard,
+   loyalty report, ops-health, abandoned checkout, AI dashboards, etc.). */
+body.munch-admin-shell[data-munch-theme="dark"] .main h1,
+body.meatco-admin-shell[data-munch-theme="dark"] .main h1,
+body.munch-admin-shell[data-munch-theme="dark"] .main h2,
+body.meatco-admin-shell[data-munch-theme="dark"] .main h2,
+body.munch-admin-shell[data-munch-theme="dark"] .main h3,
+body.meatco-admin-shell[data-munch-theme="dark"] .main h3,
+body.munch-admin-shell[data-munch-theme="dark"] .main h4,
+body.meatco-admin-shell[data-munch-theme="dark"] .main h4,
+body.munch-admin-shell[data-munch-theme="dark"] .main h5,
+body.meatco-admin-shell[data-munch-theme="dark"] .main h5,
+body.munch-admin-shell[data-munch-theme="dark"] .main h6,
+body.meatco-admin-shell[data-munch-theme="dark"] .main h6,
+body.munch-admin-shell[data-munch-theme="dark"] .main .h1,
+body.meatco-admin-shell[data-munch-theme="dark"] .main .h1,
+body.munch-admin-shell[data-munch-theme="dark"] .main .h2,
+body.meatco-admin-shell[data-munch-theme="dark"] .main .h2,
+body.munch-admin-shell[data-munch-theme="dark"] .main .h3,
+body.meatco-admin-shell[data-munch-theme="dark"] .main .h3,
+body.munch-admin-shell[data-munch-theme="dark"] .main .h4,
+body.meatco-admin-shell[data-munch-theme="dark"] .main .h4,
+body.munch-admin-shell[data-munch-theme="dark"] .main .h5,
+body.meatco-admin-shell[data-munch-theme="dark"] .main .h5,
+body.munch-admin-shell[data-munch-theme="dark"] .main .h6,
+body.meatco-admin-shell[data-munch-theme="dark"] .main .h6,
+body.munch-admin-shell[data-munch-theme="dark"] .modal .h1,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal .h1,
+body.munch-admin-shell[data-munch-theme="dark"] .modal .h2,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal .h2,
+body.munch-admin-shell[data-munch-theme="dark"] .modal .h3,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal .h3,
+body.munch-admin-shell[data-munch-theme="dark"] .modal .h4,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal .h4,
+body.munch-admin-shell[data-munch-theme="dark"] .modal .h5,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal .h5,
+body.munch-admin-shell[data-munch-theme="dark"] .modal .h6,
+body.meatco-admin-shell[data-munch-theme="dark"] .modal .h6,
+body.munch-admin-shell[data-munch-theme="dark"] .page-header-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .page-header-title,
+body.munch-admin-shell[data-munch-theme="dark"] .card-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-title,
+body.munch-admin-shell[data-munch-theme="dark"] .card-header-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-header-title {
+    color: var(--munch-shell-ink, #f8fafc) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card-subtitle,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-subtitle,
+body.munch-admin-shell[data-munch-theme="dark"] .card-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-text,
+body.munch-admin-shell[data-munch-theme="dark"] .page-header-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .page-header-text {
+    color: var(--munch-shell-text-muted) !important;
+}
+
+/* Dashboard charts / status / lists — hard-coded #0b1220 / #8494ab / #334155 */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__total strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__total strong,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__count,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__name,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__name,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__stat-value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__stat-value,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(2) .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(2) .meatco-dashboard-list__rank,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(3) .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(3) .meatco-dashboard-list__rank {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__range-btn,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__range-btn,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__total span,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__total span,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__sub,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__sub,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__stat-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__stat-label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__empty,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__empty {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__range,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__range {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__range-item input:not(:checked) ~ .meatco-dashboard-chart__range-btn:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__range-item input:not(:checked) ~ .meatco-dashboard-chart__range-btn:hover {
+    color: #f8fafc !important;
+    background: #1a2740 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__count,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__track,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__track,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__stat,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__stat,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__empty,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__empty,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__rank,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(2) .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(2) .meatco-dashboard-list__rank,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(3) .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(3) .meatco-dashboard-list__rank,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+}
+
+/* Dashboard ranked rows — feature CSS uses __link (#f7f9fc / hover #fff), not __item */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__link,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__link {
+    background: #0f1726 !important;
+    border-color: transparent !important;
+    color: #e8eef7 !important;
+    box-shadow: none !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__link:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__link:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__link:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__link:focus {
+    background: #1a2740 !important;
+    border-color: #3d516e !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28) !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__rank {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(1) .meatco-dashboard-list__rank,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__row:nth-child(1) .meatco-dashboard-list__rank {
+    color: #fff !important;
+    background: #E7032D !important;
+    border-color: #E7032D !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__avatar,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-list__avatar {
+    background: #1a2740 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link {
+    color: #cbd5e1 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-chart__link:focus {
+    color: #fff !important;
+    background: #E7032D !important;
+    border-color: #E7032D !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status {
+    color: #cbd5e1 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--pending,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--pending,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--failed,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--failed {
+    color: #fca5a5 !important;
+    background: rgba(231, 3, 45, 0.16) !important;
+    border-color: rgba(231, 3, 45, 0.35) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--ongoing,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--ongoing {
+    color: #fdba74 !important;
+    background: rgba(154, 52, 18, 0.22) !important;
+    border-color: rgba(251, 146, 60, 0.35) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--delivered,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--delivered {
+    color: #86efac !important;
+    background: rgba(21, 128, 61, 0.2) !important;
+    border-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--canceled,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--canceled {
+    color: #e2e8f0 !important;
+    background: rgba(148, 163, 184, 0.16) !important;
+    border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--returned,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-recent__status--returned {
+    color: #93c5fd !important;
+    background: rgba(29, 78, 216, 0.22) !important;
+    border-color: rgba(59, 130, 246, 0.35) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status__label {
+    color: #cbd5e1 !important;
+}
+
+/* Live activity panel / pills — hard-coded #0f172a / #64748b */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status-group,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status-group,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-pill:not(.meatco-live-pill--indicator),
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-pill:not(.meatco-live-pill--indicator) {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #f1f5f9 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-pill__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-pill__count,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__stat-value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__stat-value,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-row__label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-row__label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-row__amount,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-row__amount,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__close:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__close:hover {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__subtitle,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__subtitle,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__stat-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__stat-label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-section__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-section__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-row__meta,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-row__meta,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-empty,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-empty,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__footer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__footer,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__close,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__close {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__header,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__summary,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__summary,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__footer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__footer {
+    background: #121a2b !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-panel__close,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-panel__close {
+    background: #0f1726 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-row:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-row:hover {
+    background: #1a2740 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status-group__divider,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-dashboard-status-group__divider {
+    background: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-platform--web,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-platform--web {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-platform--app,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-platform--app {
+    background: rgba(139, 92, 246, 0.18) !important;
+    color: #c4b5fd !important;
+}
+
+/* Branch recent orders — #0b1220 / #334155 / #8494ab */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__order-link,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__order-link,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__amount,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__amount,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__table tbody td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__table tbody td {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__customer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__customer,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__placed,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__placed,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__table thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__table thead th,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__empty td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__empty td,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input::placeholder,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input::placeholder {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input {
+    background: #0f1726 !important;
+    border-color: #3d516e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__search-input:focus {
+    background: #152033 !important;
+    border-color: #3d516e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__table tbody tr:hover td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__table tbody tr:hover td,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__empty td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__empty td {
+    background: #1a2740 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__view,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__view {
+    background: #0f1726 !important;
+    border-color: #3d516e !important;
+    color: #e2e8f0 !important;
+}
+
+/* Ops / express / gold / mpesa / new-order — common dark-on-dark ink.
+   Branded ops tiles keep inherit white ink (see chromatic restore below). */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-header__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-header__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__id,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__id,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments .card-header-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments .card-header-title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-new-order-modal__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-new-order-modal__title {
+    color: #f8fafc !important;
+}
+
+/* Badges that stay light-on-light in dark */
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-dark {
+    background-color: rgba(148, 163, 184, 0.18) !important;
+    color: #e2e8f0 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-primary,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-primary {
+    background-color: rgba(231, 3, 45, 0.2) !important;
+    color: #fecaca !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-success,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-success {
+    background-color: rgba(34, 197, 94, 0.18) !important;
+    color: #86efac !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-warning,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-warning {
+    background-color: rgba(245, 158, 11, 0.18) !important;
+    color: #fcd34d !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-danger,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-danger {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #fca5a5 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .badge-soft-info,
+body.meatco-admin-shell[data-munch-theme="dark"] .badge-soft-info {
+    background-color: rgba(59, 130, 246, 0.18) !important;
+    color: #93c5fd !important;
+}
+
+/* Select2 rendered text + DataTables chrome leftovers */
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered,
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-results__option,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-results__option {
+    color: #f1f5f9 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__placeholder,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #94a3b8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .hs-nav-scroller .nav-link,
+body.meatco-admin-shell[data-munch-theme="dark"] .hs-nav-scroller .nav-link {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .hs-nav-scroller .nav-link.active,
+body.meatco-admin-shell[data-munch-theme="dark"] .hs-nav-scroller .nav-link.active {
+    color: #f8fafc !important;
+}
+
+/* Broad meatco feature text: any leftover near-black utility classes */
+body.munch-admin-shell[data-munch-theme="dark"] [class*="meatco-"] .text-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] [class*="meatco-"] .text-dark,
+body.munch-admin-shell[data-munch-theme="dark"] [class*="meatco-"] .font-weight-bold.text-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] [class*="meatco-"] .font-weight-bold.text-dark {
+    color: #f8fafc !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* White-patch polish — nested soft panels / Bootstrap leftovers / POS lists  */
+/* -------------------------------------------------------------------------- */
+
+/* Offcanvas / side drawers used on order detail + settings */
+body.munch-admin-shell[data-munch-theme="dark"] .offcanvas,
+body.meatco-admin-shell[data-munch-theme="dark"] .offcanvas,
+body.munch-admin-shell[data-munch-theme="dark"] .offcanvas-body,
+body.meatco-admin-shell[data-munch-theme="dark"] .offcanvas-body,
+body.munch-admin-shell[data-munch-theme="dark"] .customizer,
+body.meatco-admin-shell[data-munch-theme="dark"] .customizer {
+    background: #121a2b !important;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .offcanvas-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .offcanvas-header,
+body.munch-admin-shell[data-munch-theme="dark"] .offcanvas-footer,
+body.meatco-admin-shell[data-munch-theme="dark"] .offcanvas-footer {
+    background: #152033 !important;
+    border-color: var(--munch-shell-border) !important;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .popover,
+body.meatco-admin-shell[data-munch-theme="dark"] .popover {
+    background: #152033 !important;
+    border-color: var(--munch-shell-border) !important;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .popover-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .popover-header {
+    background: #121a2b !important;
+    border-bottom-color: var(--munch-shell-border) !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .popover-body,
+body.meatco-admin-shell[data-munch-theme="dark"] .popover-body {
+    color: #e2e8f0 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .bs-popover-auto[x-placement^=top] > .arrow::after,
+body.meatco-admin-shell[data-munch-theme="dark"] .bs-popover-auto[x-placement^=top] > .arrow::after,
+body.munch-admin-shell[data-munch-theme="dark"] .bs-popover-top > .arrow::after,
+body.meatco-admin-shell[data-munch-theme="dark"] .bs-popover-top > .arrow::after {
+    border-top-color: #152033;
+}
+
+/* Inline style="background:#fff" islands common in legacy eFood blades */
+body.munch-admin-shell[data-munch-theme="dark"] .main [style*="background: #fff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .main [style*="background: #fff"],
+body.munch-admin-shell[data-munch-theme="dark"] .main [style*="background:#fff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .main [style*="background:#fff"],
+body.munch-admin-shell[data-munch-theme="dark"] .main [style*="background: #ffffff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .main [style*="background: #ffffff"],
+body.munch-admin-shell[data-munch-theme="dark"] .main [style*="background:#ffffff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .main [style*="background:#ffffff"],
+body.munch-admin-shell[data-munch-theme="dark"] .main [style*="background-color: #fff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .main [style*="background-color: #fff"],
+body.munch-admin-shell[data-munch-theme="dark"] .main [style*="background-color:#fff"],
+body.meatco-admin-shell[data-munch-theme="dark"] .main [style*="background-color:#fff"] {
+    background: #152033 !important;
+    background-color: #152033 !important;
+    color: #e8eef7;
+}
+
+/* Order list nested whites (#fff filters / status cards / search focus) */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters {
+    background: linear-gradient(180deg, #152033 0%, #121a2b 100%) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__status-cards .order--card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__status-cards .order--card {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__status-cards .order--card:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__status-cards .order--card:hover {
+    background: #1a2740 !important;
+    border-color: #3d516e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__search .form-control:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__search .form-control:focus {
+    background: #152033 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__chip,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__chip,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__meta-pill,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__meta-pill,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__empty,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__empty {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #cbd5e1 !important;
+}
+
+/* Ops / express / scheduled nested soft panels — not brand tiles / not chromatic cards */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-ops-detail-panel__row,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-ops-detail-panel__row,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-detail-panel,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__head,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__head,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table thead th,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-delivery-route-card__head,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-delivery-route-card__head {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #e2e8f0 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Ops chromatic identity — Express / Scheduled / Complaints / POS / B2B     */
+/* Must come AFTER flat navy remaps so brand gradients win.                   */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--express,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--express {
+    background: linear-gradient(145deg, #E7032D 0%, #c91820 100%) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #fff !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--scheduled,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--scheduled {
+    background: linear-gradient(145deg, #334155 0%, #1e293b 100%) !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+    color: #fff !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--complaints,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--complaints {
+    background: linear-gradient(145deg, #14b8a6 0%, #0f766e 100%) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #fff !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--pos,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-operations-panel .meatco-ops-tile--pos,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-operations-panel button.meatco-ops-tile.meatco-ops-tile--pos,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-operations-panel button.meatco-ops-tile.meatco-ops-tile--pos {
+    background: linear-gradient(145deg, #f59e0b 0%, #b45309 100%) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #fff !important;
+}
+
+/* Express board — status header washes + count pills (keep accent identity) */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--pending .meatco-express-section__header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--pending .meatco-express-section__header {
+    border-left-color: #E7032D !important;
+    background: linear-gradient(90deg, rgba(231, 3, 45, 0.28), rgba(21, 32, 51, 0.96) 48%) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--pending .meatco-express-section__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--pending .meatco-express-section__title {
+    color: #fca5a5 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--pending .meatco-express-section__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--pending .meatco-express-section__count {
+    background: rgba(231, 3, 45, 0.22) !important;
+    color: #fecaca !important;
+    border-color: rgba(231, 3, 45, 0.4) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--prep .meatco-express-section__header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--prep .meatco-express-section__header,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--packing .meatco-express-section__header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--packing .meatco-express-section__header {
+    border-left-color: #f59e0b !important;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.28), rgba(21, 32, 51, 0.96) 48%) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--prep .meatco-express-section__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--prep .meatco-express-section__title,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--packing .meatco-express-section__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--packing .meatco-express-section__title {
+    color: #fcd34d !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--prep .meatco-express-section__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--prep .meatco-express-section__count,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--packing .meatco-express-section__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--packing .meatco-express-section__count {
+    background: rgba(245, 158, 11, 0.22) !important;
+    color: #fde68a !important;
+    border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-section__header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-section__header {
+    border-left-color: #3b82f6 !important;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.28), rgba(21, 32, 51, 0.96) 48%) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-section__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-section__title {
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-section__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-section__count {
+    background: rgba(59, 130, 246, 0.22) !important;
+    color: #bfdbfe !important;
+    border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-section__header,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-section__header {
+    border-left-color: #22c55e !important;
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.26), rgba(21, 32, 51, 0.96) 48%) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-section__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-section__title {
+    color: #86efac !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-section__count,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-section__count {
+    background: rgba(34, 197, 94, 0.2) !important;
+    color: #bbf7d0 !important;
+    border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+/* Express cards — tinted dark surfaces, not flat navy */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--upcoming .meatco-express-card,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit {
+    background: rgba(59, 130, 246, 0.12) !important;
+    border-color: rgba(59, 130, 246, 0.35) !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card {
+    background: rgba(34, 197, 94, 0.08) !important;
+    border-color: rgba(34, 197, 94, 0.28) !important;
+    color: #e8eef7 !important;
+}
+
+/* Must follow dispatched green tint — red border only, no red fill/glow on the card body. */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--stale-ofd,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--stale-ofd,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card[data-stale-ofd="1"],
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card[data-stale-ofd="1"],
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card.meatco-express-card--stale-ofd,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card.meatco-express-card--stale-ofd,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card[data-stale-ofd="1"],
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card[data-stale-ofd="1"],
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit.meatco-express-card--stale-ofd,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit.meatco-express-card--stale-ofd,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit[data-stale-ofd="1"],
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit[data-stale-ofd="1"] {
+    background: rgba(34, 197, 94, 0.08) !important;
+    border: 3px solid #E7032D !important;
+    color: #e8eef7 !important;
+    box-shadow: none !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning {
+    background: rgba(250, 204, 21, 0.18) !important;
+    border-color: rgba(250, 204, 21, 0.5) !important;
+    color: #fde68a !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning-icon,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning-icon {
+    background: #facc15 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning-icon .tio-warning,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning-icon .tio-warning {
+    color: #854d0e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__stale-warning-text {
+    color: #fde68a !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__schedule,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__schedule {
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-fulfillment-badge--scheduled-express,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-fulfillment-badge--scheduled-express {
+    background: rgba(59, 130, 246, 0.22) !important;
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit .meatco-express-card__timer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card--in-transit .meatco-express-card__timer {
+    background: rgba(59, 130, 246, 0.22) !important;
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card--delivered .meatco-express-card__timer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card--delivered .meatco-express-card__timer {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #6ee7b7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card--dispatched .meatco-express-card__timer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card--dispatched .meatco-express-card__timer,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--frozen,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--frozen {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+}
+
+/* Express LATE / SLA cards — ops CSS keeps light-pink surfaces (#fff5f5) with
+   dark-theme near-white ink remaps → unreadable. Use dark red tints + light ink
+   so late accent (border / ring / glow) and order text stay visible. */
+@keyframes meatco-express-late-pulse-strong-dark {
+    0%,
+    100% {
+        border-color: #E7032D;
+        box-shadow:
+            0 0 0 0 rgba(231, 3, 45, 0.6),
+            0 6px 18px rgba(231, 3, 45, 0.35);
+        background-color: #3a1418;
+    }
+    50% {
+        border-color: #ff6b6b;
+        box-shadow:
+            0 0 0 10px rgba(231, 3, 45, 0.3),
+            0 12px 28px rgba(231, 3, 45, 0.5);
+        background-color: #5c1a20;
+    }
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical {
+    background-color: #3a1418 !important;
+    border-color: #E7032D !important;
+    color: #f8fafc !important;
+    animation-name: meatco-express-late-pulse-strong-dark !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__id,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__id,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__id,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__id,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__id,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__id,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--customer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--customer,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--customer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--customer,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--customer,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--customer,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta strong,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta strong,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta strong {
+    color: #fef2f2 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--secondary {
+    color: #fecaca !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-delay,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-delay {
+    background: rgba(231, 3, 45, 0.28) !important;
+    color: #fecaca !important;
+    box-shadow: 0 0 0 2px rgba(231, 3, 45, 0.45);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-escalated,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-escalated {
+    background: rgba(231, 3, 45, 0.4) !important;
+    color: #fecaca !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-critical,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-critical {
+    background: #E7032D !important;
+    color: #fff !important;
+}
+
+/* Live activity nested #fff / #f8fafc leftovers */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-stat,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-stat,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-row,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-row,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-empty,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-empty,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-live-section,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-live-section {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+}
+
+/* Branch recent-orders empty / view / soft row hover already covered; reinforce shell */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__view:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-recent-orders__view:hover {
+    background: #1a2740 !important;
+    border-color: #3d516e !important;
+    color: #f8fafc !important;
+}
+
+/* Theme / admin soft status chips that stay #eef3f9 / #f8fafc */
+body.munch-admin-shell[data-munch-theme="dark"] .order-status-chip,
+body.meatco-admin-shell[data-munch-theme="dark"] .order-status-chip,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-status-chip,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-status-chip,
+body.munch-admin-shell[data-munch-theme="dark"] .status-filter-chip,
+body.meatco-admin-shell[data-munch-theme="dark"] .status-filter-chip {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #cbd5e1 !important;
+}
+
+/* Product-search dropdown + empty states inside cards */
+body.munch-admin-shell[data-munch-theme="dark"] .product-search-dropdown,
+body.meatco-admin-shell[data-munch-theme="dark"] .product-search-dropdown,
+body.munch-admin-shell[data-munch-theme="dark"] .empty--text,
+body.meatco-admin-shell[data-munch-theme="dark"] .empty--text,
+body.munch-admin-shell[data-munch-theme="dark"] .card .empty-state,
+body.meatco-admin-shell[data-munch-theme="dark"] .card .empty-state {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #b6c4d8 !important;
+}
+
+/* Select2 multi + tags */
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--multiple,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--multiple {
+    background-color: #0f1726 !important;
+    border-color: #3d516e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--multiple .select2-selection__choice,
+body.meatco-admin-shell[data-munch-theme="dark"] .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #1a2740 !important;
+    border-color: #3d516e !important;
+    color: #e2e8f0 !important;
+}
+
+/* DataTables odd/even rows that Bootstrap leaves white */
+body.munch-admin-shell[data-munch-theme="dark"] table.dataTable tbody tr,
+body.meatco-admin-shell[data-munch-theme="dark"] table.dataTable tbody tr {
+    background-color: transparent !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] table.dataTable.stripe tbody tr.odd,
+body.meatco-admin-shell[data-munch-theme="dark"] table.dataTable.stripe tbody tr.odd,
+body.munch-admin-shell[data-munch-theme="dark"] table.dataTable.display tbody tr.odd,
+body.meatco-admin-shell[data-munch-theme="dark"] table.dataTable.display tbody tr.odd {
+    background-color: rgba(148, 163, 184, 0.04) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] table.dataTable.hover tbody tr:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] table.dataTable.hover tbody tr:hover,
+body.munch-admin-shell[data-munch-theme="dark"] table.dataTable.display tbody tr:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] table.dataTable.display tbody tr:hover {
+    background-color: rgba(148, 163, 184, 0.08) !important;
+}
+
+/* SweetAlert2 skins that stay white */
+body.munch-admin-shell[data-munch-theme="dark"] .swal2-popup,
+body.meatco-admin-shell[data-munch-theme="dark"] .swal2-popup {
+    background: #152033 !important;
+    color: #f1f5f9 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .swal2-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .swal2-title,
+body.munch-admin-shell[data-munch-theme="dark"] .swal2-html-container,
+body.meatco-admin-shell[data-munch-theme="dark"] .swal2-html-container,
+body.munch-admin-shell[data-munch-theme="dark"] .swal2-content,
+body.meatco-admin-shell[data-munch-theme="dark"] .swal2-content {
+    color: #e2e8f0 !important;
+}
+
+/* Card body / media object leftovers that inherit white from theme.min */
+body.munch-admin-shell[data-munch-theme="dark"] .card-body,
+body.meatco-admin-shell[data-munch-theme="dark"] .card-body {
+    background-color: transparent;
+    color: var(--munch-shell-text);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .media,
+body.meatco-admin-shell[data-munch-theme="dark"] .media {
+    color: var(--munch-shell-text);
+}
+
+/* Input groups / input-group-text often stay #e9ecef */
+body.munch-admin-shell[data-munch-theme="dark"] .input-group-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .input-group-text {
+    background-color: #1a2438 !important;
+    border-color: #3d516e !important;
+    color: #cbd5e1 !important;
+}
+
+/* Table active / secondary utility leftovers */
+body.munch-admin-shell[data-munch-theme="dark"] .table .thead-light th,
+body.meatco-admin-shell[data-munch-theme="dark"] .table .thead-light th,
+body.munch-admin-shell[data-munch-theme="dark"] .thead-light th,
+body.meatco-admin-shell[data-munch-theme="dark"] .thead-light th {
+    background-color: #152033 !important;
+    color: #b6c3d6 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .table-light,
+body.meatco-admin-shell[data-munch-theme="dark"] .table-light,
+body.munch-admin-shell[data-munch-theme="dark"] .table-light > th,
+body.meatco-admin-shell[data-munch-theme="dark"] .table-light > th,
+body.munch-admin-shell[data-munch-theme="dark"] .table-light > td,
+body.meatco-admin-shell[data-munch-theme="dark"] .table-light > td {
+    background-color: #152033 !important;
+    color: #e8eef7 !important;
+}
+
+/* POS order-list pages share admin/branch shells (on-screen POS layout is separate) */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-pos-order,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-pos-order,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-pos-order__card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-pos-order__card,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-pos-overlay,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-pos-overlay,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-branch-pos-overlay__panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-branch-pos-overlay__panel {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+/* Soft pastel utility backgrounds that read as white islands.
+   Referral Dashboard KPI cards use .card.bg-soft-* — keep tinted navy
+   (not washed pastel) and force legible ink on nested .text-muted / .h*. */
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-primary,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-primary,
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-primary,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-primary {
+    background-color: rgba(231, 3, 45, 0.16) !important;
+    background-image: none !important;
+    border-color: rgba(231, 3, 45, 0.35) !important;
+    color: #fecaca !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-success,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-success,
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-success,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-success {
+    background-color: rgba(34, 197, 94, 0.16) !important;
+    background-image: none !important;
+    border-color: rgba(34, 197, 94, 0.35) !important;
+    color: #86efac !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-warning,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-warning,
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-warning,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-warning {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    background-image: none !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+    color: #fcd34d !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-danger,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-danger,
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-danger,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-danger {
+    background-color: rgba(239, 68, 68, 0.16) !important;
+    background-image: none !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+    color: #fca5a5 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .bg-soft-info,
+body.meatco-admin-shell[data-munch-theme="dark"] .bg-soft-info,
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-info,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-info {
+    background-color: rgba(59, 130, 246, 0.16) !important;
+    background-image: none !important;
+    border-color: rgba(59, 130, 246, 0.35) !important;
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-secondary,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-secondary,
+body.munch-admin-shell[data-munch-theme="dark"] .card.bg-soft-dark,
+body.meatco-admin-shell[data-munch-theme="dark"] .card.bg-soft-dark {
+    background-color: #152033 !important;
+    background-image: none !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .text-muted,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .text-muted {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h1,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h1,
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h2,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h2,
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h3,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h3,
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h4,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h4,
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h5,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h5,
+body.munch-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h6,
+body.meatco-admin-shell[data-munch-theme="dark"] .card[class*="bg-soft-"] .h6 {
+    color: #f8fafc !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Send Notification composer — notification-composer.css loads after dark CSS  */
+/* and hard-locks label/hint/audience/history ink (#1f2937 / #374151 / #111827). */
+/* Remap here with !important so we do not touch notification Blade (schedule /  */
+/* emoji owned by peer worker). Phone push preview stays light (device mock).   */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-page .input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-page .input-label,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-card .input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-card .input-label,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-field-label-row .input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-field-label-row .input-label {
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-hint,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-hint,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-hint .text-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-hint .text-title {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-audience-option,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-audience-option,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-audience-option span,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-audience-option span {
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-card .form-control,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-card .form-control,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-card .custom-select,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-card .custom-select,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-test-token-group textarea,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-test-token-group textarea {
+    background-color: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #f1f5f9 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-card .form-control::placeholder,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-card .form-control::placeholder,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-test-token-group textarea::placeholder,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-test-token-group textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #notif-audience-estimate,
+body.meatco-admin-shell[data-munch-theme="dark"] #notif-audience-estimate,
+body.munch-admin-shell[data-munch-theme="dark"] #notif-audience-estimate .card-body,
+body.meatco-admin-shell[data-munch-theme="dark"] #notif-audience-estimate .card-body {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] #notif-audience-estimate .fw-bold,
+body.meatco-admin-shell[data-munch-theme="dark"] #notif-audience-estimate .fw-bold,
+body.munch-admin-shell[data-munch-theme="dark"] #notif-audience-estimate h6,
+body.meatco-admin-shell[data-munch-theme="dark"] #notif-audience-estimate h6 {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-emoji-toggle,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-emoji-toggle {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-emoji-toggle:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-emoji-toggle:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-emoji-picker.is-open .notif-emoji-toggle,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-emoji-picker.is-open .notif-emoji-toggle {
+    background: #1c2a40 !important;
+    border-color: rgba(231, 3, 45, 0.45) !important;
+    color: #fff !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-emoji-panel,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-emoji-panel {
+    background: #121a2b !important;
+    border-color: #2a3a52 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-emoji-item:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-emoji-item:hover,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-emoji-item:focus,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-emoji-item:focus {
+    background: #1c2a40 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-audience-badge--customers,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-audience-badge--customers {
+    background: rgba(34, 197, 94, 0.18) !important;
+    color: #86efac !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-audience-badge--delivery_riders,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-audience-badge--delivery_riders {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-audience-badge--kitchen,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-audience-badge--kitchen {
+    background: rgba(245, 158, 11, 0.18) !important;
+    color: #fcd34d !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-audience-badge--legacy,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-audience-badge--legacy,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--home,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--home,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--default_home,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--default_home {
+    background: rgba(148, 163, 184, 0.16) !important;
+    color: #cbd5e1 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge {
+    background: rgba(139, 92, 246, 0.18) !important;
+    color: #c4b5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--product,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--product {
+    background: rgba(34, 197, 94, 0.18) !important;
+    color: #86efac !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--category,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--category,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--orders,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--orders {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--offer,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--offer {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #fca5a5 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--cart,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--cart {
+    background: rgba(245, 158, 11, 0.18) !important;
+    color: #fcd34d !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-destination-badge--external_url,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-destination-badge--external_url {
+    background: rgba(139, 92, 246, 0.18) !important;
+    color: #c4b5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-actions .btn-reset-quiet,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-actions .btn-reset-quiet {
+    background: transparent !important;
+    border-color: #2a3a52 !important;
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-composer-actions .btn-reset-quiet:hover,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-composer-actions .btn-reset-quiet:hover {
+    background: #1c2a40 !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-history-title,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-history-title {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-history-message,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-history-message,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-history-created,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-history-created {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-history-thumb,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-history-thumb,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-history-no-image,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-history-no-image {
+    background: #152033 !important;
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-optional-upload .upload-file-textbox,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-optional-upload .upload-file-textbox,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-optional-upload .tc-clr,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-optional-upload .tc-clr {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-optional-upload .text-c2,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-optional-upload .text-c2 {
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-deeplink-group .input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-deeplink-group .input-label,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-deeplink-group label,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-deeplink-group label {
+    color: #e8eef7 !important;
+}
+
+
+/* Schedule mode radios (peer Blade) — keep labels legible when that ships */
+body.munch-admin-shell[data-munch-theme="dark"] .notif-schedule-group .input-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-schedule-group .input-label,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-schedule-mode,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-schedule-mode,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-schedule-mode span,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-schedule-mode span {
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .notif-schedule-group .form-control,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-schedule-group .form-control,
+body.munch-admin-shell[data-munch-theme="dark"] .notif-schedule-group .custom-select,
+body.meatco-admin-shell[data-munch-theme="dark"] .notif-schedule-group .custom-select {
+    background-color: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #f1f5f9 !important;
+}
+
+/* Keep phone-frame push mock light (reads as a device screen). */
+
+/* -------------------------------------------------------------------------- */
+/* Sweep: M-PESA / stock / SEO / SMS / form toggles (Habib visibility fails)  */
+/* Feature CSS loads after dark CSS — beat hard #fff / #0f172a with !important */
+/* -------------------------------------------------------------------------- */
+
+/* --- M-PESA Account balance + table ink --- */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance {
+    background: #152033 !important;
+    border-color: #3d516e !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__filter-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__filter-label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary-label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__empty,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__empty {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-value,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary-value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary-value,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__table tbody td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__table tbody td,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__allocate-totals,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__allocate-totals {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-value.is-unavailable,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-value.is-unavailable,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-value.is-pending,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__balance-value.is-pending {
+    color: #cbd5e1 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary-value--emphasis,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary-value--emphasis {
+    color: #fbbf24 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__table thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__table thead th {
+    background: #0f1726 !important;
+    border-bottom-color: #2a3a52 !important;
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__table tbody td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__table tbody td {
+    border-top-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__card,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__summary,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__allocations,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__allocations,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__allocate-form,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-account__allocate-form {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+/* --- M-PESA Refunds list ink --- */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__card {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__item,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__item {
+    border-top-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__meta dt,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__meta dt {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__amount strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__amount strong,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__meta dd,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__meta dd,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__note p,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__note p {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__reason,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-mpesa-refunds__reason {
+    color: #fca5a5 !important;
+}
+
+/* Linked M-PESA hard #0b1220 !important leftovers */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments strong,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments td,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments td {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments thead th,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments thead th {
+    background: #0f1726 !important;
+    color: #b6c4d8 !important;
+    border-color: #2a3a52 !important;
+}
+
+/* --- Stock dashboard KPIs / levels / alerts / modals --- */
+body.munch-admin-shell[data-munch-theme="dark"] .stock-stat-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-stat-card {
+    background: #152033 !important;
+    border-color: #3d516e !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .stock-stat-card .label,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-stat-card .label {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .stock-stat-card .value,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-stat-card .value {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-low,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-low,
+body.munch-admin-shell[data-munch-theme="dark"] tr.stock-row-low,
+body.meatco-admin-shell[data-munch-theme="dark"] tr.stock-row-low,
+body.munch-admin-shell[data-munch-theme="dark"] .list-group-item.stock-row-low,
+body.meatco-admin-shell[data-munch-theme="dark"] .list-group-item.stock-row-low {
+    background: rgba(245, 158, 11, 0.14) !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-out,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-out,
+body.munch-admin-shell[data-munch-theme="dark"] tr.stock-row-out,
+body.meatco-admin-shell[data-munch-theme="dark"] tr.stock-row-out,
+body.munch-admin-shell[data-munch-theme="dark"] .list-group-item.stock-row-out,
+body.meatco-admin-shell[data-munch-theme="dark"] .list-group-item.stock-row-out {
+    background: rgba(239, 68, 68, 0.16) !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-low td,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-low td,
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-out td,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-out td,
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-low span,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-low span,
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-out span,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-out span,
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-low strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-low strong,
+body.munch-admin-shell[data-munch-theme="dark"] .stock-row-out strong,
+body.meatco-admin-shell[data-munch-theme="dark"] .stock-row-out strong {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__img,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__img {
+    background: #152033 !important;
+    border-color: #3d516e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__label {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__name,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__name,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__stock,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-product-context__stock {
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-levels-table tbody tr:not(.stock-row-low):not(.stock-row-out),
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-levels-table tbody tr:not(.stock-row-low):not(.stock-row-out) {
+    background: transparent !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-stock-modal .modal-content,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-stock-modal .modal-content {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+/* --- SEO listing (category add/edit) + general SEO settings --- */
+body.munch-admin-shell[data-munch-theme="dark"] .seo-listing-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-listing-card,
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-card {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .seo-listing-card .card-header,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-listing-card .card-header {
+    background: #0f1726 !important;
+    border-bottom-color: #2a3a52 !important;
+    color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .seo-snippet-preview,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-snippet-preview {
+    background: #0f1726 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .seo-snippet-preview__url,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-snippet-preview__url {
+    color: #6ee7b7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .seo-snippet-preview__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-snippet-preview__title {
+    color: #93c5fd !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .seo-snippet-preview__description,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-snippet-preview__description,
+body.munch-admin-shell[data-munch-theme="dark"] .seo-char-counter,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-char-counter,
+body.munch-admin-shell[data-munch-theme="dark"] .seo-helper-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-helper-text,
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-helper-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-helper-text,
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-char-counter,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-char-counter {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .seo-slug-prefix,
+body.meatco-admin-shell[data-munch-theme="dark"] .seo-slug-prefix {
+    background: #1a2438 !important;
+    border-color: #3d516e !important;
+    color: #cbd5e1 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-image-thumb,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-image-thumb,
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-social-preview,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-social-preview {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__image-wrap,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__image-wrap {
+    background: #0f1726 !important;
+    border-bottom-color: #2a3a52 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__body,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__body {
+    background: #0f1726 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__domain,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__domain,
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__description,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__description {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__title,
+body.meatco-admin-shell[data-munch-theme="dark"] .general-seo-social-preview__title {
+    color: #f8fafc !important;
+}
+
+/* --- SMS analytics white KPI / chart cards --- */
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__kpi,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__kpi,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__chart-card,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__chart-card {
+    background: #152033 !important;
+    border-color: #2a3a52 !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__kpi-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__kpi-label,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__period,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__period {
+    color: #b6c4d8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__kpi-value,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sms-analytics__kpi-value {
+    color: #f8fafc !important;
+}
+
+/* --- Form toggles / switches — higher track/thumb contrast in dark --- */
+body.munch-admin-shell[data-munch-theme="dark"] .toggle-switch-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .toggle-switch-label {
+    background-color: #3d516e !important;
+    border-color: #6b829e !important;
+    box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.12);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .toggle-switch-indicator,
+body.meatco-admin-shell[data-munch-theme="dark"] .toggle-switch-indicator {
+    background-color: #f8fafc !important;
+    box-shadow:
+        0 0 0 1px rgba(15, 23, 38, 0.55),
+        0 2px 6px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .toggle-switch-input:checked + .toggle-switch-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .toggle-switch-input:checked + .toggle-switch-label {
+    background-color: #E7032D !important;
+    border-color: #f87171 !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(254, 202, 202, 0.25),
+        0 0 0 2px rgba(231, 3, 45, 0.28);
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .toggle-switch-input:disabled + .toggle-switch-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .toggle-switch-input:disabled + .toggle-switch-label {
+    background-color: #243247 !important;
+    border-color: #3d516e !important;
+    opacity: 0.72;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .toggle-switch-input:checked:disabled + .toggle-switch-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .toggle-switch-input:checked:disabled + .toggle-switch-label {
+    background-color: rgba(231, 3, 45, 0.45) !important;
+    border-color: rgba(248, 113, 113, 0.45) !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .switch--custom-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .switch--custom-label {
+    background: #1a2438 !important;
+    border: 1px solid #3d516e !important;
+    color: #e8eef7 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .switch--custom-label-text,
+body.meatco-admin-shell[data-munch-theme="dark"] .switch--custom-label-text {
+    color: #94a3b8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .switch--custom-label.checked .switch--custom-label-text.on,
+body.meatco-admin-shell[data-munch-theme="dark"] .switch--custom-label.checked .switch--custom-label-text.on,
+body.munch-admin-shell[data-munch-theme="dark"] .switch--custom-label:not(.checked) .switch--custom-label-text.off,
+body.meatco-admin-shell[data-munch-theme="dark"] .switch--custom-label:not(.checked) .switch--custom-label-text.off {
+    color: #f8fafc !important;
+}
+
+/* Bootstrap custom-switch / custom-checkbox tracks */
+body.munch-admin-shell[data-munch-theme="dark"] .custom-control-label::before,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-control-label::before {
+    background-color: #3d516e !important;
+    border-color: #6b829e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .custom-control-label::after,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-control-label::after {
+    background-color: #f8fafc !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before,
+body.munch-admin-shell[data-munch-theme="dark"] .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
+body.munch-admin-shell[data-munch-theme="dark"] .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
+    background-color: #E7032D !important;
+    border-color: #f87171 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .custom-control-label,
+body.meatco-admin-shell[data-munch-theme="dark"] .custom-control-label {
+    color: #e8eef7 !important;
+}
+
+/* Legacy switcher_control tracks */
+body.munch-admin-shell[data-munch-theme="dark"] .switcher_control,
+body.meatco-admin-shell[data-munch-theme="dark"] .switcher_control,
+body.munch-admin-shell[data-munch-theme="dark"] .switcher .slider,
+body.meatco-admin-shell[data-munch-theme="dark"] .switcher .slider {
+    background-color: #3d516e !important;
+    border-color: #6b829e !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .switcher_input:checked ~ .switcher_control,
+body.meatco-admin-shell[data-munch-theme="dark"] .switcher_input:checked ~ .switcher_control,
+body.munch-admin-shell[data-munch-theme="dark"] .switcher .status:checked ~ .slider,
+body.meatco-admin-shell[data-munch-theme="dark"] .switcher .status:checked ~ .slider {
+    background-color: #E7032D !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Order details + Scheduled list — feature CSS loads AFTER this file and     */
+/* keeps #fff card-top gradients + #0f172a / #334155 ink. Screen-only so      */
+/* print / invoice stay forced light.                                         */
+/* -------------------------------------------------------------------------- */
+
+@media screen {
+    /* --- Order details: kill white-top gradients, force light ink --- */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea > [class*="col-"] > .card,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea > [class*="col-"] > .card,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea > [class*="col-"] > .card .card,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea > [class*="col-"] > .card .card {
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .px-card,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .px-card,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .col-lg-4 > .card > .card-body,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .col-lg-4 > .card > .card-body {
+        background: #152033 !important;
+        background-image: none !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .card-body,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .card-body {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .page-header-title,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .page-header-title,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .page-header-title.h1,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .page-header-title.h1,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea h2.page-header-title,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea h2.page-header-title,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea h4,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea h4,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea h5,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea h5,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .font-weight-bold,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .font-weight-bold,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea strong {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .col-lg-4 > .card > .card-body > h4,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .col-lg-4 > .card > .card-body > h4,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .text-muted,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .text-muted,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .text-body,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .text-body {
+        color: #b6c4d8 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .media-body a,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .media-body a,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .text-dark,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea a.text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea a.text-dark {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea a.text-dark:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea a.text-dark:hover,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .media-body a:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .media-body a:hover {
+        color: #fca5a5 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .dropdown-toggle.form-control,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .dropdown-toggle.form-control {
+        background: #0f1726 !important;
+        border-color: #3d516e !important;
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-detail__table tbody td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-detail__table tbody td,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .table.card-table tbody td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .table.card-table tbody td {
+        color: #e8eef7 !important;
+        border-bottom-color: #2a3a52 !important;
+        background: transparent !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-detail__table thead th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-detail__table thead th,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .table.card-table thead th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .table.card-table thead th {
+        color: #b6c4d8 !important;
+        border-bottom-color: #2a3a52 !important;
+        background: transparent !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-detail__table tbody tr:hover td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-detail__table tbody tr:hover td,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .table.card-table tbody tr:hover td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .table.card-table tbody tr:hover td {
+        background: #1a2740 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail__header-actions .btn-outline--info,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail__header-actions .btn-outline--info,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail__header-actions .btn-outline-info,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail__header-actions .btn-outline-info {
+        background: #0f1726 !important;
+        border-color: #3d516e !important;
+        color: #e2e8f0 !important;
+    }
+
+    /*
+     * Order totals / breakdown — style.css locks `#printableArea dd { color:#1e2022 }`
+     * (ID beats global .text-dark remaps). Force labels + values light on navy.
+     */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea dd,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea dd,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea dt,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea dt,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary dt,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary dt,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary dt span,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary dt span,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra dt,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra dt,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra dt span,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra dt span {
+        color: #cbd5e1 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary dd,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary dd,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary .text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary .text-dark,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra dd,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra dd,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra .text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-extra .text-dark {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary .text-muted,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary .text-muted,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__manual-discount-note,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__manual-discount-note,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__manual-discount-note .text-muted,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__manual-discount-note .text-muted {
+        color: #b6c4d8 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__total-row,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__total-row,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__total-row span,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__total-row span,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__subtotal-row,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__subtotal-row,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__subtotal-row span,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .meatco-order-totals-summary__subtotal-row span {
+        color: #f8fafc !important;
+        border-top-color: #2a3a52 !important;
+    }
+
+    /*
+     * Delivery / Contact / Offline payment info widgets —
+     * style.css locks `.delivery--information-single .info` (and offline twin)
+     * to `color: var(--tc)` (#334257). Card-body remaps do not override that
+     * explicit color, so Name/Contact/Address values stay slate on navy.
+     */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .name,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .name,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .name,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .name,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .name::after,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .name::after,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .name::after,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .name::after {
+        color: #b6c4d8 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .info,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .info,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .info,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .info,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .info a,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .info a,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .info a,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .offline-payment--information-single .info a {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .edit-btn,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .delivery--information-single .edit-btn,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .col-lg-4 > .card > .card-body .edit-btn,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #printableArea .col-lg-4 > .card > .card-body .edit-btn {
+        color: #e2e8f0 !important;
+    }
+
+    /* Linked M-Pesa on order details — header uses !important light mint + #0b1220 */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments .meatco-linked-mpesa-payments__header,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments .meatco-linked-mpesa-payments__header,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments .meatco-linked-mpesa-payments__header strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments .meatco-linked-mpesa-payments__header strong {
+        color: #ecfdf5 !important;
+        background: linear-gradient(180deg, #0f3d2e 0%, #0b2a22 100%) !important;
+        border-bottom-color: #1a5c45 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__head,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__head {
+        background: #0f1726 !important;
+        color: #b6c4d8 !important;
+        border-color: #2a3a52 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__row,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__row,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__row > span,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__row > span {
+        color: #e8eef7 !important;
+        border-top-color: #2a3a52 !important;
+        background: transparent !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__row > span[data-label]::before,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-linked-mpesa-payments__row > span[data-label]::before {
+        color: #94a3b8 !important;
+    }
+
+    /* Adjacent same-pattern filter gradients (sale report / traffic) */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-sale-report__filters,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sale-report__filters,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-traffic__filters,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-traffic__filters,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list__filters {
+        background: #152033 !important;
+        background-image: none !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-sale-report__shell,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-sale-report__shell,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-traffic__shell,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-traffic__shell {
+        background: #121a2b !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    /* --- Scheduled orders: date totals + row ink (ops CSS loads last) --- */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group {
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__head,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__head,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__head,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__head,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__head:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__head:hover,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__head:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__head:hover {
+        background: #0f1726 !important;
+        border-bottom-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__date,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__date,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__date,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__date,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__total,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__total,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__total,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__total {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__count,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__count,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__chevron,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__chevron,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__count,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__count,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__chevron,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-group__chevron,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-payment__method,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-payment__method {
+        color: #b6c4d8 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__body,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-group__body {
+        background: #152033 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table th,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table th {
+        background: #0f1726 !important;
+        color: #b6c4d8 !important;
+        border-color: #2a3a52 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table td,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table td {
+        color: #e8eef7 !important;
+        border-color: #2a3a52 !important;
+        background: transparent !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table tr:hover td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table tr:hover td,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table tbody tr:hover td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table tbody tr:hover td {
+        background: #1a2740 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table a,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table a,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table a,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table a {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table a:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-scheduled-table a:hover,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table a:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-scheduled-table a:hover {
+        color: #fca5a5 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-ops-empty,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-list--scheduled .meatco-ops-empty {
+        background: #0f1726 !important;
+        border-color: #3d516e !important;
+        color: #cbd5e1 !important;
+    }
+
+    /* Express board — same ops CSS load-order; keep chromatic tiles, fix neutral ink */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card:not([class*="meatco-express-card--"]),
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card:not([class*="meatco-express-card--"]),
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-section--dispatched .meatco-express-card {
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__id,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__id,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta strong,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta--customer,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta--customer {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta--secondary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__meta--secondary,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-header__meta,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-header__meta {
+        color: #b6c4d8 !important;
+    }
+
+    /* LATE / SLA — beat light-pink ops surfaces; keep red accent + readable ink */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical {
+        background-color: #3a1418 !important;
+        border-color: #E7032D !important;
+        color: #f8fafc !important;
+        animation-name: meatco-express-late-pulse-strong-dark !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__id,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__id,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__id,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__id,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__id,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__id,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--customer,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--customer,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--customer,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--customer,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--customer,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--customer,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta strong,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta strong,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta strong {
+        color: #fef2f2 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--secondary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-delay .meatco-express-card__meta--secondary,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--secondary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-escalated .meatco-express-card__meta--secondary,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--secondary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card.meatco-express-card--sla-critical .meatco-express-card__meta--secondary {
+        color: #fecaca !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-delay,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-delay {
+        background: rgba(231, 3, 45, 0.28) !important;
+        color: #fecaca !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-escalated,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-escalated {
+        background: rgba(231, 3, 45, 0.4) !important;
+        color: #fecaca !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-critical,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-express-card__timer--sla-critical {
+        background: #E7032D !important;
+        color: #fff !important;
+    }
+}
+
+/*
+ * B2B order details — reuses .meatco-order-detail but has NO #printableArea.
+ * Existing order-detail dark remaps are scoped to #printableArea (retail), so
+ * B2B status / table / labels / pencil stayed on light-locked theme colors.
+ * Screen only; print / force-light unchanged.
+ */
+@media screen {
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card-body,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card-body,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card-header,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card-header,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card-header h5,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card-header h5 {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .page-header-title,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .page-header-title,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .h1,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .h1,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .h2,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .h2,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail h2,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail h2,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail h3,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail h3,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail strong,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail strong,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .font-weight-semibold,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .font-weight-semibold,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .font-weight-bold,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .font-weight-bold {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .text-muted,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .text-muted {
+        color: #b6c4d8 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .text-dark,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail a.text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail a.text-dark,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail label,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail label,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail label.text-dark,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail label.text-dark {
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail a.text-dark:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail a.text-dark:hover {
+        color: #fca5a5 !important;
+    }
+
+    /* Change Order Status control (B2B has no #printableArea) */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-toggle.form-control,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-toggle.form-control,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #b2bOrderStatusDropdown,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #b2bOrderStatusDropdown {
+        background: #0f1726 !important;
+        border-color: #3d516e !important;
+        color: #f8fafc !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-menu,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-menu {
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item.active,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item.active,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item:active,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item:active {
+        color: #f8fafc !important;
+        background-color: rgba(231, 3, 45, 0.22) !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item.disabled,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item.disabled,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item.text-muted,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .dropdown-item.text-muted {
+        color: #94a3b8 !important;
+    }
+
+    /* Line items table + total row (thead-light keeps light gradient without this) */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table {
+        color: #e8eef7 !important;
+        background: transparent !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table thead th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table thead th,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table .thead-light th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table .thead-light th,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .thead-light th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .thead-light th,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card .table-responsive thead th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .card .table-responsive thead th {
+        color: #b6c4d8 !important;
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table tbody td,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table tbody td,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table tfoot th,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .table tfoot th,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-line-weight-value,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-line-weight-value {
+        color: #e8eef7 !important;
+        border-color: #2a3a52 !important;
+        background: transparent !important;
+    }
+
+    /* Weight pencil — outline primary alone washes out on navy */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn.btn-outline-primary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn.btn-outline-primary {
+        color: #fecaca !important;
+        border-color: #7f1d1d !important;
+        background: rgba(231, 3, 45, 0.14) !important;
+    }
+
+    /* Edit Item modal — name + weight fields stay legible on navy */
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .modal-content,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .modal-content {
+        color: #e8eef7 !important;
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .input-label,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .input-label,
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .modal-title,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .modal-title {
+        color: #e8eef7 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .form-control,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .form-control,
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .b2b-edit-item-name-input,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .b2b-edit-item-name-input {
+        color: #e8eef7 !important;
+        background-color: #0f1726 !important;
+        border-color: #3d516e !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .input-group-text,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-edit-line-modal .input-group-text {
+        color: #b6c4d8 !important;
+        background-color: #121a2b !important;
+        border-color: #3d516e !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn:hover,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn:focus,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn:focus {
+        color: #ffffff !important;
+        border-color: #E7032D !important;
+        background: rgba(231, 3, 45, 0.32) !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn i,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-edit-weight-btn i {
+        color: inherit !important;
+    }
+
+    /* Peer weight-image upload affordances (forward-compatible) */
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-thumb,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-thumb {
+        border-color: #3d516e !important;
+        background: #0f1726 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-empty,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-empty {
+        color: #b6c4d8 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-upload.btn-outline-primary,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-upload.btn-outline-primary {
+        color: #93c5fd !important;
+        border-color: #3d516e !important;
+        background: #152033 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-upload.btn-outline-primary:hover,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-upload.btn-outline-primary:hover,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-upload.btn-outline-primary:focus,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-upload.btn-outline-primary:focus {
+        color: #dbeafe !important;
+        border-color: #60a5fa !important;
+        background: rgba(59, 130, 246, 0.16) !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-ofd-hint,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-weight-image-ofd-hint,
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-print-delivery-note-hint,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail .b2b-print-delivery-note-hint {
+        color: #fca5a5 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .modal-content,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .modal-content {
+        color: #e8eef7 !important;
+        background: #152033 !important;
+        border-color: #2a3a52 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .modal-header,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .modal-header {
+        border-bottom-color: #2a3a52 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .modal-title,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .modal-title,
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .close,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .close {
+        color: #e8eef7 !important;
+        text-shadow: none !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .b2b-weight-image-lightbox-img,
+    body.meatco-admin-shell[data-munch-theme="dark"] .b2b-weight-image-lightbox .b2b-weight-image-lightbox-img {
+        background: #0f1726 !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .meatco-order-detail #b2b-print-delivery-note:disabled,
+    body.meatco-admin-shell[data-munch-theme="dark"] .meatco-order-detail #b2b-print-delivery-note:disabled {
+        color: #94a3b8 !important;
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        opacity: 1;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forced light — print / invoice / POS print                                 */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-a4-invoice,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-a4-invoice,
+body.munch-admin-shell[data-munch-theme="dark"] .meatco-pos-print,
+body.meatco-admin-shell[data-munch-theme="dark"] .meatco-pos-print,
+body.munch-admin-shell[data-munch-theme="dark"] [data-meatco-force-light],
+body.meatco-admin-shell[data-munch-theme="dark"] [data-meatco-force-light] {
+    --munch-shell-bg: #ffffff;
+    --munch-shell-surface: #ffffff;
+    --munch-shell-surface-raised: #ffffff;
+    --munch-shell-border: #c9d4e3;
+    --munch-shell-text: #0b1220;
+    --munch-shell-text-muted: #52627a;
+    color: #0b1220 !important;
+    background: #ffffff !important;
+}
+
+@media print {
+    body.munch-admin-shell,
+    body.meatco-admin-shell,
+    body.munch-admin-shell[data-munch-theme="dark"],
+    body.meatco-admin-shell[data-munch-theme="dark"] {
+        --munch-shell-bg: #ffffff !important;
+        --munch-shell-surface: #ffffff !important;
+        --munch-shell-surface-raised: #ffffff !important;
+        --munch-shell-border: #c9d4e3 !important;
+        --munch-shell-text: #0b1220 !important;
+        --munch-shell-text-muted: #52627a !important;
+        color: #0b1220 !important;
+        background: #ffffff !important;
+    }
+
+    body.munch-admin-shell[data-munch-theme="dark"] .card,
+    body.meatco-admin-shell[data-munch-theme="dark"] .card,
+    body.munch-admin-shell[data-munch-theme="dark"] .main,
+    body.meatco-admin-shell[data-munch-theme="dark"] .main,
+    body.munch-admin-shell[data-munch-theme="dark"] .table,
+    body.meatco-admin-shell[data-munch-theme="dark"] .table {
+        background: #ffffff !important;
+        color: #0b1220 !important;
+        box-shadow: none !important;
+    }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* Munch-native feature remaps (dash KPIs + sale report)                      */
+/* -------------------------------------------------------------------------- */
+
+body.munch-admin-shell[data-munch-theme="dark"] .munch-dash-kpis__card,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-sale-report__card,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-sale-report__filters {
+    background: #0f1a2c !important;
+    border-color: #243247 !important;
+    color: #e2e8f0 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .munch-dash-kpis__label,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-sale-report__label,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-sale-report__chip {
+    color: #94a3b8 !important;
+}
+
+body.munch-admin-shell[data-munch-theme="dark"] .munch-dash-kpis__value,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-sale-report__value,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-dash-kpis .h3,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-dash-kpis .h4,
+body.munch-admin-shell[data-munch-theme="dark"] .munch-dash-kpis .h5 {
+    color: #f8fafc !important;
+}

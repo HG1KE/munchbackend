@@ -3,12 +3,12 @@
  */
 
 .munch-dash-kpis {
-    --kpi-label: var(--munch-shell-text-muted, #64748b);
-    --kpi-value: var(--munch-shell-text, #0f172a);
+    --kpi-label: var(--munch-shell-text-muted, #52627a);
+    --kpi-value: var(--munch-shell-text, #0b1220);
     --kpi-surface: var(--munch-shell-surface, #fff);
-    --kpi-border: var(--munch-shell-border, #e2e8f0);
+    --kpi-border: var(--munch-shell-border, #c9d4e3);
     --kpi-radius: var(--munch-shell-radius, 12px);
-    --kpi-shadow: var(--munch-shell-shadow, 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04));
+    --kpi-shadow: var(--munch-shell-shadow, 0 1px 2px rgba(11, 18, 32, 0.05), 0 4px 16px rgba(11, 18, 32, 0.06));
 }
 
 .munch-dash-kpis__filters {

@@ -1,0 +1,904 @@
+/**
+ * Munch admin & branch panel brand theme
+ * Primary: #E7032D — Munch brand; replaces inherited eFood orange
+ * Load after theme.minc619.css and style.css
+ */
+
+:root {
+    --munch-primary: #E7032D;
+    --munch-primary-hover: #C10226;
+    --munch-primary-active: #A0011F;
+    --munch-primary-rgb: 231, 3, 45;
+    --munch-primary-soft: rgba(231, 3, 45, 0.1);
+    --munch-primary-focus: rgba(231, 3, 45, 0.25);
+
+    /* Align legacy eFood variables with Munch */
+    --c1: var(--munch-primary);
+    --c1-rgb: var(--munch-primary-rgb);
+    --primary: var(--munch-primary);
+    --blue: var(--munch-primary);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Links & text accents (theme orange only — not semantic danger)             */
+/* -------------------------------------------------------------------------- */
+
+a {
+    color: var(--munch-primary);
+}
+
+a:hover {
+    color: var(--munch-primary-hover);
+}
+
+.text-primary,
+.text-c1,
+.c1 {
+    color: var(--munch-primary) !important;
+}
+
+.bg-primary,
+.bg-c1 {
+    background-color: var(--munch-primary) !important;
+}
+
+.border-primary {
+    border-color: var(--munch-primary) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.btn-primary,
+.btn--primary {
+    color: #fff !important;
+    background-color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+}
+
+.btn-primary:hover,
+.btn--primary:hover,
+.btn-primary:focus,
+.btn--primary:focus,
+.btn-primary:not(:disabled):not(.disabled).active,
+.btn-primary:not(:disabled):not(.disabled):active,
+.show > .btn-primary.dropdown-toggle {
+    color: #fff !important;
+    background-color: var(--munch-primary-hover) !important;
+    border-color: var(--munch-primary-hover) !important;
+    box-shadow: 0 0 0 0.2rem var(--munch-primary-focus);
+}
+
+.btn-primary.disabled,
+.btn-primary:disabled,
+.btn--primary:disabled {
+    background-color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+    opacity: 0.65;
+}
+
+.btn-outline-primary {
+    color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    color: #fff !important;
+    background-color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+}
+
+.btn-status-c1 {
+    background-color: var(--munch-primary) !important;
+}
+
+.badge-soft-c1 {
+    color: var(--munch-primary) !important;
+    background-color: var(--munch-primary-soft) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forms, focus, custom controls                                              */
+/* -------------------------------------------------------------------------- */
+
+.form-control:focus,
+.custom-select:focus,
+.form--control:focus,
+.custom-control-input:focus ~ .custom-control-label::before,
+.custom-file-input:focus ~ .custom-file-label {
+    border-color: var(--munch-primary) !important;
+    box-shadow: 0 0 0 0.2rem var(--munch-primary-focus) !important;
+}
+
+.custom-control-input:checked ~ .custom-control-label::before,
+.custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
+    background-color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+}
+
+.custom-control-input:focus:not(:checked) ~ .custom-control-label::before {
+    border-color: var(--munch-primary) !important;
+    box-shadow: 0 0 0 0.2rem var(--munch-primary-focus) !important;
+}
+
+/* Toggle / switcher (status toggles — accent only) */
+.switcher_input:checked ~ .switcher_control,
+.switch_input:checked ~ .switcher_control:after,
+.switcher .status:checked ~ .slider:after {
+    background-color: var(--munch-primary) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Nav, tabs, pagination                                                      */
+/* -------------------------------------------------------------------------- */
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+    color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) var(--munch-primary) #fff !important;
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+    background-color: var(--munch-primary) !important;
+}
+
+.nav-segment .nav-link.active {
+    background-color: var(--munch-primary) !important;
+    color: #fff !important;
+}
+
+.inline-page-menu ul li.active a {
+    color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+}
+
+.page-item.active .page-link {
+    background-color: var(--munch-primary) !important;
+    border-color: var(--munch-primary) !important;
+    color: #fff !important;
+}
+
+.page-link:hover {
+    color: var(--munch-primary-hover) !important;
+}
+
+/* Sidebar active (light & dark vertical nav) */
+.navbar-vertical .navbar-nav.nav-tabs .active > .nav-link,
+.navbar-vertical .navbar-nav.nav-tabs .active.nav-link,
+.navbar-dark .navbar-nav .active > .nav-link,
+.navbar-dark .navbar-nav .nav-link.active,
+.navbar-dark .navbar-nav .dropdown-item.active,
+.navbar-vertical-aside-has-menu.show > .nav-link,
+.navbar-vertical-aside-has-menu > .nav-link-toggle.active {
+    color: var(--munch-primary) !important;
+}
+
+.navbar-dark .navbar-nav .nav-link.active .nav-indicator-icon,
+.navbar-dark .navbar-nav .nav-link:hover .nav-indicator-icon,
+.navbar-vertical .active .nav-indicator-icon,
+.navbar-vertical .nav-link:hover .nav-indicator-icon {
+    color: var(--munch-primary) !important;
+}
+
+/* Munch / Meatco shell — Meatco-red rail + filled active pill on dark sidebar */
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .active > .nav-link,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link.active,
+body.meatco-admin-shell .navbar-vertical-aside .navbar-nav .active > .nav-link,
+body.meatco-admin-shell .navbar-vertical-aside .navbar-nav .nav-link.active {
+    background: linear-gradient(
+        90deg,
+        rgba(var(--munch-primary-rgb), 0.42) 0%,
+        rgba(var(--munch-primary-rgb), 0.22) 100%
+    ) !important;
+    color: #fff !important;
+    box-shadow:
+        inset 4px 0 0 var(--munch-primary),
+        0 0 0 1px rgba(var(--munch-primary-rgb), 0.28),
+        0 6px 16px rgba(var(--munch-primary-rgb), 0.12);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link.active,
+body.meatco-admin-shell .navbar-vertical-aside .nav-sub .nav-link.active {
+    color: #fff !important;
+    background: linear-gradient(
+        90deg,
+        rgba(var(--munch-primary-rgb), 0.48) 0%,
+        rgba(var(--munch-primary-rgb), 0.26) 100%
+    ) !important;
+    box-shadow: inset 4px 0 0 var(--munch-primary);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dropdowns, progress, spinners                                              */
+/* -------------------------------------------------------------------------- */
+
+.dropdown-item.active,
+.dropdown-item:active {
+    background-color: var(--munch-primary) !important;
+    color: #fff !important;
+}
+
+.progress-bar {
+    background-color: var(--munch-primary) !important;
+}
+
+.spinner-border.text-primary,
+.spinner-grow.text-primary {
+    color: var(--munch-primary) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tables & cards (accent highlights)                                         */
+/* -------------------------------------------------------------------------- */
+
+.table-hover .table-primary:hover {
+    background-color: var(--munch-primary-soft) !important;
+}
+
+.legend-indicator.bg-primary,
+.legend-indicator[style*="FF6F70"],
+.legend-indicator[style*="FC6A57"] {
+    background-color: var(--munch-primary) !important;
+}
+
+/* Order stat cards / dashboard accents using --c1 */
+.order--card:hover {
+    border-color: rgba(var(--munch-primary-rgb), 0.35);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tagify & vendor overrides (dropdown accent)                                */
+/* -------------------------------------------------------------------------- */
+
+.tagify__dropdown__item--active {
+    background: var(--munch-primary) !important;
+}
+
+:root {
+    --tagify-dd-color-primary: var(--munch-primary);
+}
+
+/* -------------------------------------------------------------------------- */
+/* SweetAlert2 confirm button (class hook if used)                              */
+/* -------------------------------------------------------------------------- */
+
+.swal2-styled.swal2-confirm {
+    background-color: var(--munch-primary) !important;
+}
+
+.swal2-styled.swal2-confirm:focus {
+    box-shadow: 0 0 0 3px var(--munch-primary-focus) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Branch + admin shared shell polish                                           */
+/* -------------------------------------------------------------------------- */
+
+body.meatco-admin-shell .form-control:focus,
+body.meatco-admin-shell .form--control:focus,
+body.munch-admin-shell .form-control:focus,
+body.munch-admin-shell .form--control:focus {
+    border-color: var(--munch-primary);
+    box-shadow: 0 0 0 3px var(--munch-primary-focus);
+}
+
+/* Brand motion — buttons / outline primary under shell (no layout change) */
+body.munch-admin-shell .btn-primary,
+body.munch-admin-shell .btn--primary,
+body.meatco-admin-shell .btn-primary,
+body.meatco-admin-shell .btn--primary {
+    transition:
+        background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.munch-admin-shell .btn-outline-primary,
+body.meatco-admin-shell .btn-outline-primary {
+    transition:
+        background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.munch-admin-shell .nav-tabs .nav-link.active,
+body.meatco-admin-shell .nav-tabs .nav-link.active {
+    font-weight: 700;
+}
+
+body.munch-admin-shell .page-item.active .page-link,
+body.meatco-admin-shell .page-item.active .page-link {
+    box-shadow: 0 1px 3px rgba(var(--munch-primary-rgb), 0.28);
+}
+
+/* Preserve semantic badge colors — only remap info-styled primary accents */
+.badge-soft-primary {
+    color: var(--munch-primary) !important;
+    background-color: var(--munch-primary-soft) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Order status pills — parity with branch dashboard Recent Orders            */
+/* Source styles also live in meatco-dashboard-charts.css                     */
+/* -------------------------------------------------------------------------- */
+
+.meatco-dashboard-recent__status {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 9.5rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #dce4ef;
+    background: #eef3f9;
+    color: #334155;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: capitalize;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.meatco-dashboard-recent__status--pending {
+    color: #b91c1c;
+    background: rgba(231, 3, 45, 0.08);
+    border-color: rgba(231, 3, 45, 0.22);
+}
+
+.meatco-dashboard-recent__status--ongoing {
+    color: #9a3412;
+    background: rgba(154, 52, 18, 0.08);
+    border-color: rgba(154, 52, 18, 0.22);
+}
+
+.meatco-dashboard-recent__status--delivered {
+    color: #15803d;
+    background: rgba(21, 128, 61, 0.08);
+    border-color: rgba(21, 128, 61, 0.22);
+}
+
+.meatco-dashboard-recent__status--canceled {
+    color: #1e293b;
+    background: rgba(30, 41, 59, 0.08);
+    border-color: rgba(30, 41, 59, 0.18);
+}
+
+.meatco-dashboard-recent__status--failed {
+    color: #b91c1c;
+    background: rgba(185, 28, 28, 0.08);
+    border-color: rgba(185, 28, 28, 0.22);
+}
+
+.meatco-dashboard-recent__status--returned {
+    color: #1d4ed8;
+    background: rgba(29, 78, 216, 0.08);
+    border-color: rgba(29, 78, 216, 0.22);
+}
+
+@media only screen and (max-width: 575.98px) {
+    .meatco-dashboard-recent__status {
+        max-width: 7.5rem;
+        padding: 0.22rem 0.5rem;
+        font-size: 0.5625rem;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Operational fulfillment badges (EXPRESS / SCHEDULED) — order lists         */
+/* -------------------------------------------------------------------------- */
+
+.meatco-fulfillment-badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.meatco-fulfillment-badge--express {
+    background: var(--munch-primary, #E7032D);
+    color: #fff;
+}
+
+.meatco-fulfillment-badge--scheduled {
+    background: #dbeafe;
+    color: #1e3a8a;
+}
+
+.meatco-fulfillment-badge--scheduled-express {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.meatco-fulfillment-badge--pickup {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.meatco-fulfillment-badge--channel {
+    background: #e0f2fe;
+    color: #0369a1;
+    text-transform: capitalize;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Order platform / source indicators (secondary to status & customer)        */
+/* -------------------------------------------------------------------------- */
+
+.meatco-order-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex-shrink: 0;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: #64748b;
+}
+
+.meatco-order-source--inline {
+    margin-left: 0.35rem;
+    font-size: 0.6875rem;
+    opacity: 0.92;
+}
+
+.meatco-order-source--pill {
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.meatco-order-source__icon {
+    font-size: 0.95em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.meatco-order-source--inline .meatco-order-source__icon {
+    font-size: 0.9em;
+}
+
+.meatco-order-source__label {
+    font-weight: 600;
+}
+
+.meatco-order-source--web {
+    color: #1d4ed8;
+}
+
+.meatco-order-source--pill.meatco-order-source--web {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.meatco-order-source--app,
+.meatco-order-source--android,
+.meatco-order-source--ios {
+    color: #6d28d9;
+}
+
+.meatco-order-source--pill.meatco-order-source--app,
+.meatco-order-source--pill.meatco-order-source--android,
+.meatco-order-source--pill.meatco-order-source--ios {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border-color: #ddd6fe;
+}
+
+.meatco-order-source--api {
+    color: #0f766e;
+}
+
+.meatco-order-source--pill.meatco-order-source--api {
+    background: #f0fdfa;
+    color: #0f766e;
+    border-color: #99f6e4;
+}
+
+.meatco-order-source--admin {
+    color: #475569;
+}
+
+.meatco-order-source--pill.meatco-order-source--admin {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.meatco-order-source--pos {
+    color: #b45309;
+}
+
+.meatco-order-source--pill.meatco-order-source--pos {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+/* Marketing traffic source (TikTok / Facebook / …) — beside Platform badge */
+.meatco-traffic-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex-shrink: 0;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: #64748b;
+}
+
+.meatco-traffic-source--inline {
+    margin-left: 0.35rem;
+    font-size: 0.6875rem;
+    opacity: 0.92;
+}
+
+.meatco-traffic-source--pill {
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.meatco-traffic-source__icon {
+    font-size: 0.95em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.meatco-traffic-source__label {
+    font-weight: 600;
+}
+
+.meatco-traffic-source--tiktok {
+    color: #be185d;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--tiktok {
+    background: #fdf2f8;
+    color: #be185d;
+    border-color: #fbcfe8;
+}
+
+.meatco-traffic-source--facebook {
+    color: #1d4ed8;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--facebook {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.meatco-traffic-source--instagram {
+    color: #c026d3;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--instagram {
+    background: #fdf4ff;
+    color: #c026d3;
+    border-color: #f5d0fe;
+}
+
+.meatco-traffic-source--google {
+    color: #b45309;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--google {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+.meatco-traffic-source--direct {
+    color: #0f766e;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--direct {
+    background: #f0fdfa;
+    color: #0f766e;
+    border-color: #99f6e4;
+}
+
+.meatco-traffic-source--other {
+    color: #475569;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--other {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.meatco-traffic-source--unknown {
+    color: #94a3b8;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--unknown {
+    background: #f8fafc;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+.meatco-traffic-source--pos {
+    color: #b45309;
+}
+
+.meatco-traffic-source--pill.meatco-traffic-source--pos {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Classic order list — light ops affordances (Phase 1f)                      */
+/* -------------------------------------------------------------------------- */
+
+.meatco-ops-list-id {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.25rem;
+    max-width: 14rem;
+}
+
+.meatco-ops-list-id__link {
+    color: #0f172a;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.meatco-ops-list-id__link:hover {
+    color: var(--munch-primary, #E7032D);
+    text-decoration: underline;
+}
+
+.meatco-ops-list-type {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+}
+
+.meatco-ops-list-type .meatco-express-card__schedule {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    white-space: normal;
+}
+
+.meatco-ops-list-board-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #1d4ed8;
+    text-decoration: none;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.meatco-ops-list-board-link:hover {
+    color: #1e3a8a;
+    background: #dbeafe;
+    text-decoration: none;
+}
+
+.meatco-ops-list-board-link i {
+    font-size: 0.85em;
+}
+
+/* Live list search: brief dim while AJAX results load */
+.content.container-fluid.is-live-search-loading,
+[id^="area-live-search-"].is-live-search-loading,
+#customer-list-results.is-live-search-loading,
+#order-list-results.is-live-search-loading {
+    opacity: 0.72;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+/* Express ring modal styles live in meatco-new-order-modal.css (loaded last). */
+
+/* -------------------------------------------------------------------------- */
+/* Dashboard Order / Earning ApexCharts vendor chrome                         */
+/* (feature file cannot target .apexcharts-* — validator prefix policy)       */
+/* -------------------------------------------------------------------------- */
+
+.meatco-dashboard-chart__canvas .apexcharts-canvas {
+    max-width: 100% !important;
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-tooltip {
+    border: 1px solid #dce4ef !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(11, 18, 32, 0.12) !important;
+    overflow: hidden;
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-tooltip-title {
+    background: #eef3f9 !important;
+    border-bottom: 1px solid #dce4ef !important;
+    font-weight: 700 !important;
+    color: #0b1220 !important;
+    padding: 0.4rem 0.65rem !important;
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-xaxistooltip,
+.meatco-dashboard-chart__canvas .apexcharts-yaxistooltip {
+    background: #0b1220 !important;
+    border-color: #0b1220 !important;
+    color: #fff !important;
+    border-radius: 6px !important;
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-gridline {
+    stroke-opacity: 0.85;
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-xaxis text {
+    letter-spacing: 0;
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-tooltip {
+    max-width: min(240px, calc(100vw - 2rem));
+}
+
+.meatco-dashboard-chart__canvas .apexcharts-tooltip-title,
+.meatco-dashboard-chart__canvas .apexcharts-tooltip-text {
+    white-space: normal;
+    word-break: break-word;
+}
+
+@media only screen and (max-width: 575px) {
+    .meatco-dashboard-chart__canvas .apexcharts-xaxis text {
+        font-size: 10px !important;
+    }
+
+    .meatco-dashboard-chart__canvas .apexcharts-tooltip {
+        max-width: calc(100vw - 1.5rem);
+    }
+}
+
+.meatco-dashboard-status__chart .apexcharts-canvas,
+.meatco-dashboard-status__donut .apexcharts-canvas {
+    /* Keep flush in the square host — pie is top-aligned in the SVG;
+       overlay sync handles hole centering. */
+    margin: 0 !important;
+}
+
+.meatco-dashboard-status__donut .apexcharts-canvas {
+    width: 220px !important;
+    height: 220px !important;
+    max-width: 220px;
+}
+
+@media only screen and (max-width: 575px) {
+    .meatco-dashboard-status__donut .apexcharts-canvas {
+        width: 196px !important;
+        height: 196px !important;
+        max-width: 196px;
+    }
+}
+
+.meatco-dashboard-status__chart .apexcharts-tooltip {
+    border: 1px solid #dce4ef !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(11, 18, 32, 0.12) !important;
+    max-width: min(220px, calc(100vw - 2rem));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Global #loading overlay — replace eFood loader.gif with Munch spinner     */
+/* -------------------------------------------------------------------------- */
+
+#loading.munch-admin-loading,
+.munch-admin-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+}
+
+/* jQuery .show() sets display:block — force flex layout while visible */
+#loading.munch-admin-loading[style*="display: block"],
+#loading.munch-admin-loading[style*="display:block"],
+.munch-admin-loading[style*="display: block"],
+.munch-admin-loading[style*="display:block"] {
+    display: flex !important;
+}
+
+.munch-admin-loading__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 18, 32, 0.28);
+    backdrop-filter: blur(2px);
+}
+
+.munch-admin-loading__panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid #dce4ef;
+    box-shadow: 0 10px 28px rgba(11, 18, 32, 0.16);
+}
+
+.munch-admin-loading__spinner {
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 999px;
+    border: 2.5px solid #e8edf5;
+    border-top-color: #E7032D;
+    animation: munch-admin-loading-spin 0.7s linear infinite;
+}
+
+@keyframes munch-admin-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .munch-admin-loading__spinner {
+        animation-duration: 1.4s;
+    }
+}
+
+@media only screen and (max-width: 575px) {
+    .munch-admin-loading__panel {
+        width: 3.75rem;
+        height: 3.75rem;
+        border-radius: 12px;
+    }
+
+    .munch-admin-loading__spinner {
+        width: 1.4rem;
+        height: 1.4rem;
+    }
+}
