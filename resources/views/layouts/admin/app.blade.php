@@ -39,10 +39,6 @@
 
 <body class="footer-offset munch-admin-shell">
 <script>document.body.setAttribute('data-munch-theme', document.documentElement.getAttribute('data-munch-theme') || 'light');</script>
-    <div class="direction-toggle">
-        <i class="tio-settings"></i>
-        <span></span>
-    </div>
 
 {{-- Global AJAX loader — Munch shell spinner --}}
 <div id="loading" class="munch-admin-loading" style="display: none;" aria-hidden="true">
@@ -168,36 +164,7 @@
         @endforeach
     </script>
 @endif
-<!-- Toggle Direction Init -->
 <script>
-    $(document).on('ready', function(){
-
-        $(".direction-toggle").on("click", function () {
-            setDirection(localStorage.getItem("direction"));
-        });
-
-        function setDirection(direction) {
-            if (direction == "rtl") {
-                localStorage.setItem("direction", "ltr");
-                $("html").attr('dir', 'ltr');
-            $(".direction-toggle").find('span').text('Toggle RTL')
-            } else {
-                localStorage.setItem("direction", "rtl");
-                $("html").attr('dir', 'rtl');
-            $(".direction-toggle").find('span').text('Toggle LTR')
-            }
-        }
-
-        if (localStorage.getItem("direction") == "rtl") {
-            $("html").attr('dir', "rtl");
-            $(".direction-toggle").find('span').text('Toggle LTR')
-        } else {
-            $("html").attr('dir', "ltr");
-            $(".direction-toggle").find('span').text('Toggle RTL')
-        }
-
-    })
-
     //Keyborad tabs
     $(function () {
         function setActive(el) {
