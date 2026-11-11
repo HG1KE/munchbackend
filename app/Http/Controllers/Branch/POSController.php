@@ -22,6 +22,7 @@ use App\Support\AddonChannelPricing;
 use App\Support\OrderPlacementTime;
 use App\Support\PosCheckoutIdempotency;
 use App\Support\PosClientVersion;
+use App\Support\PosNearDuplicateGuard;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
 use App\Model\OrderDetail;
@@ -714,6 +715,11 @@ class POSController extends Controller
         $deliveryCharge = $cartSnapshot['delivery_charge'];
         $orderAmount = $cartSnapshot['order_amount'];
 
+        $nearDuplicate = $this->findNearDuplicatePosOrder($orderType, (float) $orderAmount, $orderDetails);
+        if ($nearDuplicate) {
+            return $this->posNearDuplicateFail($request, $nearDuplicate);
+        }
+
         $orderId = 100000 + $this->order->all()->count() + 1;
         if ($this->order->find($orderId)) {
             $orderId = $this->order->orderBy('id', 'DESC')->first()->id + 1;
@@ -1308,6 +1314,47 @@ class POSController extends Controller
                 'success' => 0,
                 'message' => $message,
             ], $status);
+        }
+
+        Toastr::error($message);
+
+        return back();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $orderDetails
+     */
+    private function findNearDuplicatePosOrder(string $orderType, float $orderAmount, array $orderDetails): ?Order
+    {
+        if (PosOrderTypes::isMarketplace($orderType)) {
+            return null;
+        }
+
+        $fingerprint = PosNearDuplicateGuard::fingerprintFromDetails($orderDetails);
+        if ($fingerprint === '' || $orderDetails === []) {
+            return null;
+        }
+
+        return PosNearDuplicateGuard::findRecent(
+            (int) auth('branch')->id(),
+            $orderAmount,
+            $fingerprint
+        );
+    }
+
+    private function posNearDuplicateFail(Request $request, Order $existing): RedirectResponse|JsonResponse
+    {
+        PosNearDuplicateGuard::log($this->posClientUuid($request), $existing);
+        $message = PosNearDuplicateGuard::message();
+
+        if ($this->isJsonPosOrder($request)) {
+            return response()->json([
+                'success' => 0,
+                'code' => PosNearDuplicateGuard::CODE,
+                'message' => $message,
+                'existing_order_id' => $existing->id,
+                'existing_order_number' => Helpers::order_display_id($existing),
+            ], 422);
         }
 
         Toastr::error($message);

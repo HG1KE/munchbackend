@@ -848,12 +848,12 @@
         return idbPut('cart', stored, CART_KEY);
     }
 
-    function toast(message) {
+    function toast(message, durationMs) {
         if (!els.toast) return;
         els.toast.hidden = false;
         els.toast.textContent = message;
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { els.toast.hidden = true; }, 2600);
+        toastTimer = setTimeout(function () { els.toast.hidden = true; }, durationMs || 2600);
     }
 
     function addSimple(product) {
@@ -1564,8 +1564,13 @@
             if (body && body._http === 422) {
                 row.status = 'failed';
                 row.lastError = body.message || CFG.labels.validationFailed;
-                state.syncLabel = CFG.labels.syncFailed;
+                state.syncLabel = body.code === 'near_duplicate'
+                    ? (body.message || CFG.labels.nearDuplicate || CFG.labels.syncFailed)
+                    : CFG.labels.syncFailed;
                 state.syncKind = 'err';
+                if (body.code === 'near_duplicate') {
+                    toast(row.lastError, 5200);
+                }
                 return idbPut('queue', row).then(refreshQueueCount);
             }
             row.status = 'queued';
@@ -2571,9 +2576,20 @@
         return CFG.labels.checkingRetry || 'Still confirming this order. Tap Place Order to try again.';
     }
 
-    function reportSubmitFailure(reason, keepPending) {
+    function reportSubmitFailure(reason, keepPending, body) {
         if (!keepPending) clearPendingAttempt();
         endOrderSubmit();
+        if (body && body.code === 'near_duplicate') {
+            var nearMessage = body.message
+                || CFG.labels.nearDuplicate
+                || 'This looks like an order you just placed. Open that order to edit it, or cancel it first.';
+            if (state.cart.orderType === 'delivery') {
+                showDeliveryFailure(nearMessage);
+                return;
+            }
+            toast(nearMessage, 5200);
+            return;
+        }
         if (state.cart.orderType === 'delivery') {
             showDeliveryFailure(reason);
             return;
@@ -2646,7 +2662,8 @@
         if (outcome.kind === 'validation' || outcome.kind === 'client') {
             reportSubmitFailure(
                 outcome.message || CFG.labels.validationFailed || CFG.labels.syncFailed,
-                false
+                false,
+                body
             );
             return Promise.resolve();
         }
