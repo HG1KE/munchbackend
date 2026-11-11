@@ -41,7 +41,7 @@ test('guard hard-blocks within two minutes', function () {
 });
 
 test('asset version bumped for POS clients', function () {
-    assert(version.indexOf("ASSET = '6.11'") !== -1, 'PosClientVersion should be 6.11');
+    assert(version.indexOf("ASSET = '6.12'") !== -1, 'PosClientVersion should be 6.12');
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');

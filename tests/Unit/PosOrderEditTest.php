@@ -268,6 +268,11 @@ class PosOrderEditTest extends TestCase
         $this->assertStringContainsString('$this->posEdit->apply', $controller);
         $this->assertStringContainsString('posEdit->apply($order, $cartSnapshot, $paymentMethod, $orderType)', $controller);
         $this->assertStringContainsString("route('branch.pos.update-order')", $page);
+        $this->assertStringContainsString('id="pos-edit-banner"', $page);
+        $this->assertStringContainsString('id="pos-edit-cancel"', $page);
+        $this->assertStringContainsString('function syncEditBanner', $js);
+        $this->assertStringContainsString('function cancelEditAndStartNew', $js);
+        $this->assertStringContainsString('Editing order {n}', $js);
     }
 
     public function test_node_edit_and_receipt_rules(): void

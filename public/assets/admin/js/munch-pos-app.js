@@ -775,6 +775,7 @@
             }
         }
         if (els.clear) els.clear.disabled = !!successJob;
+        syncEditBanner();
     }
 
     function isMarketplaceOrderType(type) {
@@ -1757,6 +1758,7 @@
             payload: payload || null,
             clientUuid: (payload && payload.client_uuid) || '',
             placedAt: (payload && payload.placed_at) || new Date().toISOString(),
+            number: extras.number || '',
             offline: !!extras.offline
         };
     }
@@ -1764,13 +1766,42 @@
     function clearPostedEditState() {
         lastPosted = null;
         editingOrder = null;
+        syncEditBanner();
+    }
+
+    function editingOrderLabel(number) {
+        var value = String(number || '').trim();
+        var template = L('editingOrder', 'Editing order {n}');
+        if (!value) return template.replace(' {n}', '').replace('{n}', '').trim() || 'Editing order';
+        return template.replace('{n}', value);
+    }
+
+    function syncEditBanner() {
+        if (!els.editBanner) return;
+        if (!editingOrder) {
+            els.editBanner.hidden = true;
+            if (els.editBannerText) els.editBannerText.textContent = '';
+            return;
+        }
+        var number = editingOrder.number || (editingOrder.id ? ('#' + editingOrder.id) : '');
+        if (els.editBannerText) els.editBannerText.textContent = editingOrderLabel(number);
+        els.editBanner.hidden = false;
+    }
+
+    function cancelEditAndStartNew() {
+        if (state.orderSubmitting || successJob) return;
+        clearCart();
     }
 
     function openSuccessModal(job, extras) {
         if (successJob) return;
         successJob = job;
         extras = extras || {};
-        if (extras.payload) rememberPostedCart(extras.payload, extras);
+        if (extras.payload) {
+            rememberPostedCart(extras.payload, Object.assign({}, extras, {
+                number: (job && job.number) || extras.number || ''
+            }));
+        }
         var copy = successOutcomeCopy(job, extras);
         if (!els.successModal) {
             toast(copy.detail);
@@ -1825,6 +1856,7 @@
         var snapshot = lastPosted;
         editingOrder = {
             id: Number(successJob.orderId || 0),
+            number: successJob.number || snapshot.number || '',
             clientUuid: snapshot.clientUuid,
             placedAt: snapshot.placedAt,
             offline: !!snapshot.offline
@@ -1841,6 +1873,7 @@
         scheduleRender();
         renderLines();
         renderTotals();
+        syncEditBanner();
         (state.cart.lines || []).forEach(function (line) {
             updateProductCard(line.productId);
         });
@@ -2397,9 +2430,11 @@
         if (pendingAttempt.action === 'update' && pendingAttempt.order_id && !editingOrder && lastPosted) {
             editingOrder = {
                 id: Number(pendingAttempt.order_id),
+                number: lastPosted.number || '',
                 clientUuid: pendingAttempt.client_uuid,
                 placedAt: pendingAttempt.placed_at
             };
+            syncEditBanner();
         }
     }
 
@@ -2987,6 +3022,9 @@
         els.grid = document.getElementById('pos-grid');
         els.empty = document.getElementById('pos-empty');
         els.types = document.getElementById('pos-types');
+        els.editBanner = document.getElementById('pos-edit-banner');
+        els.editBannerText = document.getElementById('pos-edit-banner-text');
+        els.editCancel = document.getElementById('pos-edit-cancel');
         els.delivery = document.getElementById('pos-delivery');
         els.deliveryModal = document.getElementById('pos-delivery-modal');
         els.deliveryConfirm = document.getElementById('pos-delivery-confirm');
@@ -3181,6 +3219,7 @@
             if (successJob) return;
             clearCart();
         });
+        if (els.editCancel) els.editCancel.addEventListener('click', cancelEditAndStartNew);
         if (els.successKitchen) els.successKitchen.addEventListener('click', function () { printPlacedTicket('kitchen'); });
         if (els.successReceipt) els.successReceipt.addEventListener('click', function () { printPlacedTicket('receipt'); });
         if (els.successEdit) els.successEdit.addEventListener('click', startEditPostedOrder);

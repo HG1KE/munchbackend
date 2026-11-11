@@ -360,6 +360,41 @@
     align-self: stretch;
 }
 
+.munch-pos-edit-banner {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    margin: 0.7rem 1.05rem 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    background: #fff7ed;
+    color: #9a3412;
+}
+
+.munch-pos-edit-banner__text {
+    margin: 0;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.munch-pos-edit-banner__cancel {
+    flex: 0 0 auto;
+    border: 1px solid #fdba74;
+    border-radius: 10px;
+    background: #fff;
+    color: #9a3412;
+    min-height: 40px;
+    padding: 0 0.85rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .munch-pos-cart > .munch-pos-types {
     flex: 0 0 auto;
     margin-bottom: 0;
@@ -1548,6 +1583,11 @@ html.munch-pos-overlay-open body {
 
     .munch-pos-card__price {
         font-size: 0.98rem;
+    }
+
+    .munch-pos-edit-banner {
+        margin: 0.4rem 0.6rem 0;
+        padding: 0.55rem 0.65rem;
     }
 
     .munch-pos-cart > .munch-pos-types {

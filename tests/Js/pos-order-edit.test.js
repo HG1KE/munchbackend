@@ -92,6 +92,17 @@ test('success modal and view orders wire edit and receipt guards', function () {
     assert(app.indexOf('sales channel may change while editing') !== -1, 'missing edit channel-change comment');
 });
 
+test('edit mode shows order number banner with start-new escape', function () {
+    assert(page.indexOf('id="pos-edit-banner"') !== -1, 'missing edit banner');
+    assert(page.indexOf('id="pos-edit-cancel"') !== -1, 'missing Start New button');
+    assert(page.indexOf('editingOrder:') !== -1, 'missing editingOrder label');
+    assert(page.indexOf('startNew:') !== -1, 'missing startNew label');
+    assert(app.indexOf('function syncEditBanner') !== -1, 'missing syncEditBanner');
+    assert(app.indexOf('function cancelEditAndStartNew') !== -1, 'missing cancelEditAndStartNew');
+    assert(app.indexOf('Editing order {n}') !== -1, 'missing Editing order copy');
+    assert(app.indexOf('number: successJob.number') !== -1, 'edit must keep order number');
+});
+
 if (failed) {
     console.error(failed + ' failed, ' + passed + ' passed');
     process.exit(1);

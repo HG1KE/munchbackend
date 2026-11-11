@@ -38,6 +38,10 @@
         </section>
 
         <aside class="munch-pos-cart" aria-label="{{ translate('Billing_Section') }}">
+            <div class="munch-pos-edit-banner" id="pos-edit-banner" hidden>
+                <p class="munch-pos-edit-banner__text" id="pos-edit-banner-text"></p>
+                <button type="button" class="munch-pos-edit-banner__cancel" id="pos-edit-cancel">{{ translate('Start New') }}</button>
+            </div>
             <div class="munch-pos-types" id="pos-types"></div>
             <div class="munch-pos-cart__scroll">
                 <ul class="munch-pos-lines" id="pos-lines"></ul>
@@ -368,6 +372,8 @@
             editOrder: @json(translate('Edit Order')),
             saveChanges: @json(translate('Save Changes')),
             savingChanges: @json(translate('Saving...')),
+            editingOrder: @json(translate('Editing order {n}')),
+            startNew: @json(translate('Start New')),
             editBlockedPrinted: @json(translate('Order cannot be edited because a kitchen order or receipt has already been printed.')),
             editBlockedCancelled: @json(translate('Cancelled orders cannot be edited.')),
             editBlockedMarketplace: @json(translate('Marketplace orders cannot be edited.')),
