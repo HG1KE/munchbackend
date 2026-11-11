@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="csrf-token" content="{{csrf_token()}}">
+    @include('layouts.partials._munch-theme-boot')
     <!-- Title -->
     <title>@yield('title')</title>
     <!-- Favicon -->
@@ -23,9 +24,13 @@
     <!-- CSS Front Template -->
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/theme.minc619.css?v=1.2">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/style.css?v=1.2">
-    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-shell.css?v=1.2">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-shell.css?v=1.8">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-theme.css?v=1.0">
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-admin-dark.css?v=1.0">
     <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/upload-file_custom.css">
     @stack('css_or_js')
+    {{-- Ring modal CSS last so Bootstrap / page stacks cannot flatten radius or kill pulse. --}}
+    <link rel="stylesheet" href="{{asset('public/assets/admin')}}/css/munch-new-order-modal.css?v=1.0">
 
     <script
         src="{{asset('public/assets/admin')}}/vendor/hs-navbar-vertical-aside/hs-navbar-vertical-aside-mini-cache.js"></script>
@@ -33,24 +38,19 @@
 </head>
 
 <body class="footer-offset munch-admin-shell">
+<script>document.body.setAttribute('data-munch-theme', document.documentElement.getAttribute('data-munch-theme') || 'light');</script>
     <div class="direction-toggle">
         <i class="tio-settings"></i>
         <span></span>
     </div>
 
-{{--loader--}}
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <div id="loading" style="display: none;">
-                <div style="position: fixed;z-index: 9999; left: 40%;top: 37% ;width: 100%">
-                    <img width="200" src="{{asset('public/assets/admin/img/loader.gif')}}">
-                </div>
-            </div>
-        </div>
+{{-- Global AJAX loader — Munch shell spinner --}}
+<div id="loading" class="munch-admin-loading" style="display: none;" aria-hidden="true">
+    <div class="munch-admin-loading__backdrop" aria-hidden="true"></div>
+    <div class="munch-admin-loading__panel" role="status" aria-live="polite">
+        <span class="munch-admin-loading__spinner" aria-hidden="true"></span>
     </div>
 </div>
-{{--loader--}}
 
 <!-- Builder -->
 @include('layouts.admin.partials._front-settings')
@@ -71,25 +71,7 @@
     @include('layouts.admin.partials._footer')
     <!-- End Footer -->
 
-    <div class="modal fade" id="popup-modal">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-12">
-                            <center>
-                                <h2 style="color: rgba(96,96,96,0.68)">
-                                    <i class="tio-shopping-cart-outlined"></i> {{ translate('You have new order, Check Please.') }}
-                                </h2>
-                                <hr>
-                                <button onclick="check_order()" class="btn btn-primary">{{ translate('Ok, let me check') }}</button>
-                            </center>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('layouts.partials._new-order-ring-modal', ['ctaMode' => 'admin'])
 
     <div class="modal fade" id="toggle-status-modal">
         <div class="modal-dialog status-warning-modal">
@@ -159,6 +141,8 @@
 <script src="{{asset('public/assets/admin')}}/js/theme.min.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/sweet_alert.js"></script>
 <script src="{{asset('public/assets/admin')}}/js/toastr.js"></script>
+<script src="{{asset('public/assets/admin')}}/js/munch-admin-theme.js?v=1.0"></script>
+<script src="{{asset('public/assets/admin')}}/js/munch-theme.js?v=1.0"></script>
 <script src="{{asset('public/assets/admin/js/owl.min.js')}}"></script>
 @php($munchAdminOrderNotificationType = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification_type'))
 @if($munchAdminOrderNotificationType == 'firebase')

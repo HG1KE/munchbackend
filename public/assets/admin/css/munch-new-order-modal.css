@@ -1,0 +1,174 @@
+/**
+ * Express new-order ringing modal (#popup-modal).
+ * Loaded after theme/shell so Bootstrap cannot win on radius/pulse.
+ */
+
+#popup-modal.meatco-new-order-modal-root .modal-dialog {
+    max-width: 26rem;
+}
+
+/* After appendTo('body'), still match by id + class on the root. */
+#popup-modal.meatco-new-order-modal-root .modal-content.meatco-new-order-modal,
+body > #popup-modal .modal-content.meatco-new-order-modal {
+    border: 2px solid #E7032D !important;
+    border-radius: 20px !important;
+    background-clip: padding-box !important;
+    /* Do NOT use overflow:hidden — it clips the red chrome glow / pulse rings. */
+    overflow: visible !important;
+    position: relative;
+    box-shadow:
+        0 0 0 0 rgba(231, 3, 45, 0.45),
+        0 24px 56px rgba(11, 18, 32, 0.28) !important;
+    animation: meatco-ring-chrome 1s ease-in-out infinite !important;
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal::before,
+body > #popup-modal .meatco-new-order-modal::before {
+    content: "";
+    display: block;
+    height: 6px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, #E7032D 0%, #ff4d54 50%, #E7032D 100%);
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__body,
+body > #popup-modal .meatco-new-order-modal__body {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    padding: 1.5rem 1.5rem 1.5rem !important;
+    overflow: visible !important;
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__icon-stage,
+body > #popup-modal .meatco-new-order-modal__icon-stage {
+    position: relative;
+    width: 7.5rem;
+    height: 7.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__icon,
+body > #popup-modal .meatco-new-order-modal__icon {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.75rem;
+    height: 4.75rem;
+    border-radius: 50% !important;
+    background: rgba(231, 3, 45, 0.16) !important;
+    color: #E7032D !important;
+    font-size: 2rem;
+    line-height: 1;
+    box-shadow: 0 0 0 4px rgba(231, 3, 45, 0.25);
+    animation: meatco-ring-icon 1s ease-in-out infinite !important;
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__pulse,
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__pulse--delayed,
+body > #popup-modal .meatco-new-order-modal__pulse,
+body > #popup-modal .meatco-new-order-modal__pulse--delayed {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4.75rem;
+    height: 4.75rem;
+    margin: -2.375rem 0 0 -2.375rem;
+    border-radius: 50%;
+    border: 3px solid #E7032D;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 1;
+    animation: meatco-ring-pulse 1.1s cubic-bezier(0.22, 1, 0.36, 1) infinite !important;
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__pulse--delayed,
+body > #popup-modal .meatco-new-order-modal__pulse--delayed {
+    animation-delay: 0.4s !important;
+    border-color: rgba(231, 3, 45, 0.65);
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__title,
+body > #popup-modal .meatco-new-order-modal__title {
+    margin: 0;
+    max-width: 18rem;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #0b1220;
+}
+
+#popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__btn,
+body > #popup-modal .meatco-new-order-modal__btn {
+    min-width: 11rem;
+    border-radius: 12px !important;
+    font-weight: 700;
+    padding: 0.7rem 1.25rem;
+    box-shadow: 0 8px 20px rgba(231, 3, 45, 0.35);
+}
+
+@keyframes meatco-ring-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    75% {
+        transform: scale(2);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+@keyframes meatco-ring-chrome {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 0 rgba(231, 3, 45, 0.5),
+            0 24px 56px rgba(11, 18, 32, 0.28);
+        border-color: #E7032D;
+    }
+    50% {
+        box-shadow:
+            0 0 0 10px rgba(231, 3, 45, 0.18),
+            0 28px 64px rgba(231, 3, 45, 0.3);
+        border-color: #ff3b44;
+    }
+}
+
+@keyframes meatco-ring-icon {
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 4px rgba(231, 3, 45, 0.25);
+        background: rgba(231, 3, 45, 0.16);
+    }
+    50% {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 12px rgba(231, 3, 45, 0.35);
+        background: rgba(231, 3, 45, 0.28);
+    }
+}
+
+/* Beat shell prefers-reduced-motion { animation-duration: 0.01ms !important }. */
+@media (prefers-reduced-motion: reduce) {
+    body.munch-admin-shell #popup-modal.meatco-new-order-modal-root .modal-content.meatco-new-order-modal,
+    body.munch-admin-shell #popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__icon,
+    body.munch-admin-shell #popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__pulse,
+    body.munch-admin-shell #popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__pulse--delayed,
+    body.munch-admin-shell #popup-modal.meatco-new-order-modal-root .meatco-new-order-modal__icon::after {
+        animation-duration: 1.15s !important;
+        animation-iteration-count: infinite !important;
+    }
+}

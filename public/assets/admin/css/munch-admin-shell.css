@@ -1,56 +1,105 @@
 /**
- * Munch admin shell refresh (Phase 1)
- * Scoped to body.munch-admin-shell — admin layout only; branch panel unchanged.
- * Loaded after style.css; does not replace Bootstrap or theme JS.
+ * Munch admin shell refresh — LAYOUT SHELL ONLY
+ *
+ * Every rule MUST use a full body ancestor, e.g.:
+ *   body.munch-admin-shell .card { ... }
+ *   body.meatco-admin-shell .card { ... }
+ *
+ * NEVER comma-split body tags from descendants:
+ *   body.munch-admin-shell, body.meatco-admin-shell .card  ← BREAKS ENTIRE ADMIN UI
+ *
+ * Feature CSS (KPI, live activity, operations) belongs in separate files.
+ * @see docs/MEATCO_ADMIN_CSS.md
+ * @see scripts/validate-meatco-admin-css.php
  */
 
-body.munch-admin-shell {
-    --munch-shell-bg: #f4f6f9;
+body.munch-admin-shell,
+body.meatco-admin-shell {
+    /* Canvas vs chrome — deliberately cooler/grayer so white cards pop */
+    --munch-shell-bg: #e4ebf3;
     --munch-shell-surface: #ffffff;
-    --munch-shell-border: #e2e8f0;
-    --munch-shell-border-soft: #eef2f6;
-    --munch-shell-text: #0f172a;
-    --munch-shell-text-muted: #64748b;
-    --munch-shell-sidebar: #111827;
-    --munch-shell-sidebar-hover: rgba(255, 255, 255, 0.06);
-    --munch-shell-sidebar-active: rgba(255, 255, 255, 0.1);
+    --munch-shell-surface-raised: #ffffff;
+    --munch-shell-border: #c9d4e3;
+    --munch-shell-border-soft: #dce4ef;
+    --munch-shell-text: #0b1220;
+    --munch-shell-text-muted: #52627a;
+    --munch-shell-text-subtle: #8494ab;
+    /* Near-black sidebar for Filament/Nova-like contrast */
+    --munch-shell-sidebar: #070b14;
+    --munch-shell-sidebar-elevated: #0c1220;
+    --munch-shell-sidebar-hover: rgba(255, 255, 255, 0.09);
+    --munch-shell-sidebar-active: rgba(236, 28, 36, 0.28);
+    --munch-shell-sidebar-active-strong: rgba(236, 28, 36, 0.38);
     --munch-shell-radius: 12px;
-    --munch-shell-radius-sm: 10px;
-    --munch-shell-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
-    --munch-shell-shadow-hover: 0 4px 20px rgba(15, 23, 42, 0.08);
+    --munch-shell-radius-sm: 9px;
+    --munch-shell-radius-xs: 7px;
+    --munch-shell-shadow: 0 1px 2px rgba(11, 18, 32, 0.05), 0 4px 16px rgba(11, 18, 32, 0.06);
+    --munch-shell-shadow-hover: 0 6px 22px rgba(11, 18, 32, 0.1), 0 2px 6px rgba(11, 18, 32, 0.05);
+    --munch-shell-shadow-header: 0 1px 0 rgba(11, 18, 32, 0.06), 0 6px 18px rgba(11, 18, 32, 0.05);
+    --munch-shell-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --munch-shell-duration: 220ms;
+    --munch-shell-duration-fast: 140ms;
+    --munch-shell-space-1: 0.25rem;
+    --munch-shell-space-2: 0.5rem;
+    --munch-shell-space-3: 0.75rem;
+    --munch-shell-space-4: 1rem;
+    --munch-shell-space-5: 1.25rem;
     font-feature-settings: "kern" 1, "liga" 1;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Main content area                                                          */
+/* Main content area — light app canvas                                       */
 /* -------------------------------------------------------------------------- */
 
 body.munch-admin-shell .main {
     background-color: var(--munch-shell-bg);
+    background-image:
+        radial-gradient(ellipse 120% 80% at 100% -20%, rgba(236, 28, 36, 0.04), transparent 55%),
+        radial-gradient(ellipse 90% 60% at 0% 100%, rgba(15, 23, 42, 0.035), transparent 50%);
 }
 
 body.munch-admin-shell .content.container-fluid {
+    padding-top: 1rem;
     padding-left: 1rem;
     padding-right: 1rem;
+    padding-bottom: 1.5rem;
 }
 
 @media (min-width: 1200px) {
     body.munch-admin-shell .content.container-fluid {
-        padding-left: 1.25rem;
-        padding-right: 1.25rem;
+        padding-left: 1.35rem;
+        padding-right: 1.35rem;
+        padding-top: 1.15rem;
+        padding-bottom: 1.75rem;
     }
 }
 
 body.munch-admin-shell .page-header {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.15rem;
+    align-items: center;
+    padding: 0.85rem 1.05rem;
+    background: var(--munch-shell-surface);
+    border: 1px solid var(--munch-shell-border);
+    border-radius: var(--munch-shell-radius);
+    box-shadow: var(--munch-shell-shadow);
 }
 
 body.munch-admin-shell .page-header-title {
-    font-size: 1.25rem;
-    font-weight: 700;
+    font-size: 1.375rem;
+    font-weight: 800;
     color: var(--munch-shell-text);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    line-height: 1.25;
+}
+
+body.munch-admin-shell .page-header .text-muted,
+body.munch-admin-shell .page-header .page-header-text {
+    font-size: 0.8125rem;
+    color: var(--munch-shell-text-muted);
+    line-height: 1.45;
+    font-weight: 500;
 }
 
 body.munch-admin-shell .page-header-icon img {
@@ -58,94 +107,307 @@ body.munch-admin-shell .page-header-icon img {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Sidebar                                                                    */
+/* Sidebar — deep chrome, clear hierarchy + active                            */
 /* -------------------------------------------------------------------------- */
 
 body.munch-admin-shell .navbar-vertical-aside.navbar-bordered {
     background-color: var(--munch-shell-sidebar) !important;
-    border-color: rgba(255, 255, 255, 0.06) !important;
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.12);
+    background-image: linear-gradient(180deg, #0e1628 0%, #070b14 38%, #04070e 100%);
+    border-color: rgba(255, 255, 255, 0.04) !important;
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.34);
+}
+
+/* Brand lockup — fixed height; nav content scrolls below (theme used 3.75rem) */
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-container {
+    overflow: hidden;
+    height: 100%;
+    max-height: 100%;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-footer-offset {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    max-height: 100%;
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-brand-wrapper {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    position: relative;
+    flex: 0 0 4.25rem;
+    display: flex;
+    align-items: center;
+    height: 4.25rem;
+    min-height: 4.25rem;
+    max-height: 4.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.75rem 0.85rem 0.75rem 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.015) 100%);
+    overflow: hidden;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-brand-wrapper::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18%;
+    bottom: 18%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--meatco-primary, #EC1C24);
+    box-shadow: 0 0 12px rgba(236, 28, 36, 0.45);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-brand {
+    display: flex;
+    align-items: center;
+    max-width: calc(100% - 2.5rem);
+    padding: 0;
+    margin: 0;
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-brand-logo,
 body.munch-admin-shell .navbar-vertical-aside .navbar-brand-logo-mini {
     max-height: 40px;
+    width: auto;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
 }
 
-body.munch-admin-shell .navbar-vertical-content {
-    padding-top: 0.25rem;
-    padding-bottom: 1rem;
+/* Collapse control — single native toggle on dark chrome */
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-aside-toggle {
+    color: rgba(255, 255, 255, 0.72) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: var(--munch-shell-radius-xs);
+    width: 1.85rem;
+    height: 1.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition:
+        background-color var(--munch-shell-duration-fast) var(--munch-shell-ease),
+        color var(--munch-shell-duration-fast) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration-fast) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration-fast) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-aside-toggle:hover,
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-aside-toggle:focus {
+    color: #fff !important;
+    background: rgba(236, 28, 36, 0.22) !important;
+    border-color: rgba(236, 28, 36, 0.4) !important;
+    box-shadow: 0 0 0 3px rgba(236, 28, 36, 0.16);
+    outline: none;
+}
+
+/* Only the nav list scrolls; brand stays pinned */
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: calc(100% - 4.25rem) !important;
+    max-height: calc(100% - 4.25rem);
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-top: 0.35rem;
+    padding-bottom: 1.25rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Strip Bootstrap nav-tabs list chrome inside the aside */
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav.nav-tabs {
+    border: 0 !important;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav.nav-tabs > .nav-item,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav.nav-tabs > .navbar-vertical-aside-has-menu {
+    border: 0 !important;
+    margin: 0;
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link {
-    font-size: 0.875rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    font-size: 0.8125rem;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.72);
-    border-radius: 8px;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.7);
+    border: 0 !important;
+    border-radius: var(--munch-shell-radius-sm);
     margin: 1px 0.5rem;
-    padding: 0.5rem 0.75rem;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    padding: 0.42rem 0.7rem;
+    min-height: 2.15rem;
+    line-height: 1.25;
+    background: transparent;
+    transition:
+        background-color var(--munch-shell-duration) var(--munch-shell-ease),
+        color var(--munch-shell-duration) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration-fast) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link .nav-icon {
-    font-size: 1.125rem;
-    width: 1.35rem;
+    flex: 0 0 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    width: 1.25rem;
+    height: 1.25rem;
     margin-right: 0.65rem;
+    opacity: 0.78;
+    color: rgba(255, 255, 255, 0.78);
+    vertical-align: middle;
+    transition:
+        opacity var(--munch-shell-duration) var(--munch-shell-ease),
+        color var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration-fast) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link .nav-icon img,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link .nav-icon.svg {
+    width: 1.05rem;
+    height: 1.05rem;
     opacity: 0.9;
-    vertical-align: -0.1em;
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link:hover {
     color: #fff;
-    background-color: var(--munch-shell-sidebar-hover);
+    background-color: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 3px 0 0 rgba(236, 28, 36, 0.45);
+    transform: translateX(1px);
 }
 
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link:hover .nav-icon {
+    opacity: 1;
+    color: #fff;
+    transform: none;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link:focus,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link:focus-visible {
+    outline: none;
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+        inset 3px 0 0 rgba(236, 28, 36, 0.55),
+        0 0 0 2px rgba(236, 28, 36, 0.22);
+}
+
+/* Active — Meatco red rail + filled pill */
 body.munch-admin-shell .navbar-vertical-aside .navbar-nav .active > .nav-link,
 body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link.active {
     color: #fff !important;
-    background-color: var(--munch-shell-sidebar-active);
-    font-weight: 600;
+    background: linear-gradient(
+        90deg,
+        rgba(236, 28, 36, 0.42) 0%,
+        rgba(236, 28, 36, 0.22) 100%
+    ) !important;
+    font-weight: 700;
+    box-shadow:
+        inset 4px 0 0 var(--meatco-primary, #EC1C24),
+        0 0 0 1px rgba(236, 28, 36, 0.28),
+        0 6px 16px rgba(236, 28, 36, 0.12);
 }
 
-body.munch-admin-shell .navbar-vertical-aside .nav-subtitle {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.38);
-    padding: 1rem 1rem 0.35rem;
-    margin-top: 0.25rem;
-}
-
-body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link {
-    font-size: 0.8125rem;
-    padding-left: 2.35rem;
-    color: rgba(255, 255, 255, 0.62);
-}
-
-body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link.active {
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .active > .nav-link .nav-icon,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link.active .nav-icon {
+    opacity: 1;
     color: #fff;
 }
 
+/* Quiet section labels (existing .nav-subtitle in Blade) */
+body.munch-admin-shell .navbar-vertical-aside .nav-item > .nav-subtitle,
+body.munch-admin-shell .navbar-vertical-aside .nav-subtitle {
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.34);
+    padding: 0.95rem 1rem 0.3rem;
+    margin: 0.55rem 0.35rem 0.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    line-height: 1.2;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav > .nav-item:first-child > .nav-subtitle,
+body.munch-admin-shell .navbar-vertical-aside .navbar-nav > li:first-of-type .nav-subtitle {
+    border-top: 0;
+    margin-top: 0.15rem;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-subtitle-replacer {
+    color: rgba(255, 255, 255, 0.22);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub {
+    padding-top: 0.1rem;
+    padding-bottom: 0.2rem;
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link {
+    font-size: 0.78125rem;
+    font-weight: 500;
+    min-height: 1.95rem;
+    padding: 0.32rem 0.7rem 0.32rem 2.35rem;
+    margin: 1px 0.5rem;
+    color: rgba(255, 255, 255, 0.52);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link.active {
+    color: #fff !important;
+    background: linear-gradient(
+        90deg,
+        rgba(236, 28, 36, 0.48) 0%,
+        rgba(236, 28, 36, 0.26) 100%
+    ) !important;
+    box-shadow: inset 4px 0 0 var(--meatco-primary, #EC1C24);
+}
+
 body.munch-admin-shell .navbar-vertical-aside .nav-indicator-icon {
-    opacity: 0.5;
+    opacity: 0.4;
+    font-size: 0.55rem;
+    margin-right: 0.45rem;
+    transition:
+        transform var(--munch-shell-duration) var(--munch-shell-ease),
+        opacity var(--munch-shell-duration) var(--munch-shell-ease),
+        color var(--munch-shell-duration) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-aside-has-menu.show > .nav-link .nav-indicator-icon,
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link:hover .nav-indicator-icon,
+body.munch-admin-shell .navbar-vertical-aside .nav-sub .nav-link.active .nav-indicator-icon {
+    opacity: 0.95;
+    color: #fff;
 }
 
 body.munch-admin-shell .sidebar--search-form {
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
+    margin-bottom: 0.2rem;
 }
 
 body.munch-admin-shell .sidebar--search-form .search--form-group {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--munch-shell-radius-sm);
+    transition:
+        background-color var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .sidebar--search-form .search--form-group:focus-within {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(236, 28, 36, 0.45);
+    box-shadow: 0 0 0 3px rgba(236, 28, 36, 0.16);
 }
 
 body.munch-admin-shell .sidebar--search-form .form--control,
@@ -156,35 +418,36 @@ body.munch-admin-shell .sidebar--search-form .js-form-search {
 }
 
 body.munch-admin-shell .sidebar--search-form .form--control::placeholder {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.38);
 }
 
 body.munch-admin-shell .sidebar--search-form .btn {
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.5);
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-aside-has-menu.show > .nav-link {
     color: #fff;
-    background-color: var(--munch-shell-sidebar-hover);
+    background-color: rgba(255, 255, 255, 0.07);
 }
 
 body.munch-admin-shell .navbar-vertical-aside .badge {
-    font-weight: 600;
-    font-size: 0.6875rem;
+    font-weight: 700;
+    font-size: 0.625rem;
+    letter-spacing: 0.02em;
 }
 
 /* Sidebar scrollbar (WebKit + thin) */
 body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 
 body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.22);
     border-radius: 999px;
 }
 
@@ -193,14 +456,15 @@ body.munch-admin-shell .navbar-vertical-aside .navbar-vertical-content::-webkit-
 }
 
 /* -------------------------------------------------------------------------- */
-/* Top header                                                                 */
+/* Top header — solid chrome bar                                              */
 /* -------------------------------------------------------------------------- */
 
 body.munch-admin-shell #header.navbar {
-    background: var(--munch-shell-surface) !important;
+    background: #ffffff !important;
     border-bottom: 1px solid var(--munch-shell-border) !important;
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+    box-shadow: var(--munch-shell-shadow-header);
     min-height: 3.5rem;
+    transition: box-shadow var(--munch-shell-duration) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell #header .navbar-nav-wrap {
@@ -213,28 +477,37 @@ body.munch-admin-shell #header .navbar-brand-logo-mini {
 }
 
 body.munch-admin-shell #header .btn-icon.btn-ghost-secondary {
-    width: 2.375rem;
-    height: 2.375rem;
-    border: 1px solid var(--munch-shell-border-soft);
-    background: #fff;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    width: 2.35rem;
+    height: 2.35rem;
+    border: 1px solid var(--munch-shell-border);
+    background: #f8fafc;
+    border-radius: var(--munch-shell-radius-xs);
+    transition:
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        background var(--munch-shell-duration) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration-fast) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell #header .btn-icon.btn-ghost-secondary:hover {
-    border-color: var(--munch-shell-border);
-    background: var(--munch-shell-bg);
+    border-color: #b8c5d6;
+    background: #fff;
+    box-shadow: var(--munch-shell-shadow);
+    transform: translateY(-1px);
 }
 
 body.munch-admin-shell #header .topbar-link {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--munch-shell-text);
+    transition: color var(--munch-shell-duration) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell #header .bg-white.p-1.rounded {
-    border: 1px solid var(--munch-shell-border-soft);
+    border: 1px solid var(--munch-shell-border);
     border-radius: var(--munch-shell-radius-sm) !important;
     padding: 0.25rem 0.5rem !important;
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.04);
 }
 
 body.munch-admin-shell #header .dropdown-menu {
@@ -244,90 +517,141 @@ body.munch-admin-shell #header .dropdown-menu {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Cards & dashboard KPIs                                                     */
+/* Cards & dashboard KPIs — raised surfaces on canvas                         */
 /* -------------------------------------------------------------------------- */
 
 body.munch-admin-shell .card {
     border: 1px solid var(--munch-shell-border);
     border-radius: var(--munch-shell-radius);
     box-shadow: var(--munch-shell-shadow);
-    background: var(--munch-shell-surface);
+    background: var(--munch-shell-surface-raised);
+    transition:
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .card:hover {
+    box-shadow: var(--munch-shell-shadow-hover);
+    border-color: #b8c5d6;
 }
 
 body.munch-admin-shell .card-header {
-    background: transparent;
-    border-bottom: 1px solid var(--munch-shell-border-soft);
-    padding: 1rem 1.25rem;
-    font-weight: 600;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid var(--munch-shell-border);
+    padding: 0.95rem 1.15rem;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: var(--munch-shell-text);
+    letter-spacing: -0.015em;
+    border-radius: var(--munch-shell-radius) var(--munch-shell-radius) 0 0;
+}
+
+body.munch-admin-shell .card-header .card-header-title,
+body.munch-admin-shell .card-header h1,
+body.munch-admin-shell .card-header h2,
+body.munch-admin-shell .card-header h3,
+body.munch-admin-shell .card-header h4,
+body.munch-admin-shell .card-header h5 {
+    font-weight: 800;
+    letter-spacing: -0.02em;
     color: var(--munch-shell-text);
 }
 
 body.munch-admin-shell .card-body {
-    padding: 1.25rem;
+    padding: 1.15rem;
+}
+
+body.munch-admin-shell .card-footer {
+    background: #f8fafc;
+    border-top: 1px solid var(--munch-shell-border-soft);
+    padding: 0.8rem 1.15rem;
 }
 
 body.munch-admin-shell .dashboard--card {
     border-radius: var(--munch-shell-radius);
     border: 1px solid var(--munch-shell-border);
     box-shadow: var(--munch-shell-shadow);
-    padding: 1.25rem 1.25rem 1rem;
-    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    background: var(--munch-shell-surface);
+    padding: 1.15rem 1.15rem 1rem;
+    transition:
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell .dashboard--card:hover {
     box-shadow: var(--munch-shell-shadow-hover);
-    border-color: #cbd5e1;
-    transform: translateY(-1px);
+    border-color: #b8c5d6;
+    transform: translateY(-2px);
 }
 
 body.munch-admin-shell .dashboard--card__subtitle {
-    font-size: 0.8125rem;
+    font-size: 0.7rem;
     color: var(--munch-shell-text-muted);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     margin-bottom: 0.35rem;
 }
 
 body.munch-admin-shell .dashboard--card__title {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.55rem;
+    font-weight: 800;
     color: var(--munch-shell-text);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
 }
 
 body.munch-admin-shell .dashboard--card__img {
-    inset-block-start: 1rem;
-    inset-inline-end: 1rem;
-    opacity: 0.95;
+    inset-block-start: 0.95rem;
+    inset-inline-end: 0.95rem;
+    opacity: 0.9;
 }
 
 body.munch-admin-shell .order-stats {
     border-radius: var(--munch-shell-radius);
-    border: 1px solid var(--munch-shell-border-soft);
+    border: 1px solid var(--munch-shell-border);
     background: var(--munch-shell-surface);
     box-shadow: var(--munch-shell-shadow);
-    padding: 1rem 1.15rem;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    padding: 1rem 1.1rem;
+    transition:
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell .order-stats:hover {
     box-shadow: var(--munch-shell-shadow-hover);
-    border-color: var(--munch-shell-border);
+    border-color: #b8c5d6;
+    transform: translateY(-2px);
 }
 
 body.munch-admin-shell .order-stats__title {
-    font-size: 1.125rem;
-    font-weight: 700;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
 }
 
 body.munch-admin-shell .order-stats__subtitle {
-    font-size: 0.8125rem;
+    font-size: 0.775rem;
     color: var(--munch-shell-text-muted);
+    font-weight: 500;
 }
 
 body.munch-admin-shell .resturant-card {
     border-radius: var(--munch-shell-radius);
     border: 1px solid var(--munch-shell-border);
     box-shadow: var(--munch-shell-shadow);
+    transition:
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .resturant-card:hover {
+    box-shadow: var(--munch-shell-shadow-hover);
+    transform: translateY(-1px);
 }
 
 /* Chart containers inside cards */
@@ -352,14 +676,16 @@ body.munch-admin-shell .table {
 }
 
 body.munch-admin-shell .table thead th {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.6875rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--munch-shell-text-muted);
+    letter-spacing: 0.07em;
+    color: #3d4f66;
     border-bottom: 1px solid var(--munch-shell-border);
-    background: #f8fafc;
+    background: linear-gradient(180deg, #eef3f9 0%, #e6edf5 100%);
     white-space: nowrap;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
 }
 
 body.munch-admin-shell .card > .table-responsive > .table thead th,
@@ -367,22 +693,35 @@ body.munch-admin-shell .card .table-responsive thead th {
     position: sticky;
     top: 0;
     z-index: 2;
-    background: #f8fafc;
+    background: linear-gradient(180deg, #eef3f9 0%, #e6edf5 100%);
 }
 
 body.munch-admin-shell .table tbody td {
     font-size: 0.875rem;
     vertical-align: middle;
     border-color: var(--munch-shell-border-soft);
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+    transition: background-color var(--munch-shell-duration-fast) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell .table-hover tbody tr:hover {
-    background-color: #f8fafc;
+    background-color: #f0f5fb;
 }
 
 body.munch-admin-shell .table .btn--container .action-btn,
 body.munch-admin-shell .table .btn.action-btn {
-    border-radius: 8px;
+    border-radius: var(--munch-shell-radius-xs);
+    transition:
+        background-color var(--munch-shell-duration) var(--munch-shell-ease),
+        color var(--munch-shell-duration) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration-fast) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .table .btn--container .action-btn:hover,
+body.munch-admin-shell .table .btn.action-btn:hover {
+    transform: translateY(-1px);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -393,36 +732,60 @@ body.munch-admin-shell .form-control,
 body.munch-admin-shell .custom-select,
 body.munch-admin-shell .form--control {
     border-radius: var(--munch-shell-radius-sm);
-    border-color: #cbd5e1;
+    border-color: #b8c5d6;
     font-size: 0.875rem;
     min-height: 2.5rem;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background-color: #fff;
+    transition:
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        background-color var(--munch-shell-duration) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell .form-control:focus,
 body.munch-admin-shell .custom-select:focus,
 body.munch-admin-shell .form--control:focus {
-    border-color: var(--c1, #E7032D);
-    box-shadow: 0 0 0 3px rgba(var(--c1-rgb, 231, 3, 45), 0.12);
+    border-color: var(--meatco-primary, var(--c1, #EC1C24));
+    box-shadow: 0 0 0 3px rgba(var(--meatco-primary-rgb, var(--c1-rgb, 236, 28, 36)), 0.18);
 }
 
 body.munch-admin-shell .input-label,
 body.munch-admin-shell label.input-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #334155;
+    font-size: 0.775rem;
+    font-weight: 700;
+    color: #2a3a50;
     margin-bottom: 0.35rem;
+    letter-spacing: 0.015em;
 }
 
 body.munch-admin-shell .btn {
     border-radius: var(--munch-shell-radius-sm);
     font-weight: 600;
     font-size: 0.875rem;
+    transition:
+        background-color var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease),
+        color var(--munch-shell-duration) var(--munch-shell-ease),
+        box-shadow var(--munch-shell-duration) var(--munch-shell-ease),
+        transform var(--munch-shell-duration-fast) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .btn:hover:not(:disabled):not(.disabled) {
+    transform: translateY(-1px);
+}
+
+body.munch-admin-shell .btn:active:not(:disabled):not(.disabled) {
+    transform: translateY(0);
 }
 
 body.munch-admin-shell .btn--primary,
 body.munch-admin-shell .btn-primary {
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 2px 6px rgba(236, 28, 36, 0.22);
+}
+
+body.munch-admin-shell .btn--primary:hover,
+body.munch-admin-shell .btn-primary:hover {
+    box-shadow: 0 4px 14px rgba(var(--meatco-primary-rgb, 236, 28, 36), 0.35);
 }
 
 body.munch-admin-shell .btn--secondary,
@@ -433,8 +796,9 @@ body.munch-admin-shell .btn-secondary {
 body.munch-admin-shell .custom-file-label,
 body.munch-admin-shell .select2-container--default .select2-selection--single {
     border-radius: var(--munch-shell-radius-sm) !important;
-    border-color: #cbd5e1 !important;
+    border-color: #b8c5d6 !important;
     min-height: 2.5rem;
+    transition: border-color var(--munch-shell-duration) var(--munch-shell-ease), box-shadow var(--munch-shell-duration) var(--munch-shell-ease);
 }
 
 body.munch-admin-shell .select2-container--default .select2-selection--single .select2-selection__rendered {
@@ -455,18 +819,43 @@ body.munch-admin-shell .card .filter--card-body {
 body.munch-admin-shell .modal-content {
     border: 1px solid var(--munch-shell-border);
     border-radius: var(--munch-shell-radius);
-    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 24px 56px rgba(11, 18, 32, 0.2);
 }
 
 body.munch-admin-shell .modal-header {
-    border-bottom-color: var(--munch-shell-border-soft);
-    padding: 1rem 1.25rem;
+    border-bottom-color: var(--munch-shell-border);
+    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    padding: 1rem 1.2rem;
+}
+
+body.munch-admin-shell .modal-header .modal-title {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-size: 1.1rem;
+}
+
+body.munch-admin-shell .modal-body {
+    padding: 1.15rem 1.2rem;
+}
+
+body.munch-admin-shell .modal-footer {
+    border-top-color: var(--munch-shell-border-soft);
+    background: #f8fafc;
+    padding: 0.85rem 1.2rem;
 }
 
 body.munch-admin-shell .dropdown-menu {
     border-radius: var(--munch-shell-radius-sm);
     border-color: var(--munch-shell-border);
     box-shadow: var(--munch-shell-shadow-hover);
+    padding: 0.4rem;
+}
+
+body.munch-admin-shell .dropdown-item {
+    border-radius: var(--munch-shell-radius-xs);
+    font-size: 0.875rem;
+    padding: 0.45rem 0.7rem;
+    transition: background-color var(--munch-shell-duration-fast) var(--munch-shell-ease), color var(--munch-shell-duration-fast) var(--munch-shell-ease);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -478,7 +867,45 @@ body.munch-admin-shell .badge-soft-success,
 body.munch-admin-shell .badge-soft-warning,
 body.munch-admin-shell .badge-soft-danger {
     border-radius: 999px;
-    font-weight: 600;
+    font-weight: 700;
+}
+
+body.munch-admin-shell .nav-tabs .nav-link,
+body.munch-admin-shell .nav-pills .nav-link {
+    transition:
+        color var(--munch-shell-duration) var(--munch-shell-ease),
+        background-color var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease);
+}
+
+body.munch-admin-shell .page-link {
+    transition:
+        color var(--munch-shell-duration) var(--munch-shell-ease),
+        background-color var(--munch-shell-duration) var(--munch-shell-ease),
+        border-color var(--munch-shell-duration) var(--munch-shell-ease);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Motion helpers                                                             */
+/* -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    body.munch-admin-shell *,
+    body.munch-admin-shell *::before,
+    body.munch-admin-shell *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    body.munch-admin-shell .dashboard--card:hover,
+    body.munch-admin-shell .order-stats:hover,
+    body.munch-admin-shell .resturant-card:hover,
+    body.munch-admin-shell .navbar-vertical-aside .navbar-nav .nav-link:hover,
+    body.munch-admin-shell .btn:hover:not(:disabled):not(.disabled),
+    body.munch-admin-shell #header .btn-icon.btn-ghost-secondary:hover {
+        transform: none;
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -489,22 +916,32 @@ body.munch-admin-shell .badge-soft-danger {
     body.munch-admin-shell .content.container-fluid {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
+        padding-top: 0.85rem;
+    }
+
+    body.munch-admin-shell .page-header {
+        padding: 0.7rem 0.85rem;
+        margin-bottom: 0.9rem;
     }
 
     body.munch-admin-shell .card-body {
-        padding: 1rem;
+        padding: 0.95rem;
+    }
+
+    body.munch-admin-shell .card-header {
+        padding: 0.8rem 0.95rem;
     }
 
     body.munch-admin-shell .dashboard--card {
-        padding: 1rem;
+        padding: 0.95rem;
     }
 
     body.munch-admin-shell .dashboard--card__title {
-        font-size: 1.25rem;
+        font-size: 1.3rem;
     }
 
     body.munch-admin-shell #header .navbar-nav-wrap-content-right .navbar-nav {
-        gap: 0.25rem;
+        gap: 0.2rem;
     }
 
     /* Avoid sticky header fighting small scroll areas on mobile */
@@ -512,11 +949,16 @@ body.munch-admin-shell .badge-soft-danger {
     body.munch-admin-shell .card .table-responsive thead th {
         position: static;
     }
+
+    /* Soften canvas gradients on tablets */
+    body.munch-admin-shell .main {
+        background-image: none;
+    }
 }
 
 @media (max-width: 575.98px) {
     body.munch-admin-shell .page-header-title {
-        font-size: 1.125rem;
+        font-size: 1.15rem;
     }
 
     body.munch-admin-shell .order-stats {
@@ -524,61 +966,31 @@ body.munch-admin-shell .badge-soft-danger {
     }
 
     body.munch-admin-shell .order-stats__title {
-        font-size: 1rem;
+        font-size: 1.05rem;
     }
 }
 
 /* Mini sidebar mode — do not break HS aside */
 body.munch-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .nav-link .nav-icon,
-body.munch-admin-shell .navbar-vertical-aside-mini-mode .navbar-vertical-aside .nav-link .nav-icon {
+body.meatco-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .nav-link .nav-icon {
     margin-right: 0;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Live operational stats (dashboard partial)                                   */
-/* -------------------------------------------------------------------------- */
-
-body.munch-admin-shell .munch-live-stats__pulse {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
-    animation: munch-live-pulse 2s ease-in-out infinite;
+body.munch-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .navbar-brand-wrapper::after {
+    display: none;
 }
 
-@keyframes munch-live-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35); }
-    50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+body.munch-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .navbar-nav .active > .nav-link,
+body.munch-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .navbar-nav .nav-link.active {
+    box-shadow:
+        inset 0 -3px 0 var(--meatco-primary, #EC1C24),
+        0 0 0 1px rgba(236, 28, 36, 0.28);
+    transform: none;
 }
 
-body.munch-admin-shell .munch-live-stats__card {
-    background: #f8fafc;
-    border: 1px solid var(--munch-shell-border-soft);
-    border-radius: var(--munch-shell-radius-sm);
-    padding: 1rem 1.1rem;
-    height: 100%;
+body.munch-admin-shell.navbar-vertical-aside-mini-mode .navbar-vertical-aside .navbar-nav .nav-link:hover {
+    transform: none;
+    box-shadow: inset 0 -2px 0 rgba(236, 28, 36, 0.4);
 }
 
-body.munch-admin-shell .munch-live-stats__label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--munch-shell-text-muted);
-    margin-bottom: 0.35rem;
-}
-
-body.munch-admin-shell .munch-live-stats__value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--munch-shell-text);
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-    margin-bottom: 0.25rem;
-}
-
-@media (max-width: 575.98px) {
-    body.munch-admin-shell .munch-live-stats__value {
-        font-size: 1.5rem;
-    }
-}
+/* Live commerce — see live-activity.css (feature module, not shell) */
