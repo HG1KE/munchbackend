@@ -12,6 +12,11 @@ class AdminProductPricingUiTest extends TestCase
         $this->assertStringContainsString('translate(\'selling_price\')', $list);
         $this->assertStringContainsString('data-pricing=', $list);
         $this->assertStringContainsString("translate('Pricing')", $list);
+        $this->assertStringContainsString('data-stock=', $list);
+        $this->assertStringContainsString("translate('Stock')", $list);
+        $this->assertStringContainsString('munch-stock-modal', $list);
+        $this->assertStringContainsString('munch-product-stock.js', $list);
+        $this->assertStringContainsString('admin.product.stock-allocations.show', $list);
         $this->assertStringContainsString('data-bulk-pricing', $list);
         $this->assertStringContainsString("translate('Bulk Price Edit')", $list);
         $this->assertStringNotContainsString('Uber Price', $list);
@@ -28,6 +33,8 @@ class AdminProductPricingUiTest extends TestCase
     {
         $routes = file_get_contents(base_path('routes/admin.php'));
         $this->assertStringContainsString("pricing/{id}", $routes);
+        $this->assertStringContainsString('stock-allocations/{id}', $routes);
+        $this->assertStringContainsString('ProductStockAllocationController', $routes);
         $this->assertStringContainsString('bulk-price/preview', $routes);
         $this->assertStringContainsString('bulk-price/current', $routes);
         $this->assertStringContainsString('bulk-availability/preview', $routes);

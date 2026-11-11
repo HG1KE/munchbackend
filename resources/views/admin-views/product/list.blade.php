@@ -5,6 +5,7 @@
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-pricing.css') }}?v=1.7">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-stock.css') }}?v=1.0">
 @endpush
 
 @section('content')
@@ -130,6 +131,9 @@
                                                 <button type="button" class="btn btn-outline-primary btn-sm" data-pricing="{{ $product['id'] }}">
                                                     {{ translate('Pricing') }}
                                                 </button>
+                                                <button type="button" class="btn btn-outline-dark btn-sm" data-stock="{{ $product['id'] }}">
+                                                    {{ translate('Stock') }}
+                                                </button>
                                                 <a class="btn btn-outline-info btn-sm edit square-btn"
                                                 href="{{route('admin.product.edit',[$product['id']])}}"><i class="tio-edit"></i></a>
                                                 <button type="button" class="btn btn-outline-danger btn-sm delete square-btn form-alert"
@@ -173,6 +177,46 @@
          data-copy-preview-url="{{ route('admin.product.pricing.copy.preview') }}"
          data-copy-apply-url="{{ route('admin.product.pricing.copy.apply') }}"
          data-currency="{{ \App\CentralLogics\Helpers::currency_symbol() }}"></div>
+
+    <div id="munch-stock-root"
+         data-show-url="{{ route('admin.product.stock-allocations.show', ['id' => '__ID__']) }}"
+         data-update-url="{{ route('admin.product.stock-allocations.update', ['id' => '__ID__']) }}"></div>
+
+    <div id="munch-stock-backdrop" class="munch-stock-backdrop" hidden></div>
+    <div id="munch-stock-modal" class="munch-stock-modal" hidden>
+        <div class="munch-stock-modal__panel" role="dialog" aria-modal="true" aria-labelledby="munch-stock-modal-title">
+            <div class="munch-stock-modal__header">
+                <div>
+                    <h2 id="munch-stock-modal-title" class="munch-stock-modal__title">{{ translate('Stock') }}</h2>
+                    <div id="munch-stock-modal-meta" class="munch-stock-modal__meta"></div>
+                </div>
+                <button type="button" class="btn btn-soft-secondary square-btn rounded-circle" data-stock-close aria-label="Close">
+                    <i class="tio-clear"></i>
+                </button>
+            </div>
+            <p class="munch-stock-modal__hint">
+                {{ translate('Allocate stock items deducted when this product is sold (e.g. Double Burger = 2 patties + 2 buns).') }}
+            </p>
+            <div class="munch-stock-modal__body">
+                <div id="munch-stock-rows"></div>
+                <div id="munch-stock-empty" class="munch-stock-empty" hidden>
+                    {{ translate('No stock items yet. Add them under Stocks first.') }}
+                </div>
+            </div>
+            <div class="munch-stock-modal__footer">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="munch-stock-add-row">
+                        <i class="tio-add"></i> {{ translate('Add item') }}
+                    </button>
+                    <span id="munch-stock-status"></span>
+                </div>
+                <div class="munch-stock-modal__footer-actions">
+                    <button type="button" class="btn btn-outline-secondary" data-stock-close>{{ translate('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="munch-stock-save">{{ translate('Save') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="munch-pricing-backdrop" class="munch-pricing-backdrop" hidden></div>
 
@@ -308,4 +352,5 @@
         }
     </script>
     <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=2.2"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-stock.js') }}?v=1.0"></script>
 @endpush

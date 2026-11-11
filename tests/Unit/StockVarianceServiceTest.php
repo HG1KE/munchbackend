@@ -56,6 +56,15 @@ class StockVarianceServiceTest extends TestCase
 
         $controller = file_get_contents(app_path('Http/Controllers/Admin/ProductController.php'));
         $this->assertStringContainsString('ProductStockAllocationService', $controller);
+
+        $list = file_get_contents(resource_path('views/admin-views/product/list.blade.php'));
+        $this->assertStringContainsString('data-stock=', $list);
+        $this->assertStringContainsString('munch-stock-modal', $list);
+        $this->assertStringContainsString('stock_allocation_item_id[]', file_get_contents(public_path('assets/admin/js/munch-product-stock.js')));
+
+        $allocController = file_get_contents(app_path('Http/Controllers/Admin/ProductStockAllocationController.php'));
+        $this->assertStringContainsString('syncFromRequest', $allocController);
+        $this->assertStringContainsString('payloadForProduct', $allocController);
     }
 
     public function test_sidebar_and_login_links(): void

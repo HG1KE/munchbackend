@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\OrderAutomationController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductPricingController;
+use App\Http\Controllers\Admin\ProductStockAllocationController;
 use App\Http\Controllers\Admin\ReceiptTemplateController;
 use App\Http\Controllers\Admin\QRCodeController;
 use App\Http\Controllers\Admin\ReportController;
@@ -255,6 +256,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('pricing/copy/apply', [ProductPricingController::class, 'applyCopy'])->name('pricing.copy.apply');
             Route::get('pricing/{id}', [ProductPricingController::class, 'show'])->name('pricing.show');
             Route::post('pricing/{id}', [ProductPricingController::class, 'update'])->name('pricing.update');
+            Route::get('stock-allocations/{id}', [ProductStockAllocationController::class, 'show'])->name('stock-allocations.show');
+            Route::post('stock-allocations/{id}', [ProductStockAllocationController::class, 'update'])->name('stock-allocations.update');
             Route::get('excel-import', [ProductController::class, 'excelImport'])->name('excel-import');
             Route::delete('delete/{id}', [ProductController::class, 'delete'])->name('delete');
             Route::get('status/{id}/{status}', [ProductController::class, 'status'])->name('status');

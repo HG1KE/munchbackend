@@ -1,0 +1,152 @@
+/**
+ * Admin product list — Stock allocation popup.
+ */
+
+.munch-stock-backdrop,
+.munch-stock-modal {
+    --ms-bg: #f4f6f9;
+    --ms-surface: #ffffff;
+    --ms-border: #e2e8f0;
+    --ms-text: #0f172a;
+    --ms-muted: #64748b;
+}
+
+.munch-stock-backdrop[hidden],
+.munch-stock-modal[hidden] {
+    display: none !important;
+}
+
+.munch-stock-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1035;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.munch-stock-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5vh 1.5vw;
+}
+
+.munch-stock-modal__panel {
+    width: min(640px, 100%);
+    max-height: min(88vh, 720px);
+    background: var(--ms-surface);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+}
+
+.munch-stock-modal__header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--ms-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.munch-stock-modal__title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ms-text);
+    letter-spacing: -0.02em;
+}
+
+.munch-stock-modal__meta {
+    margin-top: 0.2rem;
+    color: var(--ms-muted);
+    font-size: 0.85rem;
+}
+
+.munch-stock-modal__hint {
+    margin: 0;
+    padding: 0.85rem 1.25rem 0;
+    color: var(--ms-muted);
+    font-size: 0.85rem;
+}
+
+.munch-stock-modal__body {
+    padding: 0.85rem 1.25rem;
+    overflow: auto;
+    background: var(--ms-bg);
+    flex: 1;
+}
+
+.munch-stock-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px 44px;
+    gap: 0.65rem;
+    align-items: end;
+    background: var(--ms-surface);
+    border: 1px solid var(--ms-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.65rem;
+}
+
+.munch-stock-row label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ms-muted);
+    margin: 0 0 0.3rem;
+}
+
+.munch-stock-row__remove .btn {
+    width: 100%;
+    height: 38px;
+    padding: 0;
+}
+
+.munch-stock-loading,
+.munch-stock-empty {
+    text-align: center;
+    color: var(--ms-muted);
+    padding: 1.5rem 0.5rem;
+}
+
+.munch-stock-modal__footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--ms-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.munch-stock-modal__footer-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+#munch-stock-status {
+    color: var(--ms-muted);
+    font-size: 0.85rem;
+}
+
+body.munch-stock-open {
+    overflow: hidden;
+}
+
+@media (max-width: 560px) {
+    .munch-stock-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .munch-stock-row__remove {
+        grid-column: 1 / -1;
+    }
+}

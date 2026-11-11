@@ -2,12 +2,65 @@
 
 namespace App\Services\Stock;
 
+use App\Model\Product;
 use App\Model\ProductStockAllocation;
+use App\Model\StockItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
 class ProductStockAllocationService
 {
+    /**
+     * Payload for the product-list Stock popup (and create/edit forms).
+     *
+     * @return array{product: array{id:int,name:string}, stock_items: list<array{id:int,name:string}>, allocations: list<array{stock_item_id:int,quantity:float}>}
+     */
+    public function payloadForProduct(Product $product): array
+    {
+        if (! Schema::hasTable('product_stock_allocations') || ! Schema::hasTable('stock_items')) {
+            return [
+                'product' => [
+                    'id' => (int) $product->id,
+                    'name' => (string) $product->name,
+                ],
+                'stock_items' => [],
+                'allocations' => [],
+            ];
+        }
+
+        $allocations = ProductStockAllocation::query()
+            ->where('product_id', $product->id)
+            ->orderBy('id')
+            ->get(['stock_item_id', 'quantity']);
+
+        $allocatedIds = $allocations->pluck('stock_item_id')->map(fn ($id) => (int) $id)->all();
+
+        $stockItems = StockItem::query()
+            ->where(function ($query) use ($allocatedIds) {
+                $query->where('status', true);
+                if ($allocatedIds !== []) {
+                    $query->orWhereIn('id', $allocatedIds);
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return [
+            'product' => [
+                'id' => (int) $product->id,
+                'name' => (string) $product->name,
+            ],
+            'stock_items' => $stockItems->map(fn (StockItem $item) => [
+                'id' => (int) $item->id,
+                'name' => (string) $item->name,
+            ])->values()->all(),
+            'allocations' => $allocations->map(fn (ProductStockAllocation $row) => [
+                'stock_item_id' => (int) $row->stock_item_id,
+                'quantity' => (float) $row->quantity,
+            ])->values()->all(),
+        ];
+    }
+
     /**
      * Replace product ↔ stock allocations from request arrays:
      * stock_allocation_item_id[] + stock_allocation_qty[]
