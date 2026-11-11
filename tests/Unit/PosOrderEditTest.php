@@ -199,6 +199,50 @@ class PosOrderEditTest extends TestCase
         $this->assertSame(200.0, (float) $order->fresh()->order_amount);
     }
 
+    public function test_edit_can_change_sales_channel_in_place_with_place_default_status(): void
+    {
+        $order = $this->persistOrder([
+            'order_amount' => 840,
+            'payment_method' => 'mpesa',
+            'order_status' => 'delivered',
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+            'client_uuid' => 'channel-edit-uuid',
+            'readable_order_id' => 'A24199',
+        ]);
+
+        $result = $this->service->apply($order, $this->parts(840), 'mpesa', 'dine_in');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(1, Order::query()->count());
+        $fresh = Order::query()->findOrFail($order->id);
+        $this->assertSame('A24199', $fresh->readable_order_id);
+        $this->assertSame('channel-edit-uuid', $fresh->client_uuid);
+        $this->assertSame('dine_in', $fresh->sales_channel);
+        $this->assertSame('dine_in', $fresh->order_type);
+        $this->assertSame('confirmed', $fresh->order_status);
+        $this->assertSame('mpesa', $fresh->payment_method);
+        $this->assertSame('paid', $fresh->payment_status);
+    }
+
+    public function test_channel_change_does_not_clobber_non_default_status(): void
+    {
+        $order = $this->persistOrder([
+            'order_amount' => 100,
+            'order_status' => 'processing',
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+        ]);
+
+        $result = $this->service->apply($order, $this->parts(100), 'cash', 'dine_in');
+
+        $this->assertTrue($result['success']);
+        $fresh = Order::query()->findOrFail($order->id);
+        $this->assertSame('dine_in', $fresh->sales_channel);
+        $this->assertSame('dine_in', $fresh->order_type);
+        $this->assertSame('processing', $fresh->order_status);
+    }
+
     public function test_frontend_and_backend_keep_normal_post_print_and_cancel_paths(): void
     {
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
@@ -211,7 +255,8 @@ class PosOrderEditTest extends TestCase
         $this->assertStringContainsString('function applyEditButtonState', $js);
         $this->assertStringContainsString('OrderRules.canEditPostedOrder', $js);
         $this->assertStringContainsString('CFG.urls.updateOrder', $js);
-        $this->assertStringContainsString('if (editingOrder) return', $js);
+        $this->assertStringNotContainsString('if (editingOrder) return', $js);
+        $this->assertStringContainsString('sales channel may change while editing', $js);
         $this->assertStringContainsString('replaceQueuedPayload', $js);
         $this->assertStringContainsString("payload.action === 'update'", $js);
         $this->assertStringContainsString('function placeOrder', $js);
@@ -221,6 +266,7 @@ class PosOrderEditTest extends TestCase
         $this->assertStringContainsString('hydrateJsonPosCart', $controller);
         $this->assertStringContainsString('buildPosCartSnapshot', $controller);
         $this->assertStringContainsString('$this->posEdit->apply', $controller);
+        $this->assertStringContainsString('posEdit->apply($order, $cartSnapshot, $paymentMethod, $orderType)', $controller);
         $this->assertStringContainsString("route('branch.pos.update-order')", $page);
     }
 

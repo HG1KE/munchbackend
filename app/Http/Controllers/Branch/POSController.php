@@ -181,7 +181,13 @@ class POSController extends Controller
             return response()->json(['success' => 0, 'message' => $editableError, 'code' => 'not_editable'], 422);
         }
 
-        $orderType = PosOrderTypes::uiTypeFromSalesChannel($order->sales_channel);
+        // Accept cashier order-type corrections during edit (same UI values as place).
+        // Fall back to the existing sales channel when the payload omits order_type.
+        $orderType = PosOrderTypes::normalize(
+            $request->filled('order_type')
+                ? (string) $request->input('order_type')
+                : PosOrderTypes::uiTypeFromSalesChannel($order->sales_channel)
+        );
         $request->merge(['order_type' => $orderType]);
 
         $hydrated = $this->hydrateJsonPosCart($request);
@@ -238,7 +244,7 @@ class POSController extends Controller
         $paymentMethod = PosOrderTypes::resolvedPaymentMethod($orderType, $request->type);
         $cartSnapshot['order_note'] = $request->filled('order_note') ? $request->input('order_note') : $order->order_note;
 
-        $result = $this->posEdit->apply($order, $cartSnapshot, $paymentMethod);
+        $result = $this->posEdit->apply($order, $cartSnapshot, $paymentMethod, $orderType);
         if (! $result['success']) {
             return response()->json([
                 'success' => 0,
@@ -257,8 +263,35 @@ class POSController extends Controller
                 $fresh->delivery_address_id = $customerAddress->id;
                 $fresh->save();
             }
+        } elseif (! PosOrderTypes::isDelivery($orderType) && $fresh->delivery_address_id) {
+            $fresh->delivery_address_id = null;
+            $fresh->save();
         }
         $this->persistPosDeliveryAddressJson($fresh, $orderType, $customerAddress);
+
+        if (Schema::hasColumn('orders', 'platform_order_number')) {
+            $fresh->platform_order_number = PosOrderTypes::isMarketplace($orderType)
+                ? PosOrderTypes::normalizePlatformOrderNumber($request->input('platform_order_number'))
+                : null;
+        }
+        if (Schema::hasColumn('orders', 'marketplace_dedupe_key')) {
+            $fresh->marketplace_dedupe_key = PosOrderTypes::isMarketplace($orderType)
+                ? PosCheckoutIdempotency::marketplaceKey(
+                    (int) auth('branch')->id(),
+                    PosOrderTypes::salesChannel($orderType),
+                    $request->input('platform_order_number')
+                )
+                : null;
+        }
+        if (Schema::hasColumn('orders', 'rider_name')) {
+            $fresh->rider_name = $this->posRiderName($request, $orderType);
+        }
+        if (Schema::hasColumn('orders', 'rider_phone')) {
+            $fresh->rider_phone = $this->posRiderPhone($request, $orderType);
+        }
+        if ($fresh->isDirty()) {
+            $fresh->save();
+        }
 
         session()->forget('cart');
         session()->forget('customer_id');

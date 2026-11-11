@@ -3061,7 +3061,8 @@
         els.types.addEventListener('click', function (ev) {
             var btn = ev.target.closest('[data-type]');
             if (!btn) return;
-            if (editingOrder) return;
+            // Order type / sales channel may change while editing an unprinted POS order.
+            // update-order persists the selected type in place (no second place insert).
             var type = btn.getAttribute('data-type');
             if (type === state.cart.orderType) return;
             if (shouldConfirmMunchWalkInType(type)) {

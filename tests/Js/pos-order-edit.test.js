@@ -88,6 +88,8 @@ test('success modal and view orders wire edit and receipt guards', function () {
     assert(app.indexOf('editingOrder.clientUuid') !== -1, 'edit must reuse client uuid');
     assert(app.indexOf("payload.action === 'update'") !== -1, 'missing update action');
     assert(app.indexOf('function dismissPlacedOrder') !== -1, 'done/close path missing');
+    assert(app.indexOf('if (editingOrder) return') === -1, 'order-type buttons must stay enabled while editing');
+    assert(app.indexOf('sales channel may change while editing') !== -1, 'missing edit channel-change comment');
 });
 
 if (failed) {
