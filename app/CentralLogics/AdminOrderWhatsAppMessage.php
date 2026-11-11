@@ -303,9 +303,20 @@ class AdminOrderWhatsAppMessage
     private static function paymentLabel(Order $order): string
     {
         $method = str_replace('_', ' ', (string) ($order->payment_method ?? ''));
-        $status = str_replace('_', ' ', (string) ($order->payment_status ?? ''));
+        $statusRaw = trim((string) ($order->payment_status ?? ''));
+        $status = str_replace('_', ' ', $statusRaw);
 
-        return trim(ucwords($method) . ($status !== '' ? ' (' . ucwords($status) . ')' : ''));
+        if ($status === '') {
+            return trim(ucwords($method));
+        }
+
+        $statusLabel = ucwords($status);
+        // WhatsApp *bold* for the paid marker by default.
+        $statusPart = strcasecmp($statusRaw, 'paid') === 0
+            ? ' *(' . $statusLabel . ')*'
+            : ' (' . $statusLabel . ')';
+
+        return trim(ucwords($method) . $statusPart);
     }
 
     private static function notesLines(Order $order): array
