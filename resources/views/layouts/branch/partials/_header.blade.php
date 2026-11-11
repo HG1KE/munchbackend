@@ -2,7 +2,7 @@
     <header id="header" class="navbar navbar-expand-lg navbar-fixed navbar-height navbar-flush navbar-container navbar-bordered">
         <div class="navbar-nav-wrap">
             <div class="navbar-brand-wrapper">
-                @php($restaurantLogo=\App\Model\BusinessSetting::where(['key'=>'logo'])->first()->value)
+                @php($restaurantLogo=\App\CentralLogics\Helpers::get_business_settings('logo') ?: '')
                 <a class="navbar-brand" href="{{route('branch.dashboard')}}" aria-label="">
                     <img class="navbar-brand-logo" style="object-fit: contain;"
                          onerror="this.src='{{asset('public/assets/admin/img/160x160/img1.jpg')}}'"

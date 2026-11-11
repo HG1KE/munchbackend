@@ -62,8 +62,7 @@ class DashboardController extends Controller
      */
     public function dashboard(): Renderable
     {
-        //update daily stock
-        Helpers::update_daily_product_stock();
+        // Daily stock reset runs from Console\Kernel (cache-gated); avoid paying it on every dashboard hit.
 
         $topSell = $this->orderDetail->with(['product'])
             ->whereHas('order', function ($query) {

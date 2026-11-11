@@ -31,7 +31,7 @@ class DashboardController extends Controller
      */
     public function dashboard(): Renderable
     {
-        Helpers::update_daily_product_stock();
+        // Daily stock reset runs from Console\Kernel (cache-gated); avoid paying it on every dashboard hit.
 
         $data = self::orderStatisticsData();
 

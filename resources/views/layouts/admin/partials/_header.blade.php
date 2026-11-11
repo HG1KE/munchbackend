@@ -3,7 +3,7 @@
         <div class="navbar-nav-wrap">
             <div class="navbar-brand-wrapper">
                 <!-- Logo -->
-                @php($restaurant_logo=\App\Model\BusinessSetting::where(['key'=>'logo'])->first()->value)
+                @php($restaurant_logo=\App\CentralLogics\Helpers::get_business_settings('logo') ?: '')
                 <a class="navbar-brand" href="{{route('admin.dashboard')}}" aria-label="">
                     <img class="navbar-brand-logo" style="object-fit: contain;"
                          onerror="this.src='{{asset('public/assets/admin/img/160x160/img1.jpg')}}'"
@@ -41,8 +41,7 @@
                                 @php( $local = session()->has('local')?session('local'):'en')
 {{--                                @php($lang = \App\CentralLogics\Helpers::get_business_settings('language')??null)--}}
                                 <?php
-                                $languages = \App\Model\BusinessSetting::where('key', 'language')->first();
-                                $lang = json_decode($languages->value, true);
+                                $lang = \App\CentralLogics\Helpers::get_business_settings('language');
                                 ?>
                                 <div class="topbar-text dropdown disable-autohide text-capitalize">
                                     @if(isset($lang) && array_key_exists('code', $lang[0]))

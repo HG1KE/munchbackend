@@ -1,7 +1,7 @@
 <header id="header" class="navbar navbar-expand-lg navbar-fixed navbar-height navbar-flush navbar-container navbar-bordered">
     <div class="navbar-nav-wrap">
         <div class="navbar-brand-wrapper d-flex align-items-center">
-            @php($restaurantLogo = \App\Model\BusinessSetting::where(['key' => 'logo'])->first()->value ?? '')
+            @php($restaurantLogo = \App\CentralLogics\Helpers::get_business_settings('logo') ?: '')
             <a class="navbar-brand mb-0" href="{{ route('stocks.dashboard') }}">
                 <img class="navbar-brand-logo" style="object-fit: contain;"
                      src="{{ asset('storage/app/public/restaurant/' . $restaurantLogo) }}"

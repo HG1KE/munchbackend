@@ -9,7 +9,7 @@
     <title>@yield('title')</title>
     <!-- Favicon -->
 
-    @php($icon = \App\Model\BusinessSetting::where(['key' => 'fav_icon'])->first()->value??'')
+    @php($icon = \App\CentralLogics\Helpers::get_business_settings('fav_icon') ?: '')
     <link rel="shortcut icon" href="">
     <link rel="icon" type="image/x-icon" href="{{ asset('storage/app/public/restaurant/' . $icon ?? '') }}">
     <!-- Font -->

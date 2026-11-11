@@ -2,7 +2,7 @@
     <div class="row justify-content-between align-items-center gy-2">
         <div class="col-md-4">
             <p class="font-size-sm mb-0 text-center text-md-left">
-                {{\App\Model\BusinessSetting::where(['key'=>'footer_text'])->first()->value}}
+                {{\App\CentralLogics\Helpers::get_business_settings('footer_text') ?: ''}}
             </p>
         </div>
         <div class="col-md-8">

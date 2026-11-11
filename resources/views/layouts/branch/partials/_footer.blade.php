@@ -2,7 +2,7 @@
     <div class="row justify-content-between align-items-center">
         <div class="col">
             <p class="font-size-sm mb-0">
-                <span class="d-none d-sm-inline-block">{{\App\Model\BusinessSetting::where(['key'=>'footer_text'])->first()->value}}</span>
+                <span class="d-none d-sm-inline-block">{{\App\CentralLogics\Helpers::get_business_settings('footer_text') ?: ''}}</span>
             </p>
         </div>
         <div class="col-auto">

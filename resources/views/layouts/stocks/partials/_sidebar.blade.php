@@ -3,7 +3,7 @@
         <div class="navbar-vertical-container">
             <div class="navbar-vertical-footer-offset">
                 <div class="navbar-brand-wrapper justify-content-between">
-                    @php($restaurantLogo = \App\Model\BusinessSetting::where(['key' => 'logo'])->first()->value ?? '')
+                    @php($restaurantLogo = \App\CentralLogics\Helpers::get_business_settings('logo') ?: '')
                     <a class="navbar-brand" href="{{ route('stocks.dashboard') }}">
                         <img class="navbar-brand-logo" style="object-fit: contain;"
                              src="{{ asset('storage/app/public/restaurant/' . $restaurantLogo) }}"

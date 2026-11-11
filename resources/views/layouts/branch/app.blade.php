@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     @include('layouts.partials._munch-theme-boot')
     <title>@yield('title')</title>
-    @php($icon = \App\Model\BusinessSetting::where(['key' => 'fav_icon'])->first()->value)
+    @php($icon = \App\CentralLogics\Helpers::get_business_settings('fav_icon') ?: '')
     <link rel="shortcut icon" href="">
     <link rel="icon" type="image/x-icon" href="{{ asset('storage/app/public/restaurant/' . $icon ?? '') }}">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&amp;display=swap" rel="stylesheet">

@@ -3,7 +3,7 @@
         <div class="col">
             <p class="font-size-sm mb-0">
                 {{ translate('Stocks') }} —
-                {{\App\Model\BusinessSetting::where(['key'=>'footer_text'])->first()->value ?? ''}}
+                {{\App\CentralLogics\Helpers::get_business_settings('footer_text') ?: ''}}
             </p>
         </div>
     </div>

@@ -5,7 +5,7 @@
             <div class="navbar-vertical-footer-offset">
                 <div class="navbar-brand-wrapper justify-content-between">
                     <!-- Logo -->
-                    @php($restaurant_logo=\App\Model\BusinessSetting::where(['key'=>'logo'])->first()->value)
+                    @php($restaurant_logo=\App\CentralLogics\Helpers::get_business_settings('logo') ?: '')
                     <a class="navbar-brand" href="{{route('admin.dashboard')}}" aria-label="Front">
                         <img class="navbar-brand-logo" style="object-fit: contain;"
                              onerror="this.src='{{asset('public/assets/admin/img/160x160/img2.jpg')}}'"

@@ -773,13 +773,12 @@ class POSController extends Controller
                     $q->whereHas('branch', function ($q) use ($branch_id) {
                         $q->where('id', $branch_id);
                     });
-                })
-                ->get();
+                });
             $query_param = ['filter' => '', 'branch_id' => $request['branch_id'] ?? '', 'from' => $request['from'] ?? '', 'to' => $request['to'] ?? ''];
 
         }
 
-        $orders = $query->latest()->paginate(Helpers::getPagination())->appends($query_param);
+        $orders = $query->latest()->paginate(Helpers::getPagination())->appends($query_param ?? []);
 
         return view('admin-views.pos.order.list', compact('orders', 'search', 'branches', 'from', 'to', 'branch_id'));
     }
