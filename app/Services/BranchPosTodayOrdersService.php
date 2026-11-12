@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Model\AddOn;
 use App\Model\Order;
 use App\Support\PosOrderTypes;
+use App\Support\PosSaleTime;
 use App\Support\TimezoneDisplay;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -20,8 +21,7 @@ class BranchPosTodayOrdersService
     public function forBranch(int $branchId, string $cashierName, ?string $search, ?string $filter, int $page): array
     {
         $tz = TimezoneDisplay::businessTimezone();
-        $start = Carbon::now($tz)->startOfDay()->utc()->toDateTimeString();
-        $end = Carbon::now($tz)->endOfDay()->utc()->toDateTimeString();
+        $today = Carbon::now($tz)->toDateString();
         $onlineFilter = $this->isOnlineOrdersFilter($filter);
 
         $query = Order::query()
@@ -38,10 +38,12 @@ class BranchPosTodayOrdersService
         }
 
         $search = trim((string) $search);
-        // Empty View Orders stays on the current Nairobi day. A search term
-        // looks up that branch's POS history so cashiers can find A10651.
+        // Empty View Orders stays on the current Nairobi day. Use PosSaleTime so
+        // UTC placed_at rows and legacy local created_at rows both match (the old
+        // created_at-only UTC window dropped evening Nairobi sales after 21:00).
+        // A search term looks up that branch's POS history so cashiers can find A10651.
         if ($search === '') {
-            $query->whereBetween('created_at', [$start, $end]);
+            PosSaleTime::constrainBusinessPeriod($query, $today, $today);
         }
 
         $this->applyFilter($query, $filter);

@@ -285,6 +285,50 @@ class BranchPosTodayOrdersTest extends TestCase
         $this->assertFalse($service->isOnlineOrdersFilter('delivery'));
     }
 
+    public function test_online_orders_includes_evening_pos_accepted_via_placed_at(): void
+    {
+        // Prod stores placed_at in UTC and created_at in APP_TIMEZONE (Nairobi).
+        // A24725-style: 21:50 Nairobi → placed_at 18:50 UTC / created_at 21:50 local.
+        // The old UTC-only created_at day window excluded anything after 21:00 Nairobi.
+        $tz = TimezoneDisplay::businessTimezone();
+        Carbon::setTestNow(Carbon::parse('2026-11-12 22:30:00', $tz));
+
+        $this->insertOrder(401, [
+            'readable_order_id' => 'A24725',
+            'sales_channel' => 'delivery',
+            'order_type' => 'pos',
+            'order_amount' => 1220,
+            'online_checkout_uuid' => 'd110f399-9afd-400a-ad2d-80b6bfa59655',
+            'placed_at' => '2026-11-12 18:50:47',
+            'created_at' => '2026-11-12 21:50:47',
+            'updated_at' => '2026-11-12 22:03:44',
+        ]);
+        $this->insertOrder(402, [
+            'readable_order_id' => 'A24730',
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+            'order_amount' => 1580,
+            'online_checkout_uuid' => null,
+            'placed_at' => '2026-11-12 19:16:40',
+            'created_at' => '2026-11-12 22:16:41',
+            'updated_at' => '2026-11-12 22:16:41',
+        ]);
+
+        $service = new BranchPosTodayOrdersService();
+        $online = $service->forBranch(1, 'Bamburi', null, 'online', 1);
+        $this->assertSame(1, $online['total']);
+        $this->assertSame(1220.0, $online['orders_value']);
+        $this->assertSame(401, $online['orders'][0]['id']);
+        $this->assertSame('A24725', $online['orders'][0]['number']);
+
+        $all = $service->forBranch(1, 'Bamburi', null, 'all', 1);
+        $this->assertSame(2, $all['total']);
+        $this->assertContains(401, array_column($all['orders'], 'id'));
+        $this->assertContains(402, array_column($all['orders'], 'id'));
+
+        Carbon::setTestNow();
+    }
+
     /**
      * @param  array<string, mixed>  $attrs
      */
@@ -432,10 +476,10 @@ class BranchPosTodayOrdersTest extends TestCase
             $table->string('rider_phone')->nullable();
             $table->timestamp('kitchen_printed_at')->nullable();
             $table->timestamp('receipt_printed_at')->nullable();
+            $table->timestamp('placed_at')->nullable();
             $table->unsignedBigInteger('cancelled_by')->nullable();
             $table->string('cancelled_by_type')->nullable();
             $table->timestamp('cancelled_at')->nullable();
-            $table->string('cancellation_reason')->nullable();
             $table->timestamps();
         });
     }
