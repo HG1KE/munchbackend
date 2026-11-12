@@ -155,10 +155,10 @@ class BranchPosTodayOrdersService
         return [
             'id' => (int) $order->id,
             'number' => \App\CentralLogics\Helpers::order_display_id($order),
-            'date' => $created?->format('d M Y') ?: '',
+            'date' => $created?->format('jS F Y') ?: '',
             'time' => $created?->format('H:i') ?: '',
-            'created_at' => $created?->format('d M Y H:i') ?: '',
-            'completed_at' => $completed?->format('d M Y H:i'),
+            'created_at' => $created?->format('jS F Y H:i') ?: '',
+            'completed_at' => $completed?->format('jS F Y H:i'),
             'sales_channel' => (string) $order->sales_channel,
             'sales_channel_label' => PosOrderTypes::channelLabel($order->sales_channel, $order->order_type),
             'platform_order_number' => PosOrderTypes::isMarketplaceChannel($order->sales_channel)
@@ -405,6 +405,6 @@ class BranchPosTodayOrdersService
         $tz = TimezoneDisplay::businessTimezone();
         $at = TimezoneDisplay::parseStoredUtc($order->cancelled_at ?? $order->updated_at)?->timezone($tz);
 
-        return $at?->format('d M Y H:i');
+        return $at?->format('jS F Y H:i');
     }
 }

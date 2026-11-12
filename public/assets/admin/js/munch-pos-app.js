@@ -3259,6 +3259,13 @@
         return html;
     }
 
+    function orderListWhenLabel(order) {
+        var date = String((order && order.date) || '').trim();
+        var time = String((order && order.time) || '').trim();
+        if (date && time) return date + ' ' + time;
+        return date || time;
+    }
+
     function renderOrdersList() {
         if (!els.ordersList) return;
         var scrollTop = els.ordersList.scrollTop;
@@ -3271,7 +3278,7 @@
                 return '<article class="munch-pos-order' + (open ? ' is-open' : '') + '" data-order-id="' + order.id + '">' +
                     '<div class="munch-pos-order__top">' +
                     '<div><p class="munch-pos-order__id">' + escapeHtml(order.number) + '</p>' +
-                    '<p class="munch-pos-order__meta"><span>' + escapeHtml(order.time) + '</span><span>' + channelBadgeHtml(order.sales_channel, order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
+                    '<p class="munch-pos-order__meta"><span>' + escapeHtml(orderListWhenLabel(order)) + '</span><span>' + channelBadgeHtml(order.sales_channel, order.sales_channel_label) + '</span><span>' + escapeHtml(order.cashier) + '</span></p></div>' +
                     '<div class="munch-pos-order__side"><div class="munch-pos-order__total">' + money(order.grand_total) + '</div>' +
                     '<div class="munch-pos-order__prints">' +
                     '<button type="button" class="munch-pos-order__print" data-print-kitchen="' + order.id + '"' + (order.kitchen_printed || isCancelledOrder(order) ? ' disabled' : '') + '>' + escapeHtml(printedLabel('kitchen', order.kitchen_printed)) + '</button>' +

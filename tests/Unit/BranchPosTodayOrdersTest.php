@@ -56,6 +56,28 @@ class BranchPosTodayOrdersTest extends TestCase
         $this->assertSame('Delivery', $payload['sales_channel_label']);
     }
 
+    public function test_view_orders_date_uses_ordinal_full_month_in_business_timezone(): void
+    {
+        $order = $this->makeOrder([
+            'id' => 512,
+            'created_at' => '2026-11-12 09:30:00',
+            'updated_at' => '2026-11-12 09:30:00',
+        ]);
+
+        $payload = (new BranchPosTodayOrdersService())->serializeOrder($order, 'Nyali');
+        $local = Carbon::parse('2026-11-12 09:30:00', 'UTC')->timezone(TimezoneDisplay::businessTimezone());
+
+        $this->assertSame($local->format('jS F Y'), $payload['date']);
+        $this->assertSame($local->format('H:i'), $payload['time']);
+        $this->assertSame($local->format('jS F Y H:i'), $payload['created_at']);
+        $this->assertMatchesRegularExpression('/^\d{1,2}(st|nd|rd|th) [A-Za-z]+ \d{4}$/', $payload['date']);
+
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+        $this->assertStringContainsString('function orderListWhenLabel(order)', $js);
+        $this->assertStringContainsString('escapeHtml(orderListWhenLabel(order))', $js);
+        $this->assertStringNotContainsString("escapeHtml(order.time) + '</span><span>' + channelBadgeHtml", $js);
+    }
+
     public function test_all_tab_includes_every_pos_channel_and_excludes_website_orders(): void
     {
         $now = Carbon::now('UTC');
