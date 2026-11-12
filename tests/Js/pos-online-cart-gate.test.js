@@ -67,7 +67,7 @@ test('online ring modal cannot be soft-dismissed', function () {
 });
 
 test('asset version bumped', function () {
-    assert(version.indexOf("ASSET = '6.26'") !== -1, 'PosClientVersion should be 6.26');
+    assert(version.indexOf("ASSET = '6.27'") !== -1, 'PosClientVersion should be 6.27');
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');

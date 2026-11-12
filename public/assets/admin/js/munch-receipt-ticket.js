@@ -324,6 +324,8 @@
             ? (size === 'small' ? '15px' : size === 'large' ? '18px' : '16px')
             : (size === 'small' ? '12px' : size === 'large' ? '14px' : '13px');
         var brand = size === 'small' ? '18px' : size === 'large' ? '22px' : '20px';
+        // Name / phone / address must stay readable on thermal paper after online accept.
+        var emph = kitchen ? '20px' : '18px';
         var pad = tune.save === 'maximum' ? '0.5mm 0' : tune.save === 'normal' ? '1.2mm 0' : '2mm 0';
         return '@page{size:' + paper + ' auto;margin:0}' +
             'html,body{margin:0;padding:0;width:' + paper + ';background:#fff;color:#000;' +
@@ -374,6 +376,10 @@
             '.meta p,.brand,.title{overflow-wrap:anywhere;word-break:break-word}' +
             '.ticket-block.is-normal,.ticket-block.is-normal *{font-weight:500}' +
             '.ticket-block.is-bold,.ticket-block.is-bold *{font-weight:900}' +
+            '.ticket-block .meta p.meta-emph,.ticket-block.fs-small .meta p.meta-emph,.ticket-block.fs-large .meta p.meta-emph,.ticket-block.fs-extra_large .meta p.meta-emph{font-size:' + emph + ';font-weight:900;line-height:1.2}' +
+            '.ticket-block.is-normal .meta p.meta-emph{font-weight:900}' +
+            '.ticket-block .meta p.meta-label{font-weight:800}' +
+            '.ticket-block.is-normal .meta p.meta-label{font-weight:800}' +
             '.ticket-block.is-left{text-align:left}' +
             '.ticket-block.is-left .brand,.ticket-block.is-left .title,.ticket-block.is-left .meta,.ticket-block.is-left .meta p,.ticket-block.is-left .thanks,.ticket-block.is-left .footer-block,.ticket-block.is-left .promo,.ticket-block.is-left .order-type,.ticket-block.is-left .order-type__label,.ticket-block.is-left .order-type__value,.ticket-block.is-left .order-type__channel,.ticket-block.is-left .ticket-qr,.ticket-block.is-left .ticket-barcode{text-align:left}' +
             '.ticket-block.is-left .logo{margin-left:0;margin-right:auto}' +
@@ -478,8 +484,11 @@
         return html;
     }
 
-    function metaLine(label, value) {
+    function metaLine(label, value, emph) {
         if (value == null || String(value).trim() === '') return '';
+        if (emph) {
+            return '<p class="meta-label">' + escapeHtml(label) + '</p><p class="meta-emph">' + escapeHtml(value) + '</p>';
+        }
         return '<p>' + escapeHtml(label) + '</p><p>' + escapeHtml(value) + '</p>';
     }
 
@@ -515,9 +524,9 @@
         var riderPhone = String((job && (job.riderPhone || job.rider_phone)) || '').trim();
 
         if (kind === 'kitchen') {
-            if (show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name);
-            if (show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone);
-            if (show(kind, template, 'order', 'delivery_address') && address) bits += metaLine('Address', address);
+            if (show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name, true);
+            if (show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone, true);
+            if (show(kind, template, 'order', 'delivery_address') && address) bits += metaLine('Address', address, true);
             if (show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
             if (show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
             return bits ? '<div class="meta">' + bits + '</div>' : '';
@@ -525,8 +534,8 @@
 
         if (isPosDeliveryJob(job)) return '';
 
-        if (show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name);
-        if (show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone);
+        if (show(kind, template, 'order', 'customer_name') && name) bits += metaLine('Customer', name, true);
+        if (show(kind, template, 'order', 'customer_phone') && phone) bits += metaLine('Phone', phone, true);
         if (show(kind, template, 'order', 'rider_name') && riderName) bits += metaLine('Rider Name', riderName);
         if (show(kind, template, 'order', 'rider_phone') && riderPhone) bits += metaLine('Rider Phone', riderPhone);
         return bits ? '<div class="meta">' + bits + '</div>' : '';
@@ -539,9 +548,9 @@
         var phone = String((job && job.phone) || '').trim();
         var address = String((job && job.address) || '').trim();
         var bits = '';
-        if (show(kind, template, 'delivery_customer', 'customer_name') && name) bits += metaLine('CUSTOMER', name);
-        if (show(kind, template, 'delivery_customer', 'customer_phone') && phone) bits += metaLine('PHONE', phone);
-        if (show(kind, template, 'delivery_customer', 'delivery_address') && address) bits += metaLine('ADDRESS', address);
+        if (show(kind, template, 'delivery_customer', 'customer_name') && name) bits += metaLine('CUSTOMER', name, true);
+        if (show(kind, template, 'delivery_customer', 'customer_phone') && phone) bits += metaLine('PHONE', phone, true);
+        if (show(kind, template, 'delivery_customer', 'delivery_address') && address) bits += metaLine('ADDRESS', address, true);
         if (show(kind, template, 'delivery_customer', 'delivery_fee') && job.delivery_fee != null && job.delivery_fee !== '') {
             bits += metaLine('DELIVERY FEE', money(job.delivery_fee, currency));
         }

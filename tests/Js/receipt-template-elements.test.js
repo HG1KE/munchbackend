@@ -106,11 +106,11 @@ test('unpaid and pending statuses stay hidden even when payment status is enable
 
 test('delivery customer information renders from saved order fields', function () {
     var html = render('customer');
-    assert(html.indexOf('<p>CUSTOMER</p>') !== -1, 'missing CUSTOMER label');
+    assert(html.indexOf('>CUSTOMER</p>') !== -1, 'missing CUSTOMER label');
     assert(html.indexOf('John Doe') !== -1, 'missing customer name');
-    assert(html.indexOf('<p>PHONE</p>') !== -1, 'missing PHONE label');
+    assert(html.indexOf('>PHONE</p>') !== -1, 'missing PHONE label');
     assert(html.indexOf('0712345678') !== -1, 'missing phone');
-    assert(html.indexOf('<p>ADDRESS</p>') !== -1, 'missing ADDRESS label');
+    assert(html.indexOf('>ADDRESS</p>') !== -1, 'missing ADDRESS label');
     assert(html.indexOf('Nyali, Mombasa') !== -1, 'missing address');
     assert(html.indexOf('<p>DELIVERY FEE</p>') !== -1, 'missing DELIVERY FEE label');
     assert(html.indexOf('100') !== -1, 'missing delivery fee amount');
@@ -139,7 +139,7 @@ test('individual delivery customer fields can be toggled', function () {
     assert(html.indexOf('John Doe') !== -1, 'name should remain');
     assert(html.indexOf('Nyali, Mombasa') !== -1, 'address should remain');
     assert(html.indexOf('0712345678') === -1, 'phone should be hidden');
-    assert(html.indexOf('<p>PHONE</p>') === -1, 'phone label should be hidden');
+    assert(html.indexOf('>PHONE</p>') === -1, 'phone label should be hidden');
     assert(html.indexOf('<p>DELIVERY FEE</p>') === -1, 'grouped fee should be hidden');
 });
 
@@ -150,15 +150,15 @@ test('delivery customer information does not appear on other order types', funct
             orderType: channel,
             isDelivery: channel === 'glovo' || channel === 'uber' || channel === 'bolt_food'
         });
-        assert(html.indexOf('<p>CUSTOMER</p>') === -1, channel + ' showed grouped CUSTOMER');
-        assert(html.indexOf('<p>ADDRESS</p>') === -1, channel + ' showed grouped ADDRESS');
+        assert(html.indexOf('>CUSTOMER</p>') === -1, channel + ' showed grouped CUSTOMER');
+        assert(html.indexOf('>ADDRESS</p>') === -1, channel + ' showed grouped ADDRESS');
         assert(html.indexOf('<p>DELIVERY FEE</p>') === -1, channel + ' showed grouped DELIVERY FEE');
     });
 });
 
 test('kitchen tickets stay independent of delivery customer and payment status', function () {
     var html = render('kitchen');
-    assert(html.indexOf('<p>CUSTOMER</p>') === -1, 'kitchen used grouped CUSTOMER label');
+    assert(html.indexOf('>CUSTOMER</p>') === -1, 'kitchen used grouped CUSTOMER label');
     assert(html.indexOf('DELIVERY FEE') === -1, 'kitchen printed delivery fee');
     assert(html.indexOf('Payment Status') === -1, 'kitchen printed payment status');
     assert(html.indexOf('PAID') === -1, 'kitchen printed PAID');
@@ -243,7 +243,7 @@ test('delivery customer alignment and weight reach the renderer', function () {
     });
     var html = T.renderDocument('customer', tmpl, job());
     var cls = blockClass(html, 'delivery_customer');
-    assert(html.indexOf('<p>CUSTOMER</p>') !== -1, 'delivery customer block missing');
+    assert(html.indexOf('>CUSTOMER</p>') !== -1, 'delivery customer block missing');
     assert(cls.indexOf('is-right') !== -1, 'delivery customer right align ignored');
     assert(cls.indexOf('fs-large') !== -1, 'delivery customer font size ignored');
     assert(cls.indexOf('is-bold') !== -1, 'delivery customer bold ignored');
@@ -326,7 +326,7 @@ test('a malformed optional item cannot blank the rest of the receipt', function 
     var html = render('customer', null, { items: [null, { name: 'Burger', quantity: 1, options: 'bad', unit_price: 500, line_total: 500 }] });
     assert(html.indexOf('ORDER #M-1042') !== -1, 'bad item prevented the receipt from rendering');
     assert(html.indexOf('Burger') !== -1, 'valid item was dropped because a sibling was malformed');
-    assert(html.indexOf('<p>CUSTOMER</p>') !== -1, 'delivery customer was dropped after a malformed item');
+    assert(html.indexOf('>CUSTOMER</p>') !== -1, 'delivery customer was dropped after a malformed item');
     assert(html.indexOf('Payment Status') !== -1, 'payment status was dropped after a malformed item');
 });
 
@@ -384,6 +384,29 @@ test('long customer names and addresses wrap instead of overflowing', function (
     assert(html.indexOf('Links Road, Nyali, Mombasa, Kenya') !== -1, 'long address omitted');
 });
 
+test('customer name phone and address print large and bold on kitchen and customer receipts', function () {
+    var T = renderer();
+    var kitchenTmpl = T.defaults('kitchen');
+    kitchenTmpl.sections.order.customer_phone = true;
+    kitchenTmpl.sections.order.delivery_address = true;
+    var kitchen = T.renderDocument('kitchen', kitchenTmpl, job());
+    assert(kitchen.indexOf('class="meta-emph"') !== -1, 'kitchen missing emph class');
+    assert(kitchen.indexOf('p.meta-emph') !== -1, 'kitchen CSS missing meta-emph');
+    assert(kitchen.indexOf('font-weight:900') !== -1, 'kitchen emph not bold');
+    ['John Doe', '0712345678', 'Nyali, Mombasa'].forEach(function (value) {
+        assert(kitchen.indexOf('class="meta-emph">' + value + '</p>') !== -1, 'kitchen value not emphasized: ' + value);
+    });
+
+    var customer = render('customer');
+    assert(customer.indexOf('class="meta-emph"') !== -1, 'customer receipt missing emph class');
+    assert(customer.indexOf('p.meta-emph') !== -1, 'customer CSS missing meta-emph');
+    ['John Doe', '0712345678', 'Nyali, Mombasa'].forEach(function (value) {
+        assert(customer.indexOf('class="meta-emph">' + value + '</p>') !== -1, 'customer value not emphasized: ' + value);
+    });
+    assert(customer.indexOf('class="meta-emph">100') === -1, 'delivery fee should stay unemphasized');
+    assert(customer.indexOf('<p>DELIVERY FEE</p>') !== -1, 'delivery fee label should remain plain');
+});
+
 test('paid amount toggle is not decorative', function () {
     var T = renderer();
     var on = T.defaults('customer');
@@ -402,7 +425,7 @@ test('kitchen tickets ignore customer-only delivery and payment styling', functi
     var kitchen = T.renderDocument('kitchen', T.defaults('kitchen'), job());
     assert(kitchen.indexOf('ticket-block--delivery_customer') === -1, 'kitchen rendered delivery customer');
     assert(kitchen.indexOf('Payment Status') === -1, 'kitchen rendered payment status');
-    assert(kitchen.indexOf('<p>CUSTOMER</p>') === -1, 'kitchen used grouped delivery labels');
+    assert(kitchen.indexOf('>CUSTOMER</p>') === -1, 'kitchen used grouped delivery labels');
 });
 
 if (failed) {

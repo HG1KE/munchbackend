@@ -261,7 +261,7 @@ test('null payload and missing optional sections still load', function () {
         sample_job: sampleJob()
     });
     assert(partial.html.indexOf('ORDER #A10001') !== -1, 'partial template lost order number');
-    assert(partial.html.indexOf('<p>CUSTOMER</p>') !== -1, 'partial template lost delivery customer defaults');
+    assert(partial.html.indexOf('>CUSTOMER</p>') !== -1, 'partial template lost delivery customer defaults');
     assert(partial.html.indexOf('Payment Status') !== -1, 'partial template lost payment status default');
 });
 
@@ -284,7 +284,7 @@ test('legacy template without delivery_customer or payment_status still previews
         sample_job: sampleJob()
     });
     assert(session.html.indexOf('ORDER #A10001') !== -1, 'legacy preview missing order number');
-    assert(session.html.indexOf('<p>CUSTOMER</p>') !== -1, 'legacy preview missing CUSTOMER');
+    assert(session.html.indexOf('>CUSTOMER</p>') !== -1, 'legacy preview missing CUSTOMER');
     assert(session.html.indexOf('John Doe') !== -1, 'legacy preview missing name');
     assert(session.html.indexOf('0712345678') !== -1, 'legacy preview missing phone');
     assert(session.html.indexOf('Nyali, Mombasa') !== -1, 'legacy preview missing address');
@@ -319,11 +319,11 @@ test('delivery customer information can be toggled in the live preview', functio
         kitchen: T.defaults('kitchen'),
         sample_job: sampleJob()
     });
-    assert(session.html.indexOf('<p>CUSTOMER</p>') !== -1, 'delivery customer missing');
+    assert(session.html.indexOf('>CUSTOMER</p>') !== -1, 'delivery customer missing');
     assert(session.html.indexOf('John Doe') !== -1, 'sample customer name missing');
-    assert(session.html.indexOf('<p>PHONE</p>') !== -1, 'phone label missing');
+    assert(session.html.indexOf('>PHONE</p>') !== -1, 'phone label missing');
     assert(session.html.indexOf('0712345678') !== -1, 'phone missing');
-    assert(session.html.indexOf('<p>ADDRESS</p>') !== -1, 'address label missing');
+    assert(session.html.indexOf('>ADDRESS</p>') !== -1, 'address label missing');
     assert(session.html.indexOf('Nyali, Mombasa') !== -1, 'address missing');
     assert(session.html.indexOf('<p>DELIVERY FEE</p>') !== -1, 'delivery fee label missing');
     assert(session.html.indexOf('KSh ') !== -1, 'currency missing from preview');
@@ -331,7 +331,7 @@ test('delivery customer information can be toggled in the live preview', functio
     ['customer_name', 'customer_phone', 'delivery_address', 'delivery_fee'].forEach(function (key) {
         fireEditorChange(session, { 'data-section-group': 'delivery_customer', 'data-section-key': key, checked: false });
     });
-    assert(session.preview.srcdoc.indexOf('<p>CUSTOMER</p>') === -1, 'disabled delivery customer still shown');
+    assert(session.preview.srcdoc.indexOf('>CUSTOMER</p>') === -1, 'disabled delivery customer still shown');
     assert(session.preview.srcdoc.indexOf('<p>DELIVERY FEE</p>') === -1, 'disabled delivery fee still shown');
 });
 
@@ -376,7 +376,7 @@ test('save payload round-trip keeps styled config on reload', function () {
         print: { paper: '80mm', receipt_copies: 1 },
         sample_job: sampleJob()
     });
-    ['ORDER #A10001', 'Payment Status', '<p>CUSTOMER</p>', 'John Doe', 'is-center', 'fs-extra_large', 'is-right'].forEach(function (needle) {
+    ['ORDER #A10001', 'Payment Status', '>CUSTOMER</p>', 'John Doe', 'is-center', 'fs-extra_large', 'is-right'].forEach(function (needle) {
         assert(first.html.indexOf(needle) !== -1, 'first load missing ' + needle);
         assert(reloaded.html.indexOf(needle) !== -1, 'reload missing ' + needle);
     });

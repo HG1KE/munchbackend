@@ -124,9 +124,9 @@ test('reprinting a saved delivery order keeps customer details', function () {
 
 test('empty delivery customer fields do not print labels', function () {
     var html = receiptHtml(deliveryJob({ customer: '', phone: '', address: '', delivery_fee: 200 }));
-    assert(html.indexOf('<p>CUSTOMER</p>') === -1, 'empty CUSTOMER label');
-    assert(html.indexOf('<p>PHONE</p>') === -1, 'empty PHONE label');
-    assert(html.indexOf('<p>ADDRESS</p>') === -1, 'empty ADDRESS label');
+    assert(html.indexOf('>CUSTOMER</p>') === -1, 'empty CUSTOMER label');
+    assert(html.indexOf('>PHONE</p>') === -1, 'empty PHONE label');
+    assert(html.indexOf('>ADDRESS</p>') === -1, 'empty ADDRESS label');
     assert(html.indexOf('Walk-in') === -1, 'Walk-in must not stand in for delivery customer');
     assert(html.indexOf('DELIVERY FEE') !== -1, 'fee should still print');
 });
@@ -158,8 +158,8 @@ test('dine in takeaway and marketplace receipts omit delivery customer informati
             orderType: channel,
             isDelivery: channel !== 'dine_in' && channel !== 'takeaway'
         }));
-        assert(html.indexOf('<p>CUSTOMER</p>') === -1, channel + ' showed delivery CUSTOMER label');
-        assert(html.indexOf('<p>ADDRESS</p>') === -1, channel + ' showed delivery ADDRESS label');
+        assert(html.indexOf('>CUSTOMER</p>') === -1, channel + ' showed delivery CUSTOMER label');
+        assert(html.indexOf('>ADDRESS</p>') === -1, channel + ' showed delivery ADDRESS label');
         assert(html.indexOf('<p>DELIVERY FEE</p>') === -1, channel + ' showed grouped DELIVERY FEE');
     });
 });
