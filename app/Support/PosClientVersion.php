@@ -8,5 +8,5 @@ namespace App\Support;
  */
 class PosClientVersion
 {
-    public const ASSET = '6.17';
+    public const ASSET = '6.18';
 }

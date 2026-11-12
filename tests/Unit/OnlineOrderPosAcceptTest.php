@@ -278,8 +278,10 @@ class OnlineOrderPosAcceptTest extends TestCase
 
         $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
         $this->assertStringContainsString('munch-pos-online-ring__fulfillment', $css);
+        $this->assertStringContainsString('.munch-pos-online-ring__actions .munch-pos-clear', $css);
+        $this->assertStringContainsString('background: #94a3b8', $css);
 
-        $this->assertSame('6.17', PosClientVersion::ASSET);
+        $this->assertSame('6.18', PosClientVersion::ASSET);
     }
 
     public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void
