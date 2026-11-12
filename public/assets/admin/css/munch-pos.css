@@ -716,6 +716,17 @@
     font-weight: 600;
 }
 
+.munch-pos-footer .munch-pos-clear {
+    min-height: 40px;
+    padding: 0 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #94a3b8;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
 [hidden] {
     display: none !important;
 }
@@ -1673,9 +1684,9 @@ html.munch-pos-overlay-open body {
     .munch-pos-footer .munch-pos-pay { grid-area: pay; }
     .munch-pos-footer .munch-pos-place { grid-area: place; }
 
-    .munch-pos-clear {
-        min-height: 48px;
-        padding: 0 0.4rem;
+    .munch-pos-footer .munch-pos-clear {
+        min-height: 40px;
+        padding: 0 0.75rem;
         align-self: center;
         justify-self: end;
     }
@@ -1784,9 +1795,9 @@ html.munch-pos-overlay-open body {
         padding: 0.35rem 0.55rem;
     }
 
-    .munch-pos-clear {
-        min-height: 48px;
-        padding: 0 0.4rem;
+    .munch-pos-footer .munch-pos-clear {
+        min-height: 40px;
+        padding: 0 0.75rem;
         align-self: center;
         justify-self: end;
     }

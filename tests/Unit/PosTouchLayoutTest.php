@@ -44,6 +44,9 @@ class PosTouchLayoutTest extends TestCase
         $this->assertStringContainsString('flex: 0 0 auto', $css);
         $this->assertStringContainsString('min-height: 52px', $css);
         $this->assertStringContainsString('min-height: 48px', $css);
+        $this->assertStringContainsString('.munch-pos-footer .munch-pos-clear', $css);
+        $this->assertStringContainsString('background: #94a3b8', $css);
+        $this->assertStringContainsString('min-height: 40px', $css);
     }
 
     public function test_catalog_renders_the_full_list_without_virtualization(): void
