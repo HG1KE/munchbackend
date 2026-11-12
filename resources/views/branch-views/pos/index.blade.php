@@ -224,7 +224,7 @@
                 <span class="munch-pos-online-ring__pulse munch-pos-online-ring__pulse--delayed"></span>
                 <div class="munch-pos-online-ring__icon" aria-hidden="true"></div>
             </div>
-            <h2 id="pos-online-order-title">{{ translate('You have new order, Check Please.') }}</h2>
+            <h2 id="pos-online-order-title">{{ translate('NEW ONLINE ORDER') }}</h2>
             <p class="munch-pos-online-ring__number" id="pos-online-order-number"></p>
         </div>
         <div class="munch-pos-dialog__body munch-pos-online-ring__body" id="pos-online-order-body">

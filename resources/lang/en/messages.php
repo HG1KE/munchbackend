@@ -129,6 +129,7 @@
   'profile' => 'Profile',
   'Home' => 'Home',
   'You have new order, Check Please.' => 'NEW ORDER. CHECK!',
+  'NEW ONLINE ORDER' => 'NEW ONLINE ORDER',
   'Ok, let me check' => 'Ok, let me check',
   'Are you sure?' => 'Are you sure ',
   'Status changed successfully' => 'Status changed successfully',
