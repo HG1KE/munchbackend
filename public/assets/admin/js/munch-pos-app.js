@@ -2058,10 +2058,34 @@
             .replace(/'/g, '&#39;');
     }
 
+    function onlineOrderIsPickup(order) {
+        if (!order) return false;
+        if (order.is_pickup === true || order.is_pickup === 1 || order.is_pickup === '1') return true;
+        if (order.is_delivery === true || order.is_delivery === 1 || order.is_delivery === '1') return false;
+        var type = String(order.order_type || '').toLowerCase();
+        return type === 'take_away' || type === 'takeaway' || type === 'pickup';
+    }
+
+    function onlineOrderFulfillmentLabel(order) {
+        var label = String((order && order.fulfillment_label) || '').trim();
+        if (label) return label;
+        return onlineOrderIsPickup(order)
+            ? L('onlineOrderPickup', 'PICKUP')
+            : L('onlineOrderDelivery', 'DELIVERY');
+    }
+
     function renderOnlineOrderModal(order) {
         if (!els.onlineOrderModal || !order) return;
         onlineRing.order = order;
         onlineRing.lastOrderId = Number(order.id || 0);
+        var isPickup = onlineOrderIsPickup(order);
+        if (els.onlineOrderFulfillment) {
+            var fulfillment = onlineOrderFulfillmentLabel(order);
+            els.onlineOrderFulfillment.textContent = fulfillment;
+            els.onlineOrderFulfillment.classList.toggle('is-pickup', isPickup);
+            els.onlineOrderFulfillment.classList.toggle('is-delivery', !isPickup);
+            els.onlineOrderFulfillment.hidden = !fulfillment;
+        }
         if (els.onlineOrderNumber) {
             els.onlineOrderNumber.textContent = order.order_display_id || (order.id ? ('#' + order.id) : '');
         }
@@ -2070,10 +2094,22 @@
             if (order.customer_phone) customer += ' · ' + order.customer_phone;
             els.onlineOrderCustomer.textContent = customer;
         }
+        var street = String(order.address || '').trim();
+        var area = String(order.area || '').trim();
+        if (area === '—') area = '';
         if (els.onlineOrderAddress) {
-            var address = order.address_line || order.address || '';
-            if (!address && order.area) address = order.area;
-            els.onlineOrderAddress.textContent = address || '—';
+            // Street / landmark only — selected delivery area has its own row.
+            els.onlineOrderAddress.textContent = street || '—';
+        }
+        if (els.onlineOrderAddressRow) {
+            els.onlineOrderAddressRow.hidden = !street;
+        }
+        if (els.onlineOrderArea) {
+            els.onlineOrderArea.textContent = area || '—';
+        }
+        if (els.onlineOrderAreaRow) {
+            // Selected delivery-charge area (area-based checkout, not maps).
+            els.onlineOrderAreaRow.hidden = isPickup || !area;
         }
         if (els.onlineOrderPayment) {
             var pay = order.payment_method_label || order.payment_method || '';
@@ -3435,9 +3471,13 @@
         els.cancelDismiss = document.getElementById('pos-cancel-dismiss');
         els.cancelConfirm = document.getElementById('pos-cancel-confirm');
         els.onlineOrderModal = document.getElementById('pos-online-order-modal');
+        els.onlineOrderFulfillment = document.getElementById('pos-online-order-fulfillment');
         els.onlineOrderNumber = document.getElementById('pos-online-order-number');
         els.onlineOrderCustomer = document.getElementById('pos-online-order-customer');
+        els.onlineOrderAddressRow = document.getElementById('pos-online-order-address-row');
         els.onlineOrderAddress = document.getElementById('pos-online-order-address');
+        els.onlineOrderAreaRow = document.getElementById('pos-online-order-area-row');
+        els.onlineOrderArea = document.getElementById('pos-online-order-area');
         els.onlineOrderPayment = document.getElementById('pos-online-order-payment');
         els.onlineOrderItems = document.getElementById('pos-online-order-items');
         els.onlineOrderTotals = document.getElementById('pos-online-order-totals');

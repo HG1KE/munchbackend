@@ -158,7 +158,12 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertNotNull($payload['order']);
         $this->assertSame(101, $payload['order']['id']);
         $this->assertSame('Ada Munch', $payload['order']['customer_name']);
+        $this->assertSame('Shanzu', $payload['order']['area']);
+        $this->assertSame('Near Total petrol station', $payload['order']['address']);
         $this->assertStringContainsString('Shanzu', $payload['order']['address_line']);
+        $this->assertTrue($payload['order']['is_delivery']);
+        $this->assertFalse($payload['order']['is_pickup']);
+        $this->assertSame('DELIVERY', $payload['order']['fulfillment_label']);
         $this->assertNotEmpty($payload['order']['items']);
         $this->assertSame('1x Half Chicken', $payload['order']['item_lines'][0]);
         $this->assertSame('Paid', $payload['order']['payment_status_label']);
@@ -225,6 +230,11 @@ class OnlineOrderPosAcceptTest extends TestCase
             'payment_method' => 'cash_on_delivery',
         ]);
 
+        $preview = $this->service()->previewPayload(Order::query()->with(['customer', 'guest', 'branch', 'order_area.area', 'details'])->find(505));
+        $this->assertTrue($preview['is_pickup']);
+        $this->assertFalse($preview['is_delivery']);
+        $this->assertSame('PICKUP', $preview['fulfillment_label']);
+
         $result = $this->service()->accept(505, 1);
         $this->assertTrue($result['success']);
 
@@ -251,6 +261,8 @@ class OnlineOrderPosAcceptTest extends TestCase
         $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
         $this->assertStringContainsString('pos-online-order-modal', $page);
         $this->assertStringContainsString('pos-online-order-accept', $page);
+        $this->assertStringContainsString('pos-online-order-fulfillment', $page);
+        $this->assertStringContainsString('pos-online-order-area', $page);
         $this->assertStringContainsString('pendingOnlineOrders', $page);
         $this->assertStringContainsString('acceptOnlineOrder', $page);
         $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $page);
@@ -259,9 +271,15 @@ class OnlineOrderPosAcceptTest extends TestCase
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $this->assertStringContainsString('function acceptOnlineOrder', $js);
         $this->assertStringContainsString('startOnlineOrderPolling', $js);
+        $this->assertStringContainsString('onlineOrderFulfillmentLabel', $js);
+        $this->assertStringContainsString('onlineOrderAreaRow', $js);
+        $this->assertStringContainsString('Date.now() + 45000', $js);
         $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body)', $js);
 
-        $this->assertSame('6.16', PosClientVersion::ASSET);
+        $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
+        $this->assertStringContainsString('munch-pos-online-ring__fulfillment', $css);
+
+        $this->assertSame('6.17', PosClientVersion::ASSET);
     }
 
     public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void

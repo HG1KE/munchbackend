@@ -1994,12 +1994,39 @@ html.munch-pos-overlay-open body {
     line-height: 1.25;
 }
 
+.munch-pos-online-ring__fulfillment {
+    margin: 0.15rem 0 0;
+    padding: 0.4rem 1rem;
+    border-radius: 10px;
+    font-size: 1.55rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: #fff;
+    background: #E7032D;
+}
+
+.munch-pos-online-ring__fulfillment.is-pickup {
+    background: #0f766e;
+}
+
+.munch-pos-online-ring__fulfillment.is-delivery {
+    background: #E7032D;
+}
+
 .munch-pos-online-ring__number {
     margin: 0;
     font-size: 1.35rem;
     font-weight: 800;
     color: #E7032D;
     letter-spacing: 0.02em;
+}
+
+.munch-pos-online-ring__meta #pos-online-order-area-row dd {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #111827;
 }
 
 .munch-pos-online-ring__body {

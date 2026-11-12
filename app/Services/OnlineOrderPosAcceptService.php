@@ -62,7 +62,11 @@ class OnlineOrderPosAcceptService
     {
         $card = $this->operations->formatOrderCard($order);
         $address = $this->resolveAddressText($order);
-        $area = (string) ($card['area'] ?? '');
+        // Selected delivery-charge area only (area-based checkout) — never lat/lng maps.
+        $area = $this->selectedAreaName($order);
+        $orderType = (string) ($order->order_type ?? 'delivery');
+        $isPickup = $orderType === 'take_away' || $orderType === PosOrderTypes::TAKE_AWAY;
+        $fulfillmentLabel = $isPickup ? translate('PICKUP') : translate('DELIVERY');
         $amounts = OrderPayableAmount::cardPayload($order);
         $items = $this->previewItems($order);
 
@@ -73,9 +77,11 @@ class OnlineOrderPosAcceptService
             'customer_phone' => $this->customerPhone($order),
             'address' => $address,
             'area' => $area,
-            'address_line' => $this->addressLine($address, $area),
-            'order_type' => (string) ($order->order_type ?? 'delivery'),
-            'fulfillment_label' => (string) ($card['fulfillment_label'] ?? translate('DELIVERY')),
+            'address_line' => $isPickup ? $address : $this->addressLine($address, $area),
+            'order_type' => $orderType,
+            'is_pickup' => $isPickup,
+            'is_delivery' => ! $isPickup,
+            'fulfillment_label' => $fulfillmentLabel,
             'payment_status' => (string) ($order->payment_status ?? ''),
             'payment_method' => (string) ($order->payment_method ?? ''),
             'payment_method_label' => PaymentMethodLabel::operationalTitle($order->payment_method),
@@ -372,6 +378,22 @@ class OnlineOrderPosAcceptService
         }
 
         return '';
+    }
+
+    /**
+     * Delivery-charge area name from order_areas (selected at checkout). Empty when unset.
+     */
+    private function selectedAreaName(Order $order): string
+    {
+        if (! $order->relationLoaded('order_area')) {
+            $order->load('order_area.area');
+        } elseif ($order->order_area && ! $order->order_area->relationLoaded('area')) {
+            $order->order_area->load('area');
+        }
+
+        $name = trim((string) ($order->order_area?->area?->area_name ?? ''));
+
+        return $name;
     }
 
     private function addressLine(string $address, string $area): string

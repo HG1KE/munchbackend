@@ -225,6 +225,7 @@
                 <div class="munch-pos-online-ring__icon" aria-hidden="true"></div>
             </div>
             <h2 id="pos-online-order-title">{{ translate('NEW ONLINE ORDER') }}</h2>
+            <p class="munch-pos-online-ring__fulfillment" id="pos-online-order-fulfillment" aria-live="polite"></p>
             <p class="munch-pos-online-ring__number" id="pos-online-order-number"></p>
         </div>
         <div class="munch-pos-dialog__body munch-pos-online-ring__body" id="pos-online-order-body">
@@ -233,9 +234,13 @@
                     <dt>{{ translate('Customer') }}</dt>
                     <dd id="pos-online-order-customer"></dd>
                 </div>
-                <div>
+                <div id="pos-online-order-address-row">
                     <dt>{{ translate('Address') }}</dt>
                     <dd id="pos-online-order-address"></dd>
+                </div>
+                <div id="pos-online-order-area-row" hidden>
+                    <dt>{{ translate('Area') }}</dt>
+                    <dd id="pos-online-order-area"></dd>
                 </div>
                 <div>
                     <dt>{{ translate('Payment') }}</dt>
@@ -437,6 +442,8 @@
             acceptingOnline: @json(translate('Accepting...')),
             onlineOrderLater: @json(translate('Later')),
             onlineOrderAcceptFailed: @json(translate('Could not accept this order. Please try again.')),
+            onlineOrderPickup: @json(translate('PICKUP')),
+            onlineOrderDelivery: @json(translate('DELIVERY')),
             onlineOrderArea: @json(translate('Area')),
             onlineOrderItems: @json(translate('Items')),
             onlineOrderDeliveryFee: @json(translate('Delivery Fee')),
