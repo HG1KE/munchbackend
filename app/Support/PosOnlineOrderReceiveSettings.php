@@ -5,10 +5,11 @@ namespace App\Support;
 use App\CentralLogics\Helpers;
 
 /**
- * Global business setting: whether Branch POS may poll/ring/ACCEPT online orders.
+ * Global business setting: sole on/off for whether Branch POS may poll/ring/ACCEPT online orders.
  *
  * Default off (missing key → disabled) so Habib can enable after deploy.
- * Per-branch dashboard online-orders switch remains separate ({@see BranchOnlineOrdering}).
+ * Branch POS receive does not consult {@see BranchOnlineOrdering}; that switch only gates
+ * non-POS branch dashboard online-order notifications.
  */
 class PosOnlineOrderReceiveSettings
 {

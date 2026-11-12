@@ -19,7 +19,6 @@ use App\Services\OnlineOrderPosAcceptService;
 use App\Services\PosOrderCancellationService;
 use App\Services\PosOrderEditService;
 use App\Services\OrderReadableIdService;
-use App\Support\BranchOnlineOrdering;
 use App\Support\PosOnlineOrderReceiveSettings;
 use App\Support\AddonChannelPricing;
 use App\Support\OrderPlacementTime;
@@ -126,10 +125,9 @@ class POSController extends Controller
      */
     public function pendingOnlineOrders(): JsonResponse
     {
-        $branch = auth('branch')->user();
         $branchId = (int) auth('branch')->id();
 
-        if (! BranchOnlineOrdering::isEnabled($branch) || ! PosOnlineOrderReceiveSettings::isEnabled()) {
+        if (! PosOnlineOrderReceiveSettings::isEnabled()) {
             return response()->json([
                 'success' => 1,
                 'data' => [
@@ -150,8 +148,7 @@ class POSController extends Controller
      */
     public function acceptOnlineOrder(Request $request): JsonResponse
     {
-        $branch = auth('branch')->user();
-        if (! BranchOnlineOrdering::isEnabled($branch) || ! PosOnlineOrderReceiveSettings::isEnabled()) {
+        if (! PosOnlineOrderReceiveSettings::isEnabled()) {
             return response()->json([
                 'success' => 0,
                 'message' => translate('Online order accept is disabled for Branch POS.'),
@@ -185,8 +182,7 @@ class POSController extends Controller
      */
     public function onlineOrderTransferBranches(): JsonResponse
     {
-        $branch = auth('branch')->user();
-        if (! BranchOnlineOrdering::isEnabled($branch) || ! PosOnlineOrderReceiveSettings::isEnabled()) {
+        if (! PosOnlineOrderReceiveSettings::isEnabled()) {
             return response()->json([
                 'success' => 1,
                 'data' => [
@@ -208,8 +204,7 @@ class POSController extends Controller
      */
     public function reassignOnlineOrder(Request $request): JsonResponse
     {
-        $branch = auth('branch')->user();
-        if (! BranchOnlineOrdering::isEnabled($branch) || ! PosOnlineOrderReceiveSettings::isEnabled()) {
+        if (! PosOnlineOrderReceiveSettings::isEnabled()) {
             return response()->json([
                 'success' => 0,
                 'message' => translate('Online order accept is disabled for Branch POS.'),

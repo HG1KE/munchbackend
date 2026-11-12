@@ -81,7 +81,7 @@
                                         <i class="tio-info-outined"
                                            data-toggle="tooltip"
                                            data-placement="top"
-                                           title="{{ translate('When enabled, open Branch POS sessions poll and ring for pending online orders and can ACCEPT them into POS sales. When disabled, POS does not poll, ring, or accept online orders.') }}">
+                                           title="{{ translate('Sole on/off for Branch POS online-order receive. When enabled, open Branch POS sessions poll and ring for pending online orders and can ACCEPT them into POS sales, regardless of each branch Online Orders switch. When disabled, POS does not poll, ring, or accept online orders. Branch Online Orders still controls the branch dashboard notifications only.') }}">
                                         </i>
                                     </label>
                                 </div>

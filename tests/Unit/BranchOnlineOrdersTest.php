@@ -108,15 +108,31 @@ class BranchOnlineOrdersTest extends TestCase
     public function test_pos_marketplace_and_reports_are_untouched(): void
     {
         $pos = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
-        // Ring/ACCEPT uses the dashboard switch + global POS receive flag; placeOrder stays ungated.
-        $this->assertStringContainsString('BranchOnlineOrdering::isEnabled', $pos);
+        // Ring/ACCEPT/transfer use only the global POS receive flag; branch Online Orders is dashboard-only.
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $pos);
         $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $pos);
         $this->assertStringContainsString('function pendingOnlineOrders', $pos);
         $this->assertStringContainsString('function acceptOnlineOrder', $pos);
         $this->assertStringContainsString('function placeOrder', $pos);
+        $pending = $this->methodBody($pos, 'pendingOnlineOrders');
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $pending);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $pending);
+        $accept = $this->methodBody($pos, 'acceptOnlineOrder');
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $accept);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $accept);
+        $transfer = $this->methodBody($pos, 'onlineOrderTransferBranches');
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $transfer);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $transfer);
+        $reassign = $this->methodBody($pos, 'reassignOnlineOrder');
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $reassign);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $reassign);
         $placeOrder = $this->methodBody($pos, 'placeOrder');
         $this->assertStringNotContainsString('BranchOnlineOrdering', $placeOrder);
         $this->assertStringNotContainsString('PosOnlineOrderReceiveSettings', $placeOrder);
+
+        $posPage = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $posPage);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $posPage);
 
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'glovo'));
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'uber'));

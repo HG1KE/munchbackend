@@ -1,9 +1,7 @@
 @extends('layouts.branch.pos')
 
 @php
-    $branchAcceptsOnlineOrders = \App\Support\BranchOnlineOrdering::isEnabled(auth('branch')->user());
-    $posReceivesOnlineOrders = \App\Support\PosOnlineOrderReceiveSettings::isEnabled();
-    $posOnlineRingEnabled = $branchAcceptsOnlineOrders && $posReceivesOnlineOrders;
+    $posOnlineRingEnabled = \App\Support\PosOnlineOrderReceiveSettings::isEnabled();
 @endphp
 
 @section('title', translate('POS') . ' · ' . $branchName)

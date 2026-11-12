@@ -407,6 +407,7 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('function reassignOnlineOrder', $controller);
         $this->assertStringContainsString('OnlineOrderPosAcceptService', $controller);
         $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $controller);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $controller);
         $this->assertStringContainsString('pos_online_receive_disabled', $controller);
 
         $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
@@ -422,6 +423,7 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('reassignOnlineOrder', $page);
         $this->assertStringContainsString('SEND TO DIFFERENT BRANCH', $page);
         $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $page);
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $page);
         $this->assertStringNotContainsString('pos-online-order-dismiss', $page);
         $this->assertStringNotContainsString("translate('Later')", $page);
         $this->assertStringNotContainsString("get_business_settings('admin_order_notification')", $page);
@@ -578,6 +580,12 @@ class OnlineOrderPosAcceptTest extends TestCase
         $page = file_get_contents(resource_path('views/admin-views/business-settings/order-index.blade.php'));
         $this->assertStringContainsString('name="pos_online_order_receive_status"', $page);
         $this->assertStringContainsString('Receive online orders on branch POS', $page);
+        $this->assertStringContainsString('Sole on/off for Branch POS online-order receive', $page);
+        $this->assertStringContainsString('regardless of each branch Online Orders switch', $page);
+
+        $settings = file_get_contents(app_path('Support/PosOnlineOrderReceiveSettings.php'));
+        $this->assertStringContainsString('sole on/off', $settings);
+        $this->assertStringContainsString('does not consult', $settings);
 
         $controller = file_get_contents(app_path('Http/Controllers/Admin/BusinessSettingsController.php'));
         $orderUpdate = $this->methodBody($controller, 'orderUpdate');
