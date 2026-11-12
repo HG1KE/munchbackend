@@ -275,6 +275,16 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('onlineOrderAreaRow', $js);
         $this->assertStringContainsString('Date.now() + 45000', $js);
         $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body)', $js);
+        $this->assertStringContainsString('CART_INACTIVITY_MS = 2 * 60 * 1000', $js);
+        $this->assertStringContainsString('function cartHasLines', $js);
+        $this->assertStringContainsString('function noteCartActivity', $js);
+        $this->assertStringContainsString('function expireIdleCart', $js);
+        $this->assertStringContainsString('function promptOnlineOrderIfCartEmpty', $js);
+        $this->assertStringContainsString('function pollOnlineOrdersTick', $js);
+        $this->assertStringContainsString('if (cartHasLines()) return;', $js);
+        $this->assertStringContainsString('onlineRing.visibilityBound', $js);
+        $this->assertStringContainsString('onlineRing.onlineBound', $js);
+        $this->assertStringContainsString('onlineRing.inFlight', $js);
 
         $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
         $this->assertStringContainsString('munch-pos-online-ring__fulfillment', $css);

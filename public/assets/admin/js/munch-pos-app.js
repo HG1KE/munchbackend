@@ -65,6 +65,7 @@
     var pendingAttempt = null;
     var checkingOrder = false;
     var POST_TIMEOUT_MS = (SubmitGuard && SubmitGuard.POST_TIMEOUT_MS) || 15000;
+    var CART_INACTIVITY_MS = 2 * 60 * 1000;
     var onlineRing = {
         open: false,
         accepting: false,
@@ -72,7 +73,14 @@
         lastOrderId: 0,
         order: null,
         timer: 0,
-        audioStarted: false
+        audioStarted: false,
+        visibilityBound: false,
+        onlineBound: false,
+        inFlight: false
+    };
+    var cartIdle = {
+        lastAt: 0,
+        timer: 0
     };
 
     function uuid() {
@@ -640,6 +648,8 @@
         });
         lastGridKey = '';
         persistCart();
+        noteCartActivity();
+        if (!cartHasLines()) afterCartLinesChanged();
         scheduleRender();
     }
 
@@ -858,6 +868,86 @@
         return idbPut('cart', stored, CART_KEY);
     }
 
+    function cartHasLines() {
+        return !!(state.cart && Array.isArray(state.cart.lines) && state.cart.lines.length);
+    }
+
+    function clearCartInactivityWatch() {
+        if (cartIdle.timer) {
+            clearTimeout(cartIdle.timer);
+            cartIdle.timer = 0;
+        }
+    }
+
+    function scheduleCartInactivityWatch() {
+        clearCartInactivityWatch();
+        if (!cartHasLines()) return;
+        if (!cartIdle.lastAt) cartIdle.lastAt = Date.now();
+        var remaining = CART_INACTIVITY_MS - (Date.now() - cartIdle.lastAt);
+        if (remaining < 0) remaining = 0;
+        cartIdle.timer = setTimeout(function () {
+            cartIdle.timer = 0;
+            try {
+                expireIdleCart();
+            } catch (err) { /* never break POS shell */ }
+        }, remaining);
+    }
+
+    function noteCartActivity() {
+        cartIdle.lastAt = Date.now();
+        if (cartHasLines() && onlineRing.open && !onlineRing.accepting) {
+            closeOnlineOrderModal();
+        }
+        scheduleCartInactivityWatch();
+    }
+
+    function expireIdleCart() {
+        if (!cartHasLines()) {
+            clearCartInactivityWatch();
+            return;
+        }
+        if (state.orderSubmitting || onlineRing.accepting || successJob) {
+            // Defer wipe while place/accept/success is in flight; do not reset the idle clock.
+            cartIdle.timer = setTimeout(function () {
+                cartIdle.timer = 0;
+                try {
+                    expireIdleCart();
+                } catch (err) { /* keep trying */ }
+            }, 5000);
+            return;
+        }
+        if (Date.now() - cartIdle.lastAt < CART_INACTIVITY_MS) {
+            scheduleCartInactivityWatch();
+            return;
+        }
+        try {
+            closeDeliveryModal(true);
+        } catch (err) { /* ignore */ }
+        try {
+            closeMarketplaceModal();
+        } catch (err) { /* ignore */ }
+        // Hard clear — no soft warning toast/modal.
+        clearCart();
+    }
+
+    function promptOnlineOrderIfCartEmpty() {
+        if (!onlineRingEnabled() || cartHasLines()) return;
+        if (successJob || onlineRing.accepting || onlineRing.open) return;
+        fetchPendingOnlineOrders();
+    }
+
+    function afterCartLinesChanged() {
+        if (cartHasLines()) {
+            if (!cartIdle.lastAt) cartIdle.lastAt = Date.now();
+            scheduleCartInactivityWatch();
+            if (onlineRing.open && !onlineRing.accepting) closeOnlineOrderModal();
+            return;
+        }
+        clearCartInactivityWatch();
+        cartIdle.lastAt = 0;
+        promptOnlineOrderIfCartEmpty();
+    }
+
     function applyDangerToastStyles(on) {
         if (!els.toast) return;
         els.toast.classList.toggle('munch-pos-toast--danger', !!on);
@@ -918,6 +1008,7 @@
         if (existing) existing.quantity += 1;
         else state.cart.lines.push({ productId: product.id, quantity: 1, variations: [], addon_id: [], addon_quantities: {}, has_modifiers: false });
         persistCart();
+        noteCartActivity();
         refreshCartUi(product.id);
     }
 
@@ -938,7 +1029,9 @@
         line.quantity += delta;
         if (line.quantity <= 0) state.cart.lines.splice(idx, 1);
         persistCart();
+        noteCartActivity();
         refreshCartUi(productId);
+        if (!cartHasLines()) afterCartLinesChanged();
     }
 
     function openModifiers(product) {
@@ -1012,6 +1105,7 @@
             var selectedAddons = collectSelectedAddons(card);
             addSelectedVariations(product, variations, qty, selectedAddons.addon_id, selectedAddons.addon_quantities);
             persistCart();
+            noteCartActivity();
             modal.hidden = true;
             refreshCartUi(product.id);
         };
@@ -1480,6 +1574,7 @@
         renderLines();
         renderTotals();
         ids.forEach(updateProductCard);
+        afterCartLinesChanged();
     }
 
     function refreshQueueCount() {
@@ -2163,16 +2258,25 @@
     function openOnlineOrderModal(order, opts) {
         if (!onlineRingEnabled() || !order) return;
         opts = opts || {};
+        // Never interrupt an active cart — polling continues in the background.
+        if (cartHasLines()) return;
         if (successJob || onlineRing.accepting) return;
         if (Date.now() < onlineRing.snoozedUntil && Number(order.id) === onlineRing.lastOrderId && !opts.force) {
             return;
         }
-        renderOnlineOrderModal(order);
-        onlineRing.open = true;
-        onlineRing.snoozedUntil = 0;
-        els.onlineOrderModal.hidden = false;
-        syncPosOverlayState();
-        if (opts.play !== false) playOnlineOrderAudio();
+        try {
+            renderOnlineOrderModal(order);
+            onlineRing.open = true;
+            onlineRing.snoozedUntil = 0;
+            els.onlineOrderModal.hidden = false;
+            syncPosOverlayState();
+            if (opts.play !== false) playOnlineOrderAudio();
+        } catch (err) {
+            onlineRing.open = false;
+            try {
+                if (els.onlineOrderModal) els.onlineOrderModal.hidden = true;
+            } catch (hideErr) { /* ignore */ }
+        }
     }
 
     function closeOnlineOrderModal(opts) {
@@ -2193,54 +2297,99 @@
     }
 
     function fetchPendingOnlineOrders() {
-        if (!onlineRingEnabled() || !navigator.onLine) return Promise.resolve(null);
+        if (!onlineRingEnabled()) return Promise.resolve(null);
+        if (!navigator.onLine) return Promise.resolve(null);
         if (document.visibilityState === 'hidden') return Promise.resolve(null);
-        return fetch(CFG.urls.pendingOnlineOrders, {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json', 'X-Munch-POS': '1' }
-        }).then(function (res) {
-            if (res.status === 401 || res.status === 403) {
-                state.authRequired = true;
-                scheduleRender();
-                return null;
-            }
-            return res.json();
-        }).then(function (json) {
-            var data = json && json.data ? json.data : null;
-            if (!data) return null;
-            var count = Number(data.new_order || 0);
-            var order = data.order || null;
-            if (count > 0 && order) {
-                openOnlineOrderModal(order, {
-                    play: !onlineRing.open || Number(order.id) !== onlineRing.lastOrderId
+        if (onlineRing.inFlight) return Promise.resolve(null);
+        onlineRing.inFlight = true;
+        return Promise.resolve()
+            .then(function () {
+                return fetch(CFG.urls.pendingOnlineOrders, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json', 'X-Munch-POS': '1' }
                 });
-            } else if (onlineRing.open && !onlineRing.accepting) {
-                closeOnlineOrderModal();
-            }
-            return data;
-        }).catch(function () {
-            return null;
-        });
+            })
+            .then(function (res) {
+                if (!res) return null;
+                if (res.status === 401 || res.status === 403) {
+                    state.authRequired = true;
+                    scheduleRender();
+                    return null;
+                }
+                return res.json().catch(function () { return null; });
+            })
+            .then(function (json) {
+                var data = json && json.data ? json.data : null;
+                if (!data) return null;
+                var count = Number(data.new_order || 0);
+                var order = data.order || null;
+                if (count > 0 && order) {
+                    if (cartHasLines()) {
+                        // Keep polling; suppress ring UI until cart is empty.
+                        return data;
+                    }
+                    openOnlineOrderModal(order, {
+                        play: !onlineRing.open || Number(order.id) !== onlineRing.lastOrderId
+                    });
+                } else if (onlineRing.open && !onlineRing.accepting) {
+                    closeOnlineOrderModal();
+                }
+                return data;
+            })
+            .catch(function () {
+                return null;
+            })
+            .then(function (data) {
+                onlineRing.inFlight = false;
+                return data;
+            })
+            .catch(function () {
+                onlineRing.inFlight = false;
+                return null;
+            });
+    }
+
+    function pollOnlineOrdersTick() {
+        try {
+            if (document.visibilityState === 'hidden') return;
+            // Skip only this tick while accept is in flight — never clear the interval.
+            if (onlineRing.accepting) return;
+            fetchPendingOnlineOrders();
+        } catch (err) { /* interval must stay alive */ }
     }
 
     function startOnlineOrderPolling() {
-        if (!onlineRingEnabled() || onlineRing.timer) return;
-        fetchPendingOnlineOrders();
-        onlineRing.timer = setInterval(function () {
-            if (document.visibilityState === 'hidden') return;
-            if (onlineRing.accepting) return;
+        if (!onlineRingEnabled()) return;
+        // Never replace a live interval — nothing may permanently disable polling.
+        if (!onlineRing.timer) {
+            onlineRing.timer = setInterval(pollOnlineOrdersTick, 10000);
+        }
+        try {
             fetchPendingOnlineOrders();
-        }, 10000);
-        document.addEventListener('visibilitychange', function () {
-            if (document.visibilityState === 'visible') fetchPendingOnlineOrders();
-            else stopOnlineOrderAudio();
-        });
+        } catch (err) { /* first tick failure must not abort start */ }
+        if (!onlineRing.visibilityBound) {
+            onlineRing.visibilityBound = true;
+            document.addEventListener('visibilitychange', function () {
+                try {
+                    if (document.visibilityState === 'visible') fetchPendingOnlineOrders();
+                    else stopOnlineOrderAudio();
+                } catch (err) { /* resume must never throw out */ }
+            });
+        }
+        if (!onlineRing.onlineBound) {
+            onlineRing.onlineBound = true;
+            window.addEventListener('online', function () {
+                try {
+                    fetchPendingOnlineOrders();
+                } catch (err) { /* network resume */ }
+            });
+        }
     }
 
     function acceptOnlineOrder(ev) {
         if (ignoreIfSubmitting(ev)) return;
         if (!onlineRingEnabled() || onlineRing.accepting || !onlineRing.order) return;
-        if (successJob) return;
+        if (successJob || cartHasLines()) return;
         var orderId = Number(onlineRing.order.id || 0);
         if (!orderId) return;
         onlineRing.accepting = true;
@@ -2268,6 +2417,8 @@
                 body = body && typeof body === 'object' ? body : {};
                 body._http = res.status;
                 return body;
+            }).catch(function () {
+                return { success: 0, _http: res && res.status, message: L('onlineOrderAcceptFailed', 'Could not accept this order. Please try again.') };
             });
         }).then(function (body) {
             var outcome = classifyPostedResult(body);
@@ -2300,6 +2451,8 @@
                 state.authRequired = true;
                 scheduleRender();
             }
+            // Accept failure must not stop pending-order polling.
+            try { fetchPendingOnlineOrders(); } catch (err) { /* ignore */ }
         }).catch(function () {
             onlineRing.accepting = false;
             if (els.onlineOrderAccept) {
@@ -2314,6 +2467,7 @@
             } else {
                 toast(message);
             }
+            try { fetchPendingOnlineOrders(); } catch (err) { /* ignore */ }
         });
     }
 
@@ -3558,6 +3712,7 @@
                 var productId = line.productId;
                 line.quantity = Math.max(1, line.quantity + delta);
                 persistCart();
+                noteCartActivity();
                 refreshCartUi(productId);
                 return;
             }
@@ -3567,7 +3722,9 @@
                 var removedId = removed && removed.productId;
                 state.cart.lines.splice(Number(remove.getAttribute('data-remove')), 1);
                 persistCart();
+                noteCartActivity();
                 refreshCartUi(removedId);
+                if (!cartHasLines()) afterCartLinesChanged();
             }
         });
         els.pay.addEventListener('click', function (ev) {
@@ -3575,6 +3732,7 @@
             if (!btn) return;
             state.cart.payment = btn.getAttribute('data-pay');
             persistCart();
+            noteCartActivity();
             scheduleRender();
         });
         bindSubmitControl(els.deliveryConfirm, confirmDeliveryAndPlace);
@@ -3615,10 +3773,29 @@
         }
         var deliveryPhone = document.getElementById('pos-del-phone');
         if (deliveryPhone) bindDeliveryPhoneField(deliveryPhone);
+        if (els.deliveryModal) {
+            els.deliveryModal.addEventListener('input', function (ev) {
+                if (!ev.target || !ev.target.closest('[data-del-field]')) return;
+                try {
+                    readDeliveryModal();
+                    persistCart();
+                    noteCartActivity();
+                } catch (err) { /* ignore */ }
+            });
+            els.deliveryModal.addEventListener('change', function (ev) {
+                if (!ev.target || !ev.target.closest('[data-del-field]')) return;
+                try {
+                    readDeliveryModal();
+                    persistCart();
+                    noteCartActivity();
+                } catch (err) { /* ignore */ }
+            });
+        }
         if (els.discount) {
             els.discount.addEventListener('input', function () {
                 stripCashierDiscount(state.cart);
                 persistCart();
+                noteCartActivity();
                 scheduleRender();
             });
         }
@@ -3626,6 +3803,7 @@
             els.discountType.addEventListener('change', function () {
                 stripCashierDiscount(state.cart);
                 persistCart();
+                noteCartActivity();
                 scheduleRender();
             });
         }
@@ -3804,6 +3982,7 @@
             state.online = true;
             scheduleRender();
             refreshHeartbeat().then(function () { syncQueue(); });
+            try { fetchPendingOnlineOrders(); } catch (err) { /* polling resume */ }
         });
         window.addEventListener('offline', function () {
             state.online = false;
@@ -3873,6 +4052,10 @@
                 resetDelivery();
             }
             persistCart();
+            if (cartHasLines()) {
+                cartIdle.lastAt = Date.now();
+                scheduleCartInactivityWatch();
+            }
             return refreshQueueCount();
         }).then(function () {
             scheduleRender();
@@ -3881,7 +4064,7 @@
             if (navigator.onLine) refreshHeartbeat().then(function () { syncQueue(); });
         }).catch(function () {
             scheduleRender();
-            startOnlineOrderPolling();
+            try { startOnlineOrderPolling(); } catch (err) { /* must still try */ }
         });
     }
 
