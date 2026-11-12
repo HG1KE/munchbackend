@@ -22,6 +22,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Model\Product;
 use App\Model\ProductByBranch;
+use App\Services\OrderWalletCancelRefundService;
 use App\Support\OrderPlacementTime;
 use App\Support\StorefrontVisibilitySchedule;
 use App\Model\TimeSchedule;
@@ -773,6 +774,9 @@ class OrderController extends Controller
             $this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $order->id])->update([
                 'order_status' => 'canceled'
             ]);
+            $canceledOrder = $this->order->find($order->id) ?? $order;
+            app(OrderWalletCancelRefundService::class)->refundIfNeeded($canceledOrder);
+
             return response()->json(['message' => translate('order_canceled')], 200);
         }
         return response()->json([

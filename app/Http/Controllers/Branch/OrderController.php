@@ -14,6 +14,7 @@ use App\Model\CustomerAddress;
 use App\Model\DeliveryHistory;
 use App\Model\Order;
 use App\Services\OrderReadableIdService;
+use App\Services\OrderWalletCancelRefundService;
 use App\Support\OrderListBadgeCounts;
 use App\Support\OrderPublicNumber;
 use App\Support\OrderViewBootstrap;
@@ -235,6 +236,10 @@ class OrderController extends Controller
             $order->payment_status = 'paid';
         }
         $order->save();
+
+        if ($request->order_status == 'canceled') {
+            app(OrderWalletCancelRefundService::class)->refundIfNeeded($order);
+        }
 
         $orderFresh = $order->fresh(['customer', 'branch']);
         CustomerOrderStatusSms::dispatchProcessing($orderFresh, $previousOrderStatus);

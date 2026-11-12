@@ -143,6 +143,9 @@ class PosOrderCancellationService
             }
 
             if (self::isCancelledStatus($locked->order_status)) {
+                // Idempotent: still restore any outstanding wallet debit from older cancel paths.
+                app(OrderWalletCancelRefundService::class)->refundIfNeeded($locked);
+
                 return [
                     'success' => true,
                     'duplicate' => true,
@@ -194,6 +197,8 @@ class PosOrderCancellationService
                 $locked->pos_cancel_client_uuid = $clientUuid;
             }
             $locked->save();
+
+            app(OrderWalletCancelRefundService::class)->refundIfNeeded($locked);
 
             $this->auditLogger->record(
                 $locked,
