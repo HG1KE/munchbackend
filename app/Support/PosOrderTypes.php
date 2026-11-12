@@ -283,8 +283,8 @@ class PosOrderTypes
     {
         return match (self::normalize($type)) {
             self::DELIVERY => $posMpesaEnabled
-                ? ['cash', self::PAYSTACK, 'mpesa']
-                : ['cash', self::PAYSTACK],
+                ? ['cash', 'mpesa']
+                : ['cash'],
             self::TAKE_AWAY, self::DINE_IN => $posMpesaEnabled
                 ? ['cash', 'card', 'mpesa']
                 : ['cash', 'card'],
@@ -310,10 +310,9 @@ class PosOrderTypes
         }
 
         $requested = (string) $requested;
-        if (self::isDelivery($type)) {
-            return $requested === 'card' ? self::PAYSTACK : $requested;
-        }
-        if ($requested === self::PAYSTACK) {
+        // Delivery no longer offers Paystack; leave requested tender as-is.
+        // Take-away / dine-in still remap a leftover Paystack selection to Card.
+        if (! self::isDelivery($type) && $requested === self::PAYSTACK) {
             return 'card';
         }
 

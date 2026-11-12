@@ -46,11 +46,12 @@ function extractFunction(src, name) {
 }
 
 function run() {
-    return test('delivery offers cash paystack mpesa and not card', function () {
+    return test('delivery offers cash mpesa and not paystack or card', function () {
         var methodsFn = extractFunction(appSrc, 'paymentMethods');
         assert(methodsFn.indexOf("state.cart.orderType === 'delivery'") !== -1, 'delivery branch missing');
-        assert(methodsFn.indexOf("['cash', 'paystack', 'mpesa']") !== -1, 'delivery must be cash/paystack/mpesa');
-        assert(methodsFn.indexOf("delivery.push('paystack')") === -1, 'must not add a fifth paystack button');
+        assert(methodsFn.indexOf("['cash', 'mpesa']") !== -1, 'delivery must be cash/mpesa');
+        assert(methodsFn.indexOf("['cash', 'paystack'") === -1, 'paystack must not be a delivery tender');
+        assert(methodsFn.indexOf("delivery.push('paystack')") === -1, 'must not add a paystack button');
         assert(methodsFn.indexOf("take_away") !== -1, 'take away branch missing');
         var takeAwayBlock = methodsFn.slice(methodsFn.indexOf("take_away"));
         assert(takeAwayBlock.indexOf('paystack') === -1, 'paystack leaked into take away/dine in');
@@ -58,19 +59,19 @@ function run() {
         assert(methodsFn.indexOf('PaystackPop') === -1, 'gateway popup leaked into paymentMethods');
     })
         .then(function () {
-            return test('switching delivery and dine in remaps paystack to card and back', function () {
+            return test('switching delivery and dine in remaps paystack to card and card to cash', function () {
                 var remap = extractFunction(appSrc, 'remapPaymentForOrderType');
                 var renderPay = extractFunction(appSrc, 'renderPay');
                 var fn = new Function(remap + '; return remapPaymentForOrderType;')();
                 assert(fn('paystack', ['cash', 'card', 'mpesa']) === 'card', 'paystack must become card');
-                assert(fn('card', ['cash', 'paystack', 'mpesa']) === 'paystack', 'card must become paystack');
-                assert(fn('cash', ['cash', 'paystack', 'mpesa']) === 'cash', 'cash must stay cash');
+                assert(fn('card', ['cash', 'mpesa']) === 'cash', 'card must fall back off delivery');
+                assert(fn('cash', ['cash', 'mpesa']) === 'cash', 'cash must stay cash');
                 assert(fn('mpesa', ['cash', 'card', 'mpesa']) === 'mpesa', 'mpesa must stay mpesa');
                 assert(renderPay.indexOf('remapPaymentForOrderType') !== -1, 'renderPay must remap on type switch');
             });
         })
         .then(function () {
-            return test('place order sends paystack as a classification only', function () {
+            return test('place order never opens a Paystack gateway', function () {
                 var build = extractFunction(appSrc, 'buildPayload');
                 var submit = extractFunction(appSrc, 'submitPlacedOrder');
                 assert(build.indexOf('type: state.cart.payment') !== -1, 'payload must send selected payment');
@@ -83,7 +84,7 @@ function run() {
             });
         })
         .then(function () {
-            return test('receipt prints Paystack and not cash/card/mpesa', function () {
+            return test('receipt still prints historical Paystack labels', function () {
                 var sandbox = { window: {}, console: console };
                 sandbox.window = sandbox;
                 vm.runInNewContext(ticketSrc, sandbox);

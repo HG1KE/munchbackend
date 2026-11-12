@@ -8,11 +8,12 @@ use Tests\TestCase;
 
 class PosPaystackClassificationTest extends TestCase
 {
-    public function test_paystack_is_delivery_only_and_not_a_marketplace_or_online_order(): void
+    public function test_paystack_is_not_offered_on_delivery_and_is_not_marketplace(): void
     {
-        $this->assertSame(['cash', 'paystack', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
-        $this->assertCount(3, PosOrderTypes::paymentMethods('delivery'));
+        $this->assertSame(['cash', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
+        $this->assertCount(2, PosOrderTypes::paymentMethods('delivery'));
         $this->assertNotContains('card', PosOrderTypes::paymentMethods('delivery'));
+        $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('delivery'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('take_away'));
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('dine_in'));
         $this->assertContains('card', PosOrderTypes::paymentMethods('take_away'));
@@ -22,7 +23,7 @@ class PosPaystackClassificationTest extends TestCase
         $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('bolt_food'));
 
         $this->assertSame('paystack', PosOrderTypes::resolvedPaymentMethod('delivery', 'paystack'));
-        $this->assertSame('paystack', PosOrderTypes::resolvedPaymentMethod('delivery', 'card'));
+        $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('delivery', 'card'));
         $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('take_away', 'paystack'));
         $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('dine_in', 'paystack'));
         $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('take_away', 'card'));
@@ -53,7 +54,8 @@ class PosPaystackClassificationTest extends TestCase
         $this->assertStringContainsString("when(\$request['branch_id'] !== 'all'", $controller);
         $this->assertStringContainsString('id="pay-paystack"', $page);
         $this->assertStringContainsString('paystack: @json(translate(\'Paystack\'))', $posPage);
-        $this->assertStringContainsString("['cash', 'paystack', 'mpesa']", $app);
+        $this->assertStringContainsString("['cash', 'mpesa']", $app);
+        $this->assertStringNotContainsString("['cash', 'paystack'", $app);
         $this->assertStringContainsString('function remapPaymentForOrderType', $app);
         $this->assertStringNotContainsString("delivery.push('paystack')", $app);
         $this->assertStringContainsString("if (method === 'paystack') return L('paystack', 'Paystack')", $app);

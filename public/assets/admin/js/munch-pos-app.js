@@ -837,7 +837,7 @@
 
     function paymentMethods() {
         if (state.cart.orderType === 'delivery') {
-            return posMpesaEnabled() ? ['cash', 'paystack', 'mpesa'] : ['cash', 'paystack'];
+            return posMpesaEnabled() ? ['cash', 'mpesa'] : ['cash'];
         }
         if (state.cart.orderType === 'take_away' || state.cart.orderType === 'dine_in') {
             return posMpesaEnabled() ? ['cash', 'card', 'mpesa'] : ['cash', 'card'];

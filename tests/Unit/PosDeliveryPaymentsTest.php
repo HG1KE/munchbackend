@@ -7,13 +7,15 @@ use Tests\TestCase;
 
 class PosDeliveryPaymentsTest extends TestCase
 {
-    public function test_delivery_replaces_card_with_paystack_and_keeps_three_methods(): void
+    public function test_delivery_offers_cash_and_mpesa_without_paystack_or_card(): void
     {
         $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('take_away'));
         $this->assertSame(['cash', 'card', 'mpesa'], PosOrderTypes::paymentMethods('dine_in'));
-        $this->assertSame(['cash', 'paystack', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
-        $this->assertCount(3, PosOrderTypes::paymentMethods('delivery'));
+        $this->assertSame(['cash', 'mpesa'], PosOrderTypes::paymentMethods('delivery'));
+        $this->assertSame(['cash'], PosOrderTypes::paymentMethods('delivery', false));
+        $this->assertCount(2, PosOrderTypes::paymentMethods('delivery'));
         $this->assertNotContains('card', PosOrderTypes::paymentMethods('delivery'));
+        $this->assertNotContains('paystack', PosOrderTypes::paymentMethods('delivery'));
 
         foreach (['cash', 'card', 'mpesa'] as $method) {
             $this->assertTrue(PosOrderTypes::isImmediatePosPayment($method), $method);
@@ -27,7 +29,7 @@ class PosDeliveryPaymentsTest extends TestCase
         $this->assertSame('cash', PosOrderTypes::resolvedPaymentMethod('delivery', 'cash'));
         $this->assertSame('mpesa', PosOrderTypes::resolvedPaymentMethod('delivery', 'mpesa'));
         $this->assertSame('paystack', PosOrderTypes::resolvedPaymentMethod('delivery', 'paystack'));
-        $this->assertSame('paystack', PosOrderTypes::resolvedPaymentMethod('delivery', 'card'));
+        $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('delivery', 'card'));
         $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('take_away', 'card'));
         $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('dine_in', 'card'));
         $this->assertSame('card', PosOrderTypes::resolvedPaymentMethod('take_away', 'paystack'));
@@ -39,7 +41,7 @@ class PosDeliveryPaymentsTest extends TestCase
         $this->assertSame(['bolt_food'], PosOrderTypes::paymentMethods('bolt_food'));
     }
 
-    public function test_pos_client_offers_cash_card_and_mpesa_for_delivery(): void
+    public function test_pos_client_offers_cash_and_mpesa_for_delivery(): void
     {
         $app = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $ticket = file_get_contents(public_path('assets/admin/js/munch-receipt-ticket.js'));
@@ -48,7 +50,8 @@ class PosDeliveryPaymentsTest extends TestCase
 
         $methods = $this->functionBody($app, 'function paymentMethods');
         $this->assertStringContainsString("state.cart.orderType === 'delivery'", $methods);
-        $this->assertStringContainsString("['cash', 'paystack', 'mpesa']", $methods);
+        $this->assertStringContainsString("['cash', 'mpesa']", $methods);
+        $this->assertStringNotContainsString("['cash', 'paystack'", $methods);
         $this->assertStringContainsString("function remapPaymentForOrderType", $app);
         $this->assertStringNotContainsString("delivery.push('paystack')", $methods);
         $this->assertStringNotContainsString('cash_on_delivery', $methods);
