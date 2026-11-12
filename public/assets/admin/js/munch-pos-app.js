@@ -3681,7 +3681,10 @@
         if (els.ordersValue) {
             if (ordersUi.filter === 'online') {
                 els.ordersValue.hidden = false;
-                els.ordersValue.textContent = money(ordersUi.ordersValue == null ? 0 : ordersUi.ordersValue);
+                // Habib: "Total Paid Online: Ksh820" — labeled, not bare symbol+amount.
+                els.ordersValue.textContent = L('totalPaidOnline', 'Total Paid Online')
+                    + ': '
+                    + money(ordersUi.ordersValue == null ? 0 : ordersUi.ordersValue);
             } else {
                 els.ordersValue.hidden = true;
                 els.ordersValue.textContent = '';

@@ -363,6 +363,8 @@
             refresh: @json(translate('Refresh')),
             close: @json(translate('Close')),
             allOrders: @json(translate('All')),
+            onlineOrders: @json(translate('Online Orders')),
+            totalPaidOnline: @json(translate('Total Paid Online')),
             completed: @json(translate('Completed')),
             cancelled: @json(translate('Cancelled')),
             active: @json(translate('Active')),

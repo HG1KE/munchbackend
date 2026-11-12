@@ -269,13 +269,17 @@ class BranchPosTodayOrdersTest extends TestCase
         $this->assertStringContainsString("ordersUi.filter === 'online'", $js);
         $this->assertStringContainsString("getElementById('pos-orders-value')", $js);
         $this->assertStringContainsString('els.ordersValue', $js);
+        $this->assertStringContainsString("L('totalPaidOnline', 'Total Paid Online')", $js);
         $this->assertStringNotContainsString('is-orders-value', $js);
         $blade = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
         $this->assertStringContainsString('id="pos-orders-value"', $blade);
+        $this->assertStringContainsString("totalPaidOnline: @json(translate('Total Paid Online'))", $blade);
         $this->assertTrue(
             strpos($blade, 'id="pos-orders-filters"') < strpos($blade, 'id="pos-orders-value"')
             && strpos($blade, 'id="pos-orders-value"') < strpos($blade, 'id="pos-orders-list"')
         );
+        $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
+        $this->assertMatchesRegularExpression('/\.munch-pos-orders__value\s*\{[^}]*font-size:\s*1\.35rem/s', $css);
         $this->assertTrue($service->isOnlineOrdersFilter('online'));
         $this->assertTrue($service->isOnlineOrdersFilter('online_orders'));
         $this->assertFalse($service->isOnlineOrdersFilter('delivery'));

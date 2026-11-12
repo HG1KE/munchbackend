@@ -436,7 +436,7 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('.munch-pos-online-ring__actions .munch-pos-clear', $css);
         $this->assertStringContainsString('background: #94a3b8', $css);
 
-        $this->assertSame('6.24', PosClientVersion::ASSET);
+        $this->assertSame('6.25', PosClientVersion::ASSET);
         $this->assertStringContainsString('order.payable_amount', $js);
     }
 
