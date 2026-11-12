@@ -1815,6 +1815,7 @@ class BusinessSettingsController extends Controller
     public function orderUpdate(Request $request): RedirectResponse
     {
         $request['cutlery_status'] = $request->has('cutlery_status') ? 1 : 0;
+        $request['pos_online_order_receive_status'] = $request->has('pos_online_order_receive_status') ? 1 : 0;
 
         $this->InsertOrUpdateBusinessData(['key' => 'minimum_order_value'], [
             'value' => $request['minimum_order_value'],
@@ -1828,6 +1829,9 @@ class BusinessSettingsController extends Controller
         ]);
         $this->InsertOrUpdateBusinessData(['key' => 'cutlery_status'], [
             'value' => $request['cutlery_status']
+        ]);
+        $this->InsertOrUpdateBusinessData(['key' => 'pos_online_order_receive_status'], [
+            'value' => $request['pos_online_order_receive_status']
         ]);
 
         Toastr::success(translate('Settings updated!'));

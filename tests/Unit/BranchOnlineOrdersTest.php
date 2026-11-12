@@ -108,13 +108,15 @@ class BranchOnlineOrdersTest extends TestCase
     public function test_pos_marketplace_and_reports_are_untouched(): void
     {
         $pos = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
-        // Ring/ACCEPT uses the dashboard switch; placeOrder itself stays ungated.
+        // Ring/ACCEPT uses the dashboard switch + global POS receive flag; placeOrder stays ungated.
         $this->assertStringContainsString('BranchOnlineOrdering::isEnabled', $pos);
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $pos);
         $this->assertStringContainsString('function pendingOnlineOrders', $pos);
         $this->assertStringContainsString('function acceptOnlineOrder', $pos);
         $this->assertStringContainsString('function placeOrder', $pos);
         $placeOrder = $this->methodBody($pos, 'placeOrder');
         $this->assertStringNotContainsString('BranchOnlineOrdering', $placeOrder);
+        $this->assertStringNotContainsString('PosOnlineOrderReceiveSettings', $placeOrder);
 
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'glovo'));
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'uber'));

@@ -6,6 +6,7 @@ use App\CentralLogics\Helpers;
 use App\Model\Order;
 use App\Services\OnlineOrderPosAcceptService;
 use App\Support\PosClientVersion;
+use App\Support\PosOnlineOrderReceiveSettings;
 use App\Support\PosOrderTypes;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -244,12 +245,16 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('function pendingOnlineOrders', $controller);
         $this->assertStringContainsString('function acceptOnlineOrder', $controller);
         $this->assertStringContainsString('OnlineOrderPosAcceptService', $controller);
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $controller);
+        $this->assertStringContainsString('pos_online_receive_disabled', $controller);
 
         $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
         $this->assertStringContainsString('pos-online-order-modal', $page);
         $this->assertStringContainsString('pos-online-order-accept', $page);
         $this->assertStringContainsString('pendingOnlineOrders', $page);
         $this->assertStringContainsString('acceptOnlineOrder', $page);
+        $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $page);
+        $this->assertStringNotContainsString("get_business_settings('admin_order_notification')", $page);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $this->assertStringContainsString('function acceptOnlineOrder', $js);
@@ -257,6 +262,60 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body)', $js);
 
         $this->assertSame('6.15', PosClientVersion::ASSET);
+    }
+
+    public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void
+    {
+        Helpers::forgetBusinessSettingsRuntimeCache();
+        $this->assertFalse(PosOnlineOrderReceiveSettings::isEnabled());
+        $this->assertSame('pos_online_order_receive_status', PosOnlineOrderReceiveSettings::KEY);
+
+        DB::table('business_settings')->updateOrInsert(
+            ['key' => PosOnlineOrderReceiveSettings::KEY],
+            ['value' => '1']
+        );
+        Helpers::forgetBusinessSettingsRuntimeCache();
+        $this->assertTrue(PosOnlineOrderReceiveSettings::isEnabled());
+
+        DB::table('business_settings')->where('key', PosOnlineOrderReceiveSettings::KEY)->update(['value' => '0']);
+        Helpers::forgetBusinessSettingsRuntimeCache();
+        $this->assertFalse(PosOnlineOrderReceiveSettings::isEnabled());
+    }
+
+    public function test_order_settings_ui_exposes_pos_online_receive_toggle(): void
+    {
+        $page = file_get_contents(resource_path('views/admin-views/business-settings/order-index.blade.php'));
+        $this->assertStringContainsString('name="pos_online_order_receive_status"', $page);
+        $this->assertStringContainsString('Receive online orders on branch POS', $page);
+
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/BusinessSettingsController.php'));
+        $orderUpdate = $this->methodBody($controller, 'orderUpdate');
+        $this->assertStringContainsString("has('pos_online_order_receive_status') ? 1 : 0", $orderUpdate);
+        $this->assertStringContainsString("'key' => 'pos_online_order_receive_status'", $orderUpdate);
+    }
+
+    private function methodBody(string $source, string $method): string
+    {
+        $start = strpos($source, 'function '.$method);
+        $this->assertNotFalse($start, $method.' missing');
+        $brace = strpos($source, '{', $start);
+        $this->assertNotFalse($brace, $method.' body missing');
+
+        $depth = 0;
+        $len = strlen($source);
+        for ($i = $brace; $i < $len; $i++) {
+            $ch = $source[$i];
+            if ($ch === '{') {
+                $depth++;
+            } elseif ($ch === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($source, $brace, $i - $brace + 1);
+                }
+            }
+        }
+
+        $this->fail($method.' body unclosed');
     }
 
     private function service(): OnlineOrderPosAcceptService

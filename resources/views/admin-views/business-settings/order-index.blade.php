@@ -73,6 +73,24 @@
                                 </label>
                             </div>
                         </div>
+                        <div class="col-lg-4 col-sm-6 mb-4 mt-5">
+                            @php($posOnlineOrderReceiveStatus=\App\CentralLogics\Helpers::get_business_settings('pos_online_order_receive_status'))
+                            <div class="form-control d-flex justify-content-between align-items-center gap-3">
+                                <div>
+                                    <label class="text-dark mb-0">{{translate('Receive online orders on branch POS')}}
+                                        <i class="tio-info-outined"
+                                           data-toggle="tooltip"
+                                           data-placement="top"
+                                           title="{{ translate('When enabled, open Branch POS sessions poll and ring for pending online orders and can ACCEPT them into POS sales. When disabled, POS does not poll, ring, or accept online orders.') }}">
+                                        </i>
+                                    </label>
+                                </div>
+                                <label class="switcher">
+                                    <input class="switcher_input" type="checkbox" name="pos_online_order_receive_status" {{ $posOnlineOrderReceiveStatus == null || $posOnlineOrderReceiveStatus == 0? '' : 'checked'}} id="pos_online_order_receive_status">
+                                    <span class="switcher_control"></span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="btn--container">
                         <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>

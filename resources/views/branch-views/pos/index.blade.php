@@ -2,8 +2,8 @@
 
 @php
     $branchAcceptsOnlineOrders = \App\Support\BranchOnlineOrdering::isEnabled(auth('branch')->user());
-    $adminOrderNotification = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification');
-    $posOnlineRingEnabled = $branchAcceptsOnlineOrders && $adminOrderNotification;
+    $posReceivesOnlineOrders = \App\Support\PosOnlineOrderReceiveSettings::isEnabled();
+    $posOnlineRingEnabled = $branchAcceptsOnlineOrders && $posReceivesOnlineOrders;
 @endphp
 
 @section('title', translate('POS') . ' · ' . $branchName)
