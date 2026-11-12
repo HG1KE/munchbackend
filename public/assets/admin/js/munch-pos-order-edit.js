@@ -5,6 +5,9 @@
     var CANCELLED_MESSAGE = 'Cancelled orders cannot be edited.';
     var MARKETPLACE_MESSAGE = 'Marketplace orders cannot be edited.';
     var RECEIPT_CANCELLED_MESSAGE = 'Cancelled orders cannot print a customer receipt.';
+    var CLOSE_NEED_KITCHEN = 'Cannot close until you print Kitchen Order Receipt';
+    var CLOSE_NEED_CUSTOMER = 'Cannot close until you print Customer Receipt';
+    var CLOSE_NEED_BOTH = 'Cannot close until you print Kitchen Order Receipt and Customer Receipt';
 
     function statusOf(order) {
         return String((order && (order.order_status || order.orderStatus)) || '');
@@ -56,11 +59,28 @@
         return PRINTED_MESSAGE;
     }
 
+    function successCloseBlockedReason(order) {
+        if (!order || isCancelled(order)) return '';
+        var needKitchen = !kitchenPrinted(order);
+        var needReceipt = !receiptPrinted(order);
+        if (!needKitchen && !needReceipt) return '';
+        if (needKitchen && needReceipt) return CLOSE_NEED_BOTH;
+        if (needKitchen) return CLOSE_NEED_KITCHEN;
+        return CLOSE_NEED_CUSTOMER;
+    }
+
+    function canCloseSuccessModal(order) {
+        return !successCloseBlockedReason(order);
+    }
+
     root.MunchPosOrderRules = {
         PRINTED_MESSAGE: PRINTED_MESSAGE,
         CANCELLED_MESSAGE: CANCELLED_MESSAGE,
         MARKETPLACE_MESSAGE: MARKETPLACE_MESSAGE,
         RECEIPT_CANCELLED_MESSAGE: RECEIPT_CANCELLED_MESSAGE,
+        CLOSE_NEED_KITCHEN: CLOSE_NEED_KITCHEN,
+        CLOSE_NEED_CUSTOMER: CLOSE_NEED_CUSTOMER,
+        CLOSE_NEED_BOTH: CLOSE_NEED_BOTH,
         isCancelled: isCancelled,
         isMarketplace: isMarketplace,
         isPrinted: isPrinted,
@@ -69,7 +89,9 @@
         canPrintCustomerReceipt: canPrintCustomerReceipt,
         canPrintKitchenTicket: canPrintKitchenTicket,
         canEditPostedOrder: canEditPostedOrder,
-        editBlockedReason: editBlockedReason
+        editBlockedReason: editBlockedReason,
+        successCloseBlockedReason: successCloseBlockedReason,
+        canCloseSuccessModal: canCloseSuccessModal
     };
 
     if (typeof module !== 'undefined' && module.exports) {

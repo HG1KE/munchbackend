@@ -1874,7 +1874,52 @@
         renderTotals();
     }
 
+    function showSuccessCloseBlocked(message) {
+        if (!message) return;
+        if (els.successMessage) {
+            els.successMessage.hidden = false;
+            els.successMessage.textContent = message;
+        } else {
+            toast(message);
+        }
+    }
+
+    function successCloseBlockedCopy(job) {
+        if (!job) return '';
+        if (OrderRules.successCloseBlockedReason) {
+            var reason = OrderRules.successCloseBlockedReason(job);
+            if (!reason) return '';
+            if (reason === OrderRules.CLOSE_NEED_BOTH) {
+                return L('closeNeedBothPrints', OrderRules.CLOSE_NEED_BOTH);
+            }
+            if (reason === OrderRules.CLOSE_NEED_KITCHEN) {
+                return L('closeNeedKitchenPrint', OrderRules.CLOSE_NEED_KITCHEN);
+            }
+            if (reason === OrderRules.CLOSE_NEED_CUSTOMER) {
+                return L('closeNeedCustomerPrint', OrderRules.CLOSE_NEED_CUSTOMER);
+            }
+            return reason;
+        }
+        var needKitchen = !job.kitchenPrinted;
+        var needReceipt = !job.receiptPrinted;
+        if (!needKitchen && !needReceipt) return '';
+        if (needKitchen && needReceipt) {
+            return L('closeNeedBothPrints', 'Cannot close until you print Kitchen Order Receipt and Customer Receipt');
+        }
+        if (needKitchen) {
+            return L('closeNeedKitchenPrint', 'Cannot close until you print Kitchen Order Receipt');
+        }
+        return L('closeNeedCustomerPrint', 'Cannot close until you print Customer Receipt');
+    }
+
     function dismissPlacedOrder() {
+        if (successJob) {
+            var blocked = successCloseBlockedCopy(successJob);
+            if (blocked) {
+                showSuccessCloseBlocked(blocked);
+                return;
+            }
+        }
         successJob = null;
         clearPostedEditState();
         if (els.successModal) els.successModal.hidden = true;

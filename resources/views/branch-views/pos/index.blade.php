@@ -430,6 +430,9 @@
             editBlockedCancelled: @json(translate('Cancelled orders cannot be edited.')),
             editBlockedMarketplace: @json(translate('Marketplace orders cannot be edited.')),
             receiptCancelled: @json(translate('Cancelled orders cannot print a customer receipt.')),
+            closeNeedKitchenPrint: @json(translate('Cannot close until you print Kitchen Order Receipt')),
+            closeNeedCustomerPrint: @json(translate('Cannot close until you print Customer Receipt')),
+            closeNeedBothPrints: @json(translate('Cannot close until you print Kitchen Order Receipt and Customer Receipt')),
             acceptOnline: @json(translate('ACCEPT')),
             acceptingOnline: @json(translate('Accepting...')),
             onlineOrderLater: @json(translate('Later')),
@@ -445,6 +448,6 @@
 <script src="{{ asset('public/assets/admin/js/munch-receipt-ticket.js') }}?v=2.0"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-submit-guard.js') }}?v=1.3"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-delivery.js') }}?v=1.3"></script>
-<script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.0"></script>
+<script src="{{ asset('public/assets/admin/js/munch-pos-order-edit.js') }}?v=1.1"></script>
 <script src="{{ asset('public/assets/admin/js/munch-pos-app.js') }}?v={{ \App\Support\PosClientVersion::ASSET }}" defer></script>
 @endpush

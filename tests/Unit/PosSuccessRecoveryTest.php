@@ -11,14 +11,21 @@ class PosSuccessRecoveryTest extends TestCase
     {
         $app = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $rules = file_get_contents(public_path('assets/admin/js/munch-pos-order-edit.js'));
 
         $this->assertStringNotContainsString("ev.target.id === 'pos-success-modal'", $app);
         $this->assertStringContainsString('els.successClose.addEventListener(\'click\', dismissPlacedOrder)', $app);
         $this->assertStringContainsString('els.successDone.addEventListener(\'click\', dismissPlacedOrder)', $app);
+        $this->assertStringContainsString('function successCloseBlockedCopy', $app);
+        $this->assertStringContainsString('OrderRules.successCloseBlockedReason', $app);
+        $this->assertStringContainsString('Cannot close until you print Kitchen Order Receipt', $rules);
+        $this->assertStringContainsString('Cannot close until you print Customer Receipt', $rules);
+        $this->assertStringContainsString('Cannot close until you print Kitchen Order Receipt and Customer Receipt', $rules);
         $this->assertStringContainsString('id="pos-success-done"', $page);
         $this->assertStringContainsString('id="pos-success-close"', $page);
         $this->assertStringContainsString('id="pos-success-kitchen"', $page);
         $this->assertStringContainsString('id="pos-success-receipt"', $page);
+        $this->assertStringContainsString('closeNeedKitchenPrint:', $page);
     }
 
     public function test_timeout_recovers_through_existing_client_uuid_idempotency(): void
@@ -37,7 +44,7 @@ class PosSuccessRecoveryTest extends TestCase
         $this->assertStringNotContainsString('reportSubmitFailure(timeoutMessage(), true)', $app);
         $this->assertStringContainsString('function recoverPlaceOutcome', $guard);
         $this->assertStringContainsString('isUncertainPlaceFailure', $guard);
-        $this->assertSame('6.15', PosClientVersion::ASSET);
+        $this->assertSame('6.16', PosClientVersion::ASSET);
     }
 
     public function test_node_success_recovery_scenarios(): void

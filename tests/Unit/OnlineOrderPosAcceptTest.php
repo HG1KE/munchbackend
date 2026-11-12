@@ -261,7 +261,7 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('startOnlineOrderPolling', $js);
         $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body)', $js);
 
-        $this->assertSame('6.15', PosClientVersion::ASSET);
+        $this->assertSame('6.16', PosClientVersion::ASSET);
     }
 
     public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void

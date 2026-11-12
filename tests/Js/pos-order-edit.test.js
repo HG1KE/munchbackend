@@ -77,6 +77,16 @@ test('cancelled receipt blocked', function () {
     assert(rules.RECEIPT_CANCELLED_MESSAGE.indexOf('customer receipt') !== -1, 'missing receipt message');
 });
 
+test('success modal close blocked until both prints', function () {
+    assert(rules.successCloseBlockedReason(job()) === rules.CLOSE_NEED_BOTH, 'both missing');
+    assert(!rules.canCloseSuccessModal(job()), 'should block when unprinted');
+    assert(rules.successCloseBlockedReason(job({ kitchenPrinted: true })) === rules.CLOSE_NEED_CUSTOMER, 'customer missing');
+    assert(rules.successCloseBlockedReason(job({ receiptPrinted: true })) === rules.CLOSE_NEED_KITCHEN, 'kitchen missing');
+    assert(rules.CLOSE_NEED_KITCHEN.indexOf('Kitchen Order Receipt') !== -1, 'Habib kitchen copy missing');
+    assert(rules.canCloseSuccessModal(job({ kitchenPrinted: true, receiptPrinted: true })), 'both printed should close');
+    assert(rules.canCloseSuccessModal(job({ order_status: 'canceled' })), 'cancelled should not trap close');
+});
+
 test('success modal and view orders wire edit and receipt guards', function () {
     assert(page.indexOf('id="pos-success-edit"') !== -1, 'missing Edit Order button');
     assert(page.indexOf('id="pos-success-edit-hint"') !== -1, 'missing edit hint');

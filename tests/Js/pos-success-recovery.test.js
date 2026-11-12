@@ -134,6 +134,20 @@ function run() {
             });
         })
         .then(function () {
+            return test('Done/Close wait for kitchen and customer prints', function () {
+                assert(app.indexOf('function successCloseBlockedCopy') !== -1, 'close gate helper missing');
+                assert(app.indexOf('function showSuccessCloseBlocked') !== -1, 'blocked message helper missing');
+                assert(app.indexOf('OrderRules.successCloseBlockedReason') !== -1, 'must use shared print close rules');
+                assert(app.indexOf("L('closeNeedKitchenPrint'") !== -1, 'kitchen close copy missing');
+                assert(app.indexOf("L('closeNeedCustomerPrint'") !== -1, 'customer close copy missing');
+                assert(app.indexOf("L('closeNeedBothPrints'") !== -1, 'both-prints close copy missing');
+                assert(page.indexOf('closeNeedKitchenPrint:') !== -1, 'kitchen close label missing from POS CFG');
+                assert(page.indexOf('closeNeedCustomerPrint:') !== -1, 'customer close label missing from POS CFG');
+                assert(page.indexOf('closeNeedBothPrints:') !== -1, 'both-prints close label missing from POS CFG');
+                assert(page.indexOf('Cannot close until you print Kitchen Order Receipt') !== -1, 'Habib kitchen message missing');
+            });
+        })
+        .then(function () {
             return test('existing print buttons continue working', function () {
                 assert(page.indexOf('id="pos-success-kitchen"') !== -1, 'kitchen print button missing');
                 assert(page.indexOf('id="pos-success-receipt"') !== -1, 'receipt print button missing');
