@@ -108,8 +108,13 @@ class BranchOnlineOrdersTest extends TestCase
     public function test_pos_marketplace_and_reports_are_untouched(): void
     {
         $pos = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
-        $this->assertStringNotContainsString('BranchOnlineOrdering', $pos);
+        // Ring/ACCEPT uses the dashboard switch; placeOrder itself stays ungated.
+        $this->assertStringContainsString('BranchOnlineOrdering::isEnabled', $pos);
+        $this->assertStringContainsString('function pendingOnlineOrders', $pos);
+        $this->assertStringContainsString('function acceptOnlineOrder', $pos);
         $this->assertStringContainsString('function placeOrder', $pos);
+        $placeOrder = $this->methodBody($pos, 'placeOrder');
+        $this->assertStringNotContainsString('BranchOnlineOrdering', $placeOrder);
 
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'glovo'));
         $this->assertFalse(PosOrderTypes::isOnlineOrder('pos', 'uber'));
@@ -124,6 +129,29 @@ class BranchOnlineOrdersTest extends TestCase
         $report = file_get_contents(app_path('Http/Controllers/Admin/ReportController.php'));
         $this->assertStringNotContainsString('online_orders_enabled', $report);
         $this->assertStringNotContainsString('BranchOnlineOrdering', $report);
+    }
+
+    private function methodBody(string $source, string $method): string
+    {
+        $start = strpos($source, 'function '.$method);
+        $this->assertNotFalse($start, $method.' missing');
+        $brace = strpos($source, '{', $start);
+        $this->assertNotFalse($brace, $method.' body missing');
+        $depth = 0;
+        $len = strlen($source);
+        for ($i = $brace; $i < $len; $i++) {
+            $char = $source[$i];
+            if ($char === '{') {
+                $depth++;
+            } elseif ($char === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($source, $brace, $i - $brace + 1);
+                }
+            }
+        }
+
+        $this->fail($method.' body unclosed');
     }
 
     public function test_admin_branch_form_stores_the_dashboard_alert_switch(): void

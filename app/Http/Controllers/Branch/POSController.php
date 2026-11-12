@@ -15,9 +15,11 @@ use App\Model\Product;
 use App\Model\Order;
 use App\Services\BranchPosCatalogService;
 use App\Services\BranchPosTodayOrdersService;
+use App\Services\OnlineOrderPosAcceptService;
 use App\Services\PosOrderCancellationService;
 use App\Services\PosOrderEditService;
 use App\Services\OrderReadableIdService;
+use App\Support\BranchOnlineOrdering;
 use App\Support\AddonChannelPricing;
 use App\Support\OrderPlacementTime;
 use App\Support\PosCheckoutIdempotency;
@@ -57,6 +59,7 @@ class POSController extends Controller
         private ProductByBranch $product_by_Branch,
         private BranchPosCatalogService $posCatalog,
         private BranchPosTodayOrdersService $posTodayOrders,
+        private OnlineOrderPosAcceptService $onlineOrderAccept,
         private PosOrderCancellationService $posCancellation,
         private PosOrderEditService $posEdit,
     )
@@ -115,6 +118,56 @@ class POSController extends Controller
             'success' => 1,
             'data' => $payload,
         ]);
+    }
+
+    /**
+     * Branch-scoped online-order ring payload for open POS sessions.
+     */
+    public function pendingOnlineOrders(): JsonResponse
+    {
+        $branch = auth('branch')->user();
+        $branchId = (int) auth('branch')->id();
+
+        if (! BranchOnlineOrdering::isEnabled($branch)) {
+            return response()->json([
+                'success' => 1,
+                'data' => [
+                    'new_order' => 0,
+                    'order' => null,
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'success' => 1,
+            'data' => $this->onlineOrderAccept->pendingAlertPayload($branchId),
+        ]);
+    }
+
+    /**
+     * ACCEPT an online order into this branch's POS sales (idempotent).
+     */
+    public function acceptOnlineOrder(Request $request): JsonResponse
+    {
+        $branchId = (int) auth('branch')->id();
+        $orderId = (int) $request->input('order_id');
+        $result = $this->onlineOrderAccept->accept($orderId, $branchId);
+
+        if (! ($result['success'] ?? false)) {
+            return response()->json([
+                'success' => 0,
+                'message' => $result['message'] ?? translate('failed_to_place_order'),
+                'code' => $result['code'] ?? 'accept_failed',
+            ], (int) ($result['http'] ?? 422));
+        }
+
+        $cashierName = (string) (auth('branch')->user()->name ?? '');
+        $payload = $this->onlineOrderAccept->successPayload($result['order'], $cashierName, [
+            'duplicate' => (bool) ($result['duplicate'] ?? false),
+            'idempotent' => (bool) ($result['idempotent'] ?? false),
+        ]);
+
+        return response()->json($payload);
     }
 
     public function cancelOrder(Request $request): JsonResponse

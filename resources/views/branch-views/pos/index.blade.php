@@ -1,5 +1,11 @@
 @extends('layouts.branch.pos')
 
+@php
+    $branchAcceptsOnlineOrders = \App\Support\BranchOnlineOrdering::isEnabled(auth('branch')->user());
+    $adminOrderNotification = \App\CentralLogics\Helpers::get_business_settings('admin_order_notification');
+    $posOnlineRingEnabled = $branchAcceptsOnlineOrders && $adminOrderNotification;
+@endphp
+
 @section('title', translate('POS') . ' · ' . $branchName)
 
 @section('content')
@@ -208,6 +214,50 @@
     </div>
 </div>
 
+@if($posOnlineRingEnabled)
+<div class="munch-pos-modal munch-pos-online-ring" id="pos-online-order-modal" hidden>
+    <div class="munch-pos-modal__card munch-pos-online-ring__card" role="dialog" aria-modal="true" aria-labelledby="pos-online-order-title">
+        <div class="munch-pos-online-ring__chrome" aria-hidden="true"></div>
+        <div class="munch-pos-online-ring__header">
+            <div class="munch-pos-online-ring__icon-stage" aria-hidden="true">
+                <span class="munch-pos-online-ring__pulse"></span>
+                <span class="munch-pos-online-ring__pulse munch-pos-online-ring__pulse--delayed"></span>
+                <div class="munch-pos-online-ring__icon" aria-hidden="true"></div>
+            </div>
+            <h2 id="pos-online-order-title">{{ translate('You have new order, Check Please.') }}</h2>
+            <p class="munch-pos-online-ring__number" id="pos-online-order-number"></p>
+        </div>
+        <div class="munch-pos-dialog__body munch-pos-online-ring__body" id="pos-online-order-body">
+            <dl class="munch-pos-online-ring__meta">
+                <div>
+                    <dt>{{ translate('Customer') }}</dt>
+                    <dd id="pos-online-order-customer"></dd>
+                </div>
+                <div>
+                    <dt>{{ translate('Address') }}</dt>
+                    <dd id="pos-online-order-address"></dd>
+                </div>
+                <div>
+                    <dt>{{ translate('Payment') }}</dt>
+                    <dd id="pos-online-order-payment"></dd>
+                </div>
+            </dl>
+            <div class="munch-pos-online-ring__items" id="pos-online-order-items"></div>
+            <div class="munch-pos-online-ring__totals" id="pos-online-order-totals"></div>
+            <p class="munch-pos-online-ring__notes" id="pos-online-order-notes" hidden></p>
+            <p class="munch-pos-online-ring__error" id="pos-online-order-error" hidden></p>
+        </div>
+        <div class="munch-pos-dialog__actions munch-pos-online-ring__actions">
+            <button type="button" class="munch-pos-place" id="pos-online-order-accept" data-label="{{ translate('ACCEPT') }}">{{ translate('ACCEPT') }}</button>
+            <button type="button" class="munch-pos-clear" id="pos-online-order-dismiss">{{ translate('Later') }}</button>
+        </div>
+    </div>
+</div>
+<audio id="pos-online-order-audio" preload="auto">
+    <source src="{{ asset('public/assets/admin/sound/notification.mp3') }}" type="audio/mpeg">
+</audio>
+@endif
+
 <iframe id="pos-print-frame" class="munch-pos-print-frame" title="{{ translate('Print') }}"></iframe>
 
 <div class="munch-pos-toast" id="pos-toast" hidden></div>
@@ -227,6 +277,8 @@
             catalog: @json(route('branch.pos.catalog')),
             heartbeat: @json(route('branch.pos.heartbeat')),
             todayOrders: @json(route('branch.pos.today-orders')),
+            pendingOnlineOrders: @json($posOnlineRingEnabled ? route('branch.pos.pending-online-orders') : null),
+            acceptOnlineOrder: @json($posOnlineRingEnabled ? route('branch.pos.accept-online-order') : null),
             printTicket: @json(route('branch.pos.print-ticket')),
             cancelOrder: @json(route('branch.pos.cancel-order')),
             order: @json(route('branch.pos.order')),
@@ -378,6 +430,15 @@
             editBlockedCancelled: @json(translate('Cancelled orders cannot be edited.')),
             editBlockedMarketplace: @json(translate('Marketplace orders cannot be edited.')),
             receiptCancelled: @json(translate('Cancelled orders cannot print a customer receipt.')),
+            acceptOnline: @json(translate('ACCEPT')),
+            acceptingOnline: @json(translate('Accepting...')),
+            onlineOrderLater: @json(translate('Later')),
+            onlineOrderAcceptFailed: @json(translate('Could not accept this order. Please try again.')),
+            onlineOrderArea: @json(translate('Area')),
+            onlineOrderItems: @json(translate('Items')),
+            onlineOrderDeliveryFee: @json(translate('Delivery Fee')),
+            onlineOrderTotal: @json(translate('Grand Total')),
+            onlineOrderNotes: @json(translate('Notes')),
         }
     };
 </script>

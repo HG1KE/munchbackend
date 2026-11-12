@@ -40,6 +40,8 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
             Route::get('catalog', [POSController::class, 'catalog'])->name('catalog');
             Route::get('heartbeat', [POSController::class, 'heartbeat'])->name('heartbeat');
             Route::get('today-orders', [POSController::class, 'todayOrders'])->name('today-orders');
+            Route::get('pending-online-orders', [POSController::class, 'pendingOnlineOrders'])->name('pending-online-orders');
+            Route::post('accept-online-order', [POSController::class, 'acceptOnlineOrder'])->name('accept-online-order');
             Route::get('service-worker.js', [POSController::class, 'serviceWorker'])->name('service-worker');
             Route::get('quick-view', [POSController::class, 'quickView'])->name('quick-view');
             Route::post('variant_price', [POSController::class, 'variantPrice'])->name('variant_price');

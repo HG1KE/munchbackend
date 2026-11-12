@@ -65,6 +65,15 @@
     var pendingAttempt = null;
     var checkingOrder = false;
     var POST_TIMEOUT_MS = (SubmitGuard && SubmitGuard.POST_TIMEOUT_MS) || 15000;
+    var onlineRing = {
+        open: false,
+        accepting: false,
+        snoozedUntil: 0,
+        lastOrderId: 0,
+        order: null,
+        timer: 0,
+        audioStarted: false
+    };
 
     function uuid() {
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -1968,9 +1977,263 @@
             (els.deliveryModal && !els.deliveryModal.hidden) ||
             (els.platformModal && !els.platformModal.hidden) ||
             (els.munchTypeModal && !els.munchTypeModal.hidden) ||
-            (els.staleModal && !els.staleModal.hidden)
+            (els.staleModal && !els.staleModal.hidden) ||
+            (els.onlineOrderModal && !els.onlineOrderModal.hidden)
         );
         document.documentElement.classList.toggle('munch-pos-overlay-open', overlayOpen);
+    }
+
+    function onlineRingEnabled() {
+        return !!(CFG.urls && CFG.urls.pendingOnlineOrders && CFG.urls.acceptOnlineOrder && els.onlineOrderModal);
+    }
+
+    function playOnlineOrderAudio() {
+        if (!els.onlineOrderAudio) return;
+        try {
+            els.onlineOrderAudio.currentTime = 0;
+            var play = els.onlineOrderAudio.play();
+            if (play && typeof play.catch === 'function') play.catch(function () {});
+        } catch (err) { /* autoplay may be blocked until interaction */ }
+    }
+
+    function stopOnlineOrderAudio() {
+        if (!els.onlineOrderAudio) return;
+        try {
+            els.onlineOrderAudio.pause();
+            els.onlineOrderAudio.currentTime = 0;
+        } catch (err) { /* ignore */ }
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderOnlineOrderModal(order) {
+        if (!els.onlineOrderModal || !order) return;
+        onlineRing.order = order;
+        onlineRing.lastOrderId = Number(order.id || 0);
+        if (els.onlineOrderNumber) {
+            els.onlineOrderNumber.textContent = order.order_display_id || (order.id ? ('#' + order.id) : '');
+        }
+        if (els.onlineOrderCustomer) {
+            var customer = order.customer_name || L('customer', 'Customer');
+            if (order.customer_phone) customer += ' · ' + order.customer_phone;
+            els.onlineOrderCustomer.textContent = customer;
+        }
+        if (els.onlineOrderAddress) {
+            var address = order.address_line || order.address || '';
+            if (!address && order.area) address = order.area;
+            els.onlineOrderAddress.textContent = address || '—';
+        }
+        if (els.onlineOrderPayment) {
+            var pay = order.payment_method_label || order.payment_method || '';
+            var status = order.payment_status_label || order.payment_status || '';
+            els.onlineOrderPayment.textContent = [status, pay].filter(Boolean).join(' · ') || '—';
+        }
+        if (els.onlineOrderItems) {
+            var items = Array.isArray(order.items) ? order.items : [];
+            if (!items.length && Array.isArray(order.item_lines)) {
+                els.onlineOrderItems.innerHTML = order.item_lines.map(function (line) {
+                    return '<div class="munch-pos-online-ring__item"><div class="munch-pos-online-ring__item-name">'
+                        + escapeHtml(line) + '</div></div>';
+                }).join('');
+            } else {
+                els.onlineOrderItems.innerHTML = items.map(function (item) {
+                    var options = Array.isArray(item.options) && item.options.length
+                        ? '<div class="munch-pos-online-ring__item-options">' + escapeHtml(item.options.join(', ')) + '</div>'
+                        : '';
+                    return '<div class="munch-pos-online-ring__item">'
+                        + '<div class="munch-pos-online-ring__item-name">' + escapeHtml(item.name || '') + '</div>'
+                        + '<div class="munch-pos-online-ring__item-qty">×' + escapeHtml(item.quantity || 1) + '</div>'
+                        + options
+                        + '<div class="munch-pos-online-ring__item-total">' + escapeHtml(money(item.line_total || 0)) + '</div>'
+                        + '</div>';
+                }).join('');
+            }
+        }
+        if (els.onlineOrderTotals) {
+            var rows = [];
+            if (Number(order.delivery_charge || 0) > 0) {
+                rows.push('<div><span>' + escapeHtml(L('onlineOrderDeliveryFee', 'Delivery Fee'))
+                    + '</span><span>' + escapeHtml(order.delivery_charge_formatted || money(order.delivery_charge)) + '</span></div>');
+            }
+            rows.push('<div><strong>' + escapeHtml(L('onlineOrderTotal', 'Grand Total'))
+                + '</strong><strong>' + escapeHtml(order.grand_total_formatted || money(order.grand_total || order.order_amount || 0)) + '</strong></div>');
+            els.onlineOrderTotals.innerHTML = rows.join('');
+        }
+        if (els.onlineOrderNotes) {
+            var notes = String(order.order_note || '').trim();
+            els.onlineOrderNotes.hidden = !notes;
+            els.onlineOrderNotes.textContent = notes
+                ? ((L('onlineOrderNotes', 'Notes') + ': ' + notes))
+                : '';
+        }
+        if (els.onlineOrderError) {
+            els.onlineOrderError.hidden = true;
+            els.onlineOrderError.textContent = '';
+        }
+    }
+
+    function openOnlineOrderModal(order, opts) {
+        if (!onlineRingEnabled() || !order) return;
+        opts = opts || {};
+        if (successJob || onlineRing.accepting) return;
+        if (Date.now() < onlineRing.snoozedUntil && Number(order.id) === onlineRing.lastOrderId && !opts.force) {
+            return;
+        }
+        renderOnlineOrderModal(order);
+        onlineRing.open = true;
+        onlineRing.snoozedUntil = 0;
+        els.onlineOrderModal.hidden = false;
+        syncPosOverlayState();
+        if (opts.play !== false) playOnlineOrderAudio();
+    }
+
+    function closeOnlineOrderModal(opts) {
+        opts = opts || {};
+        onlineRing.open = false;
+        onlineRing.accepting = false;
+        stopOnlineOrderAudio();
+        if (els.onlineOrderModal) els.onlineOrderModal.hidden = true;
+        if (els.onlineOrderAccept) {
+            els.onlineOrderAccept.disabled = false;
+            els.onlineOrderAccept.textContent = els.onlineOrderAccept.getAttribute('data-label')
+                || L('acceptOnline', 'ACCEPT');
+        }
+        if (opts.snooze && onlineRing.lastOrderId) {
+            onlineRing.snoozedUntil = Date.now() + 45000;
+        }
+        syncPosOverlayState();
+    }
+
+    function fetchPendingOnlineOrders() {
+        if (!onlineRingEnabled() || !navigator.onLine) return Promise.resolve(null);
+        if (document.visibilityState === 'hidden') return Promise.resolve(null);
+        return fetch(CFG.urls.pendingOnlineOrders, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-Munch-POS': '1' }
+        }).then(function (res) {
+            if (res.status === 401 || res.status === 403) {
+                state.authRequired = true;
+                scheduleRender();
+                return null;
+            }
+            return res.json();
+        }).then(function (json) {
+            var data = json && json.data ? json.data : null;
+            if (!data) return null;
+            var count = Number(data.new_order || 0);
+            var order = data.order || null;
+            if (count > 0 && order) {
+                openOnlineOrderModal(order, {
+                    play: !onlineRing.open || Number(order.id) !== onlineRing.lastOrderId
+                });
+            } else if (onlineRing.open && !onlineRing.accepting) {
+                closeOnlineOrderModal();
+            }
+            return data;
+        }).catch(function () {
+            return null;
+        });
+    }
+
+    function startOnlineOrderPolling() {
+        if (!onlineRingEnabled() || onlineRing.timer) return;
+        fetchPendingOnlineOrders();
+        onlineRing.timer = setInterval(function () {
+            if (document.visibilityState === 'hidden') return;
+            if (onlineRing.accepting) return;
+            fetchPendingOnlineOrders();
+        }, 10000);
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') fetchPendingOnlineOrders();
+            else stopOnlineOrderAudio();
+        });
+    }
+
+    function acceptOnlineOrder(ev) {
+        if (ignoreIfSubmitting(ev)) return;
+        if (!onlineRingEnabled() || onlineRing.accepting || !onlineRing.order) return;
+        if (successJob) return;
+        var orderId = Number(onlineRing.order.id || 0);
+        if (!orderId) return;
+        onlineRing.accepting = true;
+        stopOnlineOrderAudio();
+        if (els.onlineOrderError) {
+            els.onlineOrderError.hidden = true;
+            els.onlineOrderError.textContent = '';
+        }
+        if (els.onlineOrderAccept) {
+            els.onlineOrderAccept.disabled = true;
+            els.onlineOrderAccept.textContent = L('acceptingOnline', 'Accepting...');
+        }
+        fetch(CFG.urls.acceptOnlineOrder, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Munch-POS': '1'
+            },
+            body: JSON.stringify({ order_id: orderId })
+        }).then(function (res) {
+            return res.json().then(function (body) {
+                body = body && typeof body === 'object' ? body : {};
+                body._http = res.status;
+                return body;
+            });
+        }).then(function (body) {
+            var outcome = classifyPostedResult(body);
+            if (outcome.kind === 'success') {
+                closeOnlineOrderModal();
+                openSuccessModal(snapshotPrintJob(body), {
+                    offline: false,
+                    payload: null,
+                    duplicate: !!body.duplicate,
+                    idempotent: !!body.idempotent
+                });
+                return;
+            }
+            onlineRing.accepting = false;
+            if (els.onlineOrderAccept) {
+                els.onlineOrderAccept.disabled = false;
+                els.onlineOrderAccept.textContent = els.onlineOrderAccept.getAttribute('data-label')
+                    || L('acceptOnline', 'ACCEPT');
+            }
+            var message = (body && body.message)
+                || outcome.message
+                || L('onlineOrderAcceptFailed', 'Could not accept this order. Please try again.');
+            if (els.onlineOrderError) {
+                els.onlineOrderError.hidden = false;
+                els.onlineOrderError.textContent = message;
+            } else {
+                toast(message);
+            }
+            if (outcome.kind === 'auth') {
+                state.authRequired = true;
+                scheduleRender();
+            }
+        }).catch(function () {
+            onlineRing.accepting = false;
+            if (els.onlineOrderAccept) {
+                els.onlineOrderAccept.disabled = false;
+                els.onlineOrderAccept.textContent = els.onlineOrderAccept.getAttribute('data-label')
+                    || L('acceptOnline', 'ACCEPT');
+            }
+            var message = L('onlineOrderAcceptFailed', 'Could not accept this order. Please try again.');
+            if (els.onlineOrderError) {
+                els.onlineOrderError.hidden = false;
+                els.onlineOrderError.textContent = message;
+            } else {
+                toast(message);
+            }
+        });
     }
 
     function applyCancelledOrder(serverOrder, payload) {
@@ -3119,6 +3382,25 @@
         els.cancelError = document.getElementById('pos-cancel-error');
         els.cancelDismiss = document.getElementById('pos-cancel-dismiss');
         els.cancelConfirm = document.getElementById('pos-cancel-confirm');
+        els.onlineOrderModal = document.getElementById('pos-online-order-modal');
+        els.onlineOrderNumber = document.getElementById('pos-online-order-number');
+        els.onlineOrderCustomer = document.getElementById('pos-online-order-customer');
+        els.onlineOrderAddress = document.getElementById('pos-online-order-address');
+        els.onlineOrderPayment = document.getElementById('pos-online-order-payment');
+        els.onlineOrderItems = document.getElementById('pos-online-order-items');
+        els.onlineOrderTotals = document.getElementById('pos-online-order-totals');
+        els.onlineOrderNotes = document.getElementById('pos-online-order-notes');
+        els.onlineOrderError = document.getElementById('pos-online-order-error');
+        els.onlineOrderAccept = document.getElementById('pos-online-order-accept');
+        els.onlineOrderDismiss = document.getElementById('pos-online-order-dismiss');
+        els.onlineOrderAudio = document.getElementById('pos-online-order-audio');
+
+        if (els.onlineOrderAccept) bindSubmitControl(els.onlineOrderAccept, acceptOnlineOrder);
+        if (els.onlineOrderDismiss) {
+            els.onlineOrderDismiss.addEventListener('click', function () {
+                closeOnlineOrderModal({ snooze: true });
+            });
+        }
 
         document.getElementById('pos-search').addEventListener('input', function (ev) {
             state.searchDraft = ev.target.value;
@@ -3389,6 +3671,12 @@
                     ev.stopPropagation();
                     return;
                 }
+                if (els.onlineOrderModal && !els.onlineOrderModal.hidden) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!onlineRing.accepting) closeOnlineOrderModal({ snooze: true });
+                    return;
+                }
                 if (els.platformModal && !els.platformModal.hidden) {
                     ev.preventDefault();
                     closeMarketplaceModal();
@@ -3400,6 +3688,11 @@
             if (ev.key !== 'Enter') return;
             if (state.orderSubmitting || successJob) {
                 ev.preventDefault();
+                return;
+            }
+            if (els.onlineOrderModal && !els.onlineOrderModal.hidden) {
+                ev.preventDefault();
+                if (!onlineRing.accepting) acceptOnlineOrder(ev);
                 return;
             }
             if (els.deliveryModal && !els.deliveryModal.hidden) return;
@@ -3492,9 +3785,11 @@
         }).then(function () {
             scheduleRender();
             preloadCatalogMedia();
+            startOnlineOrderPolling();
             if (navigator.onLine) refreshHeartbeat().then(function () { syncQueue(); });
         }).catch(function () {
             scheduleRender();
+            startOnlineOrderPolling();
         });
     }
 
