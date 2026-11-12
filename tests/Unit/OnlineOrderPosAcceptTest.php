@@ -114,6 +114,8 @@ class OnlineOrderPosAcceptTest extends TestCase
             $table->text('variation')->nullable();
             $table->text('add_on_ids')->nullable();
             $table->text('add_on_qtys')->nullable();
+            $table->text('add_on_prices')->nullable();
+            $table->decimal('add_on_tax_amount', 24, 2)->default(0);
             $table->decimal('price', 24, 2)->default(0);
             $table->decimal('discount_on_product', 24, 2)->default(0);
             $table->decimal('tax_amount', 24, 2)->default(0);
@@ -205,6 +207,10 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertNotEmpty($payload['order']['items']);
         $this->assertSame('1x Half Chicken', $payload['order']['item_lines'][0]);
         $this->assertSame('Paid', $payload['order']['payment_status_label']);
+        $this->assertSame(1850.0, $payload['order']['order_amount']);
+        $this->assertSame(150.0, $payload['order']['delivery_charge']);
+        $this->assertSame(2000.0, $payload['order']['payable_amount']);
+        $this->assertSame(2000.0, $payload['order']['grand_total']);
 
         $other = $this->service()->pendingAlertPayload(2);
         $this->assertSame(1, $other['new_order']);
@@ -430,7 +436,105 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('.munch-pos-online-ring__actions .munch-pos-clear', $css);
         $this->assertStringContainsString('background: #94a3b8', $css);
 
-        $this->assertSame('6.23', PosClientVersion::ASSET);
+        $this->assertSame('6.24', PosClientVersion::ASSET);
+        $this->assertStringContainsString('order.payable_amount', $js);
+    }
+
+    public function test_preview_grand_total_includes_delivery_addons_and_modifiers(): void
+    {
+        $now = now();
+        DB::table('orders')->insert([
+            'id' => 707,
+            'readable_order_id' => 'A707',
+            'user_id' => null,
+            'branch_id' => 1,
+            'order_status' => 'pending',
+            'order_type' => 'delivery',
+            'sales_channel' => null,
+            'payment_status' => 'paid',
+            'payment_method' => 'mpesa',
+            // Products + modifier extras + addons + tax (delivery stored separately).
+            'order_amount' => 1280,
+            'delivery_charge' => 220,
+            'delivery_address' => json_encode([
+                'contact_person_name' => 'Habib',
+                'contact_person_number' => '0700000000',
+                'address' => 'Kilimani',
+            ]),
+            'order_note' => '',
+            'delivery_date' => $now->toDateString(),
+            'is_guest' => 1,
+            'checked' => 0,
+            'placed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('order_areas')->insert([
+            'order_id' => 707,
+            'area_id' => 9,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('order_details')->insert([
+            'order_id' => 707,
+            'product_id' => 22,
+            'product_details' => json_encode([
+                'name' => 'Full Chicken',
+                'add_ons' => [
+                    ['id' => 3, 'name' => 'Extra Sauce'],
+                ],
+            ]),
+            // Modifier/variation label; price already includes the +80 variation delta.
+            'variation' => json_encode([
+                ['name' => 'Size', 'values' => [['label' => 'Large']]],
+            ]),
+            'add_on_ids' => json_encode([3]),
+            'add_on_qtys' => json_encode([2]),
+            'add_on_prices' => json_encode([50]),
+            'add_on_tax_amount' => 0,
+            'price' => 1080,
+            'discount_on_product' => 0,
+            'tax_amount' => 0,
+            'quantity' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $order = Order::query()->with(['customer', 'guest', 'branch', 'order_area.area', 'details'])->find(707);
+        $preview = $this->service()->previewPayload($order);
+
+        $this->assertSame(1280.0, $preview['order_amount']);
+        $this->assertSame(220.0, $preview['delivery_charge']);
+        $this->assertSame(1500.0, $preview['payable_amount']);
+        $this->assertSame(1500.0, $preview['grand_total']);
+        $this->assertSame($preview['payable_amount_formatted'], $preview['grand_total_formatted']);
+        $this->assertSame(Helpers::set_symbol(1500), $preview['grand_total_formatted']);
+
+        $this->assertSame('Full Chicken', $preview['items'][0]['name']);
+        $this->assertContains('Large', $preview['items'][0]['options']);
+        $this->assertContains('Extra Sauce x2', $preview['items'][0]['options']);
+        // 1080 product (incl. Large) + 50*2 addons = 1180 line total
+        $this->assertSame(1180.0, $preview['items'][0]['line_total']);
+        $this->assertSame('1x Full Chicken (Large, Extra Sauce x2)', $preview['item_lines'][0]);
+    }
+
+    public function test_pickup_preview_grand_total_excludes_delivery_charge(): void
+    {
+        $this->seedOnlineOrder(808, 1, [
+            'order_type' => 'take_away',
+            'order_amount' => 950,
+            'delivery_charge' => 150,
+            'payment_status' => 'paid',
+            'payment_method' => 'mpesa',
+        ]);
+
+        $order = Order::query()->with(['customer', 'guest', 'branch', 'order_area.area', 'details'])->find(808);
+        $preview = $this->service()->previewPayload($order);
+
+        $this->assertTrue($preview['is_pickup']);
+        $this->assertSame(0.0, $preview['delivery_charge']);
+        $this->assertSame(950.0, $preview['grand_total']);
+        $this->assertSame(950.0, $preview['payable_amount']);
     }
 
     public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void
@@ -538,6 +642,8 @@ class OnlineOrderPosAcceptTest extends TestCase
             'variation' => json_encode([]),
             'add_on_ids' => json_encode([]),
             'add_on_qtys' => json_encode([]),
+            'add_on_prices' => json_encode([]),
+            'add_on_tax_amount' => 0,
             'price' => 900,
             'discount_on_product' => 0,
             'tax_amount' => 0,

@@ -2246,7 +2246,7 @@
                     + '</span><span>' + escapeHtml(order.delivery_charge_formatted || money(order.delivery_charge)) + '</span></div>');
             }
             rows.push('<div><strong>' + escapeHtml(L('onlineOrderTotal', 'Grand Total'))
-                + '</strong><strong>' + escapeHtml(order.grand_total_formatted || money(order.grand_total || order.order_amount || 0)) + '</strong></div>');
+                + '</strong><strong>' + escapeHtml(order.grand_total_formatted || money(order.grand_total || order.payable_amount || order.order_amount || 0)) + '</strong></div>');
             els.onlineOrderTotals.innerHTML = rows.join('');
         }
         if (els.onlineOrderNotes) {

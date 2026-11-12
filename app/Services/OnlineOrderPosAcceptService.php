@@ -101,8 +101,12 @@ class OnlineOrderPosAcceptService
             'delivery_charge_formatted' => Helpers::set_symbol((float) ($amounts['delivery_charge'] ?? 0)),
             'order_amount' => (float) ($amounts['order_amount'] ?? 0),
             'order_amount_formatted' => (string) ($amounts['order_amount_formatted'] ?? ''),
-            'grand_total' => (float) ($amounts['order_amount'] ?? 0),
-            'grand_total_formatted' => Helpers::set_symbol((float) ($amounts['order_amount'] ?? 0)),
+            // Prepaid customer total = order_amount (products + modifiers + addons + tax − discounts)
+            // + delivery_charge. Online checkout stores delivery separately from order_amount.
+            'payable_amount' => (float) ($amounts['payable_amount'] ?? 0),
+            'payable_amount_formatted' => (string) ($amounts['payable_amount_formatted'] ?? ''),
+            'grand_total' => (float) ($amounts['payable_amount'] ?? 0),
+            'grand_total_formatted' => (string) ($amounts['payable_amount_formatted'] ?? Helpers::set_symbol((float) ($amounts['payable_amount'] ?? 0))),
         ];
     }
 
@@ -514,7 +518,10 @@ class OnlineOrderPosAcceptService
             $unit = (float) ($detail->price ?? 0);
             $discount = (float) ($detail->discount_on_product ?? 0);
             $tax = (float) ($detail->tax_amount ?? 0);
-            $lineTotal = ($unit - $discount + $tax) * $qty;
+            // detail.price already includes selected variation/modifier extras from checkout.
+            $addonTotal = $this->addonLineTotal($detail);
+            $addonTax = (float) ($detail->add_on_tax_amount ?? 0);
+            $lineTotal = max(0, ($unit - $discount + $tax) * $qty + $addonTotal + $addonTax);
 
             $items[] = [
                 'name' => $name,
@@ -526,6 +533,24 @@ class OnlineOrderPosAcceptService
         }
 
         return $items;
+    }
+
+    /**
+     * Sum of stored add-on unit prices × quantities for one order detail line.
+     */
+    private function addonLineTotal(mixed $detail): float
+    {
+        $addonPrices = $this->decodeList($detail->add_on_prices ?? null);
+        if ($addonPrices === []) {
+            return 0.0;
+        }
+        $addonQtys = $this->decodeList($detail->add_on_qtys ?? null);
+        $total = 0.0;
+        foreach ($addonPrices as $index => $price) {
+            $total += ((float) $price) * (int) ($addonQtys[$index] ?? 1);
+        }
+
+        return $total;
     }
 
     /**
