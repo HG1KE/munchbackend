@@ -3,12 +3,14 @@
 namespace App\Services;
 
 use App\CentralLogics\Helpers;
+use App\Model\Branch;
 use App\Model\Order;
 use App\Services\Stock\StockDeductionService;
 use App\Support\OnlineOrderStatus;
 use App\Support\OrderPayableAmount;
 use App\Support\PaymentMethodLabel;
 use App\Support\PosOrderTypes;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -249,6 +251,233 @@ class OnlineOrderPosAcceptService
             'kitchen_printed' => $fresh->kitchen_printed_at !== null,
             'receipt_printed' => $fresh->receipt_printed_at !== null,
         ], $extra);
+    }
+
+    /**
+     * Other active branches for the POS "send to different branch" picker.
+     * Uses the same open/closed schedule logic as storefront availability.
+     *
+     * @return list<array{id: int, name: string, is_open: bool, status_label: string, selectable: bool}>
+     */
+    public function transferBranchOptions(int $currentBranchId): array
+    {
+        $now = Carbon::now();
+        $dayOfWeek = (int) $now->dayOfWeek;
+        $currentTime = $now->format('H:i:s');
+        $restaurantSchedules = Helpers::restaurantSchedulesByDay();
+
+        $branches = Branch::query()
+            ->where('status', 1)
+            ->when($currentBranchId > 0, fn ($q) => $q->where('id', '!=', $currentBranchId))
+            ->with(['branch_time_schedules' => static function ($q) use ($dayOfWeek) {
+                $q->where('day', $dayOfWeek)->select(['id', 'branch_id', 'day', 'opening_time', 'closing_time']);
+            }])
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'status']);
+
+        $options = [];
+        foreach ($branches as $branch) {
+            $isOpen = Helpers::isOpenForSchedules(
+                Helpers::resolveTodaySchedulesForBranch($branch, $dayOfWeek, $restaurantSchedules),
+                $currentTime
+            );
+            $options[] = [
+                'id' => (int) $branch->id,
+                'name' => (string) ($branch->name ?? ('Branch #'.$branch->id)),
+                'is_open' => $isOpen,
+                'status_label' => $isOpen ? translate('OPEN') : translate('CLOSED'),
+                'selectable' => $isOpen,
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Reassign a still-pending online order to another open branch (same order row).
+     *
+     * @return array{
+     *   success: bool,
+     *   duplicate?: bool,
+     *   idempotent?: bool,
+     *   message?: string,
+     *   code?: string,
+     *   order?: Order,
+     *   branch_id?: int,
+     *   branch_name?: string,
+     *   http?: int
+     * }
+     */
+    public function reassignToBranch(int $orderId, int $fromBranchId, int $toBranchId): array
+    {
+        if ($orderId <= 0 || $fromBranchId <= 0 || $toBranchId <= 0) {
+            return [
+                'success' => false,
+                'message' => translate('Order not found'),
+                'code' => 'not_found',
+                'http' => 404,
+            ];
+        }
+
+        if ($toBranchId === $fromBranchId) {
+            return [
+                'success' => false,
+                'message' => translate('Choose a different branch.'),
+                'code' => 'same_branch',
+                'http' => 422,
+            ];
+        }
+
+        $target = Branch::query()->whereKey($toBranchId)->first();
+        if (! $target || (int) ($target->status ?? 0) !== 1) {
+            return [
+                'success' => false,
+                'message' => translate('Branch not found'),
+                'code' => 'branch_not_found',
+                'http' => 404,
+            ];
+        }
+
+        if (! Helpers::isBranchCurrentlyOpen((int) $target->id)) {
+            return [
+                'success' => false,
+                'message' => translate('That branch is closed.'),
+                'code' => 'branch_closed',
+                'http' => 422,
+            ];
+        }
+
+        $targetName = (string) ($target->name ?? ('Branch #'.$target->id));
+
+        try {
+            return DB::transaction(function () use ($orderId, $fromBranchId, $toBranchId, $targetName) {
+                /** @var Order|null $order */
+                $order = Order::query()
+                    ->whereKey($orderId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $order) {
+                    return [
+                        'success' => false,
+                        'message' => translate('Order not found'),
+                        'code' => 'not_found',
+                        'http' => 404,
+                    ];
+                }
+
+                // Already on the requested target and still pending online → idempotent OK.
+                if ((int) $order->branch_id === $toBranchId
+                    && $this->isPendingOnlineForTransfer($order)) {
+                    return [
+                        'success' => true,
+                        'duplicate' => true,
+                        'idempotent' => true,
+                        'message' => translate('Order already sent to this branch.'),
+                        'order' => $order,
+                        'branch_id' => $toBranchId,
+                        'branch_name' => $targetName,
+                    ];
+                }
+
+                if ((int) $order->branch_id !== $fromBranchId) {
+                    return [
+                        'success' => false,
+                        'message' => translate('This order is no longer at this branch.'),
+                        'code' => 'wrong_branch',
+                        'http' => 409,
+                    ];
+                }
+
+                if (OnlineOrderStatus::isTerminal((string) $order->order_status)) {
+                    return [
+                        'success' => false,
+                        'message' => translate('This order can no longer be moved.'),
+                        'code' => 'terminal',
+                        'http' => 422,
+                    ];
+                }
+
+                if (PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel)) {
+                    return [
+                        'success' => false,
+                        'message' => translate('This order was already accepted into POS.'),
+                        'code' => 'already_accepted',
+                        'http' => 422,
+                    ];
+                }
+
+                if (! PosOrderTypes::isOnlineOrder($order->order_type, $order->sales_channel)) {
+                    return [
+                        'success' => false,
+                        'message' => translate('This order is not an online order.'),
+                        'code' => 'not_online',
+                        'http' => 422,
+                    ];
+                }
+
+                if (! in_array((string) $order->order_status, OnlineOrderStatus::pendingQueueStatuses(), true)) {
+                    return [
+                        'success' => false,
+                        'message' => translate('Only pending online orders can be sent to another branch.'),
+                        'code' => 'not_pending',
+                        'http' => 422,
+                    ];
+                }
+
+                $order->branch_id = $toBranchId;
+                $order->save();
+
+                $fresh = $order->fresh(['branch']) ?: $order;
+
+                return [
+                    'success' => true,
+                    'duplicate' => false,
+                    'idempotent' => false,
+                    'message' => translate('Order sent to').' '.$targetName,
+                    'order' => $fresh,
+                    'branch_id' => $toBranchId,
+                    'branch_name' => (string) ($fresh->branch?->name ?? $targetName),
+                ];
+            });
+        } catch (\Throwable $e) {
+            info($e);
+
+            $existing = Order::query()->whereKey($orderId)->first();
+            if ($existing
+                && (int) $existing->branch_id === $toBranchId
+                && $this->isPendingOnlineForTransfer($existing)) {
+                return [
+                    'success' => true,
+                    'duplicate' => true,
+                    'idempotent' => true,
+                    'message' => translate('Order already sent to this branch.'),
+                    'order' => $existing,
+                    'branch_id' => $toBranchId,
+                    'branch_name' => $targetName,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => translate('Could not send this order. Please try again.'),
+                'code' => 'reassign_failed',
+                'http' => 500,
+            ];
+        }
+    }
+
+    private function isPendingOnlineForTransfer(Order $order): bool
+    {
+        if (PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel)) {
+            return false;
+        }
+        if (! PosOrderTypes::isOnlineOrder($order->order_type, $order->sales_channel)) {
+            return false;
+        }
+
+        return in_array((string) $order->order_status, OnlineOrderStatus::pendingQueueStatuses(), true);
     }
 
     private function uiTypeForOnlineOrder(Order $order): string

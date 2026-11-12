@@ -42,6 +42,8 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
             Route::get('today-orders', [POSController::class, 'todayOrders'])->name('today-orders');
             Route::get('pending-online-orders', [POSController::class, 'pendingOnlineOrders'])->name('pending-online-orders');
             Route::post('accept-online-order', [POSController::class, 'acceptOnlineOrder'])->name('accept-online-order');
+            Route::get('online-order-transfer-branches', [POSController::class, 'onlineOrderTransferBranches'])->name('online-order-transfer-branches');
+            Route::post('reassign-online-order', [POSController::class, 'reassignOnlineOrder'])->name('reassign-online-order');
             Route::get('service-worker.js', [POSController::class, 'serviceWorker'])->name('service-worker');
             Route::get('quick-view', [POSController::class, 'quickView'])->name('quick-view');
             Route::post('variant_price', [POSController::class, 'variantPrice'])->name('variant_price');

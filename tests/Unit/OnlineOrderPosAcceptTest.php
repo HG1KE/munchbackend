@@ -8,6 +8,7 @@ use App\Services\OnlineOrderPosAcceptService;
 use App\Support\PosClientVersion;
 use App\Support\PosOnlineOrderReceiveSettings;
 use App\Support\PosOrderTypes;
+use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -15,6 +16,12 @@ use Tests\TestCase;
 
 class OnlineOrderPosAcceptTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,6 +31,8 @@ class OnlineOrderPosAcceptTest extends TestCase
             'order_areas',
             'delivery_charge_by_areas',
             'orders',
+            'branch_time_schedules',
+            'time_schedules',
             'branches',
             'users',
             'guest_users',
@@ -50,7 +59,23 @@ class OnlineOrderPosAcceptTest extends TestCase
         Schema::create('branches', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
+            $table->integer('status')->default(1);
             $table->timestamps();
+        });
+
+        Schema::create('branch_time_schedules', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('branch_id');
+            $table->integer('day');
+            $table->time('opening_time')->nullable();
+            $table->time('closing_time')->nullable();
+        });
+
+        Schema::create('time_schedules', function (Blueprint $table) {
+            $table->id();
+            $table->integer('day');
+            $table->time('opening_time')->nullable();
+            $table->time('closing_time')->nullable();
         });
 
         Schema::create('users', function (Blueprint $table) {
@@ -129,8 +154,20 @@ class OnlineOrderPosAcceptTest extends TestCase
             'currency_symbol' => 'Ksh',
         ]);
         DB::table('branches')->insert([
-            ['id' => 1, 'name' => 'Mtwapa', 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 2, 'name' => 'Nyali', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 1, 'name' => 'Mtwapa', 'status' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'name' => 'Nyali', 'status' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'name' => 'Bamburi', 'status' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'name' => 'Closed Coast', 'status' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 5, 'name' => 'Inactive', 'status' => 0, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        // Freeze midday so open/closed schedule assertions are deterministic.
+        Carbon::setTestNow(Carbon::parse('2026-11-12 12:00:00'));
+        $day = (int) now()->dayOfWeek;
+        DB::table('branch_time_schedules')->insert([
+            ['branch_id' => 1, 'day' => $day, 'opening_time' => '00:00:00', 'closing_time' => '23:59:59'],
+            ['branch_id' => 2, 'day' => $day, 'opening_time' => '00:00:00', 'closing_time' => '23:59:59'],
+            ['branch_id' => 3, 'day' => $day, 'opening_time' => '00:00:00', 'closing_time' => '23:59:59'],
+            ['branch_id' => 4, 'day' => $day, 'opening_time' => '08:00:00', 'closing_time' => '10:00:00'],
         ]);
         DB::table('delivery_charge_by_areas')->insert([
             'id' => 9,
@@ -140,6 +177,7 @@ class OnlineOrderPosAcceptTest extends TestCase
         ]);
 
         Helpers::forgetBusinessSettingsRuntimeCache();
+        Helpers::forgetRestaurantSchedulesRuntimeCache();
     }
 
     public function test_pending_alert_is_branch_scoped_and_includes_full_preview(): void
@@ -245,15 +283,104 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertSame('cash_on_delivery', $order->payment_method);
     }
 
+    public function test_transfer_branch_options_exclude_current_and_mark_closed(): void
+    {
+        $options = $this->service()->transferBranchOptions(1);
+        $ids = array_map(static fn (array $row): int => (int) $row['id'], $options);
+
+        $this->assertNotContains(1, $ids);
+        $this->assertNotContains(5, $ids);
+        $this->assertContains(2, $ids);
+        $this->assertContains(3, $ids);
+        $this->assertContains(4, $ids);
+
+        $byId = [];
+        foreach ($options as $row) {
+            $byId[(int) $row['id']] = $row;
+        }
+
+        $this->assertTrue($byId[2]['is_open']);
+        $this->assertTrue($byId[2]['selectable']);
+        $this->assertSame('OPEN', $byId[2]['status_label']);
+        $this->assertTrue($byId[3]['is_open']);
+
+        $this->assertFalse($byId[4]['is_open']);
+        $this->assertFalse($byId[4]['selectable']);
+        $this->assertSame('CLOSED', $byId[4]['status_label']);
+    }
+
+    public function test_reassign_moves_pending_online_order_and_is_idempotent(): void
+    {
+        $this->seedOnlineOrder(606, 1);
+
+        $first = $this->service()->reassignToBranch(606, 1, 3);
+        $this->assertTrue($first['success']);
+        $this->assertFalse($first['duplicate']);
+        $this->assertFalse($first['idempotent']);
+        $this->assertSame(3, (int) $first['branch_id']);
+
+        $order = Order::query()->find(606);
+        $this->assertNotNull($order);
+        $this->assertSame(3, (int) $order->branch_id);
+        $this->assertSame('pending', $order->order_status);
+        $this->assertSame('delivery', $order->order_type);
+        $this->assertFalse(PosOrderTypes::isPosFamily($order->order_type, $order->sales_channel));
+
+        $sourceAlert = $this->service()->pendingAlertPayload(1);
+        $this->assertSame(0, $sourceAlert['new_order']);
+        $this->assertNull($sourceAlert['order']);
+
+        $targetAlert = $this->service()->pendingAlertPayload(3);
+        $this->assertSame(1, $targetAlert['new_order']);
+        $this->assertSame(606, $targetAlert['order']['id']);
+
+        $again = $this->service()->reassignToBranch(606, 1, 3);
+        $this->assertTrue($again['success']);
+        $this->assertTrue($again['idempotent']);
+        $this->assertTrue($again['duplicate']);
+
+        $wrongSource = $this->service()->reassignToBranch(606, 1, 2);
+        $this->assertFalse($wrongSource['success']);
+        $this->assertSame('wrong_branch', $wrongSource['code']);
+    }
+
+    public function test_reassign_rejects_closed_same_accepted_and_terminal(): void
+    {
+        $this->seedOnlineOrder(707, 1);
+        $closed = $this->service()->reassignToBranch(707, 1, 4);
+        $this->assertFalse($closed['success']);
+        $this->assertSame('branch_closed', $closed['code']);
+        $this->assertSame(1, (int) Order::query()->find(707)->branch_id);
+
+        $same = $this->service()->reassignToBranch(707, 1, 1);
+        $this->assertFalse($same['success']);
+        $this->assertSame('same_branch', $same['code']);
+
+        $accepted = $this->service()->accept(707, 1);
+        $this->assertTrue($accepted['success']);
+        $moveAccepted = $this->service()->reassignToBranch(707, 1, 3);
+        $this->assertFalse($moveAccepted['success']);
+        $this->assertSame('already_accepted', $moveAccepted['code']);
+
+        $this->seedOnlineOrder(708, 1, ['order_status' => 'canceled']);
+        $terminal = $this->service()->reassignToBranch(708, 1, 3);
+        $this->assertFalse($terminal['success']);
+        $this->assertSame('terminal', $terminal['code']);
+    }
+
     public function test_pos_shell_wires_accept_endpoints_and_bumps_asset_version(): void
     {
         $routes = file_get_contents(base_path('routes/branch.php'));
         $this->assertStringContainsString("pending-online-orders", $routes);
         $this->assertStringContainsString("accept-online-order", $routes);
+        $this->assertStringContainsString("online-order-transfer-branches", $routes);
+        $this->assertStringContainsString("reassign-online-order", $routes);
 
         $controller = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
         $this->assertStringContainsString('function pendingOnlineOrders', $controller);
         $this->assertStringContainsString('function acceptOnlineOrder', $controller);
+        $this->assertStringContainsString('function onlineOrderTransferBranches', $controller);
+        $this->assertStringContainsString('function reassignOnlineOrder', $controller);
         $this->assertStringContainsString('OnlineOrderPosAcceptService', $controller);
         $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $controller);
         $this->assertStringContainsString('pos_online_receive_disabled', $controller);
@@ -261,19 +388,27 @@ class OnlineOrderPosAcceptTest extends TestCase
         $page = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
         $this->assertStringContainsString('pos-online-order-modal', $page);
         $this->assertStringContainsString('pos-online-order-accept', $page);
+        $this->assertStringContainsString('pos-online-order-send', $page);
+        $this->assertStringContainsString('pos-online-order-transfer', $page);
         $this->assertStringContainsString('pos-online-order-fulfillment', $page);
         $this->assertStringContainsString('pos-online-order-area', $page);
         $this->assertStringContainsString('pendingOnlineOrders', $page);
         $this->assertStringContainsString('acceptOnlineOrder', $page);
+        $this->assertStringContainsString('onlineOrderTransferBranches', $page);
+        $this->assertStringContainsString('reassignOnlineOrder', $page);
+        $this->assertStringContainsString('SEND TO DIFFERENT BRANCH', $page);
         $this->assertStringContainsString('PosOnlineOrderReceiveSettings::isEnabled', $page);
+        $this->assertStringNotContainsString('pos-online-order-dismiss', $page);
+        $this->assertStringNotContainsString("translate('Later')", $page);
         $this->assertStringNotContainsString("get_business_settings('admin_order_notification')", $page);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
         $this->assertStringContainsString('function acceptOnlineOrder', $js);
+        $this->assertStringContainsString('function reassignOnlineOrder', $js);
+        $this->assertStringContainsString('function openOnlineOrderTransferPicker', $js);
         $this->assertStringContainsString('startOnlineOrderPolling', $js);
         $this->assertStringContainsString('onlineOrderFulfillmentLabel', $js);
         $this->assertStringContainsString('onlineOrderAreaRow', $js);
-        $this->assertStringContainsString('Date.now() + 45000', $js);
         $this->assertStringContainsString('openSuccessModal(snapshotPrintJob(body)', $js);
         $this->assertStringContainsString('CART_INACTIVITY_MS = 2 * 60 * 1000', $js);
         $this->assertStringContainsString('function cartHasLines', $js);
@@ -285,9 +420,13 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('onlineRing.visibilityBound', $js);
         $this->assertStringContainsString('onlineRing.onlineBound', $js);
         $this->assertStringContainsString('onlineRing.inFlight', $js);
+        $this->assertStringNotContainsString('snoozedUntil', $js);
+        $this->assertStringNotContainsString('onlineOrderDismiss', $js);
 
         $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
         $this->assertStringContainsString('munch-pos-online-ring__fulfillment', $css);
+        $this->assertStringContainsString('munch-pos-online-ring__send', $css);
+        $this->assertStringContainsString('munch-pos-online-ring__branch', $css);
         $this->assertStringContainsString('.munch-pos-online-ring__actions .munch-pos-clear', $css);
         $this->assertStringContainsString('background: #94a3b8', $css);
 

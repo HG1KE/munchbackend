@@ -252,9 +252,18 @@
             <p class="munch-pos-online-ring__notes" id="pos-online-order-notes" hidden></p>
             <p class="munch-pos-online-ring__error" id="pos-online-order-error" hidden></p>
         </div>
-        <div class="munch-pos-dialog__actions munch-pos-online-ring__actions">
+        <div class="munch-pos-online-ring__transfer" id="pos-online-order-transfer" hidden>
+            <h3 class="munch-pos-online-ring__transfer-title" id="pos-online-order-transfer-title">{{ translate('Send to different branch') }}</h3>
+            <p class="munch-pos-online-ring__transfer-hint" id="pos-online-order-transfer-hint">{{ translate('Choose an open branch. Closed branches cannot be selected.') }}</p>
+            <div class="munch-pos-online-ring__transfer-list" id="pos-online-order-transfer-list" role="listbox" aria-labelledby="pos-online-order-transfer-title"></div>
+            <p class="munch-pos-online-ring__error" id="pos-online-order-transfer-error" hidden></p>
+            <div class="munch-pos-dialog__actions munch-pos-online-ring__actions">
+                <button type="button" class="munch-pos-clear" id="pos-online-order-transfer-back">{{ translate('Back') }}</button>
+            </div>
+        </div>
+        <div class="munch-pos-dialog__actions munch-pos-online-ring__actions" id="pos-online-order-actions">
             <button type="button" class="munch-pos-place" id="pos-online-order-accept" data-label="{{ translate('ACCEPT') }}">{{ translate('ACCEPT') }}</button>
-            <button type="button" class="munch-pos-clear" id="pos-online-order-dismiss">{{ translate('Later') }}</button>
+            <button type="button" class="munch-pos-clear munch-pos-online-ring__send" id="pos-online-order-send" data-label="{{ translate('SEND TO DIFFERENT BRANCH') }}">{{ translate('SEND TO DIFFERENT BRANCH') }}</button>
         </div>
     </div>
 </div>
@@ -284,6 +293,8 @@
             todayOrders: @json(route('branch.pos.today-orders')),
             pendingOnlineOrders: @json($posOnlineRingEnabled ? route('branch.pos.pending-online-orders') : null),
             acceptOnlineOrder: @json($posOnlineRingEnabled ? route('branch.pos.accept-online-order') : null),
+            onlineOrderTransferBranches: @json($posOnlineRingEnabled ? route('branch.pos.online-order-transfer-branches') : null),
+            reassignOnlineOrder: @json($posOnlineRingEnabled ? route('branch.pos.reassign-online-order') : null),
             printTicket: @json(route('branch.pos.print-ticket')),
             cancelOrder: @json(route('branch.pos.cancel-order')),
             order: @json(route('branch.pos.order')),
@@ -440,7 +451,6 @@
             closeNeedBothPrints: @json(translate('Cannot close until you print Kitchen Order Receipt and Customer Receipt')),
             acceptOnline: @json(translate('ACCEPT')),
             acceptingOnline: @json(translate('Accepting...')),
-            onlineOrderLater: @json(translate('Later')),
             onlineOrderAcceptFailed: @json(translate('Could not accept this order. Please try again.')),
             onlineOrderPickup: @json(translate('PICKUP')),
             onlineOrderDelivery: @json(translate('DELIVERY')),
@@ -449,6 +459,16 @@
             onlineOrderDeliveryFee: @json(translate('Delivery Fee')),
             onlineOrderTotal: @json(translate('Grand Total')),
             onlineOrderNotes: @json(translate('Notes')),
+            sendToDifferentBranch: @json(translate('SEND TO DIFFERENT BRANCH')),
+            sendToDifferentBranchTitle: @json(translate('Send to different branch')),
+            sendToDifferentBranchHint: @json(translate('Choose an open branch. Closed branches cannot be selected.')),
+            sendToBranchConfirm: @json(translate('Send this order to {branch}?')),
+            sendingToBranch: @json(translate('Sending...')),
+            sendToBranchFailed: @json(translate('Could not send this order. Please try again.')),
+            branchOpen: @json(translate('OPEN')),
+            branchClosed: @json(translate('CLOSED')),
+            noTransferBranches: @json(translate('No other open branches available.')),
+            back: @json(translate('Back')),
         }
     };
 </script>

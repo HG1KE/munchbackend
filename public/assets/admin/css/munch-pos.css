@@ -2159,10 +2159,106 @@ html.munch-pos-overlay-open body {
     color: #fff;
 }
 
-.munch-pos-online-ring__actions .munch-pos-clear {
+.munch-pos-online-ring__actions .munch-pos-clear,
+.munch-pos-online-ring__actions .munch-pos-online-ring__send {
     border: 1px solid #cbd5e1;
     background: #94a3b8;
     color: #fff;
+}
+
+.munch-pos-online-ring__actions .munch-pos-online-ring__send {
+    letter-spacing: 0.03em;
+    font-size: 0.95rem;
+}
+
+.munch-pos-online-ring__transfer {
+    padding: 0.35rem 1.1rem 0.25rem;
+}
+
+.munch-pos-online-ring__transfer-title {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.munch-pos-online-ring__transfer-hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: #6b7280;
+    line-height: 1.35;
+}
+
+.munch-pos-online-ring__transfer-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 0.65rem;
+    max-height: min(40dvh, 280px);
+    overflow: auto;
+}
+
+.munch-pos-online-ring__transfer-empty {
+    margin: 0;
+    padding: 0.85rem 0.75rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.munch-pos-online-ring__branch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.85rem 0.95rem;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #111827;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.munch-pos-online-ring__branch:not(.is-closed):hover,
+.munch-pos-online-ring__branch:not(.is-closed):focus-visible {
+    border-color: #94a3b8;
+    background: #f8fafc;
+    outline: none;
+}
+
+.munch-pos-online-ring__branch.is-closed,
+.munch-pos-online-ring__branch:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.munch-pos-online-ring__branch-name {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.munch-pos-online-ring__branch-status {
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #0f766e;
+}
+
+.munch-pos-online-ring__branch.is-closed .munch-pos-online-ring__branch-status,
+.munch-pos-online-ring__branch:disabled .munch-pos-online-ring__branch-status {
+    color: #b91c1c;
 }
 
 @keyframes munch-pos-online-chrome {

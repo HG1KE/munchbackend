@@ -180,6 +180,67 @@ class POSController extends Controller
         return response()->json($payload);
     }
 
+    /**
+     * Active sibling branches for the online-order "send to different branch" picker.
+     */
+    public function onlineOrderTransferBranches(): JsonResponse
+    {
+        $branch = auth('branch')->user();
+        if (! BranchOnlineOrdering::isEnabled($branch) || ! PosOnlineOrderReceiveSettings::isEnabled()) {
+            return response()->json([
+                'success' => 1,
+                'data' => [
+                    'branches' => [],
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'success' => 1,
+            'data' => [
+                'branches' => $this->onlineOrderAccept->transferBranchOptions((int) auth('branch')->id()),
+            ],
+        ]);
+    }
+
+    /**
+     * Reassign a still-pending online order to another open branch (idempotent).
+     */
+    public function reassignOnlineOrder(Request $request): JsonResponse
+    {
+        $branch = auth('branch')->user();
+        if (! BranchOnlineOrdering::isEnabled($branch) || ! PosOnlineOrderReceiveSettings::isEnabled()) {
+            return response()->json([
+                'success' => 0,
+                'message' => translate('Online order accept is disabled for Branch POS.'),
+                'code' => 'pos_online_receive_disabled',
+            ], 422);
+        }
+
+        $fromBranchId = (int) auth('branch')->id();
+        $orderId = (int) $request->input('order_id');
+        $toBranchId = (int) $request->input('branch_id');
+        $result = $this->onlineOrderAccept->reassignToBranch($orderId, $fromBranchId, $toBranchId);
+
+        if (! ($result['success'] ?? false)) {
+            return response()->json([
+                'success' => 0,
+                'message' => $result['message'] ?? translate('Could not send this order. Please try again.'),
+                'code' => $result['code'] ?? 'reassign_failed',
+            ], (int) ($result['http'] ?? 422));
+        }
+
+        return response()->json([
+            'success' => 1,
+            'message' => $result['message'] ?? translate('Order sent'),
+            'order_id' => (int) ($result['order']->id ?? $orderId),
+            'branch_id' => (int) ($result['branch_id'] ?? $toBranchId),
+            'branch_name' => (string) ($result['branch_name'] ?? ''),
+            'duplicate' => (bool) ($result['duplicate'] ?? false),
+            'idempotent' => (bool) ($result['idempotent'] ?? false),
+        ]);
+    }
+
     public function cancelOrder(Request $request): JsonResponse
     {
         $order = $this->order

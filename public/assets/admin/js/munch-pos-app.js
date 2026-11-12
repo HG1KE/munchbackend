@@ -70,10 +70,12 @@
     var onlineRing = {
         open: false,
         accepting: false,
-        snoozedUntil: 0,
+        transferring: false,
+        pickingBranch: false,
         lastOrderId: 0,
         order: null,
         timer: 0,
+        branches: [],
         audioStarted: false,
         visibilityBound: false,
         onlineBound: false,
@@ -2128,6 +2130,10 @@
         return !!(CFG.urls && CFG.urls.pendingOnlineOrders && CFG.urls.acceptOnlineOrder && els.onlineOrderModal);
     }
 
+    function onlineRingBusy() {
+        return !!(onlineRing.accepting || onlineRing.transferring);
+    }
+
     function playOnlineOrderAudio() {
         if (!els.onlineOrderAudio) return;
         try {
@@ -2256,19 +2262,32 @@
         }
     }
 
+    function setOnlineOrderMainView() {
+        onlineRing.pickingBranch = false;
+        if (els.onlineOrderBody) els.onlineOrderBody.hidden = false;
+        if (els.onlineOrderActions) els.onlineOrderActions.hidden = false;
+        if (els.onlineOrderTransfer) els.onlineOrderTransfer.hidden = true;
+        if (els.onlineOrderTransferError) {
+            els.onlineOrderTransferError.hidden = true;
+            els.onlineOrderTransferError.textContent = '';
+        }
+        if (els.onlineOrderSend) {
+            els.onlineOrderSend.disabled = onlineRingBusy();
+            els.onlineOrderSend.textContent = els.onlineOrderSend.getAttribute('data-label')
+                || L('sendToDifferentBranch', 'SEND TO DIFFERENT BRANCH');
+        }
+    }
+
     function openOnlineOrderModal(order, opts) {
         if (!onlineRingEnabled() || !order) return;
         opts = opts || {};
         // Never interrupt an active cart — polling continues in the background.
         if (cartHasLines()) return;
-        if (successJob || onlineRing.accepting) return;
-        if (Date.now() < onlineRing.snoozedUntil && Number(order.id) === onlineRing.lastOrderId && !opts.force) {
-            return;
-        }
+        if (successJob || onlineRingBusy()) return;
         try {
             renderOnlineOrderModal(order);
+            setOnlineOrderMainView();
             onlineRing.open = true;
-            onlineRing.snoozedUntil = 0;
             els.onlineOrderModal.hidden = false;
             syncPosOverlayState();
             if (opts.play !== false) playOnlineOrderAudio();
@@ -2280,10 +2299,12 @@
         }
     }
 
-    function closeOnlineOrderModal(opts) {
-        opts = opts || {};
+    function closeOnlineOrderModal() {
         onlineRing.open = false;
         onlineRing.accepting = false;
+        onlineRing.transferring = false;
+        onlineRing.pickingBranch = false;
+        onlineRing.branches = [];
         stopOnlineOrderAudio();
         if (els.onlineOrderModal) els.onlineOrderModal.hidden = true;
         if (els.onlineOrderAccept) {
@@ -2291,9 +2312,12 @@
             els.onlineOrderAccept.textContent = els.onlineOrderAccept.getAttribute('data-label')
                 || L('acceptOnline', 'ACCEPT');
         }
-        if (opts.snooze && onlineRing.lastOrderId) {
-            onlineRing.snoozedUntil = Date.now() + 45000;
+        if (els.onlineOrderSend) {
+            els.onlineOrderSend.disabled = false;
+            els.onlineOrderSend.textContent = els.onlineOrderSend.getAttribute('data-label')
+                || L('sendToDifferentBranch', 'SEND TO DIFFERENT BRANCH');
         }
+        setOnlineOrderMainView();
         syncPosOverlayState();
     }
 
@@ -2329,10 +2353,13 @@
                         // Keep polling; suppress ring UI until cart is empty.
                         return data;
                     }
+                    if (onlineRing.pickingBranch && Number(order.id) === onlineRing.lastOrderId) {
+                        return data;
+                    }
                     openOnlineOrderModal(order, {
                         play: !onlineRing.open || Number(order.id) !== onlineRing.lastOrderId
                     });
-                } else if (onlineRing.open && !onlineRing.accepting) {
+                } else if (onlineRing.open && !onlineRingBusy()) {
                     closeOnlineOrderModal();
                 }
                 return data;
@@ -2353,8 +2380,8 @@
     function pollOnlineOrdersTick() {
         try {
             if (document.visibilityState === 'hidden') return;
-            // Skip only this tick while accept is in flight — never clear the interval.
-            if (onlineRing.accepting) return;
+            // Skip only this tick while accept/transfer is in flight — never clear the interval.
+            if (onlineRingBusy()) return;
             fetchPendingOnlineOrders();
         } catch (err) { /* interval must stay alive */ }
     }
@@ -2389,7 +2416,7 @@
 
     function acceptOnlineOrder(ev) {
         if (ignoreIfSubmitting(ev)) return;
-        if (!onlineRingEnabled() || onlineRing.accepting || !onlineRing.order) return;
+        if (!onlineRingEnabled() || onlineRingBusy() || onlineRing.pickingBranch || !onlineRing.order) return;
         if (successJob || cartHasLines()) return;
         var orderId = Number(onlineRing.order.id || 0);
         if (!orderId) return;
@@ -2403,6 +2430,7 @@
             els.onlineOrderAccept.disabled = true;
             els.onlineOrderAccept.textContent = L('acceptingOnline', 'Accepting...');
         }
+        if (els.onlineOrderSend) els.onlineOrderSend.disabled = true;
         fetch(CFG.urls.acceptOnlineOrder, {
             method: 'POST',
             credentials: 'same-origin',
@@ -2439,6 +2467,7 @@
                 els.onlineOrderAccept.textContent = els.onlineOrderAccept.getAttribute('data-label')
                     || L('acceptOnline', 'ACCEPT');
             }
+            if (els.onlineOrderSend) els.onlineOrderSend.disabled = false;
             var message = (body && body.message)
                 || outcome.message
                 || L('onlineOrderAcceptFailed', 'Could not accept this order. Please try again.');
@@ -2461,10 +2490,161 @@
                 els.onlineOrderAccept.textContent = els.onlineOrderAccept.getAttribute('data-label')
                     || L('acceptOnline', 'ACCEPT');
             }
+            if (els.onlineOrderSend) els.onlineOrderSend.disabled = false;
             var message = L('onlineOrderAcceptFailed', 'Could not accept this order. Please try again.');
             if (els.onlineOrderError) {
                 els.onlineOrderError.hidden = false;
                 els.onlineOrderError.textContent = message;
+            } else {
+                toast(message);
+            }
+            try { fetchPendingOnlineOrders(); } catch (err) { /* ignore */ }
+        });
+    }
+
+    function renderTransferBranchList(branches) {
+        if (!els.onlineOrderTransferList) return;
+        onlineRing.branches = Array.isArray(branches) ? branches : [];
+        if (!onlineRing.branches.length) {
+            els.onlineOrderTransferList.innerHTML = '<p class="munch-pos-online-ring__transfer-empty">'
+                + escapeHtml(L('noTransferBranches', 'No other open branches available.'))
+                + '</p>';
+            return;
+        }
+        els.onlineOrderTransferList.innerHTML = onlineRing.branches.map(function (branch) {
+            var open = !!(branch.is_open || branch.selectable);
+            var status = branch.status_label
+                || (open ? L('branchOpen', 'OPEN') : L('branchClosed', 'CLOSED'));
+            var disabled = open ? '' : ' disabled aria-disabled="true"';
+            var cls = 'munch-pos-online-ring__branch' + (open ? '' : ' is-closed');
+            return '<button type="button" class="' + cls + '" role="option" data-transfer-branch="'
+                + escapeHtml(branch.id) + '"' + disabled + '>'
+                + '<span class="munch-pos-online-ring__branch-name">' + escapeHtml(branch.name || '') + '</span>'
+                + '<span class="munch-pos-online-ring__branch-status">' + escapeHtml(status) + '</span>'
+                + '</button>';
+        }).join('');
+    }
+
+    function openOnlineOrderTransferPicker() {
+        if (!onlineRingEnabled() || onlineRingBusy() || !onlineRing.order) return;
+        if (cartHasLines()) return;
+        if (!CFG.urls.onlineOrderTransferBranches || !CFG.urls.reassignOnlineOrder) {
+            toast(L('sendToBranchFailed', 'Could not send this order. Please try again.'));
+            return;
+        }
+        stopOnlineOrderAudio();
+        onlineRing.pickingBranch = true;
+        if (els.onlineOrderBody) els.onlineOrderBody.hidden = true;
+        if (els.onlineOrderActions) els.onlineOrderActions.hidden = true;
+        if (els.onlineOrderTransfer) els.onlineOrderTransfer.hidden = false;
+        if (els.onlineOrderTransferError) {
+            els.onlineOrderTransferError.hidden = true;
+            els.onlineOrderTransferError.textContent = '';
+        }
+        if (els.onlineOrderTransferList) {
+            els.onlineOrderTransferList.innerHTML = '<p class="munch-pos-online-ring__transfer-empty">'
+                + escapeHtml(L('syncing', 'Syncing...')) + '</p>';
+        }
+        fetch(CFG.urls.onlineOrderTransferBranches, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-Munch-POS': '1' }
+        }).then(function (res) {
+            if (res.status === 401 || res.status === 403) {
+                state.authRequired = true;
+                scheduleRender();
+                throw new Error('auth');
+            }
+            return res.json().catch(function () { return null; });
+        }).then(function (json) {
+            if (!onlineRing.pickingBranch) return;
+            var branches = json && json.data && Array.isArray(json.data.branches)
+                ? json.data.branches
+                : [];
+            renderTransferBranchList(branches);
+        }).catch(function () {
+            if (!onlineRing.pickingBranch) return;
+            if (els.onlineOrderTransferList) {
+                els.onlineOrderTransferList.innerHTML = '<p class="munch-pos-online-ring__transfer-empty">'
+                    + escapeHtml(L('sendToBranchFailed', 'Could not send this order. Please try again.'))
+                    + '</p>';
+            }
+        });
+    }
+
+    function confirmSendToBranch(branch) {
+        if (!branch || !branch.id) return;
+        if (!(branch.is_open || branch.selectable)) return;
+        var name = branch.name || ('#' + branch.id);
+        var prompt = L('sendToBranchConfirm', 'Send this order to {branch}?').replace('{branch}', name);
+        if (!window.confirm(prompt)) return;
+        reassignOnlineOrder(Number(branch.id), name);
+    }
+
+    function reassignOnlineOrder(branchId, branchName) {
+        if (!onlineRingEnabled() || onlineRingBusy() || !onlineRing.order) return;
+        var orderId = Number(onlineRing.order.id || 0);
+        if (!orderId || !branchId) return;
+        onlineRing.transferring = true;
+        stopOnlineOrderAudio();
+        if (els.onlineOrderTransferError) {
+            els.onlineOrderTransferError.hidden = true;
+            els.onlineOrderTransferError.textContent = '';
+        }
+        if (els.onlineOrderTransferBack) els.onlineOrderTransferBack.disabled = true;
+        if (els.onlineOrderTransferList) {
+            Array.prototype.forEach.call(
+                els.onlineOrderTransferList.querySelectorAll('[data-transfer-branch]'),
+                function (btn) { btn.disabled = true; }
+            );
+        }
+        fetch(CFG.urls.reassignOnlineOrder, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Munch-POS': '1'
+            },
+            body: JSON.stringify({ order_id: orderId, branch_id: branchId })
+        }).then(function (res) {
+            return res.json().then(function (body) {
+                body = body && typeof body === 'object' ? body : {};
+                body._http = res.status;
+                return body;
+            }).catch(function () {
+                return { success: 0, _http: res && res.status, message: L('sendToBranchFailed', 'Could not send this order. Please try again.') };
+            });
+        }).then(function (body) {
+            if (body && Number(body.success) === 1) {
+                closeOnlineOrderModal();
+                toast(body.message || (L('sendToDifferentBranch', 'SEND TO DIFFERENT BRANCH') + ': ' + (branchName || '')));
+                return;
+            }
+            onlineRing.transferring = false;
+            if (els.onlineOrderTransferBack) els.onlineOrderTransferBack.disabled = false;
+            renderTransferBranchList(onlineRing.branches);
+            var message = (body && body.message)
+                || L('sendToBranchFailed', 'Could not send this order. Please try again.');
+            if (els.onlineOrderTransferError) {
+                els.onlineOrderTransferError.hidden = false;
+                els.onlineOrderTransferError.textContent = message;
+            } else {
+                toast(message);
+            }
+            if (body && (body._http === 401 || body._http === 403 || body.code === 'auth')) {
+                state.authRequired = true;
+                scheduleRender();
+            }
+            try { fetchPendingOnlineOrders(); } catch (err) { /* ignore */ }
+        }).catch(function () {
+            onlineRing.transferring = false;
+            if (els.onlineOrderTransferBack) els.onlineOrderTransferBack.disabled = false;
+            renderTransferBranchList(onlineRing.branches);
+            var message = L('sendToBranchFailed', 'Could not send this order. Please try again.');
+            if (els.onlineOrderTransferError) {
+                els.onlineOrderTransferError.hidden = false;
+                els.onlineOrderTransferError.textContent = message;
             } else {
                 toast(message);
             }
@@ -3636,6 +3816,8 @@
         els.cancelDismiss = document.getElementById('pos-cancel-dismiss');
         els.cancelConfirm = document.getElementById('pos-cancel-confirm');
         els.onlineOrderModal = document.getElementById('pos-online-order-modal');
+        els.onlineOrderBody = document.getElementById('pos-online-order-body');
+        els.onlineOrderActions = document.getElementById('pos-online-order-actions');
         els.onlineOrderFulfillment = document.getElementById('pos-online-order-fulfillment');
         els.onlineOrderNumber = document.getElementById('pos-online-order-number');
         els.onlineOrderCustomer = document.getElementById('pos-online-order-customer');
@@ -3649,13 +3831,33 @@
         els.onlineOrderNotes = document.getElementById('pos-online-order-notes');
         els.onlineOrderError = document.getElementById('pos-online-order-error');
         els.onlineOrderAccept = document.getElementById('pos-online-order-accept');
-        els.onlineOrderDismiss = document.getElementById('pos-online-order-dismiss');
+        els.onlineOrderSend = document.getElementById('pos-online-order-send');
+        els.onlineOrderTransfer = document.getElementById('pos-online-order-transfer');
+        els.onlineOrderTransferList = document.getElementById('pos-online-order-transfer-list');
+        els.onlineOrderTransferError = document.getElementById('pos-online-order-transfer-error');
+        els.onlineOrderTransferBack = document.getElementById('pos-online-order-transfer-back');
         els.onlineOrderAudio = document.getElementById('pos-online-order-audio');
 
         if (els.onlineOrderAccept) bindSubmitControl(els.onlineOrderAccept, acceptOnlineOrder);
-        if (els.onlineOrderDismiss) {
-            els.onlineOrderDismiss.addEventListener('click', function () {
-                closeOnlineOrderModal({ snooze: true });
+        if (els.onlineOrderSend) {
+            els.onlineOrderSend.addEventListener('click', function () {
+                openOnlineOrderTransferPicker();
+            });
+        }
+        if (els.onlineOrderTransferBack) {
+            els.onlineOrderTransferBack.addEventListener('click', function () {
+                if (onlineRing.transferring) return;
+                setOnlineOrderMainView();
+                if (onlineRing.open) playOnlineOrderAudio();
+            });
+        }
+        if (els.onlineOrderTransferList) {
+            els.onlineOrderTransferList.addEventListener('click', function (ev) {
+                var btn = ev.target.closest('[data-transfer-branch]');
+                if (!btn || btn.disabled || onlineRing.transferring) return;
+                var id = Number(btn.getAttribute('data-transfer-branch'));
+                var branch = onlineRing.branches.find(function (row) { return Number(row.id) === id; });
+                if (branch) confirmSendToBranch(branch);
             });
         }
 
@@ -3955,7 +4157,11 @@
                 if (els.onlineOrderModal && !els.onlineOrderModal.hidden) {
                     ev.preventDefault();
                     ev.stopPropagation();
-                    if (!onlineRing.accepting) closeOnlineOrderModal({ snooze: true });
+                    // No Later/snooze: Esc backs out of branch picker only; modal stays until ACCEPT or send.
+                    if (!onlineRingBusy() && onlineRing.pickingBranch) {
+                        setOnlineOrderMainView();
+                        playOnlineOrderAudio();
+                    }
                     return;
                 }
                 if (els.platformModal && !els.platformModal.hidden) {
@@ -3973,7 +4179,7 @@
             }
             if (els.onlineOrderModal && !els.onlineOrderModal.hidden) {
                 ev.preventDefault();
-                if (!onlineRing.accepting) acceptOnlineOrder(ev);
+                if (!onlineRingBusy() && !onlineRing.pickingBranch) acceptOnlineOrder(ev);
                 return;
             }
             if (els.deliveryModal && !els.deliveryModal.hidden) return;
