@@ -73,40 +73,69 @@ class CustomerOrderStatusSms
                 return;
             }
 
-            if ($order->customer_processing_sms_sent_at !== null) {
-                return;
-            }
-
-            if (! SMS_module::isTemplateSendable(SmsTemplateCatalog::PROCESSING)) {
-                return;
-            }
-
-            $order->loadMissing(['customer', 'branch']);
-
-            $phone = self::resolveCustomerPhone($order);
-            if ($phone === null || $phone === '') {
-                return;
-            }
-
-            $smsData = self::buildTemplateData($order);
-
-            $result = SMS_module::textsms_ke_customer_status_sms($phone, $smsData, 'processing_template');
-
-            if ($result === 'success') {
-                Order::query()->whereKey($order->id)->whereNull('customer_processing_sms_sent_at')->update([
-                    'customer_processing_sms_sent_at' => now(),
-                ]);
-            }
+            self::sendProcessingSms($order);
         } catch (\Throwable $e) {
             //
         }
     }
 
     /**
+     * Processing SMS when Branch POS accepts an online order into sales.
+     *
+     * Accept converts the row to POS family with status confirmed (not processing),
+     * so the normal status-transition gates do not apply. Still once-per-order via
+     * customer_processing_sms_sent_at and SmsTemplateCatalog::PROCESSING.
+     * Placeholders use the order's current branch (post-transfer when reassigned).
+     */
+    public static function dispatchProcessingOnPosAccept(Order $order): void
+    {
+        try {
+            self::sendProcessingSms($order);
+        } catch (\Throwable $e) {
+            // Non-fatal
+        }
+    }
+
+    /**
+     * Shared PROCESSING template send + once-flag stamp.
+     */
+    private static function sendProcessingSms(Order $order): void
+    {
+        if ($order->customer_processing_sms_sent_at !== null) {
+            return;
+        }
+
+        if (! SMS_module::isTemplateSendable(SmsTemplateCatalog::PROCESSING)) {
+            return;
+        }
+
+        // Always resolve branch from current branch_id (covers transfer-then-accept).
+        $order->unsetRelation('branch');
+        $order->load(['customer', 'branch']);
+
+        $phone = self::resolveCustomerPhone($order);
+        if ($phone === null || $phone === '') {
+            return;
+        }
+
+        $smsData = self::buildTemplateData($order);
+
+        $result = SMS_module::textsms_ke_customer_status_sms($phone, $smsData, 'processing_template');
+
+        if ($result === 'success') {
+            Order::query()->whereKey($order->id)->whereNull('customer_processing_sms_sent_at')->update([
+                'customer_processing_sms_sent_at' => now(),
+            ]);
+        }
+    }
+
+    /**
      * @return array<string, string>
      */
-    private static function buildTemplateData(Order $order): array
+    public static function buildTemplateData(Order $order): array
     {
+        $order->loadMissing(['customer', 'branch']);
+
         $customerName = self::resolveCustomerName($order);
         $totalAmount = number_format((float) $order->order_amount + (float) $order->delivery_charge, 2);
         $statusLabel = ucwords(str_replace('_', ' ', (string) $order->order_status));

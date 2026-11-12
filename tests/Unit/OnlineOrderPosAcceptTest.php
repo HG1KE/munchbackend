@@ -252,6 +252,24 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertNull($alert['order']);
     }
 
+    public function test_accept_wires_processing_customer_sms_for_current_branch(): void
+    {
+        $service = file_get_contents(app_path('Services/OnlineOrderPosAcceptService.php'));
+        $acceptBody = $this->methodBody($service, 'accept');
+        $this->assertStringContainsString('CustomerOrderStatusSms::dispatchProcessingOnPosAccept', $acceptBody);
+        $this->assertStringContainsString('empty($result[\'idempotent\'])', $acceptBody);
+        $this->assertStringContainsString('empty($result[\'duplicate\'])', $acceptBody);
+
+        $this->seedOnlineOrder(609, 1);
+        $moved = $this->service()->reassignToBranch(609, 1, 3);
+        $this->assertTrue($moved['success']);
+        $accepted = $this->service()->accept(609, 3);
+        $this->assertTrue($accepted['success']);
+        $this->assertFalse($accepted['idempotent']);
+        $this->assertSame(3, (int) $accepted['order']->branch_id);
+        $this->assertSame('Bamburi', (string) $accepted['order']->branch?->name);
+    }
+
     public function test_accept_rejects_other_branch_and_terminal_orders(): void
     {
         $this->seedOnlineOrder(404, 1);

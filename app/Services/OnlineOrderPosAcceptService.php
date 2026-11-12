@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\CentralLogics\CustomerOrderStatusSms;
 use App\CentralLogics\Helpers;
 use App\Model\Branch;
 use App\Model\Order;
@@ -135,7 +136,7 @@ class OnlineOrderPosAcceptService
         }
 
         try {
-            return DB::transaction(function () use ($orderId, $branchId) {
+            $result = DB::transaction(function () use ($orderId, $branchId) {
                 /** @var Order|null $order */
                 $order = Order::query()
                     ->whereKey($orderId)
@@ -218,22 +219,32 @@ class OnlineOrderPosAcceptService
                 ->where('branch_id', $branchId)
                 ->first();
             if ($existing && PosOrderTypes::isPosFamily($existing->order_type, $existing->sales_channel)) {
-                return [
+                $result = [
                     'success' => true,
                     'duplicate' => true,
                     'idempotent' => true,
                     'message' => translate('order_placed_successfully'),
                     'order' => $existing->fresh(['details', 'customer', 'customer_delivery_address', 'branch']) ?: $existing,
                 ];
+            } else {
+                $result = [
+                    'success' => false,
+                    'message' => translate('failed_to_place_order'),
+                    'code' => 'accept_failed',
+                    'http' => 500,
+                ];
             }
-
-            return [
-                'success' => false,
-                'message' => translate('failed_to_place_order'),
-                'code' => 'accept_failed',
-                'http' => 500,
-            ];
         }
+
+        // First successful convert only — idempotent re-accept must not re-send.
+        if (($result['success'] ?? false)
+            && empty($result['idempotent'])
+            && empty($result['duplicate'])
+            && ($result['order'] ?? null) instanceof Order) {
+            CustomerOrderStatusSms::dispatchProcessingOnPosAccept($result['order']);
+        }
+
+        return $result;
     }
 
     /**

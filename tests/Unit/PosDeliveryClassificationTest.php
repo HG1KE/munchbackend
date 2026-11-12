@@ -117,6 +117,8 @@ class PosDeliveryClassificationTest extends TestCase
         $this->assertStringNotContainsString('textsms_ke_not', $controller);
         $this->assertStringNotContainsString('SmsTemplateCatalog::ORDER_PLACED', $controller);
         $this->assertStringNotContainsString('SmsTemplateCatalog::PROCESSING', $controller);
+        // Online ACCEPT processing SMS is wired in OnlineOrderPosAcceptService, not here.
+        $this->assertStringNotContainsString('dispatchProcessingOnPosAccept', $controller);
     }
 
     public function test_customer_status_sms_skips_pos_family_without_sending(): void
