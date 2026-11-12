@@ -147,6 +147,7 @@
             <input type="search" id="pos-orders-search" placeholder="{{ translate('Order Number') }}, {{ translate('Name') }}, {{ translate('Phone') }}" autocomplete="off">
         </label>
         <div class="munch-pos-orders__filters" id="pos-orders-filters"></div>
+        <p class="munch-pos-orders__value" id="pos-orders-value" hidden></p>
         <div class="munch-pos-orders__list" id="pos-orders-list"></div>
         <footer class="munch-pos-orders__pager" id="pos-orders-pager"></footer>
     </div>

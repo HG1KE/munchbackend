@@ -54,7 +54,7 @@ test('guard hard-blocks within two minutes', function () {
 });
 
 test('asset version bumped for POS clients', function () {
-    assert(version.indexOf("ASSET = '6.20'") !== -1, 'PosClientVersion should be 6.20');
+    assert(version.indexOf("ASSET = '6.21'") !== -1, 'PosClientVersion should be 6.21');
     var layout = fs.readFileSync(path.join(root, 'resources/views/layouts/branch/pos.blade.php'), 'utf8');
     assert(layout.indexOf("munch-pos.css') }}?v={{ \\App\\Support\\PosClientVersion::ASSET }}") !== -1,
         'POS CSS must cache-bust with PosClientVersion::ASSET');

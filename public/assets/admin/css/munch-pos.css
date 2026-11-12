@@ -1019,7 +1019,9 @@ html.munch-pos-overlay-open body {
     font-size: 0.85rem;
 }
 
-.munch-pos-orders__meta.is-orders-value {
+.munch-pos-orders__value {
+    margin: 0;
+    padding: 0.15rem 1.15rem 0.55rem;
     color: var(--munch-pos-ink);
     font-size: 1rem;
     font-weight: 700;

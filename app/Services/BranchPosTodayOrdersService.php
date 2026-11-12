@@ -47,10 +47,13 @@ class BranchPosTodayOrdersService
         $this->applyFilter($query, $filter);
         $this->applySearch($query, $search);
 
-        // Monetary total is computed only for Online Orders (Habib). Other chips
-        // keep the existing order-count meta and do not receive orders_value.
+        // Monetary total is computed only for Online Orders (Habib). Exclude
+        // canceled/failed/returned so the sum matches live non-canceled value.
+        // Other chips keep the existing order-count meta and do not receive orders_value.
         $ordersValue = $onlineFilter
-            ? (float) (clone $query)->sum('order_amount')
+            ? (float) (clone $query)
+                ->whereNotIn('order_status', ['canceled', 'cancelled', 'failed', 'returned'])
+                ->sum('order_amount')
             : null;
 
         /** @var LengthAwarePaginator $pageData */

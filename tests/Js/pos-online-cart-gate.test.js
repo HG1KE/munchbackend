@@ -54,7 +54,7 @@ test('polling stays alive across failures and visibility', function () {
 });
 
 test('asset version bumped', function () {
-    assert(version.indexOf("ASSET = '6.20'") !== -1, 'PosClientVersion should be 6.20');
+    assert(version.indexOf("ASSET = '6.21'") !== -1, 'PosClientVersion should be 6.21');
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');

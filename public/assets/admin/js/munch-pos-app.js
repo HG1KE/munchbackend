@@ -3670,13 +3670,21 @@
         }
         els.ordersList.scrollTop = scrollTop;
         if (els.ordersMeta) {
-            // Habib: monetary total only when Online Orders is selected.
+            // Count under the title for non-online chips. Online value sits
+            // above the list (Habib) — not under "Today's POS Orders".
             if (ordersUi.filter === 'online') {
-                els.ordersMeta.textContent = money(ordersUi.ordersValue == null ? 0 : ordersUi.ordersValue);
-                els.ordersMeta.classList.add('is-orders-value');
+                els.ordersMeta.textContent = '';
             } else {
                 els.ordersMeta.textContent = ordersUi.total ? String(ordersUi.total) : '';
-                els.ordersMeta.classList.remove('is-orders-value');
+            }
+        }
+        if (els.ordersValue) {
+            if (ordersUi.filter === 'online') {
+                els.ordersValue.hidden = false;
+                els.ordersValue.textContent = money(ordersUi.ordersValue == null ? 0 : ordersUi.ordersValue);
+            } else {
+                els.ordersValue.hidden = true;
+                els.ordersValue.textContent = '';
             }
         }
         renderOrderPager();
@@ -3809,6 +3817,7 @@
         els.ordersFilters = document.getElementById('pos-orders-filters');
         els.ordersPager = document.getElementById('pos-orders-pager');
         els.ordersMeta = document.getElementById('pos-orders-meta');
+        els.ordersValue = document.getElementById('pos-orders-value');
         els.ordersSearch = document.getElementById('pos-orders-search');
         els.cancelModal = document.getElementById('pos-cancel-modal');
         els.cancelReason = document.getElementById('pos-cancel-reason');

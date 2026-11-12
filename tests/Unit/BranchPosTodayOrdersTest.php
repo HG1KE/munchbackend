@@ -232,11 +232,21 @@ class BranchPosTodayOrdersTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        // Canceled online order stays in the list but is excluded from value.
+        $this->insertOrder(305, [
+            'sales_channel' => null,
+            'order_type' => 'delivery',
+            'order_amount' => 400,
+            'order_status' => 'canceled',
+            'online_checkout_uuid' => 'online-canceled-1',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
 
         $online = $service->forBranch(1, 'Nyali', null, 'online', 1);
-        $this->assertSame(3, $online['total']);
+        $this->assertSame(4, $online['total']);
         $this->assertSame(1750.0, $online['orders_value']);
-        $this->assertSame([304, 302, 301], array_column($online['orders'], 'id'));
+        $this->assertSame([305, 304, 302, 301], array_column($online['orders'], 'id'));
 
         $all = $service->forBranch(1, 'Nyali', null, 'all', 1);
         $this->assertSame(2, $all['total']);
@@ -257,7 +267,15 @@ class BranchPosTodayOrdersTest extends TestCase
         );
         $this->assertStringNotContainsString("{ id: 'active', label: L('active', 'Active') }", $js);
         $this->assertStringContainsString("ordersUi.filter === 'online'", $js);
-        $this->assertStringContainsString('is-orders-value', $js);
+        $this->assertStringContainsString("getElementById('pos-orders-value')", $js);
+        $this->assertStringContainsString('els.ordersValue', $js);
+        $this->assertStringNotContainsString('is-orders-value', $js);
+        $blade = file_get_contents(resource_path('views/branch-views/pos/index.blade.php'));
+        $this->assertStringContainsString('id="pos-orders-value"', $blade);
+        $this->assertTrue(
+            strpos($blade, 'id="pos-orders-filters"') < strpos($blade, 'id="pos-orders-value"')
+            && strpos($blade, 'id="pos-orders-value"') < strpos($blade, 'id="pos-orders-list"')
+        );
         $this->assertTrue($service->isOnlineOrdersFilter('online'));
         $this->assertTrue($service->isOnlineOrdersFilter('online_orders'));
         $this->assertFalse($service->isOnlineOrdersFilter('delivery'));
