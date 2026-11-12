@@ -191,6 +191,78 @@ class BranchPosTodayOrdersTest extends TestCase
         $this->assertTrue(PosOrderTypes::isOnlineOrder('delivery', null));
     }
 
+    public function test_online_orders_filter_lists_originated_and_pending_with_value_total(): void
+    {
+        $now = Carbon::now('UTC');
+        $service = new BranchPosTodayOrdersService();
+
+        // Accepted-into-POS online sale (uuid survives ACCEPT).
+        $this->insertOrder(301, [
+            'sales_channel' => 'delivery',
+            'order_type' => 'pos',
+            'order_amount' => 1000,
+            'online_checkout_uuid' => 'online-accepted-1',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        // Still-pending website order (no POS channel).
+        $this->insertOrder(302, [
+            'sales_channel' => null,
+            'order_type' => 'delivery',
+            'order_amount' => 500,
+            'online_checkout_uuid' => 'online-pending-1',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        // Pure cashier POS takeaway — must stay out of Online Orders.
+        $this->insertOrder(303, [
+            'sales_channel' => 'takeaway',
+            'order_type' => 'pos',
+            'order_amount' => 999,
+            'online_checkout_uuid' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        // Pending takeaway without uuid still counts as online family.
+        $this->insertOrder(304, [
+            'sales_channel' => null,
+            'order_type' => 'take_away',
+            'order_amount' => 250,
+            'online_checkout_uuid' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $online = $service->forBranch(1, 'Nyali', null, 'online', 1);
+        $this->assertSame(3, $online['total']);
+        $this->assertSame(1750.0, $online['orders_value']);
+        $this->assertSame([304, 302, 301], array_column($online['orders'], 'id'));
+
+        $all = $service->forBranch(1, 'Nyali', null, 'all', 1);
+        $this->assertSame(2, $all['total']);
+        $this->assertNull($all['orders_value']);
+        $this->assertContains(301, array_column($all['orders'], 'id'));
+        $this->assertContains(303, array_column($all['orders'], 'id'));
+        $this->assertNotContains(302, array_column($all['orders'], 'id'));
+
+        $delivery = $service->forBranch(1, 'Nyali', null, 'delivery', 1);
+        $this->assertNull($delivery['orders_value']);
+
+        $js = file_get_contents(public_path('assets/admin/js/munch-pos-app.js'));
+        $this->assertStringContainsString("{ id: 'online', label: L('onlineOrders', 'Online Orders') }", $js);
+        $this->assertStringContainsString("{ id: 'dine_in', label: L('dineIn', 'Dine In') }", $js);
+        $this->assertTrue(
+            strpos($js, "{ id: 'dine_in', label: L('dineIn', 'Dine In') }")
+                < strpos($js, "{ id: 'online', label: L('onlineOrders', 'Online Orders') }")
+        );
+        $this->assertStringNotContainsString("{ id: 'active', label: L('active', 'Active') }", $js);
+        $this->assertStringContainsString("ordersUi.filter === 'online'", $js);
+        $this->assertStringContainsString('is-orders-value', $js);
+        $this->assertTrue($service->isOnlineOrdersFilter('online'));
+        $this->assertTrue($service->isOnlineOrdersFilter('online_orders'));
+        $this->assertFalse($service->isOnlineOrdersFilter('delivery'));
+    }
+
     /**
      * @param  array<string, mixed>  $attrs
      */
@@ -246,6 +318,7 @@ class BranchPosTodayOrdersTest extends TestCase
             'order_status' => 'confirmed',
             'order_type' => 'pos',
             'sales_channel' => 'takeaway',
+            'online_checkout_uuid' => null,
             'delivery_address' => null,
             'created_at' => now(),
             'updated_at' => now(),
@@ -325,6 +398,7 @@ class BranchPosTodayOrdersTest extends TestCase
             $table->string('order_status')->nullable();
             $table->string('order_type')->nullable();
             $table->string('sales_channel')->nullable();
+            $table->string('online_checkout_uuid', 64)->nullable();
             $table->string('payment_status')->nullable();
             $table->string('payment_method')->nullable();
             $table->decimal('order_amount', 24, 2)->default(0);

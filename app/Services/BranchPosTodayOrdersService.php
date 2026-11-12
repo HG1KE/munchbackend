@@ -22,12 +22,20 @@ class BranchPosTodayOrdersService
         $tz = TimezoneDisplay::businessTimezone();
         $start = Carbon::now($tz)->startOfDay()->utc()->toDateTimeString();
         $end = Carbon::now($tz)->endOfDay()->utc()->toDateTimeString();
+        $onlineFilter = $this->isOnlineOrdersFilter($filter);
 
         $query = Order::query()
             ->with(['details', 'customer', 'customer_delivery_address', 'order_change_amount', 'branch', 'cancelledByBranch', 'cancelledByAdmin'])
             ->where('branch_id', $branchId)
-            ->whereIn('sales_channel', PosOrderTypes::salesChannels())
             ->latest('id');
+
+        // Default View Orders is Branch POS family only. Online Orders swaps that
+        // for originated-online / still-online-family rows (see constrainOnlineOrders).
+        if ($onlineFilter) {
+            $this->constrainOnlineOrders($query);
+        } else {
+            $query->whereIn('sales_channel', PosOrderTypes::salesChannels());
+        }
 
         $search = trim((string) $search);
         // Empty View Orders stays on the current Nairobi day. A search term
@@ -39,6 +47,12 @@ class BranchPosTodayOrdersService
         $this->applyFilter($query, $filter);
         $this->applySearch($query, $search);
 
+        // Monetary total is computed only for Online Orders (Habib). Other chips
+        // keep the existing order-count meta and do not receive orders_value.
+        $ordersValue = $onlineFilter
+            ? (float) (clone $query)->sum('order_amount')
+            : null;
+
         /** @var LengthAwarePaginator $pageData */
         $pageData = $query->paginate(self::PER_PAGE, ['*'], 'page', max(1, $page));
 
@@ -47,13 +61,42 @@ class BranchPosTodayOrdersService
             'page' => $pageData->currentPage(),
             'last_page' => $pageData->lastPage(),
             'total' => $pageData->total(),
+            'orders_value' => $ordersValue,
         ];
+    }
+
+    public function isOnlineOrdersFilter(?string $filter): bool
+    {
+        return in_array((string) $filter, ['online', 'online_orders'], true);
+    }
+
+    /**
+     * Habib "Online Orders" chip: prefer originated-online (`online_checkout_uuid`),
+     * which survives ACCEPT into the POS family; also include still-online-family
+     * rows (pending / not yet accepted). Pure cashier POS sales stay out.
+     */
+    private function constrainOnlineOrders($query): void
+    {
+        $query->where(function ($outer) {
+            if (Schema::hasColumn('orders', 'online_checkout_uuid')) {
+                $outer->where(function ($uuid) {
+                    $uuid->whereNotNull('online_checkout_uuid')
+                        ->where('online_checkout_uuid', '!=', '');
+                })->orWhere(function ($pending) {
+                    $pending->onlineOrders();
+                });
+
+                return;
+            }
+
+            $outer->onlineOrders();
+        });
     }
 
     private function applyFilter($query, ?string $filter): void
     {
         $filter = (string) $filter;
-        if ($filter === '' || $filter === 'all') {
+        if ($filter === '' || $filter === 'all' || $this->isOnlineOrdersFilter($filter)) {
             return;
         }
         if (in_array($filter, PosOrderTypes::salesChannels(), true)) {
@@ -68,11 +111,6 @@ class BranchPosTodayOrdersService
         }
         if ($filter === 'cancelled') {
             $query->whereIn('order_status', ['canceled', 'cancelled', 'failed', 'returned']);
-
-            return;
-        }
-        if ($filter === 'active') {
-            $query->whereNotIn('order_status', ['delivered', 'canceled', 'cancelled', 'failed', 'returned']);
         }
     }
 

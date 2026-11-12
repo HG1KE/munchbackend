@@ -1019,6 +1019,12 @@ html.munch-pos-overlay-open body {
     font-size: 0.85rem;
 }
 
+.munch-pos-orders__meta.is-orders-value {
+    color: var(--munch-pos-ink);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
 .munch-pos-orders__actions {
     display: flex;
     gap: 0.5rem;

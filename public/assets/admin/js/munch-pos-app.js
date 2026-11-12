@@ -42,6 +42,7 @@
         page: 1,
         lastPage: 1,
         total: 0,
+        ordersValue: null,
         orders: [],
         expandedId: 0,
         timer: 0,
@@ -3389,12 +3390,12 @@
             { id: 'delivery', label: L('delivery', 'Delivery') },
             { id: 'takeaway', label: L('takeAway', 'Take Away') },
             { id: 'dine_in', label: L('dineIn', 'Dine In') },
+            { id: 'online', label: L('onlineOrders', 'Online Orders') },
             { id: 'glovo', label: L('glovo', 'Glovo') },
             { id: 'uber', label: L('uber', 'Uber') },
             { id: 'bolt_food', label: L('boltFood', 'Bolt Food') },
             { id: 'completed', label: L('completed', 'Completed') },
-            { id: 'cancelled', label: L('cancelled', 'Cancelled') },
-            { id: 'active', label: L('active', 'Active') }
+            { id: 'cancelled', label: L('cancelled', 'Cancelled') }
         ];
     }
 
@@ -3489,7 +3490,14 @@
         }
         els.ordersList.scrollTop = scrollTop;
         if (els.ordersMeta) {
-            els.ordersMeta.textContent = ordersUi.total ? String(ordersUi.total) : '';
+            // Habib: monetary total only when Online Orders is selected.
+            if (ordersUi.filter === 'online') {
+                els.ordersMeta.textContent = money(ordersUi.ordersValue == null ? 0 : ordersUi.ordersValue);
+                els.ordersMeta.classList.add('is-orders-value');
+            } else {
+                els.ordersMeta.textContent = ordersUi.total ? String(ordersUi.total) : '';
+                els.ordersMeta.classList.remove('is-orders-value');
+            }
         }
         renderOrderPager();
     }
@@ -3518,6 +3526,9 @@
             ordersUi.page = Number(json.data.page || 1);
             ordersUi.lastPage = Number(json.data.last_page || 1);
             ordersUi.total = Number(json.data.total || 0);
+            ordersUi.ordersValue = json.data.orders_value == null || json.data.orders_value === ''
+                ? null
+                : Number(json.data.orders_value);
             renderOrdersList();
         }).catch(function () {
             ordersUi.loading = false;
