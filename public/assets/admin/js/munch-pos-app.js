@@ -76,6 +76,7 @@
         order: null,
         timer: 0,
         branches: [],
+        closeReason: '',
         audioStarted: false,
         visibilityBound: false,
         onlineBound: false,
@@ -898,9 +899,8 @@
 
     function noteCartActivity() {
         cartIdle.lastAt = Date.now();
-        if (cartHasLines() && onlineRing.open && !onlineRing.accepting) {
-            closeOnlineOrderModal();
-        }
+        // Online ring stays locked until ACCEPT / successful transfer / order gone —
+        // cart activity must not dismiss it.
         scheduleCartInactivityWatch();
     }
 
@@ -943,7 +943,8 @@
         if (cartHasLines()) {
             if (!cartIdle.lastAt) cartIdle.lastAt = Date.now();
             scheduleCartInactivityWatch();
-            if (onlineRing.open && !onlineRing.accepting) closeOnlineOrderModal();
+            // Do not close the online ring for cart lines — modal is locked until
+            // ACCEPT, successful send-to-branch, or the pending order disappears.
             return;
         }
         clearCartInactivityWatch();
@@ -2299,12 +2300,15 @@
         }
     }
 
-    function closeOnlineOrderModal() {
+    // Allowed reasons: accept | transfer | gone (poll: no longer pending here).
+    // Never call for Escape, backdrop, X, Later/snooze, or cart activity.
+    function closeOnlineOrderModal(reason) {
         onlineRing.open = false;
         onlineRing.accepting = false;
         onlineRing.transferring = false;
         onlineRing.pickingBranch = false;
         onlineRing.branches = [];
+        onlineRing.closeReason = reason || '';
         stopOnlineOrderAudio();
         if (els.onlineOrderModal) els.onlineOrderModal.hidden = true;
         if (els.onlineOrderAccept) {
@@ -2360,7 +2364,8 @@
                         play: !onlineRing.open || Number(order.id) !== onlineRing.lastOrderId
                     });
                 } else if (onlineRing.open && !onlineRingBusy()) {
-                    closeOnlineOrderModal();
+                    // Order no longer pending for this branch (accepted/transferred/elsewhere).
+                    closeOnlineOrderModal('gone');
                 }
                 return data;
             })
@@ -2452,7 +2457,7 @@
         }).then(function (body) {
             var outcome = classifyPostedResult(body);
             if (outcome.kind === 'success') {
-                closeOnlineOrderModal();
+                closeOnlineOrderModal('accept');
                 openSuccessModal(snapshotPrintJob(body), {
                     offline: false,
                     payload: null,
@@ -2617,7 +2622,7 @@
             });
         }).then(function (body) {
             if (body && Number(body.success) === 1) {
-                closeOnlineOrderModal();
+                closeOnlineOrderModal('transfer');
                 toast(body.message || (L('sendToDifferentBranch', 'SEND TO DIFFERENT BRANCH') + ': ' + (branchName || '')));
                 return;
             }
@@ -3872,6 +3877,15 @@
                 if (branch) confirmSendToBranch(branch);
             });
         }
+        // Locked modal: backdrop / chrome click must never dismiss.
+        if (els.onlineOrderModal) {
+            els.onlineOrderModal.addEventListener('click', function (ev) {
+                if (ev.target === els.onlineOrderModal) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                }
+            });
+        }
 
         document.getElementById('pos-search').addEventListener('input', function (ev) {
             state.searchDraft = ev.target.value;
@@ -4169,7 +4183,7 @@
                 if (els.onlineOrderModal && !els.onlineOrderModal.hidden) {
                     ev.preventDefault();
                     ev.stopPropagation();
-                    // No Later/snooze: Esc backs out of branch picker only; modal stays until ACCEPT or send.
+                    // Locked: Escape never dismisses. Only backs out of branch picker to ACCEPT/SEND.
                     if (!onlineRingBusy() && onlineRing.pickingBranch) {
                         setOnlineOrderMainView();
                         playOnlineOrderAudio();

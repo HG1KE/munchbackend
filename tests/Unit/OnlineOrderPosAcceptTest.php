@@ -448,6 +448,16 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('onlineRing.inFlight', $js);
         $this->assertStringNotContainsString('snoozedUntil', $js);
         $this->assertStringNotContainsString('onlineOrderDismiss', $js);
+        // Locked until ACCEPT / transfer / gone — no UI dismiss paths.
+        $this->assertStringContainsString("closeOnlineOrderModal('accept')", $js);
+        $this->assertStringContainsString("closeOnlineOrderModal('transfer')", $js);
+        $this->assertStringContainsString("closeOnlineOrderModal('gone')", $js);
+        $this->assertStringContainsString('Locked: Escape never dismisses', $js);
+        $this->assertStringContainsString('backdrop / chrome click must never dismiss', $js);
+        $this->assertStringContainsString('cart activity must not dismiss it', $js);
+        $this->assertStringNotContainsString("ev.target.id === 'pos-online-order-modal'", $js);
+        $this->assertStringNotContainsString('pos-online-order-close', $page);
+        $this->assertStringNotContainsString('pos-online-order-x', $page);
 
         $css = file_get_contents(public_path('assets/admin/css/munch-pos.css'));
         $this->assertStringContainsString('munch-pos-online-ring__fulfillment', $css);
@@ -456,7 +466,7 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertStringContainsString('.munch-pos-online-ring__actions .munch-pos-clear', $css);
         $this->assertStringContainsString('background: #94a3b8', $css);
 
-        $this->assertSame('6.25', PosClientVersion::ASSET);
+        $this->assertSame('6.26', PosClientVersion::ASSET);
         $this->assertStringContainsString('order.payable_amount', $js);
     }
 

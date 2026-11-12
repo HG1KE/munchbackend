@@ -53,8 +53,21 @@ test('polling stays alive across failures and visibility', function () {
     assert(app.indexOf('interval must stay alive') !== -1, 'tick try/catch');
 });
 
+test('online ring modal cannot be soft-dismissed', function () {
+    assert(app.indexOf("closeOnlineOrderModal('accept')") !== -1, 'accept closes with reason');
+    assert(app.indexOf("closeOnlineOrderModal('transfer')") !== -1, 'transfer closes with reason');
+    assert(app.indexOf("closeOnlineOrderModal('gone')") !== -1, 'gone closes with reason');
+    assert(app.indexOf('cart activity must not dismiss it') !== -1, 'cart activity does not dismiss');
+    assert(app.indexOf('Do not close the online ring for cart lines') !== -1, 'cart lines do not dismiss');
+    assert(app.indexOf('backdrop / chrome click must never dismiss') !== -1, 'backdrop locked');
+    assert(app.indexOf('Locked: Escape never dismisses') !== -1, 'escape locked');
+    assert(app.indexOf('onlineOrderDismiss') === -1, 'no Later/dismiss control');
+    assert(app.indexOf('snoozedUntil') === -1, 'no snooze timer');
+    assert(app.indexOf("ev.target.id === 'pos-online-order-modal'") === -1, 'no backdrop-id dismiss');
+});
+
 test('asset version bumped', function () {
-    assert(version.indexOf("ASSET = '6.25'") !== -1, 'PosClientVersion should be 6.25');
+    assert(version.indexOf("ASSET = '6.26'") !== -1, 'PosClientVersion should be 6.26');
 });
 
 console.log(passed + ' passed, ' + failed + ' failed');
