@@ -589,6 +589,9 @@ class OnlineOrderPosAcceptService
 
         $addonIds = $this->decodeList($detail->add_on_ids ?? null);
         $addonQtys = $this->decodeList($detail->add_on_qtys ?? null);
+        // product_details.add_ons may be hydrated addon objects, a JSON string of
+        // catalog IDs (e.g. "[\"5\",\"2\"]"), or already-decoded ID lists.
+        $productAddons = $this->decodeList($productDetails['add_ons'] ?? null);
         foreach ($addonIds as $index => $rawId) {
             $addonId = (int) $rawId;
             if ($addonId <= 0) {
@@ -596,7 +599,7 @@ class OnlineOrderPosAcceptService
             }
             $qty = max(1, (int) ($addonQtys[$index] ?? 1));
             $name = 'Addon #'.$addonId;
-            foreach ($productDetails['add_ons'] ?? [] as $addon) {
+            foreach ($productAddons as $addon) {
                 if (is_array($addon) && (int) ($addon['id'] ?? 0) === $addonId && ! empty($addon['name'])) {
                     $name = (string) $addon['name'];
                     break;

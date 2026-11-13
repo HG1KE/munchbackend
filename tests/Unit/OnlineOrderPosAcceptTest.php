@@ -567,6 +567,74 @@ class OnlineOrderPosAcceptTest extends TestCase
         $this->assertSame(950.0, $preview['payable_amount']);
     }
 
+    /**
+     * Regression: product_details.add_ons is often a nested JSON string of catalog
+     * IDs (A24922 Plain Chips). optionLabels must not foreach that string (500).
+     */
+    public function test_pending_alert_survives_string_product_details_add_ons(): void
+    {
+        $now = now();
+        DB::table('orders')->insert([
+            'id' => 909,
+            'readable_order_id' => 'A909',
+            'user_id' => null,
+            'branch_id' => 1,
+            'order_status' => 'pending',
+            'order_type' => 'take_away',
+            'sales_channel' => null,
+            'payment_status' => 'paid',
+            'payment_method' => 'palpluss',
+            'order_amount' => 860,
+            'delivery_charge' => 0,
+            'delivery_address' => json_encode([
+                'contact_person_name' => 'Habib',
+                'contact_person_number' => '0700000000',
+                'address' => 'Kilimani',
+            ]),
+            'order_note' => '',
+            'delivery_date' => $now->toDateString(),
+            'is_guest' => 1,
+            'checked' => 0,
+            'placed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('order_areas')->insert([
+            'order_id' => 909,
+            'area_id' => 9,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('order_details')->insert([
+            'order_id' => 909,
+            'product_id' => 55,
+            'product_details' => json_encode([
+                'name' => 'Plain Chips',
+                // Nested string — same shape as live A24922 row.
+                'add_ons' => '["5","2","3","4"]',
+            ]),
+            'variation' => json_encode([]),
+            'add_on_ids' => json_encode([3]),
+            'add_on_qtys' => json_encode([1]),
+            'add_on_prices' => json_encode([0]),
+            'add_on_tax_amount' => 0,
+            'price' => 200,
+            'discount_on_product' => 0,
+            'tax_amount' => 0,
+            'quantity' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $payload = $this->service()->pendingAlertPayload(1);
+
+        $this->assertSame(1, $payload['new_order']);
+        $this->assertSame(909, $payload['order']['id']);
+        $this->assertSame('A909', $payload['order']['readable_order_id']);
+        $this->assertSame('Plain Chips', $payload['order']['items'][0]['name']);
+        $this->assertContains('Addon #3', $payload['order']['items'][0]['options']);
+    }
+
     public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void
     {
         Helpers::forgetBusinessSettingsRuntimeCache();
