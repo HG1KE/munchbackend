@@ -9,7 +9,7 @@
                 <div class="munch-stocks-page-header__eyebrow">{{ translate('Daily counts') }}</div>
                 <h1 class="munch-stocks-page-header__title">{{ $branchName }}</h1>
                 <p class="munch-stocks-page-header__hint">
-                    {{ translate('Enter opening, received, and closing stock. Result updates as you type.') }}
+                    {{ translate('Enter opening, received, spoiled, and closing stock. Result updates as you type.') }}
                 </p>
             </div>
 
@@ -78,6 +78,7 @@
                                 <th>{{ translate('Stock item') }}</th>
                                 <th style="min-width:120px">{{ translate('Opening Stock') }}</th>
                                 <th style="min-width:120px">{{ translate('Received') }}</th>
+                                <th style="min-width:120px">{{ translate('Spoiled') }}</th>
                                 <th style="min-width:120px">{{ translate('Closing Stock') }}</th>
                                 <th class="text-right">{{ translate('Sold') }}</th>
                                 <th class="text-right">{{ translate('Result') }}</th>
@@ -117,6 +118,14 @@
                                     </td>
                                     <td>
                                         <input type="number" step="0.001" min="0" class="form-control"
+                                               name="spoiled[{{ $row['stock_item_id'] }}]"
+                                               value="{{ old('spoiled.'.$row['stock_item_id'], $row['spoiled_qty'] === null ? '' : $row['spoiled_qty']) }}"
+                                               placeholder="0"
+                                               data-stocks-spoiled
+                                               inputmode="decimal">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.001" min="0" class="form-control"
                                                name="closing[{{ $row['stock_item_id'] }}]"
                                                value="{{ old('closing.'.$row['stock_item_id'], $row['closing_qty'] === null ? '' : $row['closing_qty']) }}"
                                                placeholder="0"
@@ -137,7 +146,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center munch-stocks-empty">
+                                    <td colspan="7" class="text-center munch-stocks-empty">
                                         {{ translate('No active stock items. Ask admin to add stock items first.') }}
                                     </td>
                                 </tr>
@@ -157,5 +166,5 @@
 @endsection
 
 @push('script')
-    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.4"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.5"></script>
 @endpush

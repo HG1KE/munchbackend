@@ -11,11 +11,10 @@ use Illuminate\Support\Facades\Schema;
 class StockVarianceService
 {
     /**
-     * Rows for a branch + date: each active stock item with opening/received/closing,
+     * Rows for a branch + date: each active stock item with opening/received/spoiled/closing,
      * physical sold, expected sold from deductions, and variance label.
      *
-     * Result = Opening + Received − Sold − Closing
-     *        = (opening + received − closing) − expected_sold
+     * Result = Opening + Received − Closing − Sold − Spoiled
      *
      * @param  string  $deficitWord  Negative label — admin "missing"; stocks UI "short".
      * @return list<array{
@@ -23,6 +22,7 @@ class StockVarianceService
      *   name:string,
      *   opening_qty:float|null,
      *   received_qty:float|null,
+     *   spoiled_qty:float|null,
      *   closing_qty:float|null,
      *   physical_sold:float|null,
      *   expected_sold:float,
@@ -54,18 +54,20 @@ class StockVarianceService
             $count = $counts->get($item->id);
             $opening = $count ? (float) $count->opening_qty : null;
             $received = $count && $count->received_qty !== null ? (float) $count->received_qty : null;
+            $spoiled = $count && $count->spoiled_qty !== null ? (float) $count->spoiled_qty : null;
             $closing = $count && $count->closing_qty !== null ? (float) $count->closing_qty : null;
             $expected = round((float) ($expectedByItem[$item->id] ?? 0), 3);
-            $variance = self::result($opening, $received, $expected, $closing);
-            $physical = ($opening === null || $received === null || $closing === null)
+            $variance = self::result($opening, $received, $expected, $closing, $spoiled);
+            $physical = ($opening === null || $received === null || $spoiled === null || $closing === null)
                 ? null
-                : round($opening + $received - $closing, 3);
+                : round($opening + $received - $closing - $spoiled, 3);
 
             $rows[] = [
                 'stock_item_id' => (int) $item->id,
                 'name' => (string) $item->name,
                 'opening_qty' => $opening,
                 'received_qty' => $received,
+                'spoiled_qty' => $spoiled,
                 'closing_qty' => $closing,
                 'physical_sold' => $physical,
                 'expected_sold' => $expected,
@@ -129,15 +131,15 @@ class StockVarianceService
 
     /**
      * Pure helpers for unit tests without DB.
-     * Net inventory out = opening + received − closing.
+     * Net inventory out = opening + received − closing − spoiled.
      */
-    public static function physicalSold(float $opening, ?float $received, ?float $closing): ?float
+    public static function physicalSold(float $opening, ?float $received, ?float $closing, ?float $spoiled = null): ?float
     {
-        if ($received === null || $closing === null) {
+        if ($received === null || $closing === null || $spoiled === null) {
             return null;
         }
 
-        return round($opening + $received - $closing, 3);
+        return round($opening + $received - $closing - $spoiled, 3);
     }
 
     public static function variance(?float $physicalSold, float $expectedSold): ?float
@@ -150,18 +152,19 @@ class StockVarianceService
     }
 
     /**
-     * Result = Opening + Received − Sold − Closing.
+     * Result = Opening + Received − Closing − Sold − Spoiled.
      */
     public static function result(
         ?float $opening,
         ?float $received,
         float $sold,
-        ?float $closing
+        ?float $closing,
+        ?float $spoiled = null
     ): ?float {
-        if ($opening === null || $received === null || $closing === null) {
+        if ($opening === null || $received === null || $closing === null || $spoiled === null) {
             return null;
         }
 
-        return round($opening + $received - $sold - $closing, 3);
+        return round($opening + $received - $closing - $sold - $spoiled, 3);
     }
 }

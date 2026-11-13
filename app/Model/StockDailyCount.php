@@ -13,6 +13,7 @@ class StockDailyCount extends Model
         'count_date',
         'opening_qty',
         'received_qty',
+        'spoiled_qty',
         'closing_qty',
         'stock_manager_id',
     ];
@@ -23,6 +24,7 @@ class StockDailyCount extends Model
         'stock_manager_id' => 'integer',
         'opening_qty' => 'float',
         'received_qty' => 'float',
+        'spoiled_qty' => 'float',
         'closing_qty' => 'float',
         'count_date' => 'date',
         'created_at' => 'datetime',
@@ -45,14 +47,17 @@ class StockDailyCount extends Model
     }
 
     /**
-     * Net inventory out for the day: opening + received − closing.
+     * Net inventory out for the day: opening + received − closing − spoiled.
      */
     public function physicalSold(): ?float
     {
-        if ($this->received_qty === null || $this->closing_qty === null) {
+        if ($this->received_qty === null || $this->spoiled_qty === null || $this->closing_qty === null) {
             return null;
         }
 
-        return (float) $this->opening_qty + (float) $this->received_qty - (float) $this->closing_qty;
+        return (float) $this->opening_qty
+            + (float) $this->received_qty
+            - (float) $this->closing_qty
+            - (float) $this->spoiled_qty;
     }
 }

@@ -48,7 +48,7 @@ class StocksAuditExportTest extends TestCase
         $this->assertSame('Munch Bamburi West Stocks Audit 11th November 26', $unsafe);
     }
 
-    public function test_build_marks_incomplete_when_opening_received_or_closing_blank(): void
+    public function test_build_marks_incomplete_when_opening_received_spoiled_or_closing_blank(): void
     {
         $complete = StocksAuditExport::build('Bamburi', '2026-11-11', [
             $this->sampleRow(),
@@ -58,6 +58,7 @@ class StocksAuditExportTest extends TestCase
         $this->assertSame('Wednesday, 11th November 2026', $complete['date_label']);
         $this->assertSame('excess', $complete['rows'][0]['result_kind']);
         $this->assertSame('10 excess', $complete['rows'][0]['variance_label']);
+        $this->assertSame(0.0, $complete['rows'][0]['spoiled_qty']);
 
         $missingReceived = StocksAuditExport::build('Bamburi', '2026-11-11', [
             $this->sampleRow(['received_qty' => null, 'variance' => null, 'variance_label' => '—']),
@@ -69,6 +70,11 @@ class StocksAuditExportTest extends TestCase
             $this->sampleRow(['opening_qty' => null, 'variance' => null, 'variance_label' => '—']),
         ]);
         $this->assertFalse(StocksAuditExport::isComplete($missingOpening));
+
+        $missingSpoiled = StocksAuditExport::build('Bamburi', '2026-11-11', [
+            $this->sampleRow(['spoiled_qty' => null, 'variance' => null, 'variance_label' => '—']),
+        ]);
+        $this->assertFalse(StocksAuditExport::isComplete($missingSpoiled));
 
         $missingClosing = StocksAuditExport::build('Bamburi', '2026-11-11', [
             $this->sampleRow(['closing_qty' => null, 'variance' => null, 'variance_label' => '—']),
@@ -101,6 +107,7 @@ class StocksAuditExportTest extends TestCase
                 'name' => 'Buns',
                 'opening_qty' => 50,
                 'received_qty' => 0,
+                'spoiled_qty' => 0,
                 'closing_qty' => 40,
                 'expected_sold' => 10,
                 'variance' => 0,
@@ -111,6 +118,7 @@ class StocksAuditExportTest extends TestCase
         $html = view('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))->render();
         $this->assertStringContainsString('Opening Stock', $html);
         $this->assertStringContainsString('Received', $html);
+        $this->assertStringContainsString('Spoiled', $html);
         $this->assertStringContainsString('Closing Stock', $html);
         $this->assertStringContainsString('Sold', $html);
         $this->assertStringContainsString('Result', $html);
@@ -238,6 +246,7 @@ class StocksAuditExportTest extends TestCase
             'name' => 'Beef Patties',
             'opening_qty' => 100.0,
             'received_qty' => 20.0,
+            'spoiled_qty' => 0.0,
             'closing_qty' => 60.0,
             'physical_sold' => 60.0,
             'expected_sold' => 50.0,

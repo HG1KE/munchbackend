@@ -112,6 +112,7 @@
                             <th>{{ translate('Stock item') }}</th>
                             <th class="text-right">{{ translate('Opening Stock') }}</th>
                             <th class="text-right">{{ translate('Received') }}</th>
+                            <th class="text-right">{{ translate('Spoiled') }}</th>
                             <th class="text-right">{{ translate('Closing Stock') }}</th>
                             <th class="text-right">{{ translate('Sold') }}</th>
                             <th class="text-right">{{ translate('Result') }}</th>
@@ -135,6 +136,7 @@
                                 <td>{{ $row['name'] }}</td>
                                 <td class="text-right">{{ $row['opening_qty'] === null ? '—' : $row['opening_qty'] }}</td>
                                 <td class="text-right">{{ $row['received_qty'] === null ? '—' : $row['received_qty'] }}</td>
+                                <td class="text-right">{{ $row['spoiled_qty'] === null ? '—' : $row['spoiled_qty'] }}</td>
                                 <td class="text-right">{{ $row['closing_qty'] === null ? '—' : $row['closing_qty'] }}</td>
                                 <td class="text-right">{{ $row['expected_sold'] }}</td>
                                 <td class="text-right">
@@ -145,7 +147,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted">{{ translate('No stock items') }}</td>
+                                <td colspan="7" class="text-center text-muted">{{ translate('No stock items') }}</td>
                             </tr>
                         @endforelse
                         </tbody>

@@ -1,6 +1,6 @@
 /**
  * Stocks manager dashboard — live Result, draft persistence, save gate.
- * Result = Opening + Received − Sold − Closing.
+ * Result = Opening + Received − Closing − Sold − Spoiled.
  */
 (function () {
     'use strict';
@@ -64,6 +64,7 @@
             return {
                 opening: parsed.opening && typeof parsed.opening === 'object' ? parsed.opening : {},
                 received: parsed.received && typeof parsed.received === 'object' ? parsed.received : {},
+                spoiled: parsed.spoiled && typeof parsed.spoiled === 'object' ? parsed.spoiled : {},
                 closing: parsed.closing && typeof parsed.closing === 'object' ? parsed.closing : {}
             };
         } catch (e) {
@@ -96,6 +97,7 @@
     function collectDraft(table) {
         var opening = {};
         var received = {};
+        var spoiled = {};
         var closing = {};
         table.querySelectorAll('[data-stocks-opening]').forEach(function (input) {
             var id = itemIdFromInput(input);
@@ -109,13 +111,19 @@
                 received[id] = String(input.value);
             }
         });
+        table.querySelectorAll('[data-stocks-spoiled]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id) {
+                spoiled[id] = String(input.value);
+            }
+        });
         table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
             var id = itemIdFromInput(input);
             if (id) {
                 closing[id] = String(input.value);
             }
         });
-        return { opening: opening, received: received, closing: closing };
+        return { opening: opening, received: received, spoiled: spoiled, closing: closing };
     }
 
     function applyDraft(table, draft) {
@@ -134,6 +142,12 @@
                 input.value = draft.received[id];
             }
         });
+        table.querySelectorAll('[data-stocks-spoiled]').forEach(function (input) {
+            var id = itemIdFromInput(input);
+            if (id && Object.prototype.hasOwnProperty.call(draft.spoiled || {}, id)) {
+                input.value = draft.spoiled[id];
+            }
+        });
         table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
             var id = itemIdFromInput(input);
             if (id && Object.prototype.hasOwnProperty.call(draft.closing, id)) {
@@ -144,7 +158,7 @@
 
     function allBoxesFilled(table) {
         var inputs = table.querySelectorAll(
-            '[data-stocks-opening], [data-stocks-received], [data-stocks-closing]'
+            '[data-stocks-opening], [data-stocks-received], [data-stocks-spoiled], [data-stocks-closing]'
         );
         for (var i = 0; i < inputs.length; i++) {
             if (String(inputs[i].value).trim() === '') {
@@ -165,9 +179,10 @@
     function refreshRow(row) {
         var openingInput = row.querySelector('[data-stocks-opening]');
         var receivedInput = row.querySelector('[data-stocks-received]');
+        var spoiledInput = row.querySelector('[data-stocks-spoiled]');
         var closingInput = row.querySelector('[data-stocks-closing]');
         var resultEl = row.querySelector('[data-stocks-result]');
-        if (!openingInput || !receivedInput || !closingInput || !resultEl) {
+        if (!openingInput || !receivedInput || !spoiledInput || !closingInput || !resultEl) {
             return;
         }
 
@@ -178,15 +193,16 @@
 
         var opening = parseQty(openingInput.value);
         var received = parseQty(receivedInput.value);
+        var spoiled = parseQty(spoiledInput.value);
         var closing = parseQty(closingInput.value);
 
-        if (opening === null || received === null || closing === null) {
+        if (opening === null || received === null || spoiled === null || closing === null) {
             setChip(resultEl, { text: '—', kind: 'empty' });
             return;
         }
 
-        // Result = Opening + Received − Sold − Closing
-        var variance = Math.round((opening + received - expected - closing) * 1000) / 1000;
+        // Result = Opening + Received − Closing − Sold − Spoiled
+        var variance = Math.round((opening + received - closing - expected - spoiled) * 1000) / 1000;
         setChip(resultEl, formatResult(variance));
     }
 
@@ -226,7 +242,9 @@
             var target = ev.target;
             if (
                 !target ||
-                !target.matches('[data-stocks-opening], [data-stocks-received], [data-stocks-closing]')
+                !target.matches(
+                    '[data-stocks-opening], [data-stocks-received], [data-stocks-spoiled], [data-stocks-closing]'
+                )
             ) {
                 return;
             }

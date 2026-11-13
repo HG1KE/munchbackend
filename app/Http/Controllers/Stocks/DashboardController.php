@@ -79,25 +79,34 @@ class DashboardController extends Controller
 
         // Prefer the filled table on screen (posted values). Fall back to saved counts.
         $rows = $this->variance->rowsForBranchDate($branchId, $date, 'short');
-        if ($request->has('opening') || $request->has('received') || $request->has('closing')) {
+        if (
+            $request->has('opening')
+            || $request->has('received')
+            || $request->has('spoiled')
+            || $request->has('closing')
+        ) {
             $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
             $receiveds = is_array($request->input('received')) ? $request->input('received') : [];
+            $spoileds = is_array($request->input('spoiled')) ? $request->input('spoiled') : [];
             $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
-            $rows = array_map(function (array $row) use ($openings, $receiveds, $closings) {
+            $rows = array_map(function (array $row) use ($openings, $receiveds, $spoileds, $closings) {
                 $id = (int) $row['stock_item_id'];
                 $key = (string) $id;
                 $openingRaw = $openings[$id] ?? $openings[$key] ?? null;
                 $receivedRaw = $receiveds[$id] ?? $receiveds[$key] ?? null;
+                $spoiledRaw = $spoileds[$id] ?? $spoileds[$key] ?? null;
                 $closingRaw = $closings[$id] ?? $closings[$key] ?? null;
 
                 $opening = ($openingRaw === null || $openingRaw === '') ? null : (float) $openingRaw;
                 $received = ($receivedRaw === null || $receivedRaw === '') ? null : (float) $receivedRaw;
+                $spoiled = ($spoiledRaw === null || $spoiledRaw === '') ? null : (float) $spoiledRaw;
                 $closing = ($closingRaw === null || $closingRaw === '') ? null : (float) $closingRaw;
                 $sold = (float) ($row['expected_sold'] ?? 0);
-                $variance = StockVarianceService::result($opening, $received, $sold, $closing);
+                $variance = StockVarianceService::result($opening, $received, $sold, $closing, $spoiled);
 
                 $row['opening_qty'] = $opening;
                 $row['received_qty'] = $received;
+                $row['spoiled_qty'] = $spoiled;
                 $row['closing_qty'] = $closing;
                 $row['variance'] = $variance;
                 $row['variance_label'] = $this->variance->formatVarianceLabel($variance, 'short');
@@ -131,6 +140,7 @@ class DashboardController extends Controller
             'branch_id' => 'required|integer|exists:branches,id',
             'opening' => 'nullable|array',
             'received' => 'nullable|array',
+            'spoiled' => 'nullable|array',
             'closing' => 'nullable|array',
         ]);
 
@@ -148,17 +158,20 @@ class DashboardController extends Controller
 
         $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
         $receiveds = is_array($request->input('received')) ? $request->input('received') : [];
+        $spoileds = is_array($request->input('spoiled')) ? $request->input('spoiled') : [];
         $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
         $activeItemIds = StockItem::query()->active()->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         foreach ($activeItemIds as $stockItemId) {
             $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId] ?? null;
             $receivedRaw = $receiveds[$stockItemId] ?? $receiveds[(string) $stockItemId] ?? null;
+            $spoiledRaw = $spoileds[$stockItemId] ?? $spoileds[(string) $stockItemId] ?? null;
             $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId] ?? null;
             $hasOpening = $openingRaw !== null && $openingRaw !== '';
             $hasReceived = $receivedRaw !== null && $receivedRaw !== '';
+            $hasSpoiled = $spoiledRaw !== null && $spoiledRaw !== '';
             $hasClosing = $closingRaw !== null && $closingRaw !== '';
-            if (! $hasOpening || ! $hasReceived || ! $hasClosing) {
+            if (! $hasOpening || ! $hasReceived || ! $hasSpoiled || ! $hasClosing) {
                 Toastr::error(translate('Fill in all boxes before saving'));
                 return back()->withInput();
             }
@@ -167,6 +180,7 @@ class DashboardController extends Controller
         foreach ($activeItemIds as $stockItemId) {
             $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId];
             $receivedRaw = $receiveds[$stockItemId] ?? $receiveds[(string) $stockItemId];
+            $spoiledRaw = $spoileds[$stockItemId] ?? $spoileds[(string) $stockItemId];
             $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId];
 
             StockDailyCount::query()->updateOrCreate(
@@ -178,6 +192,7 @@ class DashboardController extends Controller
                 [
                     'opening_qty' => (float) $openingRaw,
                     'received_qty' => (float) $receivedRaw,
+                    'spoiled_qty' => (float) $spoiledRaw,
                     'closing_qty' => (float) $closingRaw,
                     'stock_manager_id' => (int) $manager->id,
                 ]

@@ -8,7 +8,7 @@ use Carbon\CarbonInterface;
 
 /**
  * Stocks manager daily audit PDF — same columns as the portal table
- * (Opening / Received / Closing / Sold / Result), styled like POS sale PDFs.
+ * (Opening / Received / Spoiled / Closing / Sold / Result), styled like POS sale PDFs.
  */
 class StocksAuditExport
 {
@@ -96,7 +96,12 @@ class StocksAuditExport
             $day = self::parseDay($dayPayload['date'] ?? $fromDay);
             $normalized = self::normalizeRows(is_array($dayPayload['rows'] ?? null) ? $dayPayload['rows'] : []);
             foreach ($normalized as $row) {
-                if ($row['opening_qty'] === null || $row['received_qty'] === null || $row['closing_qty'] === null) {
+                if (
+                    $row['opening_qty'] === null
+                    || $row['received_qty'] === null
+                    || $row['spoiled_qty'] === null
+                    || $row['closing_qty'] === null
+                ) {
                     $incomplete = true;
                 }
             }
@@ -152,11 +157,12 @@ class StocksAuditExport
         foreach ($rows as $row) {
             $opening = self::nullableFloat($row['opening_qty'] ?? null);
             $received = self::nullableFloat($row['received_qty'] ?? null);
+            $spoiled = self::nullableFloat($row['spoiled_qty'] ?? null);
             $closing = self::nullableFloat($row['closing_qty'] ?? null);
             $sold = round((float) ($row['expected_sold'] ?? $row['sold_qty'] ?? 0), 3);
             $variance = array_key_exists('variance', $row)
                 ? self::nullableFloat($row['variance'])
-                : StockVarianceService::result($opening, $received, $sold, $closing);
+                : StockVarianceService::result($opening, $received, $sold, $closing, $spoiled);
 
             $kind = self::resultKind($variance);
             $normalized[] = [
@@ -164,6 +170,7 @@ class StocksAuditExport
                 'name' => (string) ($row['name'] ?? ''),
                 'opening_qty' => $opening,
                 'received_qty' => $received,
+                'spoiled_qty' => $spoiled,
                 'closing_qty' => $closing,
                 'sold_qty' => $sold,
                 'variance' => $variance,
@@ -171,6 +178,7 @@ class StocksAuditExport
                 'result_kind' => $kind,
                 'opening_display' => self::formatQty($opening),
                 'received_display' => self::formatQty($received),
+                'spoiled_display' => self::formatQty($spoiled),
                 'closing_display' => self::formatQty($closing),
                 'sold_display' => self::formatQty($sold),
             ];

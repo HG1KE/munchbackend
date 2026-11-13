@@ -84,6 +84,7 @@
                         <th>Stock item</th>
                         <th class="num">Opening Stock</th>
                         <th class="num">Received</th>
+                        <th class="num">Spoiled</th>
                         <th class="num">Closing Stock</th>
                         <th class="num">Sold</th>
                         <th class="num">Result</th>
@@ -98,6 +99,7 @@
                             <td class="item-name">{{ $row['name'] ?? '' }}</td>
                             <td class="num">{{ $row['opening_display'] ?? '—' }}</td>
                             <td class="num">{{ $row['received_display'] ?? '—' }}</td>
+                            <td class="num">{{ $row['spoiled_display'] ?? '—' }}</td>
                             <td class="num">{{ $row['closing_display'] ?? '—' }}</td>
                             <td class="num">{{ $row['sold_display'] ?? '0' }}</td>
                             <td class="num">
