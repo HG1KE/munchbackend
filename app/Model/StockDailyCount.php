@@ -51,7 +51,12 @@ class StockDailyCount extends Model
      */
     public function physicalSold(): ?float
     {
-        if ($this->received_qty === null || $this->spoiled_qty === null || $this->closing_qty === null) {
+        if (
+            $this->opening_qty === null
+            || $this->received_qty === null
+            || $this->spoiled_qty === null
+            || $this->closing_qty === null
+        ) {
             return null;
         }
 

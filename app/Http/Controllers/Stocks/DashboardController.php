@@ -3,23 +3,22 @@
 namespace App\Http\Controllers\Stocks;
 
 use App\Http\Controllers\Controller;
-use App\Model\StockDailyCount;
-use App\Model\StockItem;
-use App\Model\StockManager;
+use App\Services\Stock\StockCountPersistService;
 use App\Services\Stock\StockVarianceService;
 use App\Support\StocksAuditExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Support\Renderable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
 class DashboardController extends Controller
 {
     public function __construct(
-        private StockVarianceService $variance
+        private StockVarianceService $variance,
+        private StockCountPersistService $counts
     ) {}
 
     public function index(Request $request): Renderable
@@ -122,7 +121,7 @@ class DashboardController extends Controller
         // Export used to build the PDF from the on-screen form without writing
         // stock_daily_counts — admin + manager reload then looked empty. Persist
         // the complete posted (or already-saved) rows before downloading.
-        $persistError = $this->persistCompleteCounts($manager, $branchId, $date, $posted);
+        $persistError = $this->counts->persistComplete($manager, $branchId, $date, $posted);
         if ($persistError !== null) {
             Toastr::error(translate($persistError));
 
@@ -136,7 +135,7 @@ class DashboardController extends Controller
             ->download(StocksAuditExport::filename($report));
     }
 
-    public function saveCounts(Request $request): RedirectResponse
+    public function saveCounts(Request $request): RedirectResponse|JsonResponse
     {
         $manager = auth('stocks')->user();
         $manager->loadMissing('branches');
@@ -148,10 +147,19 @@ class DashboardController extends Controller
             'received' => 'nullable|array',
             'spoiled' => 'nullable|array',
             'closing' => 'nullable|array',
+            'partial' => 'nullable',
         ]);
 
         $branchId = (int) $request->input('branch_id');
+        $partial = $request->boolean('partial');
+
         if (! $manager->canAccessBranch($branchId)) {
+            if ($partial) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => translate('You do not have access to this branch'),
+                ], 403);
+            }
             abort(403, translate('You do not have access to this branch'));
         }
 
@@ -163,7 +171,24 @@ class DashboardController extends Controller
             'closing' => [],
         ];
 
-        $persistError = $this->persistCompleteCounts($manager, $branchId, $date, $posted);
+        if ($partial) {
+            $result = $this->counts->persistPartial($manager, $branchId, $date, $posted);
+            if (! $result['ok']) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => translate($result['error'] ?? 'Could not save counts.'),
+                    'saved' => $result['saved'],
+                ], 422);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'saved' => $result['saved'],
+                'message' => translate('Saved'),
+            ]);
+        }
+
+        $persistError = $this->counts->persistComplete($manager, $branchId, $date, $posted);
         if ($persistError !== null) {
             Toastr::error(translate($persistError));
 
@@ -199,95 +224,5 @@ class DashboardController extends Controller
             'spoiled' => is_array($request->input('spoiled')) ? $request->input('spoiled') : [],
             'closing' => is_array($request->input('closing')) ? $request->input('closing') : [],
         ];
-    }
-
-    /**
-     * Persist opening/received/spoiled/closing for every active stock item.
-     * When $posted is null, rows already in DB for this branch+date are re-saved
-     * (export of previously saved counts). Returns an error message or null.
-     *
-     * @param  array{opening:array,received:array,spoiled:array,closing:array}|null  $posted
-     */
-    private function persistCompleteCounts(
-        StockManager $manager,
-        int $branchId,
-        string $date,
-        ?array $posted
-    ): ?string {
-        if (! Schema::hasTable('stock_daily_counts') || ! Schema::hasTable('stock_items')) {
-            return 'Stock counts table is missing. Run migrations.';
-        }
-
-        $activeItemIds = StockItem::query()->active()->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        if ($activeItemIds === []) {
-            return 'No active stock items. Ask admin to add stock items first.';
-        }
-
-        if ($posted === null) {
-            $existing = StockDailyCount::query()
-                ->where('branch_id', $branchId)
-                ->whereDate('count_date', $date)
-                ->get()
-                ->keyBy('stock_item_id');
-
-            $posted = [
-                'opening' => [],
-                'received' => [],
-                'spoiled' => [],
-                'closing' => [],
-            ];
-            foreach ($activeItemIds as $stockItemId) {
-                /** @var StockDailyCount|null $row */
-                $row = $existing->get($stockItemId);
-                if (! $row) {
-                    return StocksAuditExport::INCOMPLETE_MESSAGE;
-                }
-                foreach (['opening' => 'opening_qty', 'received' => 'received_qty', 'spoiled' => 'spoiled_qty', 'closing' => 'closing_qty'] as $mapKey => $col) {
-                    $val = $row->{$col};
-                    if ($val === null || $val === '') {
-                        return StocksAuditExport::INCOMPLETE_MESSAGE;
-                    }
-                    $posted[$mapKey][$stockItemId] = $val;
-                }
-            }
-        }
-
-        foreach ($activeItemIds as $stockItemId) {
-            $openingRaw = $posted['opening'][$stockItemId] ?? $posted['opening'][(string) $stockItemId] ?? null;
-            $receivedRaw = $posted['received'][$stockItemId] ?? $posted['received'][(string) $stockItemId] ?? null;
-            $spoiledRaw = $posted['spoiled'][$stockItemId] ?? $posted['spoiled'][(string) $stockItemId] ?? null;
-            $closingRaw = $posted['closing'][$stockItemId] ?? $posted['closing'][(string) $stockItemId] ?? null;
-            $hasOpening = $openingRaw !== null && $openingRaw !== '';
-            $hasReceived = $receivedRaw !== null && $receivedRaw !== '';
-            $hasSpoiled = $spoiledRaw !== null && $spoiledRaw !== '';
-            $hasClosing = $closingRaw !== null && $closingRaw !== '';
-            if (! $hasOpening || ! $hasReceived || ! $hasSpoiled || ! $hasClosing) {
-                return 'Fill in all boxes before saving';
-            }
-        }
-
-        foreach ($activeItemIds as $stockItemId) {
-            $openingRaw = $posted['opening'][$stockItemId] ?? $posted['opening'][(string) $stockItemId];
-            $receivedRaw = $posted['received'][$stockItemId] ?? $posted['received'][(string) $stockItemId];
-            $spoiledRaw = $posted['spoiled'][$stockItemId] ?? $posted['spoiled'][(string) $stockItemId];
-            $closingRaw = $posted['closing'][$stockItemId] ?? $posted['closing'][(string) $stockItemId];
-
-            StockDailyCount::query()->updateOrCreate(
-                [
-                    'branch_id' => $branchId,
-                    'stock_item_id' => $stockItemId,
-                    'count_date' => $date,
-                ],
-                [
-                    'opening_qty' => (float) $openingRaw,
-                    'received_qty' => (float) $receivedRaw,
-                    'spoiled_qty' => (float) $spoiledRaw,
-                    'closing_qty' => (float) $closingRaw,
-                    'stock_manager_id' => (int) $manager->id,
-                ]
-            );
-        }
-
-        return null;
     }
 }

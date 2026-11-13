@@ -1,12 +1,15 @@
 /**
- * Stocks manager dashboard — live Result, draft persistence, save gate.
+ * Stocks manager dashboard — live Result, debounced DB autosave, save gate.
  * Result = Closing − (Opening + Received − Sold − Spoiled).
+ * Server is source of truth; localStorage drafts are no longer restored.
  */
 (function () {
     'use strict';
 
     var EPS = 0.0005;
-    var DRAFT_PREFIX = 'munch-stocks-draft:';
+    var AUTOSAVE_MS = 550;
+    var FIELD_SELECTOR =
+        '[data-stocks-opening], [data-stocks-received], [data-stocks-spoiled], [data-stocks-closing]';
 
     function parseQty(raw) {
         if (raw === null || raw === undefined) {
@@ -47,119 +50,25 @@
         el.className = 'munch-stocks-chip munch-stocks-chip--' + result.kind;
     }
 
-    function draftKey(branchId, date) {
-        return DRAFT_PREFIX + String(branchId) + ':' + String(date);
-    }
-
-    function readDraft(branchId, date) {
-        try {
-            var raw = window.localStorage.getItem(draftKey(branchId, date));
-            if (!raw) {
-                return null;
-            }
-            var parsed = JSON.parse(raw);
-            if (!parsed || typeof parsed !== 'object') {
-                return null;
-            }
-            return {
-                opening: parsed.opening && typeof parsed.opening === 'object' ? parsed.opening : {},
-                received: parsed.received && typeof parsed.received === 'object' ? parsed.received : {},
-                spoiled: parsed.spoiled && typeof parsed.spoiled === 'object' ? parsed.spoiled : {},
-                closing: parsed.closing && typeof parsed.closing === 'object' ? parsed.closing : {}
-            };
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function writeDraft(branchId, date, payload) {
-        try {
-            window.localStorage.setItem(draftKey(branchId, date), JSON.stringify(payload));
-        } catch (e) {
-            // Ignore quota / private-mode failures.
-        }
-    }
-
-    function clearDraft(branchId, date) {
-        try {
-            window.localStorage.removeItem(draftKey(branchId, date));
-        } catch (e) {
-            // Ignore.
-        }
-    }
-
     function itemIdFromInput(input) {
         var name = input.getAttribute('name') || '';
         var match = name.match(/\[(\d+)\]/);
         return match ? match[1] : null;
     }
 
-    function collectDraft(table) {
-        var opening = {};
-        var received = {};
-        var spoiled = {};
-        var closing = {};
-        table.querySelectorAll('[data-stocks-opening]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id) {
-                opening[id] = String(input.value);
+    function csrfToken(form) {
+        if (form) {
+            var input = form.querySelector('input[name="_token"]');
+            if (input && input.value) {
+                return input.value;
             }
-        });
-        table.querySelectorAll('[data-stocks-received]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id) {
-                received[id] = String(input.value);
-            }
-        });
-        table.querySelectorAll('[data-stocks-spoiled]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id) {
-                spoiled[id] = String(input.value);
-            }
-        });
-        table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id) {
-                closing[id] = String(input.value);
-            }
-        });
-        return { opening: opening, received: received, spoiled: spoiled, closing: closing };
-    }
-
-    function applyDraft(table, draft) {
-        if (!draft) {
-            return;
         }
-        table.querySelectorAll('[data-stocks-opening]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id && Object.prototype.hasOwnProperty.call(draft.opening, id)) {
-                input.value = draft.opening[id];
-            }
-        });
-        table.querySelectorAll('[data-stocks-received]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id && Object.prototype.hasOwnProperty.call(draft.received, id)) {
-                input.value = draft.received[id];
-            }
-        });
-        table.querySelectorAll('[data-stocks-spoiled]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id && Object.prototype.hasOwnProperty.call(draft.spoiled || {}, id)) {
-                input.value = draft.spoiled[id];
-            }
-        });
-        table.querySelectorAll('[data-stocks-closing]').forEach(function (input) {
-            var id = itemIdFromInput(input);
-            if (id && Object.prototype.hasOwnProperty.call(draft.closing, id)) {
-                input.value = draft.closing[id];
-            }
-        });
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') || '' : '';
     }
 
     function allBoxesFilled(table) {
-        var inputs = table.querySelectorAll(
-            '[data-stocks-opening], [data-stocks-received], [data-stocks-spoiled], [data-stocks-closing]'
-        );
+        var inputs = table.querySelectorAll(FIELD_SELECTOR);
         for (var i = 0; i < inputs.length; i++) {
             if (String(inputs[i].value).trim() === '') {
                 return false;
@@ -206,57 +115,234 @@
         setChip(resultEl, formatResult(variance));
     }
 
+    function collectRowPayload(row) {
+        var openingInput = row.querySelector('[data-stocks-opening]');
+        var receivedInput = row.querySelector('[data-stocks-received]');
+        var spoiledInput = row.querySelector('[data-stocks-spoiled]');
+        var closingInput = row.querySelector('[data-stocks-closing]');
+        if (!openingInput || !receivedInput || !spoiledInput || !closingInput) {
+            return null;
+        }
+        var id = itemIdFromInput(openingInput);
+        if (!id) {
+            return null;
+        }
+        return {
+            id: id,
+            opening: String(openingInput.value),
+            received: String(receivedInput.value),
+            spoiled: String(spoiledInput.value),
+            closing: String(closingInput.value)
+        };
+    }
+
+    function setSaveStatus(el, state, detail) {
+        if (!el) {
+            return;
+        }
+        var text = '';
+        var kind = state || 'idle';
+        if (state === 'saving') {
+            text = 'Saving…';
+        } else if (state === 'saved') {
+            text = 'Saved';
+        } else if (state === 'error') {
+            text = detail ? 'Error: ' + detail : 'Error';
+        } else {
+            text = '';
+            kind = 'idle';
+        }
+        el.textContent = text;
+        el.setAttribute('data-status', kind);
+        el.className = 'munch-stocks-save-status munch-stocks-save-status--' + kind;
+    }
+
+    function createAutosave(options) {
+        var form = options.form;
+        var statusEl = options.statusEl;
+        var debounceMs = options.debounceMs != null ? options.debounceMs : AUTOSAVE_MS;
+        var fetchImpl = options.fetchImpl || window.fetch.bind(window);
+        var timers = Object.create(null);
+        var inflight = 0;
+        var lastError = null;
+        var generation = Object.create(null);
+
+        function markSaving() {
+            setSaveStatus(statusEl, 'saving');
+        }
+
+        function markDone() {
+            if (inflight > 0) {
+                return;
+            }
+            if (lastError) {
+                setSaveStatus(statusEl, 'error', lastError);
+                return;
+            }
+            setSaveStatus(statusEl, 'saved');
+        }
+
+        function postRow(payload) {
+            if (!form || !payload || !payload.id) {
+                return Promise.resolve();
+            }
+            var action = form.getAttribute('action');
+            if (!action) {
+                return Promise.resolve();
+            }
+
+            var body = new URLSearchParams();
+            body.set('_token', csrfToken(form));
+            body.set('partial', '1');
+            body.set('date', form.querySelector('input[name="date"]').value);
+            body.set('branch_id', form.querySelector('input[name="branch_id"]').value);
+            body.set('opening[' + payload.id + ']', payload.opening);
+            body.set('received[' + payload.id + ']', payload.received);
+            body.set('spoiled[' + payload.id + ']', payload.spoiled);
+            body.set('closing[' + payload.id + ']', payload.closing);
+
+            var gen = (generation[payload.id] || 0) + 1;
+            generation[payload.id] = gen;
+            inflight += 1;
+            lastError = null;
+            markSaving();
+
+            return fetchImpl(action, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken(form)
+                },
+                body: body
+            })
+                .then(function (res) {
+                    return res
+                        .json()
+                        .catch(function () {
+                            return { ok: false, error: 'Save failed' };
+                        })
+                        .then(function (data) {
+                            return { res: res, data: data };
+                        });
+                })
+                .then(function (pack) {
+                    if (generation[payload.id] !== gen) {
+                        return;
+                    }
+                    if (!pack.res.ok || !pack.data || pack.data.ok === false) {
+                        lastError =
+                            (pack.data && (pack.data.error || pack.data.message)) ||
+                            'Save failed';
+                        return;
+                    }
+                    lastError = null;
+                })
+                .catch(function () {
+                    if (generation[payload.id] !== gen) {
+                        return;
+                    }
+                    lastError = 'Network error';
+                })
+                .then(function () {
+                    inflight = Math.max(0, inflight - 1);
+                    markDone();
+                });
+        }
+
+        function schedule(row) {
+            var payload = collectRowPayload(row);
+            if (!payload) {
+                return;
+            }
+            if (timers[payload.id]) {
+                clearTimeout(timers[payload.id]);
+            }
+            timers[payload.id] = setTimeout(function () {
+                timers[payload.id] = null;
+                postRow(collectRowPayload(row) || payload);
+            }, debounceMs);
+        }
+
+        function flush(row) {
+            var payload = collectRowPayload(row);
+            if (!payload) {
+                return;
+            }
+            if (timers[payload.id]) {
+                clearTimeout(timers[payload.id]);
+                timers[payload.id] = null;
+            }
+            return postRow(payload);
+        }
+
+        function flushAll(table) {
+            var rows = table ? table.querySelectorAll('[data-stocks-row]') : [];
+            var chain = Promise.resolve();
+            rows.forEach(function (row) {
+                chain = chain.then(function () {
+                    return flush(row);
+                });
+            });
+            return chain;
+        }
+
+        return {
+            schedule: schedule,
+            flush: flush,
+            flushAll: flushAll,
+            postRow: postRow,
+            AUTOSAVE_MS: debounceMs
+        };
+    }
+
     function bind(root) {
         var table = root || document.getElementById('munch-stocks-counts-table');
         if (!table) {
-            return;
+            return null;
         }
 
         var form = table.closest('form') || document.getElementById('munch-stocks-counts-form');
-        var branchId = table.getAttribute('data-branch-id') || (form && form.getAttribute('data-branch-id')) || '';
-        var date = table.getAttribute('data-date') || (form && form.getAttribute('data-date')) || '';
         var fillMessage = (form && form.getAttribute('data-fill-message')) || 'Fill in all boxes before saving';
         var exportBtn = document.getElementById('munch-stocks-export-report');
         var exportMessage =
             (exportBtn && exportBtn.getAttribute('data-export-message')) ||
             (form && form.getAttribute('data-export-message')) ||
             'Complete all fields for the branch and date selected before exporting the report.';
+        var statusEl = document.getElementById('munch-stocks-save-status');
+        var autosave = createAutosave({
+            form: form,
+            statusEl: statusEl,
+            debounceMs: AUTOSAVE_MS
+        });
 
-        if (branchId && date) {
-            var params = new URLSearchParams(window.location.search);
-            if (params.get('saved') === '1') {
-                clearDraft(branchId, date);
-            } else {
-                applyDraft(table, readDraft(branchId, date));
-            }
-        }
-
-        function persist() {
-            if (!branchId || !date) {
-                return;
-            }
-            writeDraft(branchId, date, collectDraft(table));
-        }
-
-        function onChange(ev) {
+        function onInput(ev) {
             var target = ev.target;
-            if (
-                !target ||
-                !target.matches(
-                    '[data-stocks-opening], [data-stocks-received], [data-stocks-spoiled], [data-stocks-closing]'
-                )
-            ) {
+            if (!target || !target.matches(FIELD_SELECTOR)) {
                 return;
             }
             var row = target.closest('[data-stocks-row]');
             if (row) {
                 refreshRow(row);
+                autosave.schedule(row);
             }
-            persist();
         }
 
-        table.addEventListener('input', onChange);
-        table.addEventListener('change', onChange);
+        function onBlur(ev) {
+            var target = ev.target;
+            if (!target || !target.matches(FIELD_SELECTOR)) {
+                return;
+            }
+            var row = target.closest('[data-stocks-row]');
+            if (row) {
+                autosave.flush(row);
+            }
+        }
+
+        table.addEventListener('input', onInput);
+        table.addEventListener('change', onInput);
+        table.addEventListener('focusout', onBlur);
 
         if (form) {
             form.addEventListener('submit', function (ev) {
@@ -284,16 +370,20 @@
                 if (!exportUrl) {
                     return;
                 }
-                var originalAction = form.getAttribute('action');
-                form.setAttribute('action', exportUrl);
-                form.submit();
-                if (originalAction) {
-                    form.setAttribute('action', originalAction);
-                }
+                // Flush pending autosaves before export POST so DB matches the form.
+                autosave.flushAll(table).then(function () {
+                    var originalAction = form.getAttribute('action');
+                    form.setAttribute('action', exportUrl);
+                    form.submit();
+                    if (originalAction) {
+                        form.setAttribute('action', originalAction);
+                    }
+                });
             });
         }
 
         table.querySelectorAll('[data-stocks-row]').forEach(refreshRow);
+        return autosave;
     }
 
     if (document.readyState === 'loading') {
@@ -308,8 +398,9 @@
         bind: bind,
         formatResult: formatResult,
         refreshRow: refreshRow,
-        draftKey: draftKey,
-        clearDraft: clearDraft,
-        allBoxesFilled: allBoxesFilled
+        allBoxesFilled: allBoxesFilled,
+        createAutosave: createAutosave,
+        collectRowPayload: collectRowPayload,
+        AUTOSAVE_MS: AUTOSAVE_MS
     };
 })();

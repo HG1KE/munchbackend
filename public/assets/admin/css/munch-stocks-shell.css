@@ -308,6 +308,26 @@ body.munch-stocks-shell .card-header .text-muted {
     color: var(--munch-shell-text-muted) !important;
 }
 
+body.munch-stocks-shell .munch-stocks-save-status {
+    min-height: 1.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: #6b7280;
+}
+
+body.munch-stocks-shell .munch-stocks-save-status--saving {
+    color: #4b5563;
+}
+
+body.munch-stocks-shell .munch-stocks-save-status--saved {
+    color: #15803d;
+}
+
+body.munch-stocks-shell .munch-stocks-save-status--error {
+    color: #b91c1c;
+}
+
 body.munch-stocks-shell .card-footer {
     background: #f8fafc;
     border-top: 1px solid var(--munch-shell-border-soft);

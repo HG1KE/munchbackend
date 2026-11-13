@@ -9,7 +9,7 @@
                 <div class="munch-stocks-page-header__eyebrow">{{ translate('Daily counts') }}</div>
                 <h1 class="munch-stocks-page-header__title">{{ $branchName }}</h1>
                 <p class="munch-stocks-page-header__hint">
-                    {{ translate('Enter opening, received, spoiled, and closing stock. Result updates as you type.') }}
+                    {{ translate('Enter opening, received, spoiled, and closing stock. Counts save automatically as you type.') }}
                 </p>
             </div>
 
@@ -155,8 +155,14 @@
                         </table>
                     </div>
                     @if(count($rows))
-                        <div class="card-footer d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary">{{ translate('Save counts') }}</button>
+                        <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div id="munch-stocks-save-status"
+                                 class="munch-stocks-save-status munch-stocks-save-status--idle"
+                                 data-status="idle"
+                                 aria-live="polite"></div>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ translate('Flush all rows when every box is filled') }}">
+                                {{ translate('Save counts') }}
+                            </button>
                         </div>
                     @endif
                 </form>
@@ -166,5 +172,5 @@
 @endsection
 
 @push('script')
-    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.5"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.6"></script>
 @endpush

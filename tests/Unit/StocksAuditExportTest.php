@@ -153,9 +153,9 @@ class StocksAuditExportTest extends TestCase
         $this->assertStringContainsString('StocksAuditExport', $controller);
         $this->assertStringContainsString('INCOMPLETE_MESSAGE', $controller);
         // Export must write stock_daily_counts so admin + manager reload show the same day.
-        $this->assertStringContainsString('persistCompleteCounts', $controller);
+        $this->assertStringContainsString('StockCountPersistService', $controller);
         $this->assertStringContainsString(
-            '$persistError = $this->persistCompleteCounts($manager, $branchId, $date, $posted);',
+            '$persistError = $this->counts->persistComplete($manager, $branchId, $date, $posted);',
             $controller
         );
 

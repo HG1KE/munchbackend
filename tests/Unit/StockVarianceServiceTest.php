@@ -102,8 +102,11 @@ class StockVarianceServiceTest extends TestCase
         $controller = file_get_contents(app_path('Http/Controllers/Stocks/DashboardController.php'));
         $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$date, 'missing')", $controller);
         $this->assertStringNotContainsString("'short'", $controller);
-        $this->assertStringContainsString('Fill in all boxes before saving', $controller);
+        $this->assertStringContainsString('persistPartial', $controller);
         $this->assertStringContainsString("'saved' => 1", $controller);
+
+        $persist = file_get_contents(app_path('Services/Stock/StockCountPersistService.php'));
+        $this->assertStringContainsString('Fill in all boxes before saving', $persist);
         $this->assertStringContainsString('received_qty', $controller);
         $this->assertStringContainsString('spoiled_qty', $controller);
         $this->assertStringContainsString("'received'", $controller);
@@ -120,10 +123,11 @@ class StockVarianceServiceTest extends TestCase
         $this->assertStringContainsString('data-stocks-spoiled', $js);
         $this->assertStringContainsString('Closing − (Opening + Received', $js);
         $this->assertStringContainsString('Spoiled', $js);
-        $this->assertStringContainsString('munch-stocks-draft:', $js);
+        $this->assertStringContainsString("body.set('partial', '1')", $js);
+        $this->assertStringContainsString('Saving…', $js);
+        $this->assertStringContainsString('createAutosave', $js);
+        $this->assertStringNotContainsString('munch-stocks-draft:', $js);
         $this->assertStringContainsString('allBoxesFilled', $js);
-        $this->assertStringContainsString('received:', $js);
-        $this->assertStringContainsString('spoiled:', $js);
         $this->assertStringNotContainsString('data-stocks-sold', $js);
 
         $model = file_get_contents(app_path('Model/StockDailyCount.php'));

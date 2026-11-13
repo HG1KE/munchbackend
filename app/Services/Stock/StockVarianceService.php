@@ -53,7 +53,7 @@ class StockVarianceService
         foreach ($items as $item) {
             /** @var StockDailyCount|null $count */
             $count = $counts->get($item->id);
-            $opening = $count ? (float) $count->opening_qty : null;
+            $opening = $count && $count->opening_qty !== null ? (float) $count->opening_qty : null;
             $received = $count && $count->received_qty !== null ? (float) $count->received_qty : null;
             $spoiled = $count && $count->spoiled_qty !== null ? (float) $count->spoiled_qty : null;
             $closing = $count && $count->closing_qty !== null ? (float) $count->closing_qty : null;
