@@ -143,7 +143,7 @@
                                 </td>
                                 <td>{{ $order->branch?->name }}</td>
                                 <td>
-                                    <div>{{Helpers::set_symbol($order['order_amount']) }}</div>
+                                    <div>{{Helpers::set_symbol(\App\Support\OrderPayableAmount::payable($order)) }}</div>
                                     @if($order->payment_status=='paid')
                                         <span class="text-success">{{translate('paid')}}</span>
                                     @else
