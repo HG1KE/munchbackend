@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Stocks;
 use App\Http\Controllers\Controller;
 use App\Model\StockDailyCount;
 use App\Model\StockItem;
+use App\Model\StockManager;
 use App\Services\Stock\StockVarianceService;
 use App\Support\StocksAuditExport;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -79,23 +80,15 @@ class DashboardController extends Controller
 
         // Prefer the filled table on screen (posted values). Fall back to saved counts.
         $rows = $this->variance->rowsForBranchDate($branchId, $date, 'missing');
-        if (
-            $request->has('opening')
-            || $request->has('received')
-            || $request->has('spoiled')
-            || $request->has('closing')
-        ) {
-            $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
-            $receiveds = is_array($request->input('received')) ? $request->input('received') : [];
-            $spoileds = is_array($request->input('spoiled')) ? $request->input('spoiled') : [];
-            $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
-            $rows = array_map(function (array $row) use ($openings, $receiveds, $spoileds, $closings) {
+        $posted = $this->qtyMapsFromRequest($request);
+        if ($posted !== null) {
+            $rows = array_map(function (array $row) use ($posted) {
                 $id = (int) $row['stock_item_id'];
                 $key = (string) $id;
-                $openingRaw = $openings[$id] ?? $openings[$key] ?? null;
-                $receivedRaw = $receiveds[$id] ?? $receiveds[$key] ?? null;
-                $spoiledRaw = $spoileds[$id] ?? $spoileds[$key] ?? null;
-                $closingRaw = $closings[$id] ?? $closings[$key] ?? null;
+                $openingRaw = $posted['opening'][$id] ?? $posted['opening'][$key] ?? null;
+                $receivedRaw = $posted['received'][$id] ?? $posted['received'][$key] ?? null;
+                $spoiledRaw = $posted['spoiled'][$id] ?? $posted['spoiled'][$key] ?? null;
+                $closingRaw = $posted['closing'][$id] ?? $posted['closing'][$key] ?? null;
 
                 $opening = ($openingRaw === null || $openingRaw === '') ? null : (float) $openingRaw;
                 $received = ($receivedRaw === null || $receivedRaw === '') ? null : (float) $receivedRaw;
@@ -119,6 +112,19 @@ class DashboardController extends Controller
 
         if (! StocksAuditExport::isComplete($report)) {
             Toastr::error(translate(StocksAuditExport::INCOMPLETE_MESSAGE));
+
+            return redirect()->route('stocks.dashboard', [
+                'date' => $date,
+                'branch_id' => $branchId,
+            ]);
+        }
+
+        // Export used to build the PDF from the on-screen form without writing
+        // stock_daily_counts — admin + manager reload then looked empty. Persist
+        // the complete posted (or already-saved) rows before downloading.
+        $persistError = $this->persistCompleteCounts($manager, $branchId, $date, $posted);
+        if ($persistError !== null) {
+            Toastr::error(translate($persistError));
 
             return redirect()->route('stocks.dashboard', [
                 'date' => $date,
@@ -150,38 +156,121 @@ class DashboardController extends Controller
         }
 
         $date = $request->input('date') ?: now()->toDateString();
+        $posted = $this->qtyMapsFromRequest($request) ?? [
+            'opening' => [],
+            'received' => [],
+            'spoiled' => [],
+            'closing' => [],
+        ];
 
-        if (! Schema::hasTable('stock_daily_counts') || ! Schema::hasTable('stock_items')) {
-            Toastr::error(translate('Stock counts table is missing. Run migrations.'));
-            return back();
+        $persistError = $this->persistCompleteCounts($manager, $branchId, $date, $posted);
+        if ($persistError !== null) {
+            Toastr::error(translate($persistError));
+
+            return back()->withInput();
         }
 
-        $openings = is_array($request->input('opening')) ? $request->input('opening') : [];
-        $receiveds = is_array($request->input('received')) ? $request->input('received') : [];
-        $spoileds = is_array($request->input('spoiled')) ? $request->input('spoiled') : [];
-        $closings = is_array($request->input('closing')) ? $request->input('closing') : [];
+        Toastr::success(translate('Stock counts saved.'));
+
+        return redirect()->route('stocks.dashboard', [
+            'date' => $date,
+            'branch_id' => $branchId,
+            'saved' => 1,
+        ]);
+    }
+
+    /**
+     * @return array{opening:array,received:array,spoiled:array,closing:array}|null
+     */
+    private function qtyMapsFromRequest(Request $request): ?array
+    {
+        if (
+            ! $request->has('opening')
+            && ! $request->has('received')
+            && ! $request->has('spoiled')
+            && ! $request->has('closing')
+        ) {
+            return null;
+        }
+
+        return [
+            'opening' => is_array($request->input('opening')) ? $request->input('opening') : [],
+            'received' => is_array($request->input('received')) ? $request->input('received') : [],
+            'spoiled' => is_array($request->input('spoiled')) ? $request->input('spoiled') : [],
+            'closing' => is_array($request->input('closing')) ? $request->input('closing') : [],
+        ];
+    }
+
+    /**
+     * Persist opening/received/spoiled/closing for every active stock item.
+     * When $posted is null, rows already in DB for this branch+date are re-saved
+     * (export of previously saved counts). Returns an error message or null.
+     *
+     * @param  array{opening:array,received:array,spoiled:array,closing:array}|null  $posted
+     */
+    private function persistCompleteCounts(
+        StockManager $manager,
+        int $branchId,
+        string $date,
+        ?array $posted
+    ): ?string {
+        if (! Schema::hasTable('stock_daily_counts') || ! Schema::hasTable('stock_items')) {
+            return 'Stock counts table is missing. Run migrations.';
+        }
+
         $activeItemIds = StockItem::query()->active()->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($activeItemIds === []) {
+            return 'No active stock items. Ask admin to add stock items first.';
+        }
+
+        if ($posted === null) {
+            $existing = StockDailyCount::query()
+                ->where('branch_id', $branchId)
+                ->whereDate('count_date', $date)
+                ->get()
+                ->keyBy('stock_item_id');
+
+            $posted = [
+                'opening' => [],
+                'received' => [],
+                'spoiled' => [],
+                'closing' => [],
+            ];
+            foreach ($activeItemIds as $stockItemId) {
+                /** @var StockDailyCount|null $row */
+                $row = $existing->get($stockItemId);
+                if (! $row) {
+                    return StocksAuditExport::INCOMPLETE_MESSAGE;
+                }
+                foreach (['opening' => 'opening_qty', 'received' => 'received_qty', 'spoiled' => 'spoiled_qty', 'closing' => 'closing_qty'] as $mapKey => $col) {
+                    $val = $row->{$col};
+                    if ($val === null || $val === '') {
+                        return StocksAuditExport::INCOMPLETE_MESSAGE;
+                    }
+                    $posted[$mapKey][$stockItemId] = $val;
+                }
+            }
+        }
 
         foreach ($activeItemIds as $stockItemId) {
-            $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId] ?? null;
-            $receivedRaw = $receiveds[$stockItemId] ?? $receiveds[(string) $stockItemId] ?? null;
-            $spoiledRaw = $spoileds[$stockItemId] ?? $spoileds[(string) $stockItemId] ?? null;
-            $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId] ?? null;
+            $openingRaw = $posted['opening'][$stockItemId] ?? $posted['opening'][(string) $stockItemId] ?? null;
+            $receivedRaw = $posted['received'][$stockItemId] ?? $posted['received'][(string) $stockItemId] ?? null;
+            $spoiledRaw = $posted['spoiled'][$stockItemId] ?? $posted['spoiled'][(string) $stockItemId] ?? null;
+            $closingRaw = $posted['closing'][$stockItemId] ?? $posted['closing'][(string) $stockItemId] ?? null;
             $hasOpening = $openingRaw !== null && $openingRaw !== '';
             $hasReceived = $receivedRaw !== null && $receivedRaw !== '';
             $hasSpoiled = $spoiledRaw !== null && $spoiledRaw !== '';
             $hasClosing = $closingRaw !== null && $closingRaw !== '';
             if (! $hasOpening || ! $hasReceived || ! $hasSpoiled || ! $hasClosing) {
-                Toastr::error(translate('Fill in all boxes before saving'));
-                return back()->withInput();
+                return 'Fill in all boxes before saving';
             }
         }
 
         foreach ($activeItemIds as $stockItemId) {
-            $openingRaw = $openings[$stockItemId] ?? $openings[(string) $stockItemId];
-            $receivedRaw = $receiveds[$stockItemId] ?? $receiveds[(string) $stockItemId];
-            $spoiledRaw = $spoileds[$stockItemId] ?? $spoileds[(string) $stockItemId];
-            $closingRaw = $closings[$stockItemId] ?? $closings[(string) $stockItemId];
+            $openingRaw = $posted['opening'][$stockItemId] ?? $posted['opening'][(string) $stockItemId];
+            $receivedRaw = $posted['received'][$stockItemId] ?? $posted['received'][(string) $stockItemId];
+            $spoiledRaw = $posted['spoiled'][$stockItemId] ?? $posted['spoiled'][(string) $stockItemId];
+            $closingRaw = $posted['closing'][$stockItemId] ?? $posted['closing'][(string) $stockItemId];
 
             StockDailyCount::query()->updateOrCreate(
                 [
@@ -199,12 +288,6 @@ class DashboardController extends Controller
             );
         }
 
-        Toastr::success(translate('Stock counts saved.'));
-
-        return redirect()->route('stocks.dashboard', [
-            'date' => $date,
-            'branch_id' => $branchId,
-            'saved' => 1,
-        ]);
+        return null;
     }
 }

@@ -152,6 +152,12 @@ class StocksAuditExportTest extends TestCase
         $this->assertStringContainsString('function exportReport', $controller);
         $this->assertStringContainsString('StocksAuditExport', $controller);
         $this->assertStringContainsString('INCOMPLETE_MESSAGE', $controller);
+        // Export must write stock_daily_counts so admin + manager reload show the same day.
+        $this->assertStringContainsString('persistCompleteCounts', $controller);
+        $this->assertStringContainsString(
+            '$persistError = $this->persistCompleteCounts($manager, $branchId, $date, $posted);',
+            $controller
+        );
 
         $js = file_get_contents(public_path('assets/admin/js/munch-stocks-dashboard.js'));
         $this->assertStringContainsString('munch-stocks-export-report', $js);
