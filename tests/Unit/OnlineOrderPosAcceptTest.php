@@ -630,9 +630,45 @@ class OnlineOrderPosAcceptTest extends TestCase
 
         $this->assertSame(1, $payload['new_order']);
         $this->assertSame(909, $payload['order']['id']);
-        $this->assertSame('A909', $payload['order']['readable_order_id']);
+        $this->assertSame('A909', $payload['order']['order_display_id']);
         $this->assertSame('Plain Chips', $payload['order']['items'][0]['name']);
         $this->assertContains('Addon #3', $payload['order']['items'][0]['options']);
+    }
+
+    public function test_pending_alert_soft_fails_when_preview_throws(): void
+    {
+        $this->seedOnlineOrder(910, 1);
+
+        $ops = app(\App\Services\DashboardOrderOperationsService::class);
+        $posToday = app(\App\Services\BranchPosTodayOrdersService::class);
+        $service = new class($posToday, $ops) extends OnlineOrderPosAcceptService
+        {
+            public function previewPayload(Order $order): array
+            {
+                throw new \RuntimeException('simulated preview failure');
+            }
+        };
+
+        $payload = $service->pendingAlertPayload(1);
+
+        $this->assertSame(1, $payload['new_order']);
+        $this->assertNull($payload['order']);
+        $this->assertSame('preview_failed', $payload['error']);
+    }
+
+    public function test_pending_online_orders_controller_soft_fails_poll(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Branch/POSController.php'));
+        $pending = $this->methodBody($controller, 'pendingOnlineOrders');
+        $this->assertStringContainsString('catch (\Throwable $e)', $pending);
+        $this->assertStringContainsString("'error' => 'poll_failed'", $pending);
+        $this->assertStringContainsString('pos.pending_online_orders_failed', $pending);
+
+        $service = file_get_contents(app_path('Services/OnlineOrderPosAcceptService.php'));
+        $alert = $this->methodBody($service, 'pendingAlertPayload');
+        $this->assertStringContainsString('catch (\Throwable $e)', $alert);
+        $this->assertStringContainsString("'error' => 'preview_failed'", $alert);
+        $this->assertStringContainsString('pos.pending_alert_preview_failed', $alert);
     }
 
     public function test_pos_online_order_receive_setting_defaults_off_and_reads_business_settings(): void

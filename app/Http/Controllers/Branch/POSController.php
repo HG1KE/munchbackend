@@ -40,6 +40,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
@@ -122,6 +123,8 @@ class POSController extends Controller
 
     /**
      * Branch-scoped online-order ring payload for open POS sessions.
+     *
+     * Never 500 the poll: JS treats non-OK as empty and cashiers see a ring miss.
      */
     public function pendingOnlineOrders(): JsonResponse
     {
@@ -137,10 +140,26 @@ class POSController extends Controller
             ]);
         }
 
-        return response()->json([
-            'success' => 1,
-            'data' => $this->onlineOrderAccept->pendingAlertPayload($branchId),
-        ]);
+        try {
+            return response()->json([
+                'success' => 1,
+                'data' => $this->onlineOrderAccept->pendingAlertPayload($branchId),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('pos.pending_online_orders_failed', [
+                'branch_id' => $branchId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => 1,
+                'data' => [
+                    'new_order' => 0,
+                    'order' => null,
+                    'error' => 'poll_failed',
+                ],
+            ]);
+        }
     }
 
     /**

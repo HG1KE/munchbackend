@@ -13,6 +13,7 @@ use App\Support\PaymentMethodLabel;
 use App\Support\PosOrderTypes;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -32,28 +33,65 @@ class OnlineOrderPosAcceptService
     /**
      * Alert payload for an open Branch POS session (branch-scoped only).
      *
-     * @return array{new_order: int, order: ?array<string, mixed>}
+     * Soft-fails on corrupt detail shapes so the ~10s POS poll stays HTTP 200
+     * (a 500 is treated as empty by JS and looks like a silent ring miss).
+     *
+     * @return array{new_order: int, order: ?array<string, mixed>, error?: string}
      */
     public function pendingAlertPayload(int $branchId): array
     {
-        $count = $this->operations->pendingQueueQuery($branchId)->count();
-        if ($count < 1) {
+        try {
+            $count = $this->operations->pendingQueueQuery($branchId)->count();
+            if ($count < 1) {
+                return [
+                    'new_order' => 0,
+                    'order' => null,
+                ];
+            }
+
+            $order = $this->operations->pendingQueueQuery($branchId)
+                ->with(['customer', 'guest', 'branch', 'order_area.area', 'details'])
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->first();
+
+            if (! $order) {
+                return [
+                    'new_order' => $count,
+                    'order' => null,
+                ];
+            }
+
+            try {
+                return [
+                    'new_order' => $count,
+                    'order' => $this->previewPayload($order),
+                ];
+            } catch (\Throwable $e) {
+                Log::error('pos.pending_alert_preview_failed', [
+                    'branch_id' => $branchId,
+                    'order_id' => (int) $order->id,
+                    'exception' => $e->getMessage(),
+                ]);
+
+                return [
+                    'new_order' => $count,
+                    'order' => null,
+                    'error' => 'preview_failed',
+                ];
+            }
+        } catch (\Throwable $e) {
+            Log::error('pos.pending_alert_payload_failed', [
+                'branch_id' => $branchId,
+                'exception' => $e->getMessage(),
+            ]);
+
             return [
                 'new_order' => 0,
                 'order' => null,
+                'error' => 'poll_failed',
             ];
         }
-
-        $order = $this->operations->pendingQueueQuery($branchId)
-            ->with(['customer', 'guest', 'branch', 'order_area.area', 'details'])
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->first();
-
-        return [
-            'new_order' => $count,
-            'order' => $order ? $this->previewPayload($order) : null,
-        ];
     }
 
     /**

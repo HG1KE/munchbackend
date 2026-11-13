@@ -498,6 +498,30 @@ class AdminSaleReportPdfItemsTest extends TestCase
         }
     }
 
+    /**
+     * A24922 residual: nested product_details.add_ons as a JSON string must not
+     * TypeError foreach in postedAddonLabels during sale-report export.
+     */
+    public function test_string_product_details_add_ons_does_not_crash_item_lines(): void
+    {
+        $row = $this->reportFromPostedDetail(42, 'A24922', 860, [
+            'quantity' => 1,
+            'product_details' => json_encode([
+                'name' => 'Plain Chips',
+                'add_ons' => '["5","2","3","4"]',
+            ]),
+            'variation' => '[]',
+            'add_on_ids' => json_encode([3]),
+            'add_on_qtys' => json_encode([1]),
+        ]);
+        $text = AdminSaleReportExport::orderCellText($row);
+
+        $this->assertStringContainsString('Plain Chips', $text);
+        $this->assertSame('Plain Chips', $row['items'][0]['name']);
+        // Snapshot is ID-only string list — no names; label falls back empty without crash.
+        $this->assertIsArray($row['items'][0]['addons']);
+    }
+
     public function test_unselected_variation_does_not_print_catalogue_options(): void
     {
         $row = $this->reportFromPostedDetail(40, 'A10651', 270, [

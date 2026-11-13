@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Model\AddOn;
 use App\Model\Order;
+use App\Support\OrderPayableAmount;
 use App\Support\PosOrderTypes;
 use App\Support\PosSaleTime;
 use App\Support\TimezoneDisplay;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class BranchPosTodayOrdersService
@@ -51,11 +53,14 @@ class BranchPosTodayOrdersService
 
         // Monetary total is computed only for Online Orders (Habib). Exclude
         // canceled/failed/returned so the sum matches live non-canceled value.
+        // Match OrderPayableAmount::payable (order_amount + delivery; pickup zeros fee).
         // Other chips keep the existing order-count meta and do not receive orders_value.
         $ordersValue = $onlineFilter
             ? (float) (clone $query)
                 ->whereNotIn('order_status', ['canceled', 'cancelled', 'failed', 'returned'])
-                ->sum('order_amount')
+                ->sum(DB::raw(
+                    "COALESCE(order_amount, 0) + CASE WHEN order_type = 'take_away' THEN 0 ELSE COALESCE(delivery_charge, 0) END"
+                ))
             : null;
 
         /** @var LengthAwarePaginator $pageData */
@@ -179,7 +184,7 @@ class BranchPosTodayOrdersService
             ? $deliveryCustomer['phone']
             : (string) ($order->customer?->phone ?: '');
 
-        $grand = (float) $order->order_amount;
+        $grand = OrderPayableAmount::payable($order);
         $items = [];
         $subtotal = 0.0;
         $itemDiscount = 0.0;
@@ -216,7 +221,7 @@ class BranchPosTodayOrdersService
             'phone' => $phone,
             'address' => $order->sales_channel === 'delivery' ? $deliveryCustomer['address'] : '',
             'notes' => trim((string) ($order->order_note ?: '')),
-            'delivery_fee' => (float) $order->delivery_charge,
+            'delivery_fee' => OrderPayableAmount::deliveryCharge($order),
             'discount' => (float) $order->extra_discount + $itemDiscount,
             'subtotal' => $subtotal,
             'grand_total' => $grand,

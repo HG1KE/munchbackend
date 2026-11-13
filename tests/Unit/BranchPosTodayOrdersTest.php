@@ -201,6 +201,7 @@ class BranchPosTodayOrdersTest extends TestCase
             'sales_channel' => 'delivery',
             'order_type' => 'pos',
             'order_amount' => 1000,
+            'delivery_charge' => 180,
             'online_checkout_uuid' => 'online-accepted-1',
             'created_at' => $now,
             'updated_at' => $now,
@@ -210,6 +211,7 @@ class BranchPosTodayOrdersTest extends TestCase
             'sales_channel' => null,
             'order_type' => 'delivery',
             'order_amount' => 500,
+            'delivery_charge' => 100,
             'online_checkout_uuid' => 'online-pending-1',
             'created_at' => $now,
             'updated_at' => $now,
@@ -224,10 +226,12 @@ class BranchPosTodayOrdersTest extends TestCase
             'updated_at' => $now,
         ]);
         // Pending takeaway without uuid still counts as online family.
+        // Pickup zeros delivery_charge in OrderPayableAmount even if stored.
         $this->insertOrder(304, [
             'sales_channel' => null,
             'order_type' => 'take_away',
             'order_amount' => 250,
+            'delivery_charge' => 50,
             'online_checkout_uuid' => null,
             'created_at' => $now,
             'updated_at' => $now,
@@ -237,6 +241,7 @@ class BranchPosTodayOrdersTest extends TestCase
             'sales_channel' => null,
             'order_type' => 'delivery',
             'order_amount' => 400,
+            'delivery_charge' => 80,
             'order_status' => 'canceled',
             'online_checkout_uuid' => 'online-canceled-1',
             'created_at' => $now,
@@ -245,8 +250,15 @@ class BranchPosTodayOrdersTest extends TestCase
 
         $online = $service->forBranch(1, 'Nyali', null, 'online', 1);
         $this->assertSame(4, $online['total']);
-        $this->assertSame(1750.0, $online['orders_value']);
+        // Payable: 1000+180 + 500+100 + 250+0 (pickup) = 2030; canceled excluded.
+        $this->assertSame(2030.0, $online['orders_value']);
         $this->assertSame([305, 304, 302, 301], array_column($online['orders'], 'id'));
+        $byId = collect($online['orders'])->keyBy('id');
+        $this->assertSame(1180.0, $byId[301]['grand_total']);
+        $this->assertSame(600.0, $byId[302]['grand_total']);
+        $this->assertSame(250.0, $byId[304]['grand_total']);
+        $this->assertSame(180.0, $byId[301]['delivery_fee']);
+        $this->assertSame(0.0, $byId[304]['delivery_fee']);
 
         $all = $service->forBranch(1, 'Nyali', null, 'all', 1);
         $this->assertSame(2, $all['total']);
@@ -297,7 +309,8 @@ class BranchPosTodayOrdersTest extends TestCase
             'readable_order_id' => 'A24725',
             'sales_channel' => 'delivery',
             'order_type' => 'pos',
-            'order_amount' => 1220,
+            'order_amount' => 1040,
+            'delivery_charge' => 180,
             'online_checkout_uuid' => 'd110f399-9afd-400a-ad2d-80b6bfa59655',
             'placed_at' => '2026-11-12 18:50:47',
             'created_at' => '2026-11-12 21:50:47',
@@ -317,9 +330,12 @@ class BranchPosTodayOrdersTest extends TestCase
         $service = new BranchPosTodayOrdersService();
         $online = $service->forBranch(1, 'Bamburi', null, 'online', 1);
         $this->assertSame(1, $online['total']);
+        // Payable includes delivery (1040 + 180), same class as A24807.
         $this->assertSame(1220.0, $online['orders_value']);
         $this->assertSame(401, $online['orders'][0]['id']);
         $this->assertSame('A24725', $online['orders'][0]['number']);
+        $this->assertSame(1220.0, $online['orders'][0]['grand_total']);
+        $this->assertSame(180.0, $online['orders'][0]['delivery_fee']);
 
         $all = $service->forBranch(1, 'Bamburi', null, 'all', 1);
         $this->assertSame(2, $all['total']);

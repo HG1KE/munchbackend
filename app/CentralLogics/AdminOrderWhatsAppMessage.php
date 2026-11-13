@@ -165,7 +165,8 @@ class AdminOrderWhatsAppMessage
         }
 
         if ($addonId > 0) {
-            foreach ($productDetails['add_ons'] ?? [] as $addon) {
+            // Nested product_details.add_ons may be a JSON string (A24922 shape).
+            foreach (self::decodeJsonList($productDetails['add_ons'] ?? []) as $addon) {
                 if (! is_array($addon)) {
                     continue;
                 }

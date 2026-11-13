@@ -1466,7 +1466,8 @@ class AdminSaleReportExport
 
         $qtys = self::decodeList($row->add_on_qtys ?? []);
         $fromSnapshot = [];
-        foreach ($product['add_ons'] ?? [] as $addon) {
+        // Nested product_details.add_ons may be a JSON string (A24922 shape).
+        foreach (self::decodeList($product['add_ons'] ?? []) as $addon) {
             if (! is_array($addon)) {
                 continue;
             }
