@@ -241,6 +241,69 @@ class StocksAuditExportTest extends TestCase
         );
     }
 
+    public function test_build_omits_items_with_show_in_stock_pdf_false(): void
+    {
+        $this->assertTrue(StocksAuditExport::shouldIncludeInPdf($this->sampleRow()));
+        $this->assertTrue(StocksAuditExport::shouldIncludeInPdf($this->sampleRow(['show_in_stock_pdf' => true])));
+        $this->assertFalse(StocksAuditExport::shouldIncludeInPdf($this->sampleRow(['show_in_stock_pdf' => false])));
+        $this->assertFalse(StocksAuditExport::shouldIncludeInPdf($this->sampleRow(['show_in_stock_pdf' => 0])));
+
+        $report = StocksAuditExport::build('Bamburi', '2026-11-11', [
+            $this->sampleRow(['name' => 'Beef Patties', 'show_in_stock_pdf' => true]),
+            $this->sampleRow([
+                'stock_item_id' => 2,
+                'name' => 'Internal Wrapper',
+                'show_in_stock_pdf' => false,
+                'opening_qty' => null,
+                'received_qty' => null,
+                'spoiled_qty' => null,
+                'closing_qty' => null,
+                'variance' => null,
+                'variance_label' => '—',
+            ]),
+            $this->sampleRow([
+                'stock_item_id' => 3,
+                'name' => 'Buns',
+                'show_in_stock_pdf' => true,
+                'variance' => 0,
+                'variance_label' => 'balanced',
+                'expected_sold' => 40,
+            ]),
+        ]);
+
+        $this->assertTrue(StocksAuditExport::isComplete($report));
+        $this->assertCount(2, $report['rows']);
+        $names = array_column($report['rows'], 'name');
+        $this->assertSame(['Beef Patties', 'Buns'], $names);
+        $this->assertNotContains('Internal Wrapper', $names);
+
+        $html = view('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))->render();
+        $this->assertStringContainsString('Beef Patties', $html);
+        $this->assertStringContainsString('Buns', $html);
+        $this->assertStringNotContainsString('Internal Wrapper', $html);
+    }
+
+    public function test_hidden_incomplete_items_do_not_block_export_completeness(): void
+    {
+        $report = StocksAuditExport::build('Bamburi', '2026-11-11', [
+            $this->sampleRow(['show_in_stock_pdf' => true]),
+            $this->sampleRow([
+                'stock_item_id' => 99,
+                'name' => 'Hidden Incomplete',
+                'show_in_stock_pdf' => false,
+                'opening_qty' => null,
+                'received_qty' => null,
+                'spoiled_qty' => null,
+                'closing_qty' => null,
+                'variance' => null,
+                'variance_label' => '—',
+            ]),
+        ]);
+
+        $this->assertTrue(StocksAuditExport::isComplete($report));
+        $this->assertCount(1, $report['rows']);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>

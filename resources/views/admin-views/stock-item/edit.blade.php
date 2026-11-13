@@ -26,6 +26,14 @@
                             <span class="toggle-switch-content ml-2">{{ translate('Active') }}</span>
                         </label>
                     </div>
+                    <div class="form-group">
+                        <label class="toggle-switch d-flex align-items-center">
+                            <input type="checkbox" name="show_in_stock_pdf" class="toggle-switch-input"
+                                   {{ ($stockItem->show_in_stock_pdf ?? true) ? 'checked' : '' }}>
+                            <span class="toggle-switch-label"><span class="toggle-switch-indicator"></span></span>
+                            <span class="toggle-switch-content ml-2">{{ translate('Show in Stock PDF') }}</span>
+                        </label>
+                    </div>
                     <div class="d-flex justify-content-end gap-2">
                         <a href="{{ route('admin.stock-item.index') }}" class="btn btn-secondary">{{ translate('Cancel') }}</a>
                         <button type="submit" class="btn btn-primary">{{ translate('Update') }}</button>

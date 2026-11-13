@@ -45,6 +45,7 @@ class StockItemController extends Controller
         $this->stockItem->create([
             'name' => trim($request->name),
             'status' => $request->has('status'),
+            'show_in_stock_pdf' => $request->has('show_in_stock_pdf'),
         ]);
 
         Toastr::success(translate('Stock item added successfully!'));
@@ -66,6 +67,7 @@ class StockItemController extends Controller
         $stockItem = $this->stockItem->findOrFail($id);
         $stockItem->name = trim($request->name);
         $stockItem->status = $request->status == 'on' || $request->status == 1;
+        $stockItem->show_in_stock_pdf = $request->has('show_in_stock_pdf');
         $stockItem->save();
 
         Toastr::success(translate('Stock item updated successfully!'));

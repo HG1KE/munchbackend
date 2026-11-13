@@ -21,6 +21,7 @@ class StockVarianceService
      * @return list<array{
      *   stock_item_id:int,
      *   name:string,
+     *   show_in_stock_pdf:bool,
      *   opening_qty:float|null,
      *   received_qty:float|null,
      *   spoiled_qty:float|null,
@@ -37,7 +38,13 @@ class StockVarianceService
             return [];
         }
 
-        $items = StockItem::query()->active()->orderBy('name')->get(['id', 'name']);
+        $columns = ['id', 'name'];
+        $hasPdfFlag = Schema::hasColumn('stock_items', 'show_in_stock_pdf');
+        if ($hasPdfFlag) {
+            $columns[] = 'show_in_stock_pdf';
+        }
+
+        $items = StockItem::query()->active()->orderBy('name')->get($columns);
         $counts = collect();
         if (Schema::hasTable('stock_daily_counts')) {
             $counts = StockDailyCount::query()
@@ -66,6 +73,7 @@ class StockVarianceService
             $rows[] = [
                 'stock_item_id' => (int) $item->id,
                 'name' => (string) $item->name,
+                'show_in_stock_pdf' => $hasPdfFlag ? (bool) $item->show_in_stock_pdf : true,
                 'opening_qty' => $opening,
                 'received_qty' => $received,
                 'spoiled_qty' => $spoiled,

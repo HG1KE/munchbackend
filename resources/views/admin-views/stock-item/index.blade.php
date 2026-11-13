@@ -113,6 +113,13 @@
                                 <span class="toggle-switch-content ml-2">{{ translate('Active') }}</span>
                             </label>
                         </div>
+                        <div class="form-group">
+                            <label class="toggle-switch d-flex align-items-center">
+                                <input type="checkbox" name="show_in_stock_pdf" class="toggle-switch-input" checked>
+                                <span class="toggle-switch-label"><span class="toggle-switch-indicator"></span></span>
+                                <span class="toggle-switch-content ml-2">{{ translate('Show in Stock PDF') }}</span>
+                            </label>
+                        </div>
                         <div class="d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary">{{ translate('submit') }}</button>
                         </div>

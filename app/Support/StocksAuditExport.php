@@ -155,6 +155,11 @@ class StocksAuditExport
         $normalized = [];
 
         foreach ($rows as $row) {
+            // Omit items turned off for PDF export; dashboard tables keep all rows.
+            if (! self::shouldIncludeInPdf($row)) {
+                continue;
+            }
+
             $opening = self::nullableFloat($row['opening_qty'] ?? null);
             $received = self::nullableFloat($row['received_qty'] ?? null);
             $spoiled = self::nullableFloat($row['spoiled_qty'] ?? null);
@@ -168,6 +173,7 @@ class StocksAuditExport
             $normalized[] = [
                 'stock_item_id' => (int) ($row['stock_item_id'] ?? 0),
                 'name' => (string) ($row['name'] ?? ''),
+                'show_in_stock_pdf' => true,
                 'opening_qty' => $opening,
                 'received_qty' => $received,
                 'spoiled_qty' => $spoiled,
@@ -185,6 +191,20 @@ class StocksAuditExport
         }
 
         return $normalized;
+    }
+
+    /**
+     * Default true when the flag is absent (older callers / fixtures).
+     *
+     * @param  array<string, mixed>  $row
+     */
+    public static function shouldIncludeInPdf(array $row): bool
+    {
+        if (! array_key_exists('show_in_stock_pdf', $row)) {
+            return true;
+        }
+
+        return filter_var($row['show_in_stock_pdf'], FILTER_VALIDATE_BOOLEAN);
     }
 
     /**

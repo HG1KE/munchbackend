@@ -11,10 +11,12 @@ class StockItem extends Model
     protected $fillable = [
         'name',
         'status',
+        'show_in_stock_pdf',
     ];
 
     protected $casts = [
         'status' => 'boolean',
+        'show_in_stock_pdf' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
