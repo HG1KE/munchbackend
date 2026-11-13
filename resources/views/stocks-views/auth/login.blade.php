@@ -10,7 +10,7 @@
 
 <body class="munch-auth-login">
 <main id="content" role="main" class="main">
-    <div class="auth-wrapper" style="display:flex;flex-wrap:wrap;width:100%;">
+    <div class="auth-wrapper">
         <div class="auth-wrapper-left" aria-hidden="true" style="display:none !important;"></div>
 
         <aside class="munch-auth-brand" aria-label="{{ translate('Stocks') }}">

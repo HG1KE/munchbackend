@@ -1,5 +1,12 @@
 <style>
     /* Shared admin/branch login — scoped to body.munch-auth-login only */
+    body.munch-auth-login,
+    body.munch-auth-login *,
+    body.munch-auth-login *::before,
+    body.munch-auth-login *::after {
+        box-sizing: border-box;
+    }
+
     body.munch-auth-login {
         margin: 0;
         background: #f8fafc;
@@ -12,12 +19,17 @@
     }
 
     body.munch-auth-login .auth-wrapper {
+        display: flex;
+        flex-wrap: nowrap;
         min-height: 100vh;
         align-items: stretch;
+        width: 100%;
     }
 
     body.munch-auth-login .munch-auth-brand {
-        flex: 1 1 50%;
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -73,8 +85,9 @@
     }
 
     body.munch-auth-login .auth-wrapper-right {
-        flex: 1 1 50%;
-        max-width: none;
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 50%;
         width: auto;
         min-height: 100vh;
         background: #f8fafc;
@@ -339,11 +352,47 @@
         to { transform: rotate(360deg); }
     }
 
-    body.munch-auth-login .auth-wrapper-right .btn--primary {
+    body.munch-auth-login .auth-wrapper-right .btn--primary,
+    body.munch-auth-login #signInBtn.btn-primary {
         background: var(--c1);
+        border-color: var(--c1);
+        color: #fff;
+    }
+
+    body.munch-auth-login .form-control {
+        display: block;
+        width: 100%;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #cbd5e1;
+        color: #0f172a;
+    }
+
+    body.munch-auth-login .input-group {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    body.munch-auth-login .input-group > .form-control {
+        position: relative;
+        flex: 1 1 auto;
+        width: 1%;
+        min-width: 0;
+    }
+
+    body.munch-auth-login .btn-block {
+        display: block;
+        width: 100%;
     }
 
     @media (max-width: 991px) {
+        body.munch-auth-login .auth-wrapper {
+            flex-wrap: wrap;
+        }
+
         body.munch-auth-login .munch-auth-brand {
             display: none;
         }
@@ -358,6 +407,7 @@
 
         body.munch-auth-login .auth-wrapper-right {
             max-width: 100%;
+            flex: 1 1 100%;
             padding: 1.25rem;
             align-items: center;
         }

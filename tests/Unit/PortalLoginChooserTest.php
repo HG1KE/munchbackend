@@ -34,7 +34,6 @@ class PortalLoginChooserTest extends TestCase
             $this->assertStringContainsString("_munch-login-head-assets", $view);
             $this->assertStringContainsString("_munch-login-scripts", $view);
             $this->assertStringNotContainsString('vendor.min.js', $view);
-            $this->assertStringNotContainsString('theme.minc619.css', $view);
             $this->assertStringNotContainsString("@endphp", $view);
             $this->assertStringNotContainsString('google.com/recaptcha', $view);
             $this->assertStringNotContainsString('g-recaptcha', $view);
@@ -47,6 +46,8 @@ class PortalLoginChooserTest extends TestCase
 
         $head = file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-head-assets.blade.php'));
         $this->assertStringContainsString('get_business_settings', $head);
+        $this->assertStringContainsString('theme.minc619.css', $head);
+        $this->assertStringContainsString('box-sizing: border-box', file_get_contents(resource_path('views/admin-views/auth/partials/_munch-login-styles.blade.php')));
         $this->assertStringNotContainsString('BusinessSetting::where', $head);
         $this->assertStringNotContainsString('fonts.googleapis.com', $head);
 
