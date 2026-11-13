@@ -85,7 +85,7 @@ class StocksAuditExportTest extends TestCase
     public function test_result_kinds_match_ui_chip_colors(): void
     {
         $this->assertSame('excess', StocksAuditExport::resultKind(5.0));
-        $this->assertSame('short', StocksAuditExport::resultKind(-2.0));
+        $this->assertSame('missing', StocksAuditExport::resultKind(-2.0));
         $this->assertSame('balanced', StocksAuditExport::resultKind(0.0));
         $this->assertSame('empty', StocksAuditExport::resultKind(null));
 
@@ -93,15 +93,15 @@ class StocksAuditExportTest extends TestCase
         $this->assertSame('#eef2f6', $excess['bg']);
         $this->assertSame('#475569', $excess['text']);
 
-        $short = StocksAuditExport::resultColors('short');
-        $this->assertSame('#fef2f2', $short['bg']);
-        $this->assertSame('#b91c1c', $short['text']);
+        $missing = StocksAuditExport::resultColors('missing');
+        $this->assertSame('#fef2f2', $missing['bg']);
+        $this->assertSame('#b91c1c', $missing['text']);
     }
 
     public function test_pdf_view_columns_match_manager_table_without_stock_sold(): void
     {
         $report = StocksAuditExport::build('Bamburi', '2026-11-11', [
-            $this->sampleRow(['variance' => -4, 'variance_label' => '4 short']),
+            $this->sampleRow(['variance' => -4, 'variance_label' => '4 missing']),
             $this->sampleRow([
                 'stock_item_id' => 2,
                 'name' => 'Buns',
@@ -125,7 +125,7 @@ class StocksAuditExportTest extends TestCase
         $this->assertStringNotContainsString('STOCK SOLD', $html);
         $this->assertStringContainsString('Wednesday, 11th November 2026', $html);
         $this->assertStringContainsString('Bamburi', $html);
-        $this->assertStringContainsString('4 short', $html);
+        $this->assertStringContainsString('4 missing', $html);
         $this->assertStringContainsString('#fef2f2', $html);
         $this->assertStringContainsString('#b91c1c', $html);
         $this->assertStringContainsString('balanced', $html);
@@ -170,7 +170,7 @@ class StocksAuditExportTest extends TestCase
                 'date' => '2026-11-12',
                 'rows' => [$this->sampleRow([
                     'variance' => -4,
-                    'variance_label' => '4 short',
+                    'variance_label' => '4 missing',
                     'expected_sold' => 54,
                 ])],
             ],
@@ -205,7 +205,7 @@ class StocksAuditExportTest extends TestCase
         $this->assertStringContainsString('STOCKS AUDIT — Thursday, 12th November 2026', $html);
         $this->assertStringContainsString('STOCKS AUDIT — Friday, 13th November 2026', $html);
         $this->assertStringContainsString('10 excess', $html);
-        $this->assertStringContainsString('4 short', $html);
+        $this->assertStringContainsString('4 missing', $html);
         $this->assertStringContainsString('#eef2f6', $html);
         $this->assertStringContainsString('#fef2f2', $html);
 
@@ -221,7 +221,7 @@ class StocksAuditExportTest extends TestCase
         $controller = file_get_contents(app_path('Http/Controllers/Admin/StockReportController.php'));
         $this->assertStringContainsString('function export', $controller);
         $this->assertStringContainsString('buildRange', $controller);
-        $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$day, 'short')", $controller);
+        $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$day, 'missing')", $controller);
         $this->assertStringContainsString("'from'", $controller);
         $this->assertStringContainsString("'to'", $controller);
 
@@ -247,8 +247,8 @@ class StocksAuditExportTest extends TestCase
             'opening_qty' => 100.0,
             'received_qty' => 20.0,
             'spoiled_qty' => 0.0,
-            'closing_qty' => 60.0,
-            'physical_sold' => 60.0,
+            'closing_qty' => 80.0,
+            'physical_sold' => 40.0,
             'expected_sold' => 50.0,
             'variance' => 10.0,
             'variance_label' => '10 excess',

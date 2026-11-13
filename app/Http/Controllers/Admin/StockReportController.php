@@ -80,7 +80,7 @@ class StockReportController extends Controller
             $day = $cursor->toDateString();
             $dayRows[] = [
                 'date' => $day,
-                'rows' => $this->variance->rowsForBranchDate($branchId, $day, 'short'),
+                'rows' => $this->variance->rowsForBranchDate($branchId, $day, 'missing'),
             ];
             $cursor->addDay();
         }
@@ -103,7 +103,7 @@ class StockReportController extends Controller
             $sections[] = [
                 'date' => $day,
                 'date_label' => StocksAuditExport::formatReportDate($day),
-                'rows' => $this->variance->rowsForBranchDate($branchId, $day, 'short'),
+                'rows' => $this->variance->rowsForBranchDate($branchId, $day, 'missing'),
             ];
             $cursor->addDay();
         }

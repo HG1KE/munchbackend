@@ -14,9 +14,10 @@ class StockVarianceService
      * Rows for a branch + date: each active stock item with opening/received/spoiled/closing,
      * physical sold, expected sold from deductions, and variance label.
      *
-     * Result = Opening + Received − Closing − Sold − Spoiled
+     * Result = Closing − (Opening + Received − Sold − Spoiled)
+     * Positive → excess on hand; negative → missing.
      *
-     * @param  string  $deficitWord  Negative label — admin "missing"; stocks UI "short".
+     * @param  string  $deficitWord  Negative label (default "missing").
      * @return list<array{
      *   stock_item_id:int,
      *   name:string,
@@ -148,11 +149,12 @@ class StockVarianceService
             return null;
         }
 
-        return round($physicalSold - $expectedSold, 3);
+        // Same sign as Result: expected sold − physical sold = closing − expected closing.
+        return round($expectedSold - $physicalSold, 3);
     }
 
     /**
-     * Result = Opening + Received − Closing − Sold − Spoiled.
+     * Result = Closing − (Opening + Received − Sold − Spoiled).
      */
     public static function result(
         ?float $opening,
@@ -165,6 +167,6 @@ class StockVarianceService
             return null;
         }
 
-        return round($opening + $received - $closing - $sold - $spoiled, 3);
+        return round($closing - ($opening + $received - $sold - $spoiled), 3);
     }
 }

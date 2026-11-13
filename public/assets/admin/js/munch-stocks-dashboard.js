@@ -1,6 +1,6 @@
 /**
  * Stocks manager dashboard — live Result, draft persistence, save gate.
- * Result = Opening + Received − Closing − Sold − Spoiled.
+ * Result = Closing − (Opening + Received − Sold − Spoiled).
  */
 (function () {
     'use strict';
@@ -39,7 +39,7 @@
         if (variance > 0) {
             return { text: abs + ' excess', kind: 'excess' };
         }
-        return { text: abs + ' short', kind: 'short' };
+        return { text: abs + ' missing', kind: 'missing' };
     }
 
     function setChip(el, result) {
@@ -201,8 +201,8 @@
             return;
         }
 
-        // Result = Opening + Received − Closing − Sold − Spoiled
-        var variance = Math.round((opening + received - closing - expected - spoiled) * 1000) / 1000;
+        // Result = Closing − (Opening + Received − Sold − Spoiled)
+        var variance = Math.round((closing - (opening + received - expected - spoiled)) * 1000) / 1000;
         setChip(resultEl, formatResult(variance));
     }
 

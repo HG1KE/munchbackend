@@ -22,9 +22,9 @@ class StocksAuditExport
 
     public const COLOR_EXCESS_TEXT = '#475569';
 
-    public const COLOR_SHORT_BG = '#fef2f2';
+    public const COLOR_MISSING_BG = '#fef2f2';
 
-    public const COLOR_SHORT_TEXT = '#b91c1c';
+    public const COLOR_MISSING_TEXT = '#b91c1c';
 
     public const COLOR_BALANCED_BG = '#f0fdf4';
 
@@ -308,7 +308,7 @@ class StocksAuditExport
             return 'balanced';
         }
 
-        return $variance > 0 ? 'excess' : 'short';
+        return $variance > 0 ? 'excess' : 'missing';
     }
 
     /**
@@ -318,7 +318,7 @@ class StocksAuditExport
     {
         return match ($kind) {
             'excess' => ['bg' => self::COLOR_EXCESS_BG, 'text' => self::COLOR_EXCESS_TEXT],
-            'short' => ['bg' => self::COLOR_SHORT_BG, 'text' => self::COLOR_SHORT_TEXT],
+            'missing' => ['bg' => self::COLOR_MISSING_BG, 'text' => self::COLOR_MISSING_TEXT],
             'balanced' => ['bg' => self::COLOR_BALANCED_BG, 'text' => self::COLOR_BALANCED_TEXT],
             default => ['bg' => '#f8fafc', 'text' => '#64748b'],
         };
@@ -326,7 +326,7 @@ class StocksAuditExport
 
     private static function defaultVarianceLabel(?float $variance): string
     {
-        return (new StockVarianceService())->formatVarianceLabel($variance, 'short');
+        return (new StockVarianceService())->formatVarianceLabel($variance, 'missing');
     }
 
     private static function nullableFloat(mixed $value): ?float

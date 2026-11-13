@@ -41,7 +41,7 @@ class DashboardController extends Controller
         $date = $request->input('date') ?: now()->toDateString();
 
         $rows = $branchId > 0
-            ? $this->variance->rowsForBranchDate($branchId, $date, 'short')
+            ? $this->variance->rowsForBranchDate($branchId, $date, 'missing')
             : [];
 
         $currentBranch = $accessible->firstWhere('id', $branchId);
@@ -78,7 +78,7 @@ class DashboardController extends Controller
         $branchName = $currentBranch?->name ?: translate('Stocks');
 
         // Prefer the filled table on screen (posted values). Fall back to saved counts.
-        $rows = $this->variance->rowsForBranchDate($branchId, $date, 'short');
+        $rows = $this->variance->rowsForBranchDate($branchId, $date, 'missing');
         if (
             $request->has('opening')
             || $request->has('received')
@@ -109,7 +109,7 @@ class DashboardController extends Controller
                 $row['spoiled_qty'] = $spoiled;
                 $row['closing_qty'] = $closing;
                 $row['variance'] = $variance;
-                $row['variance_label'] = $this->variance->formatVarianceLabel($variance, 'short');
+                $row['variance_label'] = $this->variance->formatVarianceLabel($variance, 'missing');
 
                 return $row;
             }, $rows);

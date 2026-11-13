@@ -16,14 +16,22 @@ class StockVarianceServiceTest extends TestCase
         $this->assertNull(StockVarianceService::physicalSold(100, 10, 80, null));
     }
 
-    public function test_result_formula_includes_spoilage(): void
+    public function test_result_formula_matches_physical_sense(): void
     {
-        // 100 + 20 − 60 − 50 − 0 = 10 excess
-        $this->assertSame(10.0, StockVarianceService::result(100, 20, 50, 60, 0));
-        // 100 + 20 − 60 − 50 − 5 = 5 excess
-        $this->assertSame(5.0, StockVarianceService::result(100, 20, 50, 60, 5));
-        // 100 + 0 − 60 − 50 − 0 = −10 short/missing
-        $this->assertSame(-10.0, StockVarianceService::result(100, 0, 50, 60, 0));
+        // Opening 10 + Received 10 − Sold 0 − Spoiled 0 = 20 expected on hand
+        // Closing 4 → 16 missing
+        $this->assertSame(-16.0, StockVarianceService::result(10, 10, 0, 4, 0));
+        // Closing 20 → balanced
+        $this->assertSame(0.0, StockVarianceService::result(10, 10, 0, 20, 0));
+        // Closing 22 → 2 excess
+        $this->assertSame(2.0, StockVarianceService::result(10, 10, 0, 22, 0));
+
+        // Nuggets: 150 open, 0 recv, 150 close, 4 sold → 4 excess
+        $this->assertSame(4.0, StockVarianceService::result(150, 0, 4, 150, 0));
+
+        // Spoilage reduces expected on hand: 100 + 20 − 50 − 5 = 65 expected; close 60 → 5 missing
+        $this->assertSame(-5.0, StockVarianceService::result(100, 20, 50, 60, 5));
+
         $this->assertNull(StockVarianceService::result(100, null, 50, 60, 0));
         $this->assertNull(StockVarianceService::result(null, 0, 50, 60, 0));
         $this->assertNull(StockVarianceService::result(100, 0, 50, null, 0));
@@ -34,16 +42,13 @@ class StockVarianceServiceTest extends TestCase
     {
         $svc = new StockVarianceService();
 
-        // physical 60 vs expected 50 → 10 excess
-        $this->assertSame(10.0, StockVarianceService::variance(60, 50));
+        // expected sold 50 vs physical 40 → 10 excess (more on shelf than sales imply)
+        $this->assertSame(10.0, StockVarianceService::variance(40, 50));
         $this->assertSame('10 excess', $svc->formatVarianceLabel(10));
 
-        // physical 40 vs expected 50 → 10 missing (admin default)
-        $this->assertSame(-10.0, StockVarianceService::variance(40, 50));
+        // expected sold 50 vs physical 60 → 10 missing
+        $this->assertSame(-10.0, StockVarianceService::variance(60, 50));
         $this->assertSame('10 missing', $svc->formatVarianceLabel(-10));
-
-        // stocks manager UI uses "short" instead of "missing"
-        $this->assertSame('10 short', $svc->formatVarianceLabel(-10, 'short'));
 
         $this->assertSame('balanced', $svc->formatVarianceLabel(0));
         $this->assertSame('—', $svc->formatVarianceLabel(null));
@@ -65,7 +70,8 @@ class StockVarianceServiceTest extends TestCase
         $this->assertStringContainsString('spoiled_qty', $adminReport);
         $this->assertStringContainsString('variance_label', $adminReport);
         $this->assertStringContainsString('munch-admin-stock-chip--excess', $adminReport);
-        $this->assertStringContainsString('munch-admin-stock-chip--short', $adminReport);
+        $this->assertStringContainsString('munch-admin-stock-chip--missing', $adminReport);
+        $this->assertStringNotContainsString('munch-admin-stock-chip--short', $adminReport);
         $this->assertStringContainsString("name=\"from\"", $adminReport);
         $this->assertStringContainsString("name=\"to\"", $adminReport);
         $this->assertStringContainsString('admin.stock-report.export', $adminReport);
@@ -89,11 +95,13 @@ class StockVarianceServiceTest extends TestCase
         $this->assertStringContainsString('data-stocks-result', $dashboard);
         $this->assertStringContainsString('data-fill-message', $dashboard);
         $this->assertStringContainsString('munch-stocks-chip--', $dashboard);
-        $this->assertStringContainsString("'short'", $dashboard);
+        $this->assertStringContainsString("'missing'", $dashboard);
         $this->assertStringContainsString("'excess'", $dashboard);
+        $this->assertStringNotContainsString("'short'", $dashboard);
 
         $controller = file_get_contents(app_path('Http/Controllers/Stocks/DashboardController.php'));
-        $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$date, 'short')", $controller);
+        $this->assertStringContainsString("rowsForBranchDate(\$branchId, \$date, 'missing')", $controller);
+        $this->assertStringNotContainsString("'short'", $controller);
         $this->assertStringContainsString('Fill in all boxes before saving', $controller);
         $this->assertStringContainsString("'saved' => 1", $controller);
         $this->assertStringContainsString('received_qty', $controller);
@@ -102,12 +110,15 @@ class StockVarianceServiceTest extends TestCase
         $this->assertStringContainsString("'spoiled'", $controller);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-stocks-dashboard.js'));
-        $this->assertStringContainsString('short', $js);
+        $this->assertStringContainsString('missing', $js);
         $this->assertStringContainsString('excess', $js);
+        $this->assertStringNotContainsString("'short'", $js);
+        $this->assertStringNotContainsString('+ \' short\'', $js);
+        $this->assertStringContainsString('+ \' missing\'', $js);
         $this->assertStringContainsString('data-stocks-opening', $js);
         $this->assertStringContainsString('data-stocks-received', $js);
         $this->assertStringContainsString('data-stocks-spoiled', $js);
-        $this->assertStringContainsString('Opening + Received', $js);
+        $this->assertStringContainsString('Closing − (Opening + Received', $js);
         $this->assertStringContainsString('Spoiled', $js);
         $this->assertStringContainsString('munch-stocks-draft:', $js);
         $this->assertStringContainsString('allBoxesFilled', $js);

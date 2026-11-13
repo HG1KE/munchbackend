@@ -19,8 +19,8 @@ body.munch-stocks-shell {
     --munch-shell-shadow-hover: 0 4px 20px rgba(15, 23, 42, 0.08);
     --munch-chip-excess-bg: #eef2f6;
     --munch-chip-excess-text: #475569;
-    --munch-chip-short-bg: #fef2f2;
-    --munch-chip-short-text: #b91c1c;
+    --munch-chip-missing-bg: #fef2f2;
+    --munch-chip-missing-text: #b91c1c;
     --munch-chip-ok-bg: #f0fdf4;
     --munch-chip-ok-text: #166534;
     font-feature-settings: "kern" 1, "liga" 1;
@@ -423,9 +423,9 @@ body.munch-stocks-shell .munch-stocks-chip--excess {
     color: var(--munch-chip-excess-text);
 }
 
-body.munch-stocks-shell .munch-stocks-chip--short {
-    background: var(--munch-chip-short-bg);
-    color: var(--munch-chip-short-text);
+body.munch-stocks-shell .munch-stocks-chip--missing {
+    background: var(--munch-chip-missing-bg);
+    color: var(--munch-chip-missing-text);
 }
 
 body.munch-stocks-shell .munch-stocks-chip--balanced {

@@ -22,9 +22,9 @@
             background: {{ \App\Support\StocksAuditExport::COLOR_EXCESS_BG }};
             color: {{ \App\Support\StocksAuditExport::COLOR_EXCESS_TEXT }};
         }
-        .munch-admin-stock-chip--short {
-            background: {{ \App\Support\StocksAuditExport::COLOR_SHORT_BG }};
-            color: {{ \App\Support\StocksAuditExport::COLOR_SHORT_TEXT }};
+        .munch-admin-stock-chip--missing {
+            background: {{ \App\Support\StocksAuditExport::COLOR_MISSING_BG }};
+            color: {{ \App\Support\StocksAuditExport::COLOR_MISSING_TEXT }};
         }
         .munch-admin-stock-chip--balanced {
             background: {{ \App\Support\StocksAuditExport::COLOR_BALANCED_BG }};
@@ -128,7 +128,7 @@
                                     } elseif ($row['variance'] > 0) {
                                         $chipKind = 'excess';
                                     } else {
-                                        $chipKind = 'short';
+                                        $chipKind = 'missing';
                                     }
                                 }
                             @endphp

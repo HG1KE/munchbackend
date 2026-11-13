@@ -94,7 +94,7 @@
                                         } elseif ($row['variance'] > 0) {
                                             $chipKind = 'excess';
                                         } else {
-                                            $chipKind = 'short';
+                                            $chipKind = 'missing';
                                         }
                                     }
                                 @endphp
