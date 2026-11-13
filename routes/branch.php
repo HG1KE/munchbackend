@@ -142,6 +142,7 @@ Route::group(['namespace' => 'Branch', 'as' => 'branch.', 'middleware' => 'maint
             Route::get('index', [BusinessSettingsController::class, 'branchIndex'])->name('index');
             Route::post('update', [BusinessSettingsController::class, 'settingsUpdate'])->name('update');
             Route::post('add-schedule', [BusinessSettingsController::class, 'addBranchSchedule'])->name('add-schedule');
+            Route::post('update-schedule', [BusinessSettingsController::class, 'updateBranchSchedule'])->name('update-schedule');
             Route::get('remove-schedule', [BusinessSettingsController::class, 'removeBranchSchedule'])->name('remove-schedule');
             Route::get('receipt-templates', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'index'])->name('receipt-templates');
             Route::post('receipt-templates/save', [\App\Http\Controllers\Branch\ReceiptTemplateController::class, 'save'])->name('receipt-templates.save');

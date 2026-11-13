@@ -51,6 +51,7 @@
                         @csrf
                         <input type="hidden" name="day" id="branch_day_id_input">
                         <input type="hidden" name="branch_id" id="branch_id_input">
+                        <input type="hidden" name="schedule_id" id="branch_schedule_id_input" value="">
                         
                         <div class="form-group">
                             <label for="branch_name_display">{{translate('Branch')}}</label>
@@ -87,7 +88,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">{{translate('Close')}}</button>
-                    <button type="button" class="btn btn-primary" onclick="addBranchSchedule()">{{translate('Save')}}</button>
+                    <button type="button" class="btn btn-primary" id="branch-schedule-save-btn" onclick="saveBranchSchedule()">{{translate('Save')}}</button>
                 </div>
             </div>
         </div>
@@ -99,24 +100,52 @@
         function openBranchScheduleModal(branchId, branchName, day, dayName) {
             $('#branch_id_input').val(branchId);
             $('#branch_day_id_input').val(day);
+            $('#branch_schedule_id_input').val('');
             $('#branch_name_display').val(branchName);
             $('#day_name_display').val(dayName);
             $('#start_time').val('');
             $('#end_time').val('');
+            $('#branchScheduleModalLabel').text('{{translate("Create Branch Schedule")}}');
             $('#branchScheduleModal').modal('show');
         }
 
-        function addBranchSchedule() {
+        function openEditBranchScheduleModal(branchId, branchName, day, dayName, scheduleId, startTime, endTime, focusField) {
+            $('#branch_id_input').val(branchId);
+            $('#branch_day_id_input').val(day);
+            $('#branch_schedule_id_input').val(scheduleId);
+            $('#branch_name_display').val(branchName);
+            $('#day_name_display').val(dayName);
+            $('#start_time').val(startTime);
+            $('#end_time').val(endTime);
+            $('#branchScheduleModalLabel').text('{{translate("Edit Branch Schedule")}}');
+            $('#branchScheduleModal').modal('show');
+            setTimeout(function () {
+                if (focusField === 'end') {
+                    $('#end_time').focus();
+                } else {
+                    $('#start_time').focus();
+                }
+            }, 300);
+        }
+
+        function saveBranchSchedule() {
+            let scheduleId = $('#branch_schedule_id_input').val();
             let formData = new FormData(document.getElementById('add-branch-schedule'));
-            
+            let url = scheduleId
+                ? '{{route('admin.business-settings.restaurant.branch_time_schedule_update')}}'
+                : '{{route('admin.business-settings.restaurant.branch_time_schedule_add')}}';
+            let successMessage = scheduleId
+                ? '{{translate("Schedule updated successfully!")}}'
+                : '{{translate("Schedule added successfully!")}}';
+
             $.ajaxSetup({
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 }
             });
-            
+
             $.post({
-                url: '{{route('admin.business-settings.restaurant.branch_time_schedule_add')}}',
+                url: url,
                 data: formData,
                 cache: false,
                 contentType: false,
@@ -132,7 +161,7 @@
                     } else {
                         $('#branch-schedule-view').html(data.view);
                         $('#branchScheduleModal').modal('hide');
-                        toastr.success('{{translate("Schedule added successfully!")}}', {
+                        toastr.success(successMessage, {
                             CloseButton: true,
                             ProgressBar: true
                         });

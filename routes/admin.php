@@ -397,6 +397,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
 
                 Route::get('branch-time-schedule', [BranchTimeScheduleController::class, 'branchTimeScheduleIndex'])->name('branch_time_schedule_index');
                 Route::post('add-branch-time-schedule', [BranchTimeScheduleController::class, 'addBranchSchedule'])->name('branch_time_schedule_add');
+                Route::post('update-branch-time-schedule', [BranchTimeScheduleController::class, 'updateBranchSchedule'])->name('branch_time_schedule_update');
                 Route::get('branch-time-schedule-remove', [BranchTimeScheduleController::class, 'removeBranchSchedule'])->name('branch_time_schedule_remove');
 
                 Route::get('location-setup', [LocationSettingsController::class, 'locationIndex'])->name('location-setup')->middleware('actch');

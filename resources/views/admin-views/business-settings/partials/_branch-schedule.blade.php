@@ -59,8 +59,12 @@
                                 @if(isset($branchData[$dayNum]) && count($branchData[$dayNum]))
                                     <div class="d-flex flex-wrap align-items-center gap-4 gap-sm-2 gapx-30">
                                         @foreach ($branchData[$dayNum] as $schedule)
+                                            @php($startInput = date('H:i', strtotime($schedule['start_time'])))
+                                            @php($endInput = date('H:i', strtotime($schedule['end_time'])))
                                             <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                <div class="border rounded py-2 px-3">
+                                                <div class="border rounded py-2 px-3 cursor-pointer"
+                                                     title="{{translate('Edit Opening Time')}}"
+                                                     onclick="openEditBranchScheduleModal({{$branch->id}}, '{{$branch->name}}', {{$dayNum}}, '{{translate($dayName)}}', {{$schedule['id']}}, '{{$startInput}}', '{{$endInput}}', 'start')">
                                                     <div class="d-flex gap-2">
                                                         <i class="tio-time mt-1"></i>
                                                         <div>
@@ -69,7 +73,9 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="border rounded py-2 px-3">
+                                                <div class="border rounded py-2 px-3 cursor-pointer"
+                                                     title="{{translate('Edit Closing Time')}}"
+                                                     onclick="openEditBranchScheduleModal({{$branch->id}}, '{{$branch->name}}', {{$dayNum}}, '{{translate($dayName)}}', {{$schedule['id']}}, '{{$startInput}}', '{{$endInput}}', 'end')">
                                                     <div class="d-flex gap-2">
                                                         <i class="tio-time mt-1"></i>
                                                         <div>
@@ -77,6 +83,11 @@
                                                             <div>{{date(config('time_format'), strtotime($schedule['end_time']))}}</div>
                                                         </div>
                                                     </div>
+                                                </div>
+                                                <div class="badge badge-soft-primary rounded-circle cursor-pointer"
+                                                     title="{{translate('Edit')}}"
+                                                     onclick="openEditBranchScheduleModal({{$branch->id}}, '{{$branch->name}}', {{$dayNum}}, '{{translate($dayName)}}', {{$schedule['id']}}, '{{$startInput}}', '{{$endInput}}', 'start')">
+                                                    <i class="tio-edit"></i>
                                                 </div>
                                                 <div class="badge badge-danger rounded-circle cursor-pointer" 
                                                      onclick="deleteBranchSchedule('{{route('admin.business-settings.restaurant.branch_time_schedule_remove',['schedule_id'=>$schedule['id']])}}')">X</div>
