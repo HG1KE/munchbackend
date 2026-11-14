@@ -4,6 +4,7 @@ namespace App\CentralLogics;
 
 use App\Model\AddOn;
 use App\Model\Order;
+use App\Support\OrderPayableAmount;
 use App\Support\SmsTemplateCatalog;
 use Illuminate\Support\Facades\Schema;
 
@@ -72,9 +73,10 @@ class PosDeliveryCustomerSms
 
         $customerPhone = (string) (self::resolveCustomerPhone($order) ?? '');
         $till = $order->branch ? trim((string) ($order->branch->mpesa_till ?? '')) : '';
-        $deliveryFee = self::formatMoney((float) $order->delivery_charge);
-        $total = self::formatMoney((float) $order->order_amount);
-        $subtotal = self::formatMoney(max(0, (float) $order->order_amount - (float) $order->delivery_charge));
+        $deliveryFee = self::formatMoney(OrderPayableAmount::deliveryCharge($order));
+        // order_amount is merch-only; grand total adds delivery_charge once.
+        $subtotal = self::formatMoney(OrderPayableAmount::orderAmount($order));
+        $total = self::formatMoney(OrderPayableAmount::payable($order));
 
         $mpesaInfo = $till !== '' && ($order->payment_method ?? '') === 'mpesa'
             ? "\n\nPlease pay to M-PESA Till ".$till." if you haven't already."

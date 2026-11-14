@@ -116,7 +116,8 @@ class PosDeliveryCustomerSmsTest extends TestCase
             $this->detail('Fries', 1, 200),
             $this->detail('Soda', 1, 150),
         ], [
-            'order_amount' => 1350,
+            // Merch-only order_amount (online/admin convention); fee in delivery_charge.
+            'order_amount' => 1200,
             'delivery_charge' => 150,
             'rider_name' => 'Jane Rider',
             'rider_phone' => '0711111111',
@@ -197,7 +198,8 @@ class PosDeliveryCustomerSmsTest extends TestCase
                 ['name' => 'Size', 'values' => [['label' => 'Large', 'optionPrice' => 100]]],
             ]),
         ], [
-            'order_amount' => 1930,
+            // Fries 200 + Double Burger 2×790 = 1780 merch; +150 fee = 1930 payable.
+            'order_amount' => 1780,
             'delivery_charge' => 150,
             'rider_name' => 'Jane Rider',
             'rider_phone' => '0711111111',
@@ -258,7 +260,7 @@ class PosDeliveryCustomerSmsTest extends TestCase
         $order->readable_order_id = 'M-100123';
         $order->order_type = 'pos';
         $order->sales_channel = 'delivery';
-        $order->order_amount = $overrides['order_amount'] ?? 1350;
+        $order->order_amount = $overrides['order_amount'] ?? 1200;
         $order->delivery_charge = $overrides['delivery_charge'] ?? 150;
         $order->rider_name = $overrides['rider_name'] ?? 'Jane Rider';
         $order->rider_phone = $overrides['rider_phone'] ?? '0711111111';

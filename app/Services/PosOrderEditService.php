@@ -6,6 +6,7 @@ use App\Model\Order;
 use App\Model\OrderDetail;
 use App\Models\OrderChangeAmount;
 use App\Services\Stock\StockDeductionService;
+use App\Support\OrderPayableAmount;
 use App\Support\PosOrderTypes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -168,10 +169,13 @@ class PosOrderEditService
             return;
         }
 
+        // Same cart grand total as place (merch + delivery once).
+        $payable = OrderPayableAmount::payable($order);
+
         $existing = OrderChangeAmount::query()->where('order_id', $order->id)->first();
         if (! PosOrderTypes::isImmediatePosPayment($paymentMethod)) {
             if ($existing) {
-                $existing->order_amount = $order->order_amount;
+                $existing->order_amount = $payable;
                 $existing->save();
             }
 
@@ -182,14 +186,14 @@ class PosOrderEditService
             OrderChangeAmount::query()->updateOrInsert(
                 ['order_id' => $order->id],
                 [
-                    'order_amount' => $order->order_amount,
-                    'paid_amount' => $order->order_amount,
+                    'order_amount' => $payable,
+                    'paid_amount' => $payable,
                 ]
             );
         } catch (\Illuminate\Database\UniqueConstraintViolationException) {
             OrderChangeAmount::query()->where('order_id', $order->id)->update([
-                'order_amount' => $order->order_amount,
-                'paid_amount' => $order->order_amount,
+                'order_amount' => $payable,
+                'paid_amount' => $payable,
             ]);
         }
     }

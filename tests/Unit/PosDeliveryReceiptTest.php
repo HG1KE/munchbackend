@@ -33,6 +33,8 @@ class PosDeliveryReceiptTest extends TestCase
         $this->assertSame('0712345678', $payload['phone']);
         $this->assertSame('Nyali, Links Road', $payload['address']);
         $this->assertSame(200.0, $payload['delivery_fee']);
+        // Merch 690 + fee 200 once — must not double delivery.
+        $this->assertSame(890.0, $payload['grand_total']);
         $this->assertSame('delivery', $payload['sales_channel']);
         $this->assertSame('pos', $order->order_type);
         $this->assertSame('delivery', PosOrderTypes::salesChannel('delivery'));
@@ -84,7 +86,8 @@ class PosDeliveryReceiptTest extends TestCase
         $order->readable_order_id = 'M-100123';
         $order->order_type = 'pos';
         $order->sales_channel = 'delivery';
-        $order->order_amount = 890;
+        // Merch-only order_amount; fee separate (matches online/admin storage).
+        $order->order_amount = 690;
         $order->delivery_charge = 200;
         $order->rider_name = 'Jane Rider';
         $order->rider_phone = '0711111111';
@@ -162,7 +165,7 @@ class PosDeliveryReceiptTest extends TestCase
         $order->setRawAttributes([
             'id' => 9001,
             'branch_id' => 1,
-            'order_amount' => 890,
+            'order_amount' => 690,
             'delivery_charge' => $fee,
             'extra_discount' => 0,
             'payment_status' => 'paid',

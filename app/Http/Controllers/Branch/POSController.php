@@ -25,6 +25,7 @@ use App\Support\OrderPlacementTime;
 use App\Support\PosCheckoutIdempotency;
 use App\Support\PosClientVersion;
 use App\Support\PosNearDuplicateGuard;
+use App\Support\OrderPayableAmount;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
 use App\Model\OrderDetail;
@@ -1692,7 +1693,9 @@ class POSController extends Controller
             'extra_discount' => $extraDiscount,
             'total_tax_amount' => $totalTaxAmount,
             'delivery_charge' => $deliveryCharge,
-            'order_amount' => $totalPrice + $totalTaxAmount + $deliveryCharge + $totalAddonTax,
+            // Merch (+ tax/addons) only — fee stays in delivery_charge (online/admin convention).
+            // OrderPayableAmount::payable = order_amount + delivery_charge.
+            'order_amount' => $totalPrice + $totalTaxAmount + $totalAddonTax,
         ];
     }
 
@@ -1760,9 +1763,11 @@ class POSController extends Controller
             return;
         }
 
+        // Ledger stores cart grand total (merch + delivery once), not bare order_amount.
+        $payable = OrderPayableAmount::payable($order);
         $values = [
-            'order_amount' => $order->order_amount,
-            'paid_amount' => $order->order_amount,
+            'order_amount' => $payable,
+            'paid_amount' => $payable,
         ];
 
         try {
