@@ -2,6 +2,7 @@
 
 namespace App\Services\Stock;
 
+use App\Model\AddonStockAllocation;
 use App\Model\Order;
 use App\Model\ProductStockAllocation;
 use App\Model\StockSaleDeduction;
@@ -55,13 +56,18 @@ class StockDeductionService
     }
 
     /**
-     * Rebuild ledger rows for an order from current details × product allocations.
+     * Rebuild ledger rows for an order from current details × product/addon allocations.
      * Idempotent: re-running with the same details leaves net quantities unchanged.
      * Non-sold / non-POS / canceled orders clear their ledger (reverses prior deduction).
+     *
+     * Product rows: product_id > 0, addon_id = 0.
+     * Addon rows: product_id = 0, addon_id > 0 (qty from order_details.add_on_qtys).
      */
     public function syncOrder(Order $order): void
     {
-        if (! Schema::hasTable('stock_sale_deductions') || ! Schema::hasTable('product_stock_allocations')) {
+        $hasProductAlloc = Schema::hasTable('product_stock_allocations');
+        $hasAddonAlloc = Schema::hasTable('addon_stock_allocations');
+        if (! Schema::hasTable('stock_sale_deductions') || (! $hasProductAlloc && ! $hasAddonAlloc)) {
             return;
         }
 
@@ -77,16 +83,22 @@ class StockDeductionService
 
         $order->loadMissing('details');
         $productQtys = [];
+        $addonQtys = [];
         foreach ($order->details as $detail) {
             $productId = (int) ($detail->product_id ?? 0);
-            if ($productId <= 0) {
-                continue;
+            if ($productId > 0) {
+                $productQtys[$productId] = ($productQtys[$productId] ?? 0) + (float) ($detail->quantity ?? 0);
             }
-            $productQtys[$productId] = ($productQtys[$productId] ?? 0) + (float) ($detail->quantity ?? 0);
+
+            foreach ($this->addonQuantitiesFromDetail($detail) as $addonId => $qty) {
+                $addonQtys[$addonId] = ($addonQtys[$addonId] ?? 0) + $qty;
+            }
         }
 
         $desired = [];
-        if ($productQtys !== []) {
+        $hasAddonColumn = Schema::hasColumn('stock_sale_deductions', 'addon_id');
+
+        if ($hasProductAlloc && $productQtys !== []) {
             $allocations = ProductStockAllocation::query()
                 ->whereIn('product_id', array_keys($productQtys))
                 ->get();
@@ -98,10 +110,36 @@ class StockDeductionService
                 if ($qty <= 0 || $stockItemId <= 0) {
                     continue;
                 }
-                $key = $productId . ':' . $stockItemId;
+                $key = 'p:' . $productId . ':' . $stockItemId;
                 if (! isset($desired[$key])) {
                     $desired[$key] = [
                         'product_id' => $productId,
+                        'addon_id' => 0,
+                        'stock_item_id' => $stockItemId,
+                        'quantity' => 0.0,
+                    ];
+                }
+                $desired[$key]['quantity'] += $qty;
+            }
+        }
+
+        if ($hasAddonAlloc && $hasAddonColumn && $addonQtys !== []) {
+            $allocations = AddonStockAllocation::query()
+                ->whereIn('addon_id', array_keys($addonQtys))
+                ->get();
+
+            foreach ($allocations as $allocation) {
+                $addonId = (int) $allocation->addon_id;
+                $stockItemId = (int) $allocation->stock_item_id;
+                $qty = (float) $addonQtys[$addonId] * (float) $allocation->quantity;
+                if ($qty <= 0 || $stockItemId <= 0 || $addonId <= 0) {
+                    continue;
+                }
+                $key = 'a:' . $addonId . ':' . $stockItemId;
+                if (! isset($desired[$key])) {
+                    $desired[$key] = [
+                        'product_id' => 0,
+                        'addon_id' => $addonId,
                         'stock_item_id' => $stockItemId,
                         'quantity' => 0.0,
                     ];
@@ -113,35 +151,114 @@ class StockDeductionService
         $saleDate = $this->saleDateFor($order);
         $branchId = (int) ($order->branch_id ?? 0);
 
-        DB::transaction(function () use ($orderId, $branchId, $saleDate, $desired) {
+        DB::transaction(function () use ($orderId, $branchId, $saleDate, $desired, $hasAddonColumn) {
             $keepKeys = [];
             foreach ($desired as $row) {
-                $keepKeys[] = $row['product_id'] . ':' . $row['stock_item_id'];
-                StockSaleDeduction::query()->updateOrCreate(
-                    [
-                        'order_id' => $orderId,
-                        'product_id' => $row['product_id'],
-                        'stock_item_id' => $row['stock_item_id'],
-                    ],
-                    [
-                        'branch_id' => $branchId,
-                        'quantity' => round($row['quantity'], 3),
-                        'sale_date' => $saleDate,
-                    ]
-                );
+                $addonId = (int) ($row['addon_id'] ?? 0);
+                $keepKeys[] = $this->deductionKey((int) $row['product_id'], $addonId, (int) $row['stock_item_id']);
+
+                $match = [
+                    'order_id' => $orderId,
+                    'product_id' => $row['product_id'],
+                    'stock_item_id' => $row['stock_item_id'],
+                ];
+                $values = [
+                    'branch_id' => $branchId,
+                    'quantity' => round($row['quantity'], 3),
+                    'sale_date' => $saleDate,
+                ];
+                if ($hasAddonColumn) {
+                    $match['addon_id'] = $addonId;
+                }
+
+                StockSaleDeduction::query()->updateOrCreate($match, $values);
             }
 
+            $columns = ['id', 'product_id', 'stock_item_id'];
+            if ($hasAddonColumn) {
+                $columns[] = 'addon_id';
+            }
             $existing = StockSaleDeduction::query()
                 ->where('order_id', $orderId)
-                ->get(['id', 'product_id', 'stock_item_id']);
+                ->get($columns);
 
             foreach ($existing as $row) {
-                $key = (int) $row->product_id . ':' . (int) $row->stock_item_id;
+                $key = $this->deductionKey(
+                    (int) $row->product_id,
+                    $hasAddonColumn ? (int) ($row->addon_id ?? 0) : 0,
+                    (int) $row->stock_item_id
+                );
                 if (! in_array($key, $keepKeys, true)) {
                     StockSaleDeduction::query()->whereKey($row->id)->delete();
                 }
             }
         });
+    }
+
+    /**
+     * @return array<int, float> addon_id => total qty on this detail line
+     */
+    public function addonQuantitiesFromDetail(object $detail): array
+    {
+        $ids = $this->decodeAddonIds($detail->add_on_ids ?? null);
+        if ($ids === []) {
+            return [];
+        }
+
+        $qtys = $this->decodeAddonList($detail->add_on_qtys ?? null);
+        $out = [];
+        foreach ($ids as $index => $addonId) {
+            if ($addonId <= 0) {
+                continue;
+            }
+            $qty = isset($qtys[$index]) ? (float) $qtys[$index] : 1.0;
+            if ($qty <= 0) {
+                continue;
+            }
+            $out[$addonId] = ($out[$addonId] ?? 0.0) + $qty;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function decodeAddonIds(mixed $value): array
+    {
+        $ids = [];
+        foreach ($this->decodeAddonList($value) as $raw) {
+            if (is_array($raw)) {
+                $raw = $raw['id'] ?? 0;
+            }
+            $id = (int) $raw;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function decodeAddonList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values($value);
+        }
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? array_values($decoded) : [];
+    }
+
+    private function deductionKey(int $productId, int $addonId, int $stockItemId): string
+    {
+        return $productId . ':' . $addonId . ':' . $stockItemId;
     }
 
     public function saleDateFor(Order $order): string

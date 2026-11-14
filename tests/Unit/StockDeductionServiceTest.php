@@ -36,6 +36,8 @@ class StockDeductionServiceTest extends TestCase
             $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('product_id')->nullable();
             $table->decimal('quantity', 12, 3)->default(0);
+            $table->text('add_on_ids')->nullable();
+            $table->text('add_on_qtys')->nullable();
             $table->timestamps();
         });
         Schema::create('product_stock_allocations', function (Blueprint $table) {
@@ -45,22 +47,31 @@ class StockDeductionServiceTest extends TestCase
             $table->decimal('quantity', 12, 3)->default(1);
             $table->timestamps();
         });
+        Schema::create('addon_stock_allocations', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('addon_id');
+            $table->unsignedBigInteger('stock_item_id');
+            $table->decimal('quantity', 12, 3)->default(1);
+            $table->timestamps();
+        });
         Schema::create('stock_sale_deductions', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('branch_id');
             $table->unsignedBigInteger('product_id');
+            $table->unsignedBigInteger('addon_id')->default(0);
             $table->unsignedBigInteger('stock_item_id');
             $table->decimal('quantity', 12, 3)->default(0);
             $table->date('sale_date');
             $table->timestamps();
-            $table->unique(['order_id', 'product_id', 'stock_item_id'], 'stock_sale_deductions_unique');
+            $table->unique(['order_id', 'product_id', 'addon_id', 'stock_item_id'], 'stock_sale_deductions_unique');
         });
     }
 
     protected function tearDown(): void
     {
         Schema::dropIfExists('stock_sale_deductions');
+        Schema::dropIfExists('addon_stock_allocations');
         Schema::dropIfExists('product_stock_allocations');
         Schema::dropIfExists('order_details');
         Schema::dropIfExists('orders');
@@ -69,7 +80,7 @@ class StockDeductionServiceTest extends TestCase
         parent::tearDown();
     }
 
-    private function seedOrder(array $order, array $details = [], array $allocations = []): Order
+    private function seedOrder(array $order, array $details = [], array $allocations = [], array $addonAllocations = []): Order
     {
         $orderId = DB::table('orders')->insertGetId(array_merge([
             'branch_id' => 5,
@@ -84,6 +95,13 @@ class StockDeductionServiceTest extends TestCase
 
         foreach ($allocations as $allocation) {
             DB::table('product_stock_allocations')->insert(array_merge([
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], $allocation));
+        }
+
+        foreach ($addonAllocations as $allocation) {
+            DB::table('addon_stock_allocations')->insert(array_merge([
                 'created_at' => now(),
                 'updated_at' => now(),
             ], $allocation));
@@ -307,5 +325,84 @@ class StockDeductionServiceTest extends TestCase
         $command = file_get_contents(app_path('Console/Commands/BackfillStockSaleDeductionsCommand.php'));
         $this->assertStringContainsString('stocks:backfill-deductions', $command);
         $this->assertStringContainsString('backfillSince', $command);
+    }
+
+    public function test_addon_sale_deducts_allocation_times_addon_qty(): void
+    {
+        $order = $this->seedOrder([], [
+            [
+                'product_id' => 10,
+                'quantity' => 2,
+                'add_on_ids' => json_encode([7, 8]),
+                'add_on_qtys' => json_encode([2, 1]),
+            ],
+        ], [], [
+            ['addon_id' => 7, 'stock_item_id' => 3, 'quantity' => 1],
+            ['addon_id' => 8, 'stock_item_id' => 4, 'quantity' => 1.5],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+
+        $rows = DB::table('stock_sale_deductions')
+            ->where('order_id', $order->id)
+            ->where('addon_id', '>', 0)
+            ->orderBy('addon_id')
+            ->get();
+
+        $this->assertCount(2, $rows);
+        $this->assertSame(7, (int) $rows[0]->addon_id);
+        $this->assertSame(0, (int) $rows[0]->product_id);
+        $this->assertSame(3, (int) $rows[0]->stock_item_id);
+        $this->assertSame(2.0, (float) $rows[0]->quantity);
+        $this->assertSame(8, (int) $rows[1]->addon_id);
+        $this->assertSame(4, (int) $rows[1]->stock_item_id);
+        $this->assertSame(1.5, (float) $rows[1]->quantity);
+    }
+
+    public function test_product_and_addon_allocations_coexist_on_same_stock_item(): void
+    {
+        $order = $this->seedOrder([], [
+            [
+                'product_id' => 10,
+                'quantity' => 1,
+                'add_on_ids' => json_encode([7]),
+                'add_on_qtys' => json_encode([2]),
+            ],
+        ], [
+            ['product_id' => 10, 'stock_item_id' => 1, 'quantity' => 1],
+        ], [
+            ['addon_id' => 7, 'stock_item_id' => 1, 'quantity' => 1],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+
+        $rows = DB::table('stock_sale_deductions')->where('order_id', $order->id)->orderBy('addon_id')->get();
+        $this->assertCount(2, $rows);
+        $this->assertSame(0, (int) $rows[0]->addon_id);
+        $this->assertSame(10, (int) $rows[0]->product_id);
+        $this->assertSame(1.0, (float) $rows[0]->quantity);
+        $this->assertSame(7, (int) $rows[1]->addon_id);
+        $this->assertSame(0, (int) $rows[1]->product_id);
+        $this->assertSame(2.0, (float) $rows[1]->quantity);
+    }
+
+    public function test_nested_addon_id_objects_are_decoded(): void
+    {
+        $order = $this->seedOrder([], [
+            [
+                'product_id' => 10,
+                'quantity' => 1,
+                'add_on_ids' => json_encode([['id' => 7, 'name' => 'Extra Cheese']]),
+                'add_on_qtys' => json_encode([3]),
+            ],
+        ], [], [
+            ['addon_id' => 7, 'stock_item_id' => 3, 'quantity' => 1],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+
+        $this->assertSame(1, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
+        $this->assertSame(3.0, (float) DB::table('stock_sale_deductions')->where('order_id', $order->id)->value('quantity'));
+        $this->assertSame(7, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->value('addon_id'));
     }
 }

@@ -95,7 +95,7 @@
         </div>
 
         <div class="modal fade" id="adAddondModal" tabindex="-1" role="dialog" aria-labelledby="adAddondModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
+            <div class="modal-dialog modal-lg" role="document">
                 <div class="modal-content">
                     <div class="modal-body">
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -149,6 +149,9 @@
                                             <input type="number" min="0" name="tax" step="any" class="form-control"
                                                    placeholder="5" required
                                                    oninvalid="document.getElementById('en-link').click()">
+                                        </div>
+                                        <div class="col-12 from_part_2 mb-4">
+                                            @include('admin-views.addon.partials._stock-allocations')
                                         </div>
                                         <div class="col-12">
                                             <div class="d-flex justify-content-end gap-3">

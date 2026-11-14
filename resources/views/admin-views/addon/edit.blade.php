@@ -84,6 +84,9 @@
                                                            oninvalid="document.getElementById('en-link').click()">
                                                 </div>
                                             </div>
+                                            <div class="col-12 from_part_2 mb-3">
+                                                @include('admin-views.addon.partials._stock-allocations')
+                                            </div>
                                             <div class="col-12 mb-2">
                                                 <div class="d-flex justify-content-end gap-3">
                                                     <button type="reset" class="btn btn-secondary">{{translate('reset')}}</button>

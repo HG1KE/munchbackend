@@ -11,6 +11,7 @@ class StockSaleDeduction extends Model
         'order_id',
         'branch_id',
         'product_id',
+        'addon_id',
         'stock_item_id',
         'quantity',
         'sale_date',
@@ -20,6 +21,7 @@ class StockSaleDeduction extends Model
         'order_id' => 'integer',
         'branch_id' => 'integer',
         'product_id' => 'integer',
+        'addon_id' => 'integer',
         'stock_item_id' => 'integer',
         'quantity' => 'float',
         'sale_date' => 'date',
@@ -40,6 +42,11 @@ class StockSaleDeduction extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function addon(): BelongsTo
+    {
+        return $this->belongsTo(AddOn::class, 'addon_id');
     }
 
     public function stockItem(): BelongsTo

@@ -5,6 +5,8 @@ namespace App\Model;
 use App\CentralLogics\Helpers;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class AddOn extends Model
@@ -23,6 +25,18 @@ class AddOn extends Model
     public function translations(): MorphMany
     {
         return $this->morphMany('App\Model\Translation', 'translationable');
+    }
+
+    public function stockAllocations(): HasMany
+    {
+        return $this->hasMany(AddonStockAllocation::class, 'addon_id');
+    }
+
+    public function stockItems(): BelongsToMany
+    {
+        return $this->belongsToMany(StockItem::class, 'addon_stock_allocations', 'addon_id', 'stock_item_id')
+            ->withPivot('quantity')
+            ->withTimestamps();
     }
 
     public function getNameAttribute($name)

@@ -31,9 +31,21 @@ class StockItem extends Model
         return $this->hasMany(ProductStockAllocation::class, 'stock_item_id');
     }
 
+    public function addonAllocations(): HasMany
+    {
+        return $this->hasMany(AddonStockAllocation::class, 'stock_item_id');
+    }
+
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'product_stock_allocations', 'stock_item_id', 'product_id')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
+
+    public function addons(): BelongsToMany
+    {
+        return $this->belongsToMany(AddOn::class, 'addon_stock_allocations', 'stock_item_id', 'addon_id')
             ->withPivot('quantity')
             ->withTimestamps();
     }

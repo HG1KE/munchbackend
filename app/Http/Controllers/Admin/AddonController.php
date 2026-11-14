@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\CentralLogics\Helpers;
 use App\Http\Controllers\Controller;
 use App\Model\AddOn;
+use App\Model\StockItem;
 use App\Model\Translation;
+use App\Services\Stock\AddonStockAllocationService;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AddonController extends Controller
 {
@@ -39,7 +42,9 @@ class AddonController extends Controller
         }
 
         $addons = $addons->orderBy('id', 'DESC')->paginate(Helpers::getPagination())->appends($queryParam);
-        return view('admin-views.addon.index', compact('addons', 'search'));
+        $stockItems = $this->activeStockItems();
+
+        return view('admin-views.addon.index', compact('addons', 'search', 'stockItems'));
     }
 
     /**
@@ -83,6 +88,8 @@ class AddonController extends Controller
             $this->translation->insert($data);
         }
 
+        app(AddonStockAllocationService::class)->syncFromRequest((int) $addon->id, $request);
+
         Toastr::success(translate('Addon added successfully!'));
         return back();
     }
@@ -93,8 +100,10 @@ class AddonController extends Controller
      */
     public function edit($id): Renderable
     {
-        $addon = $this->addon->withoutGlobalScopes()->with('translations')->find($id);
-        return view('admin-views.addon.edit', compact('addon'));
+        $addon = $this->addon->withoutGlobalScopes()->with(['translations', 'stockAllocations'])->find($id);
+        $stockItems = $this->activeStockItems();
+
+        return view('admin-views.addon.edit', compact('addon', 'stockItems'));
     }
 
     /**
@@ -133,6 +142,9 @@ class AddonController extends Controller
                 );
             }
         }
+
+        app(AddonStockAllocationService::class)->syncFromRequest((int) $addon->id, $request);
+
         Toastr::success(translate('Addon updated successfully!'));
         return redirect()->route('admin.addon.add-new');
     }
@@ -144,8 +156,20 @@ class AddonController extends Controller
     public function delete(Request $request): RedirectResponse
     {
         $addon = $this->addon->find($request->id);
+        if ($addon && Schema::hasTable('addon_stock_allocations')) {
+            $addon->stockAllocations()->delete();
+        }
         $addon->delete();
         Toastr::success(translate('Addon removed!'));
         return back();
+    }
+
+    private function activeStockItems()
+    {
+        if (! Schema::hasTable('stock_items')) {
+            return collect();
+        }
+
+        return StockItem::query()->active()->orderBy('name')->get(['id', 'name']);
     }
 }
