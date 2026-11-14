@@ -58,9 +58,7 @@ class BranchPosTodayOrdersService
         $ordersValue = $onlineFilter
             ? (float) (clone $query)
                 ->whereNotIn('order_status', ['canceled', 'cancelled', 'failed', 'returned'])
-                ->sum(DB::raw(
-                    "COALESCE(order_amount, 0) + CASE WHEN order_type = 'take_away' THEN 0 ELSE COALESCE(delivery_charge, 0) END"
-                ))
+                ->sum(DB::raw(OrderPayableAmount::sqlExpression()))
             : null;
 
         /** @var LengthAwarePaginator $pageData */

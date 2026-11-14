@@ -10,6 +10,7 @@ use App\Model\OrderDetail;
 use App\Support\AdminDashboardSalesKpis;
 use App\Support\AdminSaleReportExport;
 use App\Support\AdminSaleReportSummary;
+use App\Support\OrderPayableAmount;
 use App\Support\PosOrderTypes;
 use App\Support\PosSaleTime;
 use App\Support\TimezoneDisplay;
@@ -275,7 +276,8 @@ class ReportController extends Controller
         ];
         foreach ($validOrders as $order) {
             $method = (string) $order->payment_method;
-            $amount = (float) $order->order_amount;
+            // Munch Sales / payment buckets = payable (merch + delivery).
+            $amount = OrderPayableAmount::payable($order);
             if (array_key_exists($method, $paymentTotals)) {
                 $paymentTotals[$method] += $amount;
             }
@@ -300,9 +302,6 @@ class ReportController extends Controller
 
         $summary = $this->saleReportSummary($orders, (float) $totalSold);
         $summaryDisplay = $this->formatSaleReportSummary($summary);
-        $paymentGroups = AdminSaleReportSummary::fromPaymentTotals($paymentTotals);
-        $summaryDisplay['munch_sales'] = Helpers::set_symbol($paymentGroups['munch_sales']);
-        $summaryDisplay['marketplace_sales'] = Helpers::set_symbol($paymentGroups['marketplace_sales']);
 
         $exportReport = AdminSaleReportExport::build(
             $validOrders,
@@ -314,6 +313,15 @@ class ReportController extends Controller
                 'cancelled_orders' => $cancelledOrders,
                 'quantities' => $quantities,
             ]
+        );
+        // Munch Sales KPI = classified payable section total (merch + delivery for every
+        // Munch line: cashier POS delivery, online-accepted POS, dine-in, takeaway).
+        // Prefer export totals over cash+card+mpesa+paystack so palpluss online rows count.
+        $summaryDisplay['munch_sales'] = Helpers::set_symbol($exportReport['totals']['munch_sales'] ?? 0);
+        $summaryDisplay['marketplace_sales'] = Helpers::set_symbol(
+            (float) ($exportReport['totals']['glovo'] ?? 0)
+            + (float) ($exportReport['totals']['uber'] ?? 0)
+            + (float) ($exportReport['totals']['bolt_food'] ?? 0)
         );
         $cancelledSummary = $exportReport['cancelled'] ?? ['total' => 0.0, 'order_count' => 0];
 

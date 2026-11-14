@@ -129,7 +129,9 @@ class AdminDashboardSalesKpisTest extends TestCase
         $this->assertStringContainsString('group by', $allSql);
         $this->assertStringContainsString('payment_method', $allSql);
         $this->assertStringContainsString('sales_channel', $allSql);
-        $this->assertStringContainsString('sum(order_amount)', $allSql);
+        $this->assertStringContainsString('delivery_charge', $allSql);
+        $this->assertStringContainsString('take_away', $allSql);
+        $this->assertStringContainsString('sum(', $allSql);
         $this->assertStringContainsString('order_status', $allSql);
         $this->assertStringContainsString('payment_status', $allSql);
         $this->assertStringContainsString('order_type', $allSql);

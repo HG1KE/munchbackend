@@ -45,6 +45,7 @@ class PosSaleReportReconciliationTest extends TestCase
             $table->string('readable_order_id')->nullable();
             $table->string('client_uuid')->nullable();
             $table->decimal('order_amount', 12, 2)->default(0);
+            $table->decimal('delivery_charge', 12, 2)->default(0);
             $table->timestamp('placed_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamps();

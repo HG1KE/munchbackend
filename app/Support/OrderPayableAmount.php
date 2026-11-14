@@ -35,6 +35,17 @@ class OrderPayableAmount
     }
 
     /**
+     * SQL expression matching {@see payable()}: merch order_amount + delivery,
+     * with take_away zeroing the fee. Assumes order_amount is merch-only.
+     */
+    public static function sqlExpression(string $tablePrefix = ''): string
+    {
+        $prefix = $tablePrefix !== '' ? rtrim($tablePrefix, '.').'.' : '';
+
+        return "COALESCE({$prefix}order_amount, 0) + CASE WHEN {$prefix}order_type = 'take_away' THEN 0 ELSE COALESCE({$prefix}delivery_charge, 0) END";
+    }
+
+    /**
      * @return array<string, float|string>
      */
     public static function cardPayload(Order|array $order): array

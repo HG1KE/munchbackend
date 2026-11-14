@@ -704,7 +704,8 @@ class AdminSaleReportExport
                 self::value($order, 'cancelled_at')
             ),
             'quantity' => self::quantityFor($order, $quantities),
-            'amount' => self::money(self::value($order, 'order_amount') ?? 0),
+            // Munch Sales (and all section totals) = payable for every line.
+            'amount' => self::money(self::payableAmount($order)),
             'items' => self::itemsFor($order, $items),
         ];
     }
@@ -738,12 +739,25 @@ class AdminSaleReportExport
                     self::value($order, 'order_type') !== null ? (string) self::value($order, 'order_type') : null
                 ),
                 'date' => self::formatTime($saleAt, true),
-                'price' => self::money(self::value($order, 'order_amount') ?? 0),
+                'price' => self::money(self::payableAmount($order)),
                 'quantity' => self::quantityFor($order, $quantities),
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * Sale Report line amount = OrderPayableAmount (merch + delivery; take_away zeros fee).
+     * Applies to cashier POS delivery and online-accepted POS alike.
+     */
+    private static function payableAmount(object|array $order): float
+    {
+        return OrderPayableAmount::payable([
+            'order_amount' => self::value($order, 'order_amount'),
+            'delivery_charge' => self::value($order, 'delivery_charge'),
+            'order_type' => self::value($order, 'order_type'),
+        ]);
     }
 
     /**

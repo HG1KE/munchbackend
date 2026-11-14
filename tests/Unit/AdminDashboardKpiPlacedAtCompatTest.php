@@ -40,6 +40,7 @@ class AdminDashboardKpiPlacedAtCompatTest extends TestCase
             $table->string('payment_status')->default('paid');
             $table->string('order_status')->default('delivered');
             $table->decimal('order_amount', 12, 2)->default(0);
+            $table->decimal('delivery_charge', 12, 2)->default(0);
             $table->timestamp('placed_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamps();

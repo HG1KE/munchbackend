@@ -36,6 +36,7 @@ class AdminDashboardSalesKpiClassificationTest extends TestCase
             $table->string('payment_status')->default('paid');
             $table->string('order_status')->default('confirmed');
             $table->decimal('order_amount', 12, 2)->default(0);
+            $table->decimal('delivery_charge', 12, 2)->default(0);
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamps();
         });

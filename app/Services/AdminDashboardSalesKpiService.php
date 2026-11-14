@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Model\Order;
 use App\Support\AdminDashboardSalesKpis;
+use App\Support\OrderPayableAmount;
 use App\Support\PosSaleTime;
 use Illuminate\Http\Request;
 
@@ -73,7 +74,9 @@ class AdminDashboardSalesKpiService
             $period['from'],
             $period['to']
         )
-            ->selectRaw('order_type, payment_method, sales_channel, COALESCE(SUM(order_amount), 0) as total')
+            ->selectRaw(
+                'order_type, payment_method, sales_channel, COALESCE(SUM('.OrderPayableAmount::sqlExpression().'), 0) as total'
+            )
             ->groupBy('order_type', 'payment_method', 'sales_channel');
     }
 }
