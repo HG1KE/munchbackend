@@ -123,6 +123,11 @@ class ProductStockAllocationPopupTest extends TestCase
         $routes = file_get_contents(base_path('routes/admin.php'));
         $this->assertStringContainsString("name('stock-allocations.show')", $routes);
         $this->assertStringContainsString("name('stock-allocations.update')", $routes);
+        $this->assertStringContainsString("name('stock-allocations.unallocated')", $routes);
+
+        $list = file_get_contents(resource_path('views/admin-views/product/list.blade.php'));
+        $this->assertStringContainsString('unallocatedProductsModal', $list);
+        $this->assertStringContainsString('data-unallocated-url', $list);
 
         $js = file_get_contents(public_path('assets/admin/js/munch-product-stock.js'));
         $this->assertStringContainsString('stock_allocation_item_id[]', $js);
@@ -132,6 +137,61 @@ class ProductStockAllocationPopupTest extends TestCase
         $this->assertStringContainsString('dropdownParent', $js);
         $this->assertStringContainsString('step="0.001"', $js);
         $this->assertStringContainsString('min="0.001"', $js);
+        $this->assertStringContainsString('loadUnallocatedProducts', $js);
+        $this->assertStringContainsString('unallocatedUrl', $js);
+    }
+
+    public function test_list_unallocated_excludes_products_with_positive_qty(): void
+    {
+        $allocatedId = DB::table('products')->insertGetId([
+            'name' => 'Allocated Burger',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $unallocatedId = DB::table('products')->insertGetId([
+            'name' => 'No Links Drink',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $zeroQtyId = DB::table('products')->insertGetId([
+            'name' => 'Zero Qty Side',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $bunsId = DB::table('stock_items')->insertGetId([
+            'name' => 'Buns',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('product_stock_allocations')->insert([
+            [
+                'product_id' => $allocatedId,
+                'stock_item_id' => $bunsId,
+                'quantity' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'product_id' => $zeroQtyId,
+                'stock_item_id' => $bunsId,
+                'quantity' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $service = new ProductStockAllocationService();
+        $rows = $service->listUnallocated('/admin/product/edit/__ID__');
+        $ids = array_column($rows, 'id');
+
+        $this->assertNotContains($allocatedId, $ids);
+        $this->assertContains($unallocatedId, $ids);
+        $this->assertContains($zeroQtyId, $ids);
+
+        $drink = collect($rows)->firstWhere('id', $unallocatedId);
+        $this->assertSame('No Links Drink', $drink['name']);
+        $this->assertSame('/admin/product/edit/'.$unallocatedId, $drink['edit_url']);
     }
 
     public function test_sync_accepts_decimal_qty(): void

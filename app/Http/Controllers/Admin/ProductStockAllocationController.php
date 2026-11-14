@@ -16,6 +16,15 @@ class ProductStockAllocationController extends Controller
     ) {
     }
 
+    public function unallocated(): JsonResponse
+    {
+        $editUrl = route('admin.product.edit', ['id' => '__ID__']);
+
+        return response()->json([
+            'products' => $this->allocations->listUnallocated($editUrl),
+        ]);
+    }
+
     public function show(int $id): JsonResponse
     {
         $product = $this->product->findOrFail($id);

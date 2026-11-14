@@ -257,6 +257,7 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::post('pricing/copy/apply', [ProductPricingController::class, 'applyCopy'])->name('pricing.copy.apply');
             Route::get('pricing/{id}', [ProductPricingController::class, 'show'])->name('pricing.show');
             Route::post('pricing/{id}', [ProductPricingController::class, 'update'])->name('pricing.update');
+            Route::get('stock-allocations/unallocated', [ProductStockAllocationController::class, 'unallocated'])->name('stock-allocations.unallocated');
             Route::get('stock-allocations/{id}', [ProductStockAllocationController::class, 'show'])->name('stock-allocations.show');
             Route::post('stock-allocations/{id}', [ProductStockAllocationController::class, 'update'])->name('stock-allocations.update');
             Route::get('excel-import', [ProductController::class, 'excelImport'])->name('excel-import');

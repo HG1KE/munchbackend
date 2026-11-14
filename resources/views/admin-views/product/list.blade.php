@@ -5,7 +5,7 @@
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-pricing.css') }}?v=1.7">
-    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-stock.css') }}?v=1.1">
+    <link rel="stylesheet" href="{{ asset('public/assets/admin/css/munch-product-stock.css') }}?v=1.2">
 @endpush
 
 @section('content')
@@ -38,6 +38,9 @@
                             </div>
                             <div class="col-lg-8">
                                 <div class="d-flex gap-3 justify-content-end text-nowrap flex-wrap">
+                                    <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#unallocatedProductsModal" id="munch-unallocated-open">
+                                        {{ translate('Unallocated products') }}
+                                    </button>
                                     <button type="button" class="btn btn-outline-dark" data-bulk-pricing>
                                         {{ translate('Bulk Price Edit') }}
                                     </button>
@@ -180,7 +183,43 @@
 
     <div id="munch-stock-root"
          data-show-url="{{ route('admin.product.stock-allocations.show', ['id' => '__ID__']) }}"
-         data-update-url="{{ route('admin.product.stock-allocations.update', ['id' => '__ID__']) }}"></div>
+         data-update-url="{{ route('admin.product.stock-allocations.update', ['id' => '__ID__']) }}"
+         data-unallocated-url="{{ route('admin.product.stock-allocations.unallocated') }}"></div>
+
+    <div class="modal fade" id="unallocatedProductsModal" tabindex="-1" role="dialog" aria-labelledby="unallocatedProductsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-0" id="unallocatedProductsModalLabel">{{ translate('Unallocated products') }}</h5>
+                        <div class="text-muted small mt-1">{{ translate('Products with no stock item links. Unallocated sales stay untracked for Sold.') }}</div>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="munch-unallocated-status" class="text-muted mb-2">{{ translate('Loading…') }}</div>
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table mb-0">
+                            <thead class="thead-light">
+                            <tr>
+                                <th style="width: 5rem;">{{ translate('ID') }}</th>
+                                <th>{{ translate('product_name') }}</th>
+                                <th class="text-center" style="width: 6rem;">{{ translate('action') }}</th>
+                            </tr>
+                            </thead>
+                            <tbody id="munch-unallocated-rows">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ translate('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="munch-stock-backdrop" class="munch-stock-backdrop" hidden></div>
     <div id="munch-stock-modal" class="munch-stock-modal" hidden>
@@ -352,5 +391,5 @@
         }
     </script>
     <script src="{{ asset('public/assets/admin/js/munch-product-pricing.js') }}?v=2.2"></script>
-    <script src="{{ asset('public/assets/admin/js/munch-product-stock.js') }}?v=1.1"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-product-stock.js') }}?v=1.2"></script>
 @endpush

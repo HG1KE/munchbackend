@@ -6,10 +6,58 @@ use App\Model\Product;
 use App\Model\ProductStockAllocation;
 use App\Model\StockItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ProductStockAllocationService
 {
+    /**
+     * Products with no usable stock links (no allocation rows, or only empty/zero qty).
+     * Unallocated = intentionally untracked for Sold; this list is for Habib to review links.
+     *
+     * @return list<array{id:int,name:string,edit_url:string}>
+     */
+    public function listUnallocated(?string $editUrlTemplate = null): array
+    {
+        if (! Schema::hasTable('products')) {
+            return [];
+        }
+
+        $template = $editUrlTemplate ?: '/admin/product/edit/__ID__';
+
+        if (! Schema::hasTable('product_stock_allocations')) {
+            return Product::query()
+                ->orderBy('name')
+                ->orderBy('id')
+                ->get(['id', 'name'])
+                ->map(fn (Product $product) => [
+                    'id' => (int) $product->id,
+                    'name' => (string) $product->name,
+                    'edit_url' => str_replace('__ID__', (string) $product->id, $template),
+                ])
+                ->values()
+                ->all();
+        }
+
+        return Product::query()
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('product_stock_allocations')
+                    ->whereColumn('product_stock_allocations.product_id', 'products.id')
+                    ->where('product_stock_allocations.quantity', '>', 0);
+            })
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name'])
+            ->map(fn (Product $product) => [
+                'id' => (int) $product->id,
+                'name' => (string) $product->name,
+                'edit_url' => str_replace('__ID__', (string) $product->id, $template),
+            ])
+            ->values()
+            ->all();
+    }
+
     /**
      * Payload for the product-list Stock popup (and create/edit forms).
      *

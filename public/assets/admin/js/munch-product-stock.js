@@ -11,6 +11,7 @@
         csrf: (document.querySelector('meta[name="csrf-token"]') || {}).content || '',
         showUrl: root.getAttribute('data-show-url') || '',
         updateUrl: root.getAttribute('data-update-url') || '',
+        unallocatedUrl: root.getAttribute('data-unallocated-url') || '',
     };
 
     var els = {
@@ -23,6 +24,9 @@
         save: document.getElementById('munch-stock-save'),
         add: document.getElementById('munch-stock-add-row'),
         status: document.getElementById('munch-stock-status'),
+        unallocatedModal: document.getElementById('unallocatedProductsModal'),
+        unallocatedRows: document.getElementById('munch-unallocated-rows'),
+        unallocatedStatus: document.getElementById('munch-unallocated-status'),
     };
 
     var state = {
@@ -254,6 +258,71 @@
                 state.saving = false;
                 updateEmptyHint();
             });
+    }
+
+    function setUnallocatedStatus(text) {
+        if (els.unallocatedStatus) els.unallocatedStatus.textContent = text || '';
+    }
+
+    function loadUnallocatedProducts() {
+        if (!CFG.unallocatedUrl || !els.unallocatedRows) return;
+        setUnallocatedStatus('Loading…');
+        els.unallocatedRows.innerHTML = '';
+
+        fetch(CFG.unallocatedUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': CFG.csrf,
+            },
+            credentials: 'same-origin',
+        })
+            .then(function (res) {
+                if (!res.ok) throw new Error('Failed to load unallocated products');
+                return res.json();
+            })
+            .then(function (data) {
+                var products = (data && data.products) || [];
+                if (!products.length) {
+                    setUnallocatedStatus('All products have stock item links.');
+                    els.unallocatedRows.innerHTML =
+                        '<tr><td colspan="3" class="text-center text-muted">No unallocated products</td></tr>';
+                    return;
+                }
+                setUnallocatedStatus(products.length + ' product' + (products.length === 1 ? '' : 's') + ' with no stock links');
+                els.unallocatedRows.innerHTML = products.map(function (product) {
+                    var id = product.id;
+                    var name = escapeHtml(product.name);
+                    var editUrl = product.edit_url || ('/admin/product/edit/' + id);
+                    return (
+                        '<tr>' +
+                            '<td>' + id + '</td>' +
+                            '<td>' + name + '</td>' +
+                            '<td class="text-center">' +
+                                '<a class="btn btn-outline-info btn-sm edit square-btn" href="' + escapeHtml(editUrl) + '" title="Edit">' +
+                                    '<i class="tio-edit"></i>' +
+                                '</a>' +
+                            '</td>' +
+                        '</tr>'
+                    );
+                }).join('');
+            })
+            .catch(function (err) {
+                setUnallocatedStatus((err && err.message) || 'Could not load unallocated products');
+                els.unallocatedRows.innerHTML =
+                    '<tr><td colspan="3" class="text-center text-danger">Could not load list</td></tr>';
+            });
+    }
+
+    if (els.unallocatedModal) {
+        var $jq = jq();
+        if ($jq) {
+            $jq(els.unallocatedModal).on('show.bs.modal', function () {
+                loadUnallocatedProducts();
+            });
+        } else {
+            els.unallocatedModal.addEventListener('show.bs.modal', loadUnallocatedProducts);
+        }
     }
 
     document.addEventListener('click', function (ev) {
