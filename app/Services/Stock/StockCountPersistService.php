@@ -32,6 +32,12 @@ class StockCountPersistService
             return 'No active stock items. Ask admin to add stock items first.';
         }
 
+        // Only require items sold/tracked at this branch (omit branch-disabled-only allocations).
+        $activeItemIds = (new BranchStockItemVisibility)->filterForBranch($branchId, $activeItemIds);
+        if ($activeItemIds === []) {
+            return 'No active stock items. Ask admin to add stock items first.';
+        }
+
         if ($posted === null) {
             $existing = StockDailyCount::query()
                 ->where('branch_id', $branchId)

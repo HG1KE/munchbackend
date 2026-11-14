@@ -45,6 +45,13 @@ class StockVarianceService
         }
 
         $items = StockItem::query()->active()->orderBy('name')->get($columns);
+        $visibleIds = (new BranchStockItemVisibility)->filterForBranch(
+            $branchId,
+            $items->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+        $visibleSet = array_fill_keys($visibleIds, true);
+        $items = $items->filter(fn (StockItem $item) => isset($visibleSet[(int) $item->id]))->values();
+
         $counts = collect();
         if (Schema::hasTable('stock_daily_counts')) {
             $counts = StockDailyCount::query()

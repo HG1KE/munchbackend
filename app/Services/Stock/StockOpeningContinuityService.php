@@ -39,6 +39,16 @@ class StockOpeningContinuityService
             return [];
         }
 
+        $visibleIds = (new BranchStockItemVisibility)->filterForBranch(
+            $branchId,
+            $items->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+        $visibleSet = array_fill_keys($visibleIds, true);
+        $items = $items->filter(fn (StockItem $item) => isset($visibleSet[(int) $item->id]))->values();
+        if ($items->isEmpty()) {
+            return [];
+        }
+
         $yesterdayClosings = StockDailyCount::query()
             ->where('branch_id', $branchId)
             ->whereDate('count_date', $yesterday)
