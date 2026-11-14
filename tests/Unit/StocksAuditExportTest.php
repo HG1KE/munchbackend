@@ -284,9 +284,20 @@ class StocksAuditExportTest extends TestCase
         $html = view('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))->render();
         $this->assertStringContainsString('Beef Patties', $html);
         $this->assertStringContainsString('Buns', $html);
-        // Hidden items stay out of the main table but appear in the appendix.
+        // Admin PDF keeps a hidden-items appendix; manager strips it (see withoutOmittedAppendix).
         $this->assertStringContainsString('HIDDEN FROM BRANCH PDF', $html);
         $this->assertStringContainsString('Internal Wrapper', $html);
+
+        $managerReport = StocksAuditExport::withoutOmittedAppendix($report);
+        $this->assertSame([], $managerReport['omitted_appendix']);
+        $this->assertFalse($managerReport['requires_hidden_ack']);
+        $managerHtml = view(
+            'stocks-views.dashboard.partials._stocks-audit-export',
+            ['report' => $managerReport]
+        )->render();
+        $this->assertStringNotContainsString('HIDDEN FROM BRANCH PDF', $managerHtml);
+        $this->assertStringNotContainsString('Internal Wrapper', $managerHtml);
+        $this->assertStringContainsString('Beef Patties', $managerHtml);
     }
 
     public function test_hidden_incomplete_items_do_not_block_export_completeness(): void

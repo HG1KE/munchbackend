@@ -32,7 +32,23 @@ class StocksAuditExport
 
     public const INCOMPLETE_MESSAGE = 'Complete all fields for the branch and date selected before exporting the report.';
 
+    /** Admin export soft-warning only; stocks manager silently omits hidden items. */
     public const HIDDEN_ACK_MESSAGE = 'Some active stock items are hidden from this PDF (Show in Stock PDF off). Review the appendix and acknowledge before exporting.';
+
+    /**
+     * Stocks manager PDF: drop the hidden-items appendix (silent omit).
+     * Callers should archive the original omitted list separately if needed.
+     *
+     * @param  array<string, mixed>  $report
+     * @return array<string, mixed>
+     */
+    public static function withoutOmittedAppendix(array $report): array
+    {
+        $report['omitted_appendix'] = [];
+        $report['requires_hidden_ack'] = false;
+
+        return $report;
+    }
 
     /**
      * @param  list<array<string, mixed>>  $rows  From StockVarianceService::rowsForBranchDate

@@ -59,10 +59,6 @@ class DashboardController extends Controller
         $soldDrilldown = $branchId > 0
             ? $this->variance->soldDrilldownByItem($branchId, $date)
             : [];
-        $hiddenPdfItems = array_values(array_filter($rows, static function (array $row) {
-            return array_key_exists('show_in_stock_pdf', $row)
-                && ! filter_var($row['show_in_stock_pdf'], FILTER_VALIDATE_BOOLEAN);
-        }));
 
         $currentBranch = $accessible->firstWhere('id', $branchId);
         $branchName = $currentBranch?->name ?: translate('Stocks');
@@ -76,8 +72,7 @@ class DashboardController extends Controller
             'showBranchPicker',
             'openingGaps',
             'allocationGaps',
-            'soldDrilldown',
-            'hiddenPdfItems'
+            'soldDrilldown'
         ));
     }
 
@@ -98,7 +93,6 @@ class DashboardController extends Controller
             'closing' => 'nullable|array',
             'closing.*' => 'nullable|numeric|min:0',
             'acknowledge_opening_gap' => 'nullable',
-            'acknowledge_hidden_items' => 'nullable',
         ]);
 
         $branchId = (int) $request->input('branch_id');
@@ -163,17 +157,10 @@ class DashboardController extends Controller
 
         $soldDrilldown = $this->variance->soldDrilldownByItem($branchId, $date);
         $report = StocksAuditExport::build($branchName, $date, $rows, $soldDrilldown);
+        // Manager PDF: silent omit only — no ack UI, no appendix. Archive still logs omitted.
+        $pdfReport = StocksAuditExport::withoutOmittedAppendix($report);
 
-        if (! empty($report['requires_hidden_ack']) && ! $request->boolean('acknowledge_hidden_items')) {
-            Toastr::error(translate(StocksAuditExport::HIDDEN_ACK_MESSAGE));
-
-            return redirect()->route('stocks.dashboard', [
-                'date' => $date,
-                'branch_id' => $branchId,
-            ])->with('omitted_appendix', $report['omitted_appendix'] ?? []);
-        }
-
-        if (! StocksAuditExport::isComplete($report)) {
+        if (! StocksAuditExport::isComplete($pdfReport)) {
             Toastr::error(translate(StocksAuditExport::INCOMPLETE_MESSAGE));
 
             return redirect()->route('stocks.dashboard', [
@@ -195,7 +182,9 @@ class DashboardController extends Controller
             ]);
         }
 
-        $pdf = Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'));
+        $pdf = Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', [
+            'report' => $pdfReport,
+        ]);
         $binary = $pdf->output();
         $this->exportArchive->archive(
             $branchId,
@@ -210,7 +199,7 @@ class DashboardController extends Controller
 
         return response($binary, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.StocksAuditExport::filename($report).'"',
+            'Content-Disposition' => 'attachment; filename="'.StocksAuditExport::filename($pdfReport).'"',
         ]);
     }
 

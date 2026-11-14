@@ -91,31 +91,6 @@
                 </div>
             @endif
 
-            @php
-                $hiddenPdfItems = $hiddenPdfItems ?? [];
-                if (session('omitted_appendix')) {
-                    $hiddenPdfItems = session('omitted_appendix');
-                }
-            @endphp
-            @if(!empty($hiddenPdfItems))
-                <div class="alert alert-warning">
-                    <strong>{{ translate('Hidden from PDF') }}:</strong>
-                    {{ translate('Some active items are off for Show in Stock PDF. Acknowledge to export with an appendix listing them.') }}
-                    <ul class="mb-2 mt-2">
-                        @foreach($hiddenPdfItems as $omit)
-                            <li>{{ $omit['name'] ?? '' }} — {{ $omit['variance_label'] ?? '—' }}</li>
-                        @endforeach
-                    </ul>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="1" id="munch-ack-hidden"
-                               form="munch-stocks-counts-form" name="acknowledge_hidden_items">
-                        <label class="form-check-label" for="munch-ack-hidden">
-                            {{ translate('I acknowledge hidden items will appear only in the PDF appendix') }}
-                        </label>
-                    </div>
-                </div>
-            @endif
-
             <div class="card">
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <h5 class="mb-0">
@@ -129,9 +104,7 @@
                                 data-export-url="{{ route('stocks.export') }}"
                                 data-export-message="{{ translate('Complete all fields for the branch and date selected before exporting the report.') }}"
                                 data-opening-gap-message="{{ translate('Acknowledge the opening continuity gap before exporting.') }}"
-                                data-hidden-ack-message="{{ translate('Acknowledge hidden PDF items before exporting.') }}"
-                                data-requires-opening-ack="{{ !empty($openingGaps) ? '1' : '0' }}"
-                                data-requires-hidden-ack="{{ !empty($hiddenPdfItems) ? '1' : '0' }}">
+                                data-requires-opening-ack="{{ !empty($openingGaps) ? '1' : '0' }}">
                             {{ translate('Export') }} {{ $branchName }} {{ translate('Report') }}
                         </button>
                     @endif
@@ -293,5 +266,5 @@
 @endsection
 
 @push('script')
-    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.7"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.8"></script>
 @endpush

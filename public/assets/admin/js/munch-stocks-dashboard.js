@@ -373,16 +373,6 @@
                         return;
                     }
                 }
-                if (exportBtn.getAttribute('data-requires-hidden-ack') === '1') {
-                    var hiddenAck = form.querySelector('[name="acknowledge_hidden_items"]');
-                    if (!hiddenAck || !hiddenAck.checked) {
-                        showFillError(
-                            exportBtn.getAttribute('data-hidden-ack-message') ||
-                                'Acknowledge hidden PDF items before exporting.'
-                        );
-                        return;
-                    }
-                }
                 var exportUrl =
                     exportBtn.getAttribute('data-export-url') ||
                     exportBtn.getAttribute('href') ||
