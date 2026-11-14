@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Schema;
 class ProductStockAllocationService
 {
     /**
-     * Products with no usable stock links (no allocation rows, or only empty/zero qty).
-     * Unallocated = intentionally untracked for Sold; this list is for Habib to review links.
+     * Enabled (active) products with no usable stock links (no allocation rows, or only empty/zero qty).
+     * Disabled products are omitted. Unallocated = intentionally untracked for Sold; this list is for Habib to review links.
      *
      * @return list<array{id:int,name:string,edit_url:string}>
      */
@@ -27,6 +27,7 @@ class ProductStockAllocationService
 
         if (! Schema::hasTable('product_stock_allocations')) {
             return Product::query()
+                ->active()
                 ->orderBy('name')
                 ->orderBy('id')
                 ->get(['id', 'name'])
@@ -40,6 +41,7 @@ class ProductStockAllocationService
         }
 
         return Product::query()
+            ->active()
             ->whereNotExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('product_stock_allocations')

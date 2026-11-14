@@ -26,6 +26,7 @@ class ProductStockAllocationPopupTest extends TestCase
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->boolean('status')->default(true);
             $table->timestamps();
         });
         Schema::create('stock_items', function (Blueprint $table) {
@@ -145,16 +146,25 @@ class ProductStockAllocationPopupTest extends TestCase
     {
         $allocatedId = DB::table('products')->insertGetId([
             'name' => 'Allocated Burger',
+            'status' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
         $unallocatedId = DB::table('products')->insertGetId([
             'name' => 'No Links Drink',
+            'status' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
         $zeroQtyId = DB::table('products')->insertGetId([
             'name' => 'Zero Qty Side',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $disabledId = DB::table('products')->insertGetId([
+            'name' => 'Disabled Unallocated',
+            'status' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -188,10 +198,34 @@ class ProductStockAllocationPopupTest extends TestCase
         $this->assertNotContains($allocatedId, $ids);
         $this->assertContains($unallocatedId, $ids);
         $this->assertContains($zeroQtyId, $ids);
+        $this->assertNotContains($disabledId, $ids);
 
         $drink = collect($rows)->firstWhere('id', $unallocatedId);
         $this->assertSame('No Links Drink', $drink['name']);
         $this->assertSame('/admin/product/edit/'.$unallocatedId, $drink['edit_url']);
+    }
+
+    public function test_list_unallocated_only_includes_enabled_products(): void
+    {
+        $enabledId = DB::table('products')->insertGetId([
+            'name' => 'Enabled No Links',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $disabledId = DB::table('products')->insertGetId([
+            'name' => 'Disabled No Links',
+            'status' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = new ProductStockAllocationService();
+        $rows = $service->listUnallocated('/admin/product/edit/__ID__');
+        $ids = array_column($rows, 'id');
+
+        $this->assertContains($enabledId, $ids);
+        $this->assertNotContains($disabledId, $ids);
     }
 
     public function test_sync_accepts_decimal_qty(): void
