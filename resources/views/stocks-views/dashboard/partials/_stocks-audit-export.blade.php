@@ -120,5 +120,73 @@
             <p class="empty">No stock items</p>
         </div>
     @endforelse
+
+    @php
+        $omitted = is_array($report['omitted_appendix'] ?? null) ? $report['omitted_appendix'] : [];
+        $drilldown = is_array($report['sold_drilldown'] ?? null) ? $report['sold_drilldown'] : [];
+    @endphp
+
+    @if(count($omitted))
+        <div class="section">
+            <div class="section-head">HIDDEN FROM BRANCH PDF (active items)</div>
+            <p class="meta">These active items have Show in Stock PDF off. They still appear on the live dashboard.</p>
+            <table class="report-table">
+                <thead>
+                <tr>
+                    <th>Stock item</th>
+                    <th class="num">Sold</th>
+                    <th class="num">Result</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach($omitted as $row)
+                    <tr>
+                        <td class="item-name">{{ $row['name'] ?? '' }}</td>
+                        <td class="num">{{ $row['sold_display'] ?? \App\Support\StocksAuditExport::formatQty($row['sold_qty'] ?? 0) }}</td>
+                        <td class="num">{{ $row['variance_label'] ?? '—' }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    @if(!empty($drilldown) && !empty($report['is_single_day']))
+        <div class="section">
+            <div class="section-head">SOLD DRILL-DOWN (order / product / addon)</div>
+            <table class="report-table">
+                <thead>
+                <tr>
+                    <th>Stock item id</th>
+                    <th>Order</th>
+                    <th>Source</th>
+                    <th class="num">Qty</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach($drilldown as $stockItemId => $lines)
+                    @foreach($lines as $line)
+                        @php
+                            $source = '';
+                            if (!empty($line['addon_id'])) {
+                                $source = 'Addon #'.(int)$line['addon_id'].(!empty($line['addon_name']) ? ' '.$line['addon_name'] : '');
+                            } elseif (!empty($line['product_id'])) {
+                                $source = 'Product #'.(int)$line['product_id'].(!empty($line['product_name']) ? ' '.$line['product_name'] : '');
+                            } else {
+                                $source = '—';
+                            }
+                        @endphp
+                        <tr>
+                            <td>{{ (int) $stockItemId }}</td>
+                            <td>#{{ (int) ($line['order_id'] ?? 0) }}</td>
+                            <td>{{ $source }}</td>
+                            <td class="num">{{ \App\Support\StocksAuditExport::formatQty($line['quantity'] ?? 0) }}</td>
+                        </tr>
+                    @endforeach
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 </body>
 </html>

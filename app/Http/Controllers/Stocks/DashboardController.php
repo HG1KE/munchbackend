@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Stocks;
 
 use App\Http\Controllers\Controller;
+use App\Services\Stock\StockAllocationCoverageService;
 use App\Services\Stock\StockCountPersistService;
+use App\Services\Stock\StockExportArchiveService;
+use App\Services\Stock\StockOpeningContinuityService;
 use App\Services\Stock\StockVarianceService;
 use App\Support\StocksAuditExport;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,7 +21,10 @@ class DashboardController extends Controller
 {
     public function __construct(
         private StockVarianceService $variance,
-        private StockCountPersistService $counts
+        private StockCountPersistService $counts,
+        private StockOpeningContinuityService $openingContinuity,
+        private StockAllocationCoverageService $allocationCoverage,
+        private StockExportArchiveService $exportArchive
     ) {}
 
     public function index(Request $request): Renderable
@@ -44,6 +50,20 @@ class DashboardController extends Controller
             ? $this->variance->rowsForBranchDate($branchId, $date, 'missing')
             : [];
 
+        $openingGaps = $branchId > 0
+            ? $this->openingContinuity->mismatches($branchId, $date)
+            : [];
+        $allocationGaps = $branchId > 0
+            ? $this->allocationCoverage->gapsForBranchDate($branchId, $date)
+            : ['products' => [], 'addons' => []];
+        $soldDrilldown = $branchId > 0
+            ? $this->variance->soldDrilldownByItem($branchId, $date)
+            : [];
+        $hiddenPdfItems = array_values(array_filter($rows, static function (array $row) {
+            return array_key_exists('show_in_stock_pdf', $row)
+                && ! filter_var($row['show_in_stock_pdf'], FILTER_VALIDATE_BOOLEAN);
+        }));
+
         $currentBranch = $accessible->firstWhere('id', $branchId);
         $branchName = $currentBranch?->name ?: translate('Stocks');
 
@@ -53,7 +73,11 @@ class DashboardController extends Controller
             'branchName',
             'branchId',
             'accessible',
-            'showBranchPicker'
+            'showBranchPicker',
+            'openingGaps',
+            'allocationGaps',
+            'soldDrilldown',
+            'hiddenPdfItems'
         ));
     }
 
@@ -65,6 +89,16 @@ class DashboardController extends Controller
         $request->validate([
             'date' => 'required|date',
             'branch_id' => 'required|integer|exists:branches,id',
+            'opening' => 'nullable|array',
+            'opening.*' => 'nullable|numeric|min:0',
+            'received' => 'nullable|array',
+            'received.*' => 'nullable|numeric|min:0',
+            'spoiled' => 'nullable|array',
+            'spoiled.*' => 'nullable|numeric|min:0',
+            'closing' => 'nullable|array',
+            'closing.*' => 'nullable|numeric|min:0',
+            'acknowledge_opening_gap' => 'nullable',
+            'acknowledge_hidden_items' => 'nullable',
         ]);
 
         $branchId = (int) $request->input('branch_id');
@@ -81,6 +115,16 @@ class DashboardController extends Controller
         $rows = $this->variance->rowsForBranchDate($branchId, $date, 'missing');
         $posted = $this->qtyMapsFromRequest($request);
         if ($posted !== null) {
+            $neg = $this->counts->rejectNegativeMaps($posted);
+            if ($neg !== null) {
+                Toastr::error(translate($neg));
+
+                return redirect()->route('stocks.dashboard', [
+                    'date' => $date,
+                    'branch_id' => $branchId,
+                ]);
+            }
+
             $rows = array_map(function (array $row) use ($posted) {
                 $id = (int) $row['stock_item_id'];
                 $key = (string) $id;
@@ -107,7 +151,27 @@ class DashboardController extends Controller
             }, $rows);
         }
 
-        $report = StocksAuditExport::build($branchName, $date, $rows);
+        $openingGaps = $this->openingContinuity->mismatches($branchId, $date, $posted);
+        if ($openingGaps !== [] && ! $request->boolean('acknowledge_opening_gap')) {
+            Toastr::error(translate(StockOpeningContinuityService::WARN_MESSAGE));
+
+            return redirect()->route('stocks.dashboard', [
+                'date' => $date,
+                'branch_id' => $branchId,
+            ])->with('opening_gaps', $openingGaps);
+        }
+
+        $soldDrilldown = $this->variance->soldDrilldownByItem($branchId, $date);
+        $report = StocksAuditExport::build($branchName, $date, $rows, $soldDrilldown);
+
+        if (! empty($report['requires_hidden_ack']) && ! $request->boolean('acknowledge_hidden_items')) {
+            Toastr::error(translate(StocksAuditExport::HIDDEN_ACK_MESSAGE));
+
+            return redirect()->route('stocks.dashboard', [
+                'date' => $date,
+                'branch_id' => $branchId,
+            ])->with('omitted_appendix', $report['omitted_appendix'] ?? []);
+        }
 
         if (! StocksAuditExport::isComplete($report)) {
             Toastr::error(translate(StocksAuditExport::INCOMPLETE_MESSAGE));
@@ -131,8 +195,23 @@ class DashboardController extends Controller
             ]);
         }
 
-        return Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))
-            ->download(StocksAuditExport::filename($report));
+        $pdf = Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'));
+        $binary = $pdf->output();
+        $this->exportArchive->archive(
+            $branchId,
+            $date,
+            $report,
+            $report['omitted_appendix'] ?? [],
+            $binary,
+            'stocks',
+            (int) $manager->id,
+            null
+        );
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.StocksAuditExport::filename($report).'"',
+        ]);
     }
 
     public function saveCounts(Request $request): RedirectResponse|JsonResponse
@@ -144,10 +223,15 @@ class DashboardController extends Controller
             'date' => 'required|date',
             'branch_id' => 'required|integer|exists:branches,id',
             'opening' => 'nullable|array',
+            'opening.*' => 'nullable|numeric|min:0',
             'received' => 'nullable|array',
+            'received.*' => 'nullable|numeric|min:0',
             'spoiled' => 'nullable|array',
+            'spoiled.*' => 'nullable|numeric|min:0',
             'closing' => 'nullable|array',
+            'closing.*' => 'nullable|numeric|min:0',
             'partial' => 'nullable',
+            'acknowledge_opening_gap' => 'nullable',
         ]);
 
         $branchId = (int) $request->input('branch_id');
@@ -181,11 +265,22 @@ class DashboardController extends Controller
                 ], 422);
             }
 
+            $openingGaps = $this->openingContinuity->mismatches($branchId, $date, $posted);
+
             return response()->json([
                 'ok' => true,
                 'saved' => $result['saved'],
                 'message' => translate('Saved'),
+                'opening_gaps' => $openingGaps,
+                'opening_gap_warning' => $openingGaps === [] ? null : translate(StockOpeningContinuityService::WARN_MESSAGE),
             ]);
+        }
+
+        $openingGaps = $this->openingContinuity->mismatches($branchId, $date, $posted);
+        if ($openingGaps !== [] && ! $request->boolean('acknowledge_opening_gap')) {
+            Toastr::error(translate(StockOpeningContinuityService::WARN_MESSAGE));
+
+            return back()->withInput()->with('opening_gaps', $openingGaps);
         }
 
         $persistError = $this->counts->persistComplete($manager, $branchId, $date, $posted);

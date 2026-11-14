@@ -42,6 +42,80 @@
                 {{ translate('No branches assigned. Ask an admin to allocate branches to your account.') }}
             </div>
         @else
+            @php
+                $openingGaps = $openingGaps ?? [];
+                $allocationGaps = $allocationGaps ?? ['products' => [], 'addons' => []];
+                $soldDrilldown = $soldDrilldown ?? [];
+                $sessionOpeningGaps = session('opening_gaps', []);
+                if (!empty($sessionOpeningGaps) && empty($openingGaps)) {
+                    $openingGaps = $sessionOpeningGaps;
+                }
+            @endphp
+
+            @if(!empty($openingGaps))
+                <div class="alert alert-warning">
+                    <strong>{{ translate('Opening continuity') }}:</strong>
+                    {{ translate('Today\'s opening does not match yesterday\'s closing for one or more items.') }}
+                    <ul class="mb-2 mt-2">
+                        @foreach($openingGaps as $gap)
+                            <li>
+                                {{ $gap['name'] ?? ('#'.$gap['stock_item_id']) }}:
+                                {{ translate('yesterday closing') }} {{ $gap['yesterday_closing'] }},
+                                {{ translate('today opening') }} {{ $gap['today_opening'] }}
+                                ({{ $gap['delta'] > 0 ? '+' : '' }}{{ $gap['delta'] }})
+                            </li>
+                        @endforeach
+                    </ul>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="1" id="munch-ack-opening-gap"
+                               form="munch-stocks-counts-form" name="acknowledge_opening_gap">
+                        <label class="form-check-label" for="munch-ack-opening-gap">
+                            {{ translate('I acknowledge the opening gap and still want to save/export') }}
+                        </label>
+                    </div>
+                </div>
+            @endif
+
+            @if(!empty($allocationGaps['products']) || !empty($allocationGaps['addons']))
+                <div class="alert alert-danger">
+                    <strong>{{ translate('Allocation coverage') }}:</strong>
+                    {{ translate('POS sales exist for products/addons with no stock allocations — Sold may be understated (false missing).') }}
+                    <ul class="mb-0 mt-2">
+                        @foreach(($allocationGaps['products'] ?? []) as $gap)
+                            <li>{{ translate('Product') }} #{{ $gap['product_id'] }} {{ $gap['name'] }} — qty {{ $gap['qty_sold'] }}</li>
+                        @endforeach
+                        @foreach(($allocationGaps['addons'] ?? []) as $gap)
+                            <li>{{ translate('Addon') }} #{{ $gap['addon_id'] }} {{ $gap['name'] }} — qty {{ $gap['qty_sold'] }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @php
+                $hiddenPdfItems = $hiddenPdfItems ?? [];
+                if (session('omitted_appendix')) {
+                    $hiddenPdfItems = session('omitted_appendix');
+                }
+            @endphp
+            @if(!empty($hiddenPdfItems))
+                <div class="alert alert-warning">
+                    <strong>{{ translate('Hidden from PDF') }}:</strong>
+                    {{ translate('Some active items are off for Show in Stock PDF. Acknowledge to export with an appendix listing them.') }}
+                    <ul class="mb-2 mt-2">
+                        @foreach($hiddenPdfItems as $omit)
+                            <li>{{ $omit['name'] ?? '' }} — {{ $omit['variance_label'] ?? '—' }}</li>
+                        @endforeach
+                    </ul>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="1" id="munch-ack-hidden"
+                               form="munch-stocks-counts-form" name="acknowledge_hidden_items">
+                        <label class="form-check-label" for="munch-ack-hidden">
+                            {{ translate('I acknowledge hidden items will appear only in the PDF appendix') }}
+                        </label>
+                    </div>
+                </div>
+            @endif
+
             <div class="card">
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <h5 class="mb-0">
@@ -53,7 +127,11 @@
                                 id="munch-stocks-export-report"
                                 class="btn btn-sm btn-outline-primary"
                                 data-export-url="{{ route('stocks.export') }}"
-                                data-export-message="{{ translate('Complete all fields for the branch and date selected before exporting the report.') }}">
+                                data-export-message="{{ translate('Complete all fields for the branch and date selected before exporting the report.') }}"
+                                data-opening-gap-message="{{ translate('Acknowledge the opening continuity gap before exporting.') }}"
+                                data-hidden-ack-message="{{ translate('Acknowledge hidden PDF items before exporting.') }}"
+                                data-requires-opening-ack="{{ !empty($openingGaps) ? '1' : '0' }}"
+                                data-requires-hidden-ack="{{ !empty($hiddenPdfItems) ? '1' : '0' }}">
                             {{ translate('Export') }} {{ $branchName }} {{ translate('Report') }}
                         </button>
                     @endif
@@ -167,10 +245,53 @@
                     @endif
                 </form>
             </div>
+
+            @if(!empty($soldDrilldown))
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">{{ translate('Sold drill-down') }}</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless table-thead-bordered card-table mb-0">
+                            <thead class="thead-light">
+                            <tr>
+                                <th>{{ translate('Stock item') }}</th>
+                                <th>{{ translate('Order') }}</th>
+                                <th>{{ translate('Product / Addon') }}</th>
+                                <th class="text-right">{{ translate('Qty') }}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @php
+                                $itemNames = collect($rows)->keyBy('stock_item_id');
+                            @endphp
+                            @foreach($soldDrilldown as $stockItemId => $lines)
+                                @foreach($lines as $line)
+                                    <tr>
+                                        <td>{{ $itemNames[$stockItemId]['name'] ?? ('#'.$stockItemId) }}</td>
+                                        <td>#{{ (int) ($line['order_id'] ?? 0) }}</td>
+                                        <td>
+                                            @if(!empty($line['addon_id']))
+                                                {{ translate('Addon') }} #{{ (int) $line['addon_id'] }}
+                                                {{ $line['addon_name'] ?? '' }}
+                                            @else
+                                                {{ translate('Product') }} #{{ (int) ($line['product_id'] ?? 0) }}
+                                                {{ $line['product_name'] ?? '' }}
+                                            @endif
+                                        </td>
+                                        <td class="text-right">{{ $line['quantity'] ?? 0 }}</td>
+                                    </tr>
+                                @endforeach
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         @endif
     </div>
 @endsection
 
 @push('script')
-    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.6"></script>
+    <script src="{{ asset('public/assets/admin/js/munch-stocks-dashboard.js') }}?v=1.7"></script>
 @endpush

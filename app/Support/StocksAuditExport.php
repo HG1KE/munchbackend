@@ -32,8 +32,11 @@ class StocksAuditExport
 
     public const INCOMPLETE_MESSAGE = 'Complete all fields for the branch and date selected before exporting the report.';
 
+    public const HIDDEN_ACK_MESSAGE = 'Some active stock items are hidden from this PDF (Show in Stock PDF off). Review the appendix and acknowledge before exporting.';
+
     /**
      * @param  list<array<string, mixed>>  $rows  From StockVarianceService::rowsForBranchDate
+     * @param  array<int, list<array<string, mixed>>>  $soldDrilldown
      * @return array{
      *     brand: string,
      *     branch_name: string,
@@ -44,23 +47,31 @@ class StocksAuditExport
      *     is_single_day: bool,
      *     rows: list<array<string, mixed>>,
      *     sections: list<array{date:string,date_label:string,rows:list<array<string,mixed>>}>,
+     *     omitted_appendix: list<array<string, mixed>>,
+     *     sold_drilldown: array<int, list<array<string, mixed>>>,
      *     filename_base: string,
-     *     incomplete: bool
+     *     incomplete: bool,
+     *     requires_hidden_ack: bool
      * }
      */
-    public static function build(string $branchName, CarbonInterface|string $date, array $rows): array
-    {
+    public static function build(
+        string $branchName,
+        CarbonInterface|string $date,
+        array $rows,
+        array $soldDrilldown = []
+    ): array {
         $day = self::parseDay($date);
 
         return self::buildRange($branchName, $day, $day, [
             ['date' => $day->toDateString(), 'rows' => $rows],
-        ]);
+        ], $soldDrilldown);
     }
 
     /**
      * Admin (and multi-day) audit PDF payload. Prefer one section per day for clarity.
      *
      * @param  list<array{date?:string,rows?:list<array<string,mixed>>}>  $dayRows
+     * @param  array<int, list<array<string, mixed>>>  $soldDrilldown
      * @return array{
      *     brand: string,
      *     branch_name: string,
@@ -71,15 +82,19 @@ class StocksAuditExport
      *     is_single_day: bool,
      *     rows: list<array<string, mixed>>,
      *     sections: list<array{date:string,date_label:string,rows:list<array<string,mixed>>}>,
+     *     omitted_appendix: list<array<string, mixed>>,
+     *     sold_drilldown: array<int, list<array<string, mixed>>>,
      *     filename_base: string,
-     *     incomplete: bool
+     *     incomplete: bool,
+     *     requires_hidden_ack: bool
      * }
      */
     public static function buildRange(
         string $branchName,
         CarbonInterface|string $from,
         CarbonInterface|string $to,
-        array $dayRows
+        array $dayRows,
+        array $soldDrilldown = []
     ): array {
         $fromDay = self::parseDay($from);
         $toDay = self::parseDay($to);
@@ -91,10 +106,16 @@ class StocksAuditExport
         $sections = [];
         $incomplete = false;
         $flatRows = [];
+        $omittedAppendix = [];
 
         foreach ($dayRows as $dayPayload) {
             $day = self::parseDay($dayPayload['date'] ?? $fromDay);
-            $normalized = self::normalizeRows(is_array($dayPayload['rows'] ?? null) ? $dayPayload['rows'] : []);
+            $split = self::splitRowsForPdf(is_array($dayPayload['rows'] ?? null) ? $dayPayload['rows'] : []);
+            $normalized = $split['included'];
+            foreach ($split['omitted'] as $omittedRow) {
+                $omittedRow['count_date'] = $day->toDateString();
+                $omittedAppendix[] = $omittedRow;
+            }
             foreach ($normalized as $row) {
                 if (
                     $row['opening_qty'] === null
@@ -141,56 +162,70 @@ class StocksAuditExport
             'is_single_day' => $isSingleDay,
             'rows' => $isSingleDay ? ($sections[0]['rows'] ?? []) : $flatRows,
             'sections' => $sections,
+            'omitted_appendix' => $omittedAppendix,
+            'sold_drilldown' => $soldDrilldown,
             'filename_base' => self::filenameBaseForRange($branchName, $fromDay, $toDay),
             'incomplete' => $incomplete || $flatRows === [],
+            'requires_hidden_ack' => $omittedAppendix !== [],
         ];
     }
 
     /**
      * @param  list<array<string, mixed>>  $rows
-     * @return list<array<string, mixed>>
+     * @return array{included:list<array<string,mixed>>,omitted:list<array<string,mixed>>}
      */
-    private static function normalizeRows(array $rows): array
+    private static function splitRowsForPdf(array $rows): array
     {
-        $normalized = [];
+        $included = [];
+        $omitted = [];
 
         foreach ($rows as $row) {
-            // Omit items turned off for PDF export; dashboard tables keep all rows.
+            $normalized = self::normalizeRow($row);
             if (! self::shouldIncludeInPdf($row)) {
+                $omitted[] = $normalized;
                 continue;
             }
-
-            $opening = self::nullableFloat($row['opening_qty'] ?? null);
-            $received = self::nullableFloat($row['received_qty'] ?? null);
-            $spoiled = self::nullableFloat($row['spoiled_qty'] ?? null);
-            $closing = self::nullableFloat($row['closing_qty'] ?? null);
-            $sold = round((float) ($row['expected_sold'] ?? $row['sold_qty'] ?? 0), 3);
-            $variance = array_key_exists('variance', $row)
-                ? self::nullableFloat($row['variance'])
-                : StockVarianceService::result($opening, $received, $sold, $closing, $spoiled);
-
-            $kind = self::resultKind($variance);
-            $normalized[] = [
-                'stock_item_id' => (int) ($row['stock_item_id'] ?? 0),
-                'name' => (string) ($row['name'] ?? ''),
-                'show_in_stock_pdf' => true,
-                'opening_qty' => $opening,
-                'received_qty' => $received,
-                'spoiled_qty' => $spoiled,
-                'closing_qty' => $closing,
-                'sold_qty' => $sold,
-                'variance' => $variance,
-                'variance_label' => (string) ($row['variance_label'] ?? self::defaultVarianceLabel($variance)),
-                'result_kind' => $kind,
-                'opening_display' => self::formatQty($opening),
-                'received_display' => self::formatQty($received),
-                'spoiled_display' => self::formatQty($spoiled),
-                'closing_display' => self::formatQty($closing),
-                'sold_display' => self::formatQty($sold),
-            ];
+            $included[] = $normalized;
         }
 
-        return $normalized;
+        return ['included' => $included, 'omitted' => $omitted];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function normalizeRow(array $row): array
+    {
+        $opening = self::nullableFloat($row['opening_qty'] ?? null);
+        $received = self::nullableFloat($row['received_qty'] ?? null);
+        $spoiled = self::nullableFloat($row['spoiled_qty'] ?? null);
+        $closing = self::nullableFloat($row['closing_qty'] ?? null);
+        $sold = round((float) ($row['expected_sold'] ?? $row['sold_qty'] ?? 0), 3);
+        $variance = array_key_exists('variance', $row)
+            ? self::nullableFloat($row['variance'])
+            : StockVarianceService::result($opening, $received, $sold, $closing, $spoiled);
+
+        $kind = self::resultKind($variance);
+
+        return [
+            'stock_item_id' => (int) ($row['stock_item_id'] ?? 0),
+            'name' => (string) ($row['name'] ?? ''),
+            'show_in_stock_pdf' => self::shouldIncludeInPdf($row),
+            'opening_qty' => $opening,
+            'received_qty' => $received,
+            'spoiled_qty' => $spoiled,
+            'closing_qty' => $closing,
+            'sold_qty' => $sold,
+            'variance' => $variance,
+            'variance_label' => (string) ($row['variance_label'] ?? self::defaultVarianceLabel($variance)),
+            'result_kind' => $kind,
+            'opening_display' => self::formatQty($opening),
+            'received_display' => self::formatQty($received),
+            'spoiled_display' => self::formatQty($spoiled),
+            'closing_display' => self::formatQty($closing),
+            'sold_display' => self::formatQty($sold),
+        ];
     }
 
     /**

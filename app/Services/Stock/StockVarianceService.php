@@ -113,6 +113,66 @@ class StockVarianceService
         return $out;
     }
 
+    /**
+     * Sold drill-down: contributing ledger rows per stock item (order / product / addon).
+     *
+     * @return array<int, list<array{
+     *   order_id:int,
+     *   product_id:int,
+     *   addon_id:int,
+     *   product_name:string|null,
+     *   addon_name:string|null,
+     *   quantity:float
+     * }>>
+     */
+    public function soldDrilldownByItem(int $branchId, string $date): array
+    {
+        if (! Schema::hasTable('stock_sale_deductions')) {
+            return [];
+        }
+
+        $hasAddon = Schema::hasColumn('stock_sale_deductions', 'addon_id');
+        $query = StockSaleDeduction::query()
+            ->where('branch_id', $branchId)
+            ->whereDate('sale_date', $date)
+            ->orderBy('stock_item_id')
+            ->orderBy('order_id');
+
+        $rows = $query->get();
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $productIds = $rows->pluck('product_id')->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->unique()->values()->all();
+        $addonIds = $hasAddon
+            ? $rows->pluck('addon_id')->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->unique()->values()->all()
+            : [];
+
+        $productNames = $productIds !== [] && Schema::hasTable('products')
+            ? \Illuminate\Support\Facades\DB::table('products')->whereIn('id', $productIds)->pluck('name', 'id')
+            : collect();
+        $addonNames = $addonIds !== [] && Schema::hasTable('add_ons')
+            ? \Illuminate\Support\Facades\DB::table('add_ons')->whereIn('id', $addonIds)->pluck('name', 'id')
+            : collect();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $stockItemId = (int) $row->stock_item_id;
+            $productId = (int) $row->product_id;
+            $addonId = $hasAddon ? (int) ($row->addon_id ?? 0) : 0;
+            $out[$stockItemId][] = [
+                'order_id' => (int) $row->order_id,
+                'product_id' => $productId,
+                'addon_id' => $addonId,
+                'product_name' => $productId > 0 ? (string) ($productNames[$productId] ?? '') : null,
+                'addon_name' => $addonId > 0 ? (string) ($addonNames[$addonId] ?? '') : null,
+                'quantity' => round((float) $row->quantity, 3),
+            ];
+        }
+
+        return $out;
+    }
+
     public function formatVarianceLabel(?float $variance, string $deficitWord = 'missing'): string
     {
         if ($variance === null) {

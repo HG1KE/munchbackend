@@ -325,6 +325,34 @@ class StockDeductionServiceTest extends TestCase
         $command = file_get_contents(app_path('Console/Commands/BackfillStockSaleDeductionsCommand.php'));
         $this->assertStringContainsString('stocks:backfill-deductions', $command);
         $this->assertStringContainsString('backfillSince', $command);
+
+        // Missed sync edges: QB update bypassed OrderObserver — now Eloquent save.
+        $apiCancel = file_get_contents(app_path('Http/Controllers/Api/V1/OrderController.php'));
+        $this->assertStringContainsString("order_status = 'canceled'", $apiCancel);
+        $this->assertStringContainsString('OrderObserver clears stock_sale_deductions', $apiCancel);
+
+        $dm = file_get_contents(app_path('Http/Controllers/Api/V1/DeliverymanController.php'));
+        $this->assertStringContainsString('OrderObserver keeps stock_sale_deductions', $dm);
+    }
+
+    public function test_sale_date_uses_nairobi_not_dhaka_default(): void
+    {
+        $config = file_get_contents(config_path('app.php'));
+        $this->assertStringContainsString("env('APP_TIMEZONE', 'Africa/Nairobi')", $config);
+        $this->assertStringNotContainsString("'timezone' => 'Asia/Dhaka'", $config);
+
+        config(['app.timezone' => 'Africa/Nairobi']);
+        // placed_at stored as UTC near midnight Nairobi → still Nairobi calendar day.
+        $order = $this->seedOrder([
+            'placed_at' => '2026-11-13 21:30:00', // 00:30 Nairobi next day if misread as local
+            'created_at' => '2026-11-13 21:30:00',
+        ]);
+        // With Carbon parse without TZ, treat as app timezone wall clock when no offset.
+        // Explicit: interpret stored instant in UTC then convert.
+        $order->placed_at = \Carbon\Carbon::parse('2026-11-13 21:30:00', 'UTC');
+        $service = new StockDeductionService();
+        $this->assertSame('Africa/Nairobi', $service->saleTimezone());
+        $this->assertSame('2026-11-14', $service->saleDateFor($order));
     }
 
     public function test_addon_sale_deducts_allocation_times_addon_qty(): void

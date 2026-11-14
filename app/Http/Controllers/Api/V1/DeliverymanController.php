@@ -262,11 +262,14 @@ class DeliverymanController extends Controller
         $previousOrderStatusRow = $this->order->where(['id' => $request['order_id'], 'delivery_man_id' => $deliveryman['id']])->first();
         $previousOrderStatus = $previousOrderStatusRow ? $previousOrderStatusRow->order_status : null;
 
-        $this->order->where(['id' => $request['order_id'], 'delivery_man_id' => $deliveryman['id']])->update([
-            'order_status' => $request['status']
-        ]);
-
-        $order = $this->order->find($request['order_id']);
+        // Eloquent save so OrderObserver keeps stock_sale_deductions in sync.
+        $order = $this->order->where(['id' => $request['order_id'], 'delivery_man_id' => $deliveryman['id']])->first();
+        if ($order) {
+            $order->order_status = $request['status'];
+            $order->save();
+        } else {
+            $order = $this->order->find($request['order_id']);
+        }
 
         if ($order) {
             CustomerOrderStatusSms::dispatchProcessing($order->fresh(['customer', 'branch']), $previousOrderStatus);

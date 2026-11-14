@@ -77,7 +77,9 @@ return [
     |
     */
 
-    'timezone' => 'Asia/Dhaka',
+    // Kenya ops default. Prod also sets APP_TIMEZONE and/or business_settings.time_zone
+    // (AppServiceProvider). Asia/Dhaka was the eFood vendor leftover — never leave it as default.
+    'timezone' => env('APP_TIMEZONE', 'Africa/Nairobi'),
 
     /*
     |--------------------------------------------------------------------------

@@ -179,6 +179,28 @@ class StockCountPersistServiceTest extends TestCase
         $this->assertSame(0, StockDailyCount::query()->count());
     }
 
+    public function test_complete_and_partial_reject_negative_qty(): void
+    {
+        $item = StockItem::query()->create(['name' => 'Onion', 'status' => true]);
+        $manager = $this->manager();
+
+        $error = $this->service->persistComplete($manager, 3, '2026-11-13', [
+            'opening' => [$item->id => '-1'],
+            'received' => [$item->id => '0'],
+            'spoiled' => [$item->id => '0'],
+            'closing' => [$item->id => '0'],
+        ]);
+        $this->assertNotNull($error);
+        $this->assertStringContainsString('cannot be negative', (string) $error);
+        $this->assertSame(0, StockDailyCount::query()->count());
+
+        $partial = $this->service->persistPartial($manager, 3, '2026-11-13', [
+            'received' => [$item->id => '-0.5'],
+        ]);
+        $this->assertFalse($partial['ok']);
+        $this->assertStringContainsString('cannot be negative', (string) $partial['error']);
+    }
+
     public function test_dashboard_js_wires_partial_autosave_flag(): void
     {
         $js = file_get_contents(base_path('public/assets/admin/js/munch-stocks-dashboard.js'));

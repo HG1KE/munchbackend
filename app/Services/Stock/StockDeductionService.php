@@ -7,8 +7,10 @@ use App\Model\Order;
 use App\Model\ProductStockAllocation;
 use App\Model\StockSaleDeduction;
 use App\Support\PosOrderTypes;
+use App\Support\TimezoneDisplay;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class StockDeductionService
@@ -97,14 +99,18 @@ class StockDeductionService
 
         $desired = [];
         $hasAddonColumn = Schema::hasColumn('stock_sale_deductions', 'addon_id');
+        $unallocatedProducts = [];
+        $unallocatedAddons = [];
 
         if ($hasProductAlloc && $productQtys !== []) {
             $allocations = ProductStockAllocation::query()
                 ->whereIn('product_id', array_keys($productQtys))
                 ->get();
 
+            $allocatedProductIds = [];
             foreach ($allocations as $allocation) {
                 $productId = (int) $allocation->product_id;
+                $allocatedProductIds[$productId] = true;
                 $stockItemId = (int) $allocation->stock_item_id;
                 $qty = (float) $productQtys[$productId] * (float) $allocation->quantity;
                 if ($qty <= 0 || $stockItemId <= 0) {
@@ -121,6 +127,11 @@ class StockDeductionService
                 }
                 $desired[$key]['quantity'] += $qty;
             }
+            foreach (array_keys($productQtys) as $productId) {
+                if (! isset($allocatedProductIds[$productId]) && (float) $productQtys[$productId] > 0) {
+                    $unallocatedProducts[] = (int) $productId;
+                }
+            }
         }
 
         if ($hasAddonAlloc && $hasAddonColumn && $addonQtys !== []) {
@@ -128,8 +139,10 @@ class StockDeductionService
                 ->whereIn('addon_id', array_keys($addonQtys))
                 ->get();
 
+            $allocatedAddonIds = [];
             foreach ($allocations as $allocation) {
                 $addonId = (int) $allocation->addon_id;
+                $allocatedAddonIds[$addonId] = true;
                 $stockItemId = (int) $allocation->stock_item_id;
                 $qty = (float) $addonQtys[$addonId] * (float) $allocation->quantity;
                 if ($qty <= 0 || $stockItemId <= 0 || $addonId <= 0) {
@@ -146,6 +159,20 @@ class StockDeductionService
                 }
                 $desired[$key]['quantity'] += $qty;
             }
+            foreach (array_keys($addonQtys) as $addonId) {
+                if (! isset($allocatedAddonIds[$addonId]) && (float) $addonQtys[$addonId] > 0) {
+                    $unallocatedAddons[] = (int) $addonId;
+                }
+            }
+        }
+
+        if ($unallocatedProducts !== [] || $unallocatedAddons !== []) {
+            Log::warning('stock.sold.unallocated_line_items', [
+                'order_id' => $orderId,
+                'branch_id' => (int) ($order->branch_id ?? 0),
+                'product_ids' => $unallocatedProducts,
+                'addon_ids' => $unallocatedAddons,
+            ]);
         }
 
         $saleDate = $this->saleDateFor($order);
@@ -261,18 +288,33 @@ class StockDeductionService
         return $productId . ':' . $addonId . ':' . $stockItemId;
     }
 
+    /**
+     * Sale day in business/app timezone (Africa/Nairobi by default).
+     * Prefer placed_at; fall back to created_at.
+     */
     public function saleDateFor(Order $order): string
     {
-        $raw = $order->placed_at ?? $order->created_at ?? now();
+        $tz = $this->saleTimezone();
+        $raw = $order->placed_at ?? $order->created_at ?? now($tz);
         if ($raw instanceof Carbon) {
-            return $raw->timezone(config('app.timezone'))->toDateString();
+            return $raw->copy()->timezone($tz)->toDateString();
         }
 
         try {
-            return Carbon::parse($raw)->timezone(config('app.timezone'))->toDateString();
+            return Carbon::parse($raw)->timezone($tz)->toDateString();
         } catch (\Throwable) {
-            return now()->toDateString();
+            return now($tz)->toDateString();
         }
+    }
+
+    public function saleTimezone(): string
+    {
+        $configured = (string) config('app.timezone', '');
+        if ($configured !== '' && in_array($configured, \DateTimeZone::listIdentifiers(), true)) {
+            return $configured;
+        }
+
+        return TimezoneDisplay::businessTimezone();
     }
 
     /**
@@ -287,8 +329,8 @@ class StockDeductionService
             return ['scanned' => 0, 'synced' => 0, 'with_rows' => 0, 'cleared' => 0];
         }
 
-        $since = Carbon::parse($sinceDate, config('app.timezone'))->startOfDay();
-        $tz = config('app.timezone');
+        $tz = $this->saleTimezone();
+        $since = Carbon::parse($sinceDate, $tz)->startOfDay();
         // Wide SQL window (1 day slack) so TZ/stored-as-UTC edges are not missed;
         // precise sale-day filter still runs in PHP below.
         $sqlFloor = $since->copy()->subDay()->format('Y-m-d H:i:s');

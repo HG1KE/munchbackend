@@ -75,6 +75,11 @@ class StockCountPersistService
             }
         }
 
+        $negativeError = $this->rejectNegativeMaps($posted);
+        if ($negativeError !== null) {
+            return $negativeError;
+        }
+
         foreach ($activeItemIds as $stockItemId) {
             $openingRaw = $posted['opening'][$stockItemId] ?? $posted['opening'][(string) $stockItemId];
             $receivedRaw = $posted['received'][$stockItemId] ?? $posted['received'][(string) $stockItemId];
@@ -129,6 +134,11 @@ class StockCountPersistService
             return ['ok' => false, 'error' => 'No stock item values to save.', 'saved' => []];
         }
 
+        $negativeError = $this->rejectNegativeMaps($posted);
+        if ($negativeError !== null) {
+            return ['ok' => false, 'error' => $negativeError, 'saved' => []];
+        }
+
         $saved = [];
         foreach ($itemIds as $stockItemId) {
             if (! isset($activeSet[$stockItemId])) {
@@ -164,20 +174,26 @@ class StockCountPersistService
                 $attrs[$col] = ($raw === null || $raw === '') ? null : (float) $raw;
             }
 
-            StockDailyCount::query()->updateOrCreate(
-                [
+            $values = [
+                'opening_qty' => $attrs['opening_qty'],
+                'received_qty' => $attrs['received_qty'],
+                'spoiled_qty' => $attrs['spoiled_qty'],
+                'closing_qty' => $attrs['closing_qty'],
+                'stock_manager_id' => $attrs['stock_manager_id'],
+            ];
+            // Prefer updating the whereDate-matched row. updateOrCreate on a date
+            // string can miss SQLite/datetime-cast rows and hit the unique key.
+            if ($existing) {
+                $existing->fill($values);
+                $existing->save();
+            } else {
+                StockDailyCount::query()->create([
                     'branch_id' => $branchId,
                     'stock_item_id' => $stockItemId,
                     'count_date' => $date,
-                ],
-                [
-                    'opening_qty' => $attrs['opening_qty'],
-                    'received_qty' => $attrs['received_qty'],
-                    'spoiled_qty' => $attrs['spoiled_qty'],
-                    'closing_qty' => $attrs['closing_qty'],
-                    'stock_manager_id' => $attrs['stock_manager_id'],
-                ]
-            );
+                    ...$values,
+                ]);
+            }
             $saved[] = $stockItemId;
         }
 
@@ -211,5 +227,32 @@ class StockCountPersistService
         sort($list);
 
         return $list;
+    }
+
+    /**
+     * Server-side gte:0 — HTML min=0 is not enough.
+     *
+     * @param  array{opening?:array,received?:array,spoiled?:array,closing?:array}  $posted
+     */
+    public function rejectNegativeMaps(array $posted): ?string
+    {
+        foreach (['opening', 'received', 'spoiled', 'closing'] as $key) {
+            if (! isset($posted[$key]) || ! is_array($posted[$key])) {
+                continue;
+            }
+            foreach ($posted[$key] as $stockItemId => $raw) {
+                if ($raw === null || $raw === '') {
+                    continue;
+                }
+                if (! is_numeric($raw)) {
+                    return 'Stock quantities must be numbers (item #'.(int) $stockItemId.').';
+                }
+                if ((float) $raw < 0) {
+                    return 'Stock quantities cannot be negative (item #'.(int) $stockItemId.').';
+                }
+            }
+        }
+
+        return null;
     }
 }

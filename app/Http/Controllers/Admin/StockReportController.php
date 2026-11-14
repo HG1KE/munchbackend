@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Model\Branch;
+use App\Services\Stock\StockAllocationCoverageService;
+use App\Services\Stock\StockExportArchiveService;
+use App\Services\Stock\StockOpeningContinuityService;
 use App\Services\Stock\StockVarianceService;
 use App\Support\StocksAuditExport;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -20,7 +23,10 @@ class StockReportController extends Controller
 
     public function __construct(
         private Branch $branch,
-        private StockVarianceService $variance
+        private StockVarianceService $variance,
+        private StockAllocationCoverageService $allocationCoverage,
+        private StockOpeningContinuityService $openingContinuity,
+        private StockExportArchiveService $exportArchive
     ) {}
 
     public function index(Request $request): Renderable
@@ -35,13 +41,24 @@ class StockReportController extends Controller
 
         $selectedBranch = $branches->firstWhere('id', $branchId);
 
+        $coverageDay = $to->toDateString();
+        $allocationGaps = $branchId > 0
+            ? $this->allocationCoverage->gapsForBranchDate($branchId, $coverageDay)
+            : ['products' => [], 'addons' => []];
+        $openingGaps = $branchId > 0
+            ? $this->openingContinuity->mismatches($branchId, $coverageDay)
+            : [];
+
         return view('admin-views.stock-report.index', compact(
             'branches',
             'branchId',
             'from',
             'to',
             'sections',
-            'selectedBranch'
+            'selectedBranch',
+            'allocationGaps',
+            'openingGaps',
+            'coverageDay'
         ));
     }
 
@@ -53,6 +70,7 @@ class StockReportController extends Controller
             'to' => 'nullable|date',
             // Back-compat: older single-day links may still send `date`.
             'date' => 'nullable|date',
+            'acknowledge_hidden_items' => 'nullable',
         ]);
 
         $branchId = (int) $request->input('branch_id');
@@ -75,6 +93,7 @@ class StockReportController extends Controller
         }
 
         $dayRows = [];
+        $soldDrilldown = [];
         $cursor = $from->copy();
         while ($cursor->lte($to)) {
             $day = $cursor->toDateString();
@@ -82,17 +101,40 @@ class StockReportController extends Controller
                 'date' => $day,
                 'rows' => $this->variance->rowsForBranchDate($branchId, $day, 'missing'),
             ];
+            if ($from->isSameDay($to)) {
+                $soldDrilldown = $this->variance->soldDrilldownByItem($branchId, $day);
+            }
             $cursor->addDay();
         }
 
-        $report = StocksAuditExport::buildRange((string) $branch->name, $from, $to, $dayRows);
+        $report = StocksAuditExport::buildRange((string) $branch->name, $from, $to, $dayRows, $soldDrilldown);
 
-        return Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))
-            ->download(StocksAuditExport::filename($report));
+        if (! empty($report['requires_hidden_ack']) && ! $request->boolean('acknowledge_hidden_items')) {
+            Toastr::warning(translate(StocksAuditExport::HIDDEN_ACK_MESSAGE));
+            // Soft path for admin: still export with appendix; log omitted set via archive.
+        }
+
+        $pdf = Pdf::loadView('stocks-views.dashboard.partials._stocks-audit-export', compact('report'));
+        $binary = $pdf->output();
+        $this->exportArchive->archive(
+            $branchId,
+            $from->toDateString(),
+            $report,
+            $report['omitted_appendix'] ?? [],
+            $binary,
+            'admin',
+            null,
+            auth('admin')->id() ? (int) auth('admin')->id() : null
+        );
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.StocksAuditExport::filename($report).'"',
+        ]);
     }
 
     /**
-     * @return list<array{date:string,date_label:string,rows:list<array<string,mixed>>}>
+     * @return list<array{date:string,date_label:string,rows:list<array<string,mixed>>,sold_drilldown:array<int,list<array<string,mixed>>>}>
      */
     private function sectionsForRange(int $branchId, Carbon $from, Carbon $to): array
     {
@@ -104,6 +146,7 @@ class StockReportController extends Controller
                 'date' => $day,
                 'date_label' => StocksAuditExport::formatReportDate($day),
                 'rows' => $this->variance->rowsForBranchDate($branchId, $day, 'missing'),
+                'sold_drilldown' => $this->variance->soldDrilldownByItem($branchId, $day),
             ];
             $cursor->addDay();
         }

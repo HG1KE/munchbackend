@@ -363,6 +363,26 @@
                 if (!form) {
                     return;
                 }
+                if (exportBtn.getAttribute('data-requires-opening-ack') === '1') {
+                    var openingAck = form.querySelector('[name="acknowledge_opening_gap"]');
+                    if (!openingAck || !openingAck.checked) {
+                        showFillError(
+                            exportBtn.getAttribute('data-opening-gap-message') ||
+                                'Acknowledge the opening continuity gap before exporting.'
+                        );
+                        return;
+                    }
+                }
+                if (exportBtn.getAttribute('data-requires-hidden-ack') === '1') {
+                    var hiddenAck = form.querySelector('[name="acknowledge_hidden_items"]');
+                    if (!hiddenAck || !hiddenAck.checked) {
+                        showFillError(
+                            exportBtn.getAttribute('data-hidden-ack-message') ||
+                                'Acknowledge hidden PDF items before exporting.'
+                        );
+                        return;
+                    }
+                }
                 var exportUrl =
                     exportBtn.getAttribute('data-export-url') ||
                     exportBtn.getAttribute('href') ||

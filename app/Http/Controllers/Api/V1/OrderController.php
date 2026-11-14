@@ -771,11 +771,11 @@ class OrderController extends Controller
         $userType = (bool)auth('api')->user() ? 0 : 1;
 
         if ($this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $order->id])->first()) {
-            $this->order->where(['user_id' => $userId, 'is_guest' => $userType, 'id' => $order->id])->update([
-                'order_status' => 'canceled'
-            ]);
+            // Eloquent save (not QB update) so OrderObserver clears stock_sale_deductions.
             $canceledOrder = $this->order->find($order->id) ?? $order;
-            app(OrderWalletCancelRefundService::class)->refundIfNeeded($canceledOrder);
+            $canceledOrder->order_status = 'canceled';
+            $canceledOrder->save();
+            app(OrderWalletCancelRefundService::class)->refundIfNeeded($canceledOrder->fresh() ?? $canceledOrder);
 
             return response()->json(['message' => translate('order_canceled')], 200);
         }

@@ -277,10 +277,16 @@ class StocksAuditExportTest extends TestCase
         $this->assertSame(['Beef Patties', 'Buns'], $names);
         $this->assertNotContains('Internal Wrapper', $names);
 
+        $this->assertNotEmpty($report['omitted_appendix']);
+        $this->assertSame('Internal Wrapper', $report['omitted_appendix'][0]['name']);
+        $this->assertTrue($report['requires_hidden_ack']);
+
         $html = view('stocks-views.dashboard.partials._stocks-audit-export', compact('report'))->render();
         $this->assertStringContainsString('Beef Patties', $html);
         $this->assertStringContainsString('Buns', $html);
-        $this->assertStringNotContainsString('Internal Wrapper', $html);
+        // Hidden items stay out of the main table but appear in the appendix.
+        $this->assertStringContainsString('HIDDEN FROM BRANCH PDF', $html);
+        $this->assertStringContainsString('Internal Wrapper', $html);
     }
 
     public function test_hidden_incomplete_items_do_not_block_export_completeness(): void

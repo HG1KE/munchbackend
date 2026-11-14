@@ -97,6 +97,44 @@
             </div>
         </div>
 
+        @php
+            $allocationGaps = $allocationGaps ?? ['products' => [], 'addons' => []];
+            $openingGaps = $openingGaps ?? [];
+        @endphp
+
+        @if(!empty($allocationGaps['products']) || !empty($allocationGaps['addons']))
+            <div class="alert alert-danger">
+                <strong>{{ translate('Allocation coverage') }}</strong>
+                ({{ $coverageDay ?? $to->toDateString() }}):
+                {{ translate('POS sales without stock allocations understate Sold.') }}
+                <ul class="mb-0 mt-2">
+                    @foreach(($allocationGaps['products'] ?? []) as $gap)
+                        <li>{{ translate('Product') }} #{{ $gap['product_id'] }} {{ $gap['name'] }} — {{ $gap['qty_sold'] }}</li>
+                    @endforeach
+                    @foreach(($allocationGaps['addons'] ?? []) as $gap)
+                        <li>{{ translate('Addon') }} #{{ $gap['addon_id'] }} {{ $gap['name'] }} — {{ $gap['qty_sold'] }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        @if(!empty($openingGaps))
+            <div class="alert alert-warning">
+                <strong>{{ translate('Opening continuity') }}</strong>
+                ({{ $coverageDay ?? $to->toDateString() }}):
+                {{ translate('Today\'s opening ≠ yesterday\'s closing.') }}
+                <ul class="mb-0 mt-2">
+                    @foreach($openingGaps as $gap)
+                        <li>
+                            {{ $gap['name'] }}:
+                            {{ $gap['yesterday_closing'] }} → {{ $gap['today_opening'] }}
+                            ({{ $gap['delta'] > 0 ? '+' : '' }}{{ $gap['delta'] }})
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @forelse($sections as $section)
             <div class="card munch-admin-stock-day">
                 <div class="card-header">
@@ -131,14 +169,40 @@
                                         $chipKind = 'missing';
                                     }
                                 }
+                                $drill = ($section['sold_drilldown'][$row['stock_item_id']] ?? []) ?: [];
                             @endphp
                             <tr>
-                                <td>{{ $row['name'] }}</td>
+                                <td>
+                                    {{ $row['name'] }}
+                                    @if(empty($row['show_in_stock_pdf']))
+                                        <span class="badge badge-soft-secondary">{{ translate('Hidden on PDF') }}</span>
+                                    @endif
+                                </td>
                                 <td class="text-right">{{ $row['opening_qty'] === null ? '—' : $row['opening_qty'] }}</td>
                                 <td class="text-right">{{ $row['received_qty'] === null ? '—' : $row['received_qty'] }}</td>
                                 <td class="text-right">{{ $row['spoiled_qty'] === null ? '—' : $row['spoiled_qty'] }}</td>
                                 <td class="text-right">{{ $row['closing_qty'] === null ? '—' : $row['closing_qty'] }}</td>
-                                <td class="text-right">{{ $row['expected_sold'] }}</td>
+                                <td class="text-right">
+                                    {{ $row['expected_sold'] }}
+                                    @if(count($drill))
+                                        <details class="mt-1">
+                                            <summary class="small text-muted">{{ translate('Orders') }}</summary>
+                                            <ul class="small mb-0 pl-3">
+                                                @foreach($drill as $line)
+                                                    <li>
+                                                        #{{ (int) $line['order_id'] }}
+                                                        @if(!empty($line['addon_id']))
+                                                            · {{ translate('Addon') }} #{{ (int) $line['addon_id'] }} {{ $line['addon_name'] ?? '' }}
+                                                        @else
+                                                            · {{ translate('Product') }} #{{ (int) $line['product_id'] }} {{ $line['product_name'] ?? '' }}
+                                                        @endif
+                                                        · {{ $line['quantity'] }}
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </details>
+                                    @endif
+                                </td>
                                 <td class="text-right">
                                     <span class="munch-admin-stock-chip munch-admin-stock-chip--{{ $chipKind }}">
                                         {{ $row['variance_label'] }}
