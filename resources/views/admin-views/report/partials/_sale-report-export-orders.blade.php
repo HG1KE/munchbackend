@@ -23,10 +23,16 @@
             @endphp
             <tr>
                 @foreach($cells as $index => $cell)
-                    @php $isOrderNumber = ($columns[$index] ?? '') === 'Munch Order #'; @endphp
-                    <td class="{{ $index === count($cells) - 1 ? 'num' : '' }}{{ $isOrderNumber ? ' order-cell' : '' }}">
+                    @php
+                        $column = $columns[$index] ?? '';
+                        $isOrderNumber = $column === 'Munch Order #';
+                        $isType = $column === 'Type';
+                    @endphp
+                    <td class="{{ $index === count($cells) - 1 ? 'num' : '' }}{{ $isOrderNumber ? ' order-cell' : '' }}{{ $isType ? ' type-cell-wrap' : '' }}">
                         @if($isOrderNumber)
                             {!! \App\Support\AdminSaleReportExport::orderCellHtml($order) !!}
+                        @elseif($isType)
+                            {!! \App\Support\AdminSaleReportExport::orderTypeCellHtml($order, $sectionKey) !!}
                         @else
                             {{ $cell }}
                         @endif

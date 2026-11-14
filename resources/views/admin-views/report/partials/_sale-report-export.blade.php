@@ -41,6 +41,9 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
+        .type-cell { line-height: 1.25; }
+        .type-cell__channel { margin: 0; }
+        .type-cell__online { margin: 1px 0 0; font-weight: bold; }
         .total-wrap { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
         .total-wrap td { padding: 6px 8px; font-weight: bold; border: 1px solid #cfcfcf; }
         .empty { color: #555; font-style: italic; padding: 6px 8px; border: 1px solid #cfcfcf; }

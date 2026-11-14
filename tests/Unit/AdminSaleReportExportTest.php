@@ -1085,6 +1085,95 @@ class AdminSaleReportExportTest extends TestCase
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
+    public function test_munch_sales_pdf_type_marks_online_origin_delivery_and_takeaway_bold(): void
+    {
+        $report = AdminSaleReportExport::build([
+            $this->order([
+                'id' => 1,
+                'order_type' => 'pos',
+                'sales_channel' => 'delivery',
+                'online_checkout_uuid' => 'uuid-delivery-online',
+                'order_amount' => 500,
+                'readable_order_id' => 'A24922',
+            ]),
+            $this->order([
+                'id' => 2,
+                'order_type' => 'pos',
+                'sales_channel' => 'takeaway',
+                'online_checkout_uuid' => 'uuid-takeaway-online',
+                'order_amount' => 400,
+                'readable_order_id' => 'A24807',
+            ]),
+            $this->order([
+                'id' => 3,
+                'order_type' => 'pos',
+                'sales_channel' => 'takeaway',
+                'online_checkout_uuid' => null,
+                'order_amount' => 300,
+                'readable_order_id' => 'A25000',
+            ]),
+            $this->order([
+                'id' => 4,
+                'order_type' => 'pos',
+                'sales_channel' => 'glovo',
+                'online_checkout_uuid' => 'uuid-should-not-label-marketplace',
+                'order_amount' => 900,
+                'readable_order_id' => 'A25001',
+                'platform_order_number' => 'GLV-1',
+            ]),
+            $this->order([
+                'id' => 5,
+                'order_type' => 'dine_in',
+                'sales_channel' => 'dine_in',
+                'online_checkout_uuid' => 'uuid-dine-in-ignored',
+                'order_amount' => 200,
+                'readable_order_id' => 'A25002',
+            ]),
+        ], [
+            'branch_name' => 'Munch Kilimani',
+            'from' => '2026-11-13',
+            'to' => '2026-11-13',
+        ]);
+
+        $byNumber = [];
+        foreach ($report['sections']['munch_sales']['orders'] as $order) {
+            $byNumber[$order['order_number']] = $order;
+        }
+        $glovo = $report['sections']['glovo']['orders'][0];
+
+        $this->assertTrue($byNumber['A24922']['is_online_origin']);
+        $this->assertTrue($byNumber['A24807']['is_online_origin']);
+        $this->assertFalse($byNumber['A25000']['is_online_origin']);
+        $this->assertTrue(AdminSaleReportExport::showsOnlineOrderType($byNumber['A24922'], 'munch_sales'));
+        $this->assertTrue(AdminSaleReportExport::showsOnlineOrderType($byNumber['A24807'], 'munch_sales'));
+        $this->assertFalse(AdminSaleReportExport::showsOnlineOrderType($byNumber['A25000'], 'munch_sales'));
+        $this->assertFalse(AdminSaleReportExport::showsOnlineOrderType($byNumber['A25002'], 'munch_sales'));
+        $this->assertFalse(AdminSaleReportExport::showsOnlineOrderType($glovo, 'glovo'));
+
+        $deliveryHtml = AdminSaleReportExport::orderTypeCellHtml($byNumber['A24922'], 'munch_sales');
+        $takeawayHtml = AdminSaleReportExport::orderTypeCellHtml($byNumber['A24807'], 'munch_sales');
+        $cashierHtml = AdminSaleReportExport::orderTypeCellHtml($byNumber['A25000'], 'munch_sales');
+        $dineInHtml = AdminSaleReportExport::orderTypeCellHtml($byNumber['A25002'], 'munch_sales');
+        $glovoHtml = AdminSaleReportExport::orderTypeCellHtml($glovo, 'glovo');
+
+        $this->assertStringContainsString('Delivery', $deliveryHtml);
+        $this->assertStringContainsString('<strong>Online</strong>', $deliveryHtml);
+        $this->assertStringContainsString('type-cell__online', $deliveryHtml);
+        $this->assertStringContainsString('Take Away', $takeawayHtml);
+        $this->assertStringContainsString('<strong>Online</strong>', $takeawayHtml);
+        $this->assertSame('Take Away', $cashierHtml);
+        $this->assertSame('Dine In', $dineInHtml);
+        $this->assertSame('Glovo', $glovoHtml);
+        $this->assertStringNotContainsString('Online', $glovoHtml);
+
+        $html = view('admin-views.report.partials._sale-report-export', compact('report'))->render();
+        $this->assertStringContainsString('type-cell__online', $html);
+        $this->assertStringContainsString('<strong>Online</strong>', $html);
+        $this->assertStringContainsString('A24922', $html);
+        $this->assertStringContainsString('A24807', $html);
+        $this->assertSame(2, substr_count($html, '<strong>Online</strong>'));
+    }
+
     private function order(array $overrides): array
     {
         return array_merge([

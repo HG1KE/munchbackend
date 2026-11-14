@@ -696,6 +696,9 @@ class AdminSaleReportExport
             'sales_category' => $salesCategory,
             'order_type' => self::categoryLabel($category),
             'category' => $category,
+            // Same online-origin marker as the POS View Orders "Online" chip
+            // (survives Accept into POS-family delivery / takeaway).
+            'is_online_origin' => self::isOnlineOrigin($order),
             'payment_method' => PosOrderTypes::paymentDisplayLabel(
                 (string) (self::value($order, 'payment_method') ?? '')
             ),
@@ -708,6 +711,38 @@ class AdminSaleReportExport
             'amount' => self::money(self::payableAmount($order)),
             'items' => self::itemsFor($order, $items),
         ];
+    }
+
+    /**
+     * Originated online (website/app checkout). Matches the POS Online chip
+     * prefer-uuid path: non-empty `online_checkout_uuid`. Marketplace POS
+     * rows (Glovo/Uber/Bolt) are never labeled Online in the PDF Type cell.
+     *
+     * @param  object|array<string, mixed>  $order
+     */
+    public static function isOnlineOrigin(object|array $order): bool
+    {
+        $uuid = self::value($order, 'online_checkout_uuid');
+
+        return $uuid !== null && trim((string) $uuid) !== '';
+    }
+
+    /**
+     * Whether Munch Sales PDF Type should show channel + bold Online.
+     * Delivery / Take Away only — never Glovo / Uber / Bolt Food.
+     *
+     * @param  array<string, mixed>  $order
+     */
+    public static function showsOnlineOrderType(array $order, string $sectionKey): bool
+    {
+        if ($sectionKey !== 'munch_sales') {
+            return false;
+        }
+        if (empty($order['is_online_origin'])) {
+            return false;
+        }
+
+        return in_array((string) ($order['category'] ?? ''), ['delivery', 'takeaway'], true);
     }
 
     /**
@@ -864,6 +899,25 @@ class AdminSaleReportExport
         $html .= '</div>';
 
         return $html;
+    }
+
+    /**
+     * HTML for the PDF Type cell. Online-accepted Munch Sales rows render
+     * channel on the first line and bold "Online" on the second.
+     *
+     * @param  array<string, mixed>  $order
+     */
+    public static function orderTypeCellHtml(array $order, string $sectionKey): string
+    {
+        $type = e((string) ($order['order_type'] ?? ''));
+        if (! self::showsOnlineOrderType($order, $sectionKey)) {
+            return $type;
+        }
+
+        return '<div class="type-cell">'
+            .'<div class="type-cell__channel">'.$type.'</div>'
+            .'<div class="type-cell__online"><strong>Online</strong></div>'
+            .'</div>';
     }
 
     /**
