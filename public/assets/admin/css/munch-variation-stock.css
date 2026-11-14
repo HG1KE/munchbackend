@@ -1,0 +1,47 @@
+/**
+ * Admin Variation stock — bulk allocation page + modal sections.
+ */
+
+.munch-var-stock-options {
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.munch-var-stock-modal .munch-var-stock-modal__panel {
+    width: min(760px, 100%);
+    max-height: min(90vh, 860px);
+}
+
+.munch-var-stock-section {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem 1rem 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.munch-var-stock-section__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.65rem;
+}
+
+.munch-var-stock-section__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: #0f172a;
+}
+
+.munch-var-stock-section__title span {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.munch-var-stock-section__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}

@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\OrderOperationsController;
 use App\Http\Controllers\Admin\OrderAutomationController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\VariationStockAllocationController;
 use App\Http\Controllers\Admin\ProductPricingController;
 use App\Http\Controllers\Admin\ProductStockAllocationController;
 use App\Http\Controllers\Admin\ReceiptTemplateController;
@@ -260,6 +261,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('stock-allocations/unallocated', [ProductStockAllocationController::class, 'unallocated'])->name('stock-allocations.unallocated');
             Route::get('stock-allocations/{id}', [ProductStockAllocationController::class, 'show'])->name('stock-allocations.show');
             Route::post('stock-allocations/{id}', [ProductStockAllocationController::class, 'update'])->name('stock-allocations.update');
+            Route::get('variation-stock', [VariationStockAllocationController::class, 'index'])->name('variation-stock.index');
+            Route::get('variation-stock-allocations/{id}', [VariationStockAllocationController::class, 'show'])->name('variation-stock-allocations.show');
+            Route::post('variation-stock-allocations/{id}', [VariationStockAllocationController::class, 'update'])->name('variation-stock-allocations.update');
             Route::get('excel-import', [ProductController::class, 'excelImport'])->name('excel-import');
             Route::delete('delete/{id}', [ProductController::class, 'delete'])->name('delete');
             Route::get('status/{id}/{status}', [ProductController::class, 'status'])->name('status');

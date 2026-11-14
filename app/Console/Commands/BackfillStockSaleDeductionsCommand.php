@@ -12,7 +12,7 @@ class BackfillStockSaleDeductionsCommand extends Command
                             {--branch= : Optional branch_id filter}
                             {--dry-run : Count candidate orders without writing}';
 
-    protected $description = 'Idempotently rebuild stock_sale_deductions for recent sold orders (safe to re-run)';
+    protected $description = 'Idempotently rebuild stock_sale_deductions for recent sold orders from product/addon/variation allocations (safe to re-run)';
 
     public function handle(StockDeductionService $service): int
     {

@@ -448,6 +448,12 @@
                                             <span class="text-truncate">{{translate('product_list')}}</span>
                                         </a>
                                     </li>
+                                    <li class="nav-item {{Request::is('admin/product/variation-stock*') ?'active':''}}">
+                                        <a class="nav-link " href="{{route('admin.product.variation-stock.index')}}" title="{{translate('Variation stock')}}">
+                                            <span class="tio-circle nav-indicator-icon"></span>
+                                            <span class="text-truncate">{{translate('Variation stock')}}</span>
+                                        </a>
+                                    </li>
                                     <li class="nav-item {{Request::is('admin/product/bulk-import')?'active':''}}">
                                         <a class="nav-link " href="{{route('admin.product.bulk-import')}}" title="{{translate('bulk import')}}">
                                             <span class="tio-circle nav-indicator-icon"></span>

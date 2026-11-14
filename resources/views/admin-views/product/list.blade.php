@@ -41,6 +41,9 @@
                                     <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#unallocatedProductsModal" id="munch-unallocated-open">
                                         {{ translate('Unallocated products') }}
                                     </button>
+                                    <a href="{{ route('admin.product.variation-stock.index') }}" class="btn btn-outline-secondary">
+                                        {{ translate('Variation stock') }}
+                                    </a>
                                     <button type="button" class="btn btn-outline-dark" data-bulk-pricing>
                                         {{ translate('Bulk Price Edit') }}
                                     </button>

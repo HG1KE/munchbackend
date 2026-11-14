@@ -36,6 +36,8 @@ class StockDeductionServiceTest extends TestCase
             $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('product_id')->nullable();
             $table->decimal('quantity', 12, 3)->default(0);
+            $table->text('variation')->nullable();
+            $table->text('variant')->nullable();
             $table->text('add_on_ids')->nullable();
             $table->text('add_on_qtys')->nullable();
             $table->timestamps();
@@ -50,6 +52,16 @@ class StockDeductionServiceTest extends TestCase
         Schema::create('addon_stock_allocations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('addon_id');
+            $table->unsignedBigInteger('stock_item_id');
+            $table->decimal('quantity', 12, 3)->default(1);
+            $table->timestamps();
+        });
+        Schema::create('variation_stock_allocations', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('product_id');
+            $table->string('option_key');
+            $table->string('group_name')->nullable();
+            $table->string('option_label')->nullable();
             $table->unsignedBigInteger('stock_item_id');
             $table->decimal('quantity', 12, 3)->default(1);
             $table->timestamps();
@@ -71,6 +83,7 @@ class StockDeductionServiceTest extends TestCase
     protected function tearDown(): void
     {
         Schema::dropIfExists('stock_sale_deductions');
+        Schema::dropIfExists('variation_stock_allocations');
         Schema::dropIfExists('addon_stock_allocations');
         Schema::dropIfExists('product_stock_allocations');
         Schema::dropIfExists('order_details');
@@ -80,8 +93,13 @@ class StockDeductionServiceTest extends TestCase
         parent::tearDown();
     }
 
-    private function seedOrder(array $order, array $details = [], array $allocations = [], array $addonAllocations = []): Order
-    {
+    private function seedOrder(
+        array $order,
+        array $details = [],
+        array $allocations = [],
+        array $addonAllocations = [],
+        array $variationAllocations = [],
+    ): Order {
         $orderId = DB::table('orders')->insertGetId(array_merge([
             'branch_id' => 5,
             'order_status' => 'delivered',
@@ -102,6 +120,13 @@ class StockDeductionServiceTest extends TestCase
 
         foreach ($addonAllocations as $allocation) {
             DB::table('addon_stock_allocations')->insert(array_merge([
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], $allocation));
+        }
+
+        foreach ($variationAllocations as $allocation) {
+            DB::table('variation_stock_allocations')->insert(array_merge([
                 'created_at' => now(),
                 'updated_at' => now(),
             ], $allocation));
@@ -432,5 +457,97 @@ class StockDeductionServiceTest extends TestCase
         $this->assertSame(1, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
         $this->assertSame(3.0, (float) DB::table('stock_sale_deductions')->where('order_id', $order->id)->value('quantity'));
         $this->assertSame(7, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->value('addon_id'));
+    }
+
+    public function test_variation_sale_deducts_allocation_times_line_qty(): void
+    {
+        $largeKey = \App\Support\ProductVariationPricing::optionKey('Size', 'Large');
+        $order = $this->seedOrder([], [
+            [
+                'product_id' => 10,
+                'quantity' => 2,
+                'variation' => json_encode([
+                    [
+                        'name' => 'Size',
+                        'values' => ['label' => ['Large']],
+                    ],
+                ]),
+            ],
+        ], [], [], [
+            [
+                'product_id' => 10,
+                'option_key' => $largeKey,
+                'group_name' => 'Size',
+                'option_label' => 'Large',
+                'stock_item_id' => 9,
+                'quantity' => 1.5,
+            ],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+
+        $row = DB::table('stock_sale_deductions')->where('order_id', $order->id)->first();
+        $this->assertNotNull($row);
+        $this->assertSame(10, (int) $row->product_id);
+        $this->assertSame(0, (int) $row->addon_id);
+        $this->assertSame(9, (int) $row->stock_item_id);
+        $this->assertSame(3.0, (float) $row->quantity);
+    }
+
+    public function test_product_and_variation_allocations_sum_on_same_stock_item(): void
+    {
+        $largeKey = \App\Support\ProductVariationPricing::optionKey('Size', 'Large');
+        $order = $this->seedOrder([], [
+            [
+                'product_id' => 10,
+                'quantity' => 1,
+                'variation' => json_encode([
+                    [
+                        'name' => 'Size',
+                        'values' => [
+                            ['label' => 'Large', 'optionPrice' => 50],
+                        ],
+                    ],
+                ]),
+            ],
+        ], [
+            ['product_id' => 10, 'stock_item_id' => 1, 'quantity' => 2],
+        ], [], [
+            [
+                'product_id' => 10,
+                'option_key' => $largeKey,
+                'group_name' => 'Size',
+                'option_label' => 'Large',
+                'stock_item_id' => 1,
+                'quantity' => 1,
+            ],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+
+        $rows = DB::table('stock_sale_deductions')->where('order_id', $order->id)->get();
+        $this->assertCount(1, $rows);
+        $this->assertSame(3.0, (float) $rows[0]->quantity);
+        $this->assertSame(10, (int) $rows[0]->product_id);
+        $this->assertSame(0, (int) $rows[0]->addon_id);
+    }
+
+    public function test_unallocated_variation_stays_untracked(): void
+    {
+        $order = $this->seedOrder([], [
+            [
+                'product_id' => 10,
+                'quantity' => 2,
+                'variation' => json_encode([
+                    [
+                        'name' => 'Size',
+                        'values' => ['label' => ['Large']],
+                    ],
+                ]),
+            ],
+        ]);
+
+        (new StockDeductionService())->syncOrder($order->fresh(['details']));
+        $this->assertSame(0, (int) DB::table('stock_sale_deductions')->where('order_id', $order->id)->count());
     }
 }

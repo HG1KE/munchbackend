@@ -36,6 +36,11 @@ class StockItem extends Model
         return $this->hasMany(AddonStockAllocation::class, 'stock_item_id');
     }
 
+    public function variationAllocations(): HasMany
+    {
+        return $this->hasMany(VariationStockAllocation::class, 'stock_item_id');
+    }
+
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'product_stock_allocations', 'stock_item_id', 'product_id')

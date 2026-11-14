@@ -6,6 +6,7 @@ use App\Model\AddonStockAllocation;
 use App\Model\Order;
 use App\Model\ProductStockAllocation;
 use App\Model\StockSaleDeduction;
+use App\Model\VariationStockAllocation;
 use App\Support\PosOrderTypes;
 use App\Support\TimezoneDisplay;
 use Carbon\Carbon;
@@ -15,6 +16,12 @@ use Illuminate\Support\Facades\Schema;
 
 class StockDeductionService
 {
+    public function __construct(
+        private ?VariationStockAllocationService $variationAllocations = null,
+    ) {
+        $this->variationAllocations ??= new VariationStockAllocationService();
+    }
+
     /**
      * Kitchen-committed statuses. POS dine_in/delivery place as `confirmed`;
      * takeaway/marketplace place as `delivered`. Pending/canceled/failed clear.
@@ -58,18 +65,20 @@ class StockDeductionService
     }
 
     /**
-     * Rebuild ledger rows for an order from current details × product/addon allocations.
+     * Rebuild ledger rows for an order from current details × product/addon/variation allocations.
      * Idempotent: re-running with the same details leaves net quantities unchanged.
      * Non-sold / non-POS / canceled orders clear their ledger (reverses prior deduction).
      *
-     * Product rows: product_id > 0, addon_id = 0.
+     * Product rows: product_id > 0, addon_id = 0 (base product + selected variation options).
      * Addon rows: product_id = 0, addon_id > 0 (qty from order_details.add_on_qtys).
+     * Unallocated products/addons/variations stay untracked (no Sold rows).
      */
     public function syncOrder(Order $order): void
     {
         $hasProductAlloc = Schema::hasTable('product_stock_allocations');
         $hasAddonAlloc = Schema::hasTable('addon_stock_allocations');
-        if (! Schema::hasTable('stock_sale_deductions') || (! $hasProductAlloc && ! $hasAddonAlloc)) {
+        $hasVariationAlloc = Schema::hasTable('variation_stock_allocations');
+        if (! Schema::hasTable('stock_sale_deductions') || (! $hasProductAlloc && ! $hasAddonAlloc && ! $hasVariationAlloc)) {
             return;
         }
 
@@ -86,10 +95,23 @@ class StockDeductionService
         $order->loadMissing('details');
         $productQtys = [];
         $addonQtys = [];
+        // product_id => [option_key => selected times across lines × line qty]
+        $variationSelections = [];
         foreach ($order->details as $detail) {
             $productId = (int) ($detail->product_id ?? 0);
-            if ($productId > 0) {
-                $productQtys[$productId] = ($productQtys[$productId] ?? 0) + (float) ($detail->quantity ?? 0);
+            $lineQty = (float) ($detail->quantity ?? 0);
+            if ($productId > 0 && $lineQty > 0) {
+                $productQtys[$productId] = ($productQtys[$productId] ?? 0) + $lineQty;
+
+                if ($hasVariationAlloc) {
+                    foreach ($this->variationAllocations->selectedOptionKeysFromDetail($detail) as $optionKey) {
+                        if (! isset($variationSelections[$productId])) {
+                            $variationSelections[$productId] = [];
+                        }
+                        $variationSelections[$productId][$optionKey] =
+                            ($variationSelections[$productId][$optionKey] ?? 0.0) + $lineQty;
+                    }
+                }
             }
 
             foreach ($this->addonQuantitiesFromDetail($detail) as $addonId => $qty) {
@@ -132,6 +154,47 @@ class StockDeductionService
                     $unallocatedProducts[] = (int) $productId;
                 }
             }
+        }
+
+        if ($hasVariationAlloc && $variationSelections !== []) {
+            $productIds = array_keys($variationSelections);
+            $optionKeys = [];
+            foreach ($variationSelections as $byKey) {
+                foreach (array_keys($byKey) as $optionKey) {
+                    $optionKeys[$optionKey] = true;
+                }
+            }
+
+            $allocations = VariationStockAllocation::query()
+                ->whereIn('product_id', $productIds)
+                ->whereIn('option_key', array_keys($optionKeys))
+                ->get();
+
+            foreach ($allocations as $allocation) {
+                $productId = (int) $allocation->product_id;
+                $optionKey = (string) $allocation->option_key;
+                $selectedQty = (float) ($variationSelections[$productId][$optionKey] ?? 0);
+                if ($selectedQty <= 0) {
+                    continue;
+                }
+                $stockItemId = (int) $allocation->stock_item_id;
+                $qty = $selectedQty * (float) $allocation->quantity;
+                if ($qty <= 0 || $stockItemId <= 0) {
+                    continue;
+                }
+                // Fold into product ledger rows (addon_id=0) — variance sums by stock_item_id.
+                $key = 'p:' . $productId . ':' . $stockItemId;
+                if (! isset($desired[$key])) {
+                    $desired[$key] = [
+                        'product_id' => $productId,
+                        'addon_id' => 0,
+                        'stock_item_id' => $stockItemId,
+                        'quantity' => 0.0,
+                    ];
+                }
+                $desired[$key]['quantity'] += $qty;
+            }
+            // Intentionally no unallocated-variation warning: prefs say unallocated = untracked.
         }
 
         if ($hasAddonAlloc && $hasAddonColumn && $addonQtys !== []) {
